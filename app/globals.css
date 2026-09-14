@@ -1,3 +1,31 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #050b08; }
+::-webkit-scrollbar-thumb { background: #2d6a4f; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #e76f51; }
+
+/* Glass Panel Styling */
+.glass-panel {
+    background: rgba(10, 28, 19, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-input {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #f3f4f6; 
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(8px);
+}
+
+.glass-input:focus {
+    background: rgba(10, 28, 19, 0.8);
+    border-color: #e76f51;
+    box-shadow: 0 0 15px rgba(231, 111, 81, 0.3);
+    outline: none;
+}
