@@ -71,7 +71,21 @@ export default function DashboardPage() {
         .eq('id', userId)
         .single()
 
-      if (profileError) throw profileError
+      // 🟢 FIX: ডেটাবেসে প্রোফাইল না পেলে ইন্টারসেপ্টর চালু করে দেওয়া (Safety Net 1)
+      if (profileError) {
+        if (profileError.code === 'PGRST116') { 
+          const { data: { session } } = await supabase.auth.getSession()
+          setUser({ 
+            id: userId, 
+            full_name: session?.user?.user_metadata?.full_name || 'Explorer', 
+            photo_url: session?.user?.user_metadata?.avatar_url || '' 
+          })
+          setShowCompletionForm(true)
+          setLoading(false)
+          return
+        }
+        throw profileError
+      }
       
       setUser(profileData)
 
@@ -114,7 +128,12 @@ export default function DashboardPage() {
     setUpdating(true)
     
     try {
-      const { error } = await supabase.from('profiles').update({
+      // 🟢 FIX: Update এর বদলে Upsert লজিক ব্যবহার করা (Safety Net 2)
+      const { error } = await supabase.from('profiles').upsert({
+        id: user.id,
+        full_name: user.full_name,
+        photo_url: user.photo_url,
+        role: user.role || 'explorer',
         student_id: formData.student_id,
         phone: formData.phone,
         department: formData.department.toUpperCase(),
@@ -128,7 +147,7 @@ export default function DashboardPage() {
         swimming_skill: formData.swimming_skill,
         has_bicycle: formData.has_bicycle,
         experience_level: formData.experience_level
-      }).eq('id', user.id)
+      })
 
       if (error) throw error
 
@@ -151,7 +170,17 @@ export default function DashboardPage() {
     )
   }
 
-  if (!user) return null
+  // 🟢 FIX: ডেড-এন্ড বা ব্ল্যাঙ্ক স্ক্রিন চিরতরে রিমুভ করা (Safety Net 3)
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-center p-4 bg-[#050b08]">
+        <i className="fa-solid fa-triangle-exclamation text-5xl text-[#e76f51] mb-4"></i>
+        <h2 className="text-2xl font-bold text-white mb-2">ডেটা সিঙ্কিং ফেইলর</h2>
+        <p className="text-gray-400 max-w-md mb-6">আপনার অ্যাকাউন্টের তথ্য সার্ভার থেকে লোড করা সম্ভব হয়নি। অনুগ্রহ করে পেজটি রিলোড করুন অথবা পুনরায় লগইন করুন।</p>
+        <button onClick={() => window.location.reload()} className="bg-[#2d6a4f] text-white px-6 py-2 rounded-lg font-bold">রিলোড করুন</button>
+      </div>
+    )
+  }
 
   if (showCompletionForm) {
     return (
