@@ -14,6 +14,17 @@ export default function DashboardPage() {
   const [bookings, setBookings] = useState([])
   const [rank, setRank] = useState('-')
 
+  // প্রোফাইল কমপ্লিশন ইন্টারসেপ্টর স্টেট
+  const [showCompletionForm, setShowCompletionForm] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [formData, setFormData] = useState({
+    student_id: '', phone: '', department: '', batch: '', gender: '', blood_group: '',
+    hall: '', tshirt_size: '', emergency_contact: '', emergency_relation: '',
+    swimming_skill: '', has_bicycle: '', experience_level: ''
+  })
+
+  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
+
   useEffect(() => {
     AOS.init({ once: true, offset: 50 })
     fetchDashboardData()
@@ -21,7 +32,6 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      // ১. ইউজারের লগইন সেশন চেক করা
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session) {
         router.push('/login')
@@ -30,7 +40,6 @@ export default function DashboardPage() {
 
       const userId = session.user.id
 
-      // ২. প্রোফাইল ডেটা ফেচ করা
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -38,9 +47,14 @@ export default function DashboardPage() {
         .single()
 
       if (profileError) throw profileError
+      
       setUser(profileData)
 
-      // ৩. লিডারবোর্ড র‍্যাংক ক্যালকুলেট করা (যাদের ট্রেকিং সংখ্যা ইউজারের চেয়ে বেশি তাদের কাউন্ট করা)
+      // ইন্টারসেপ্টর লজিক: ম্যান্ডেটরি ফিল্ড মিসিং থাকলে ফর্ম ওপেন হবে
+      if (!profileData.student_id || !profileData.phone || !profileData.blood_group) {
+        setShowCompletionForm(true)
+      }
+
       const userTreks = profileData.total_treks || 0
       if (userTreks > 0) {
         const { count, error: rankError } = await supabase
@@ -53,7 +67,6 @@ export default function DashboardPage() {
         }
       }
 
-      // ৪. বুকিং হিস্ট্রি ফেচ করা (ইভেন্টের টাইটেল সহ)
       const { data: bookingData, error: bookingError } = await supabase
         .from('bookings')
         .select('*, events(title)')
@@ -70,9 +83,47 @@ export default function DashboardPage() {
     }
   }
 
+  const handleFormChange = (e) => {
+    setFormData({ ...formData, [e.target.id]: e.target.value })
+  }
+
+  const handleProfileComplete = async (e) => {
+    e.preventDefault()
+    setUpdating(true)
+    
+    try {
+      const { error } = await supabase.from('profiles').update({
+        student_id: formData.student_id,
+        phone: formData.phone,
+        department: formData.department.toUpperCase(),
+        batch: formData.batch,
+        gender: formData.gender,
+        blood_group: formData.blood_group,
+        hall: formData.hall,
+        tshirt_size: formData.tshirt_size,
+        emergency_contact: formData.emergency_contact,
+        emergency_relation: formData.emergency_relation,
+        swimming_skill: formData.swimming_skill,
+        has_bicycle: formData.has_bicycle,
+        experience_level: formData.experience_level
+      }).eq('id', user.id)
+
+      if (error) throw error
+
+      setUser({ ...user, ...formData })
+      setShowCompletionForm(false)
+      alert('অ্যাডভেঞ্চার প্রোফাইল সফলভাবে আপডেট হয়েছে!')
+      
+    } catch (err) {
+      alert('প্রোফাইল আপডেট ফেইল করেছে: ' + err.message)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white">
+      <div className="min-h-screen flex items-center justify-center text-white bg-[#050b08]">
         <i className="fa-solid fa-compass fa-spin text-4xl text-[#e76f51]"></i>
       </div>
     )
@@ -80,7 +131,105 @@ export default function DashboardPage() {
 
   if (!user) return null
 
-  // অ্যাভাটার জেনারেট করা
+  // Mandatory Profile Completion Overlay (Interceptor)
+  if (showCompletionForm) {
+    return (
+      <div className="min-h-screen bg-[#050b08] flex items-center justify-center p-4 relative z-50">
+        <div className="max-w-4xl w-full bg-[#0a1c13] border border-[#e76f51]/30 rounded-3xl p-8 shadow-[0_0_30px_rgba(231,111,81,0.15)] max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="text-center mb-8 border-b border-white/10 pb-6">
+            <i className="fa-solid fa-triangle-exclamation text-4xl text-yellow-500 mb-3 animate-bounce"></i>
+            <h2 className="text-2xl font-black text-white">প্রোফাইল অসম্পূর্ণ!</h2>
+            <p className="text-gray-400 text-sm mt-2">গুগল দিয়ে লগইন করার কারণে আপনার কিছু গুরুত্বপূর্ণ তথ্য মিসিং আছে। ড্যাশবোর্ডে প্রবেশ করতে ফর্মটি পূরণ করুন।</p>
+          </div>
+          
+          <form onSubmit={handleProfileComplete} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-gray-300">
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">স্টুডেন্ট আইডি *</label>
+                <input type="text" id="student_id" required value={formData.student_id} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">ফোন নম্বর *</label>
+                <input type="tel" id="phone" required value={formData.phone} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">ডিপার্টমেন্ট *</label>
+                <input type="text" id="department" required placeholder="e.g. CSE" value={formData.department} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51] uppercase" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">ব্যাচ *</label>
+                <select id="batch" required value={formData.batch} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
+                  <option value="" disabled>নির্বাচন করুন</option>
+                  {years.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">রক্তের গ্রুপ *</label>
+                <select id="blood_group" required value={formData.blood_group} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
+                  <option value="" disabled>নির্বাচন করুন</option>
+                  <option value="A+">A+</option><option value="B+">B+</option><option value="O+">O+</option><option value="AB+">AB+</option>
+                  <option value="A-">A-</option><option value="B-">B-</option><option value="O-">O-</option><option value="AB-">AB-</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">আবাসিক হল *</label>
+                <select id="hall" required value={formData.hall} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
+                  <option value="" disabled>নির্বাচন করুন</option>
+                  <option value="Bangabandhu Hall">Bangabandhu Hall</option>
+                  <option value="Tareq Huda Hall">Tareq Huda Hall</option>
+                  <option value="Sufia Kamal Hall">Sufia Kamal Hall</option>
+                  <option value="Attached/Non-residential">Attached/Non-residential</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">টি-শার্ট সাইজ *</label>
+                <select id="tshirt_size" required value={formData.tshirt_size} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
+                  <option value="" disabled>নির্বাচন করুন</option>
+                  <option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">জেন্ডার *</label>
+                <select id="gender" required value={formData.gender} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
+                  <option value="" disabled>নির্বাচন করুন</option>
+                  <option value="Male">Male</option><option value="Female">Female</option>
+                </select>
+              </div>
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5 p-4 border border-red-500/30 bg-red-500/5 rounded-xl">
+                <div>
+                  <label className="block text-[11px] font-bold text-red-400 mb-1.5 uppercase">জরুরি কন্টাক্ট নম্বর *</label>
+                  <input type="tel" id="emergency_contact" required value={formData.emergency_contact} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-red-500" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-red-400 mb-1.5 uppercase">সম্পর্ক (যেমন: বাবা) *</label>
+                  <input type="text" id="emergency_relation" required value={formData.emergency_relation} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-red-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">সাঁতার জানেন? *</label>
+                <select id="swimming_skill" required value={formData.swimming_skill} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
+                  <option value="" disabled>নির্বাচন করুন</option><option value="Yes">হ্যাঁ</option><option value="No">না</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">অ্যাডভেঞ্চার অভিজ্ঞতা *</label>
+                <select id="experience_level" required value={formData.experience_level} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
+                  <option value="" disabled>নির্বাচন করুন</option>
+                  <option value="Beginner">Beginner</option><option value="Intermediate">Intermediate</option><option value="Pro">Pro</option>
+                </select>
+              </div>
+            </div>
+            
+            <button type="submit" disabled={updating} className="w-full bg-[#e76f51] hover:bg-orange-600 text-white font-black text-lg py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(231,111,81,0.4)] flex justify-center items-center gap-2 mt-6">
+              {updating ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-check-circle"></i>}
+              <span>{updating ? 'আপডেট হচ্ছে...' : 'প্রোফাইল কমপ্লিট করুন'}</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
   const avatarUrl = user.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0a1c13&color=fff&size=128`
 
   return (
