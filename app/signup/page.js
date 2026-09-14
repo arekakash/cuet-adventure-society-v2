@@ -22,7 +22,6 @@ export default function SignupPage() {
   const years = Array.from({ length: 83 }, (_, i) => 2050 - i)
 
   useEffect(() => {
-    // অ্যানিমেশন ইনিশিয়ালাইজ করা
     AOS.init({ once: true, offset: 50, duration: 800 })
   }, [])
 
@@ -30,7 +29,6 @@ export default function SignupPage() {
     setFormData({ ...formData, [e.target.id]: e.target.value })
   }
 
-  // Google Login Logic (Supabase)
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -64,19 +62,22 @@ export default function SignupPage() {
           {
             id: user.id,
             full_name: formData.fullName,
+            student_id: formData.studentId,
             email: formData.email,
+            phone: formData.phone,
             department: formData.department.toUpperCase(),
             batch: formData.batch,
+            gender: formData.gender,
             blood_group: formData.bloodGroup,
             hall: formData.hall,
-            tshirtSize: formData.tshirtSize,
-            swimmingSkill: formData.swimmingSkill,
-            hasBicycle: formData.hasBicycle,
-            experienceLevel: formData.experienceLevel,
-            emergencyContact: formData.emergencyContact,
-            emergencyRelation: formData.emergencyRelation,
-            fbLink: formData.fbLink,
-            instaLink: formData.instaLink,
+            tshirt_size: formData.tshirtSize,
+            emergency_contact: formData.emergencyContact,
+            emergency_relation: formData.emergencyRelation,
+            swimming_skill: formData.swimmingSkill,
+            has_bicycle: formData.hasBicycle,
+            experience_level: formData.experienceLevel,
+            fb_link: formData.fbLink,
+            insta_link: formData.instaLink,
             role: 'explorer'
           }
         ])
@@ -154,50 +155,46 @@ export default function SignupPage() {
         </div>
 
         <form onSubmit={handleSignup} className="space-y-5">
-          {/* Row 1: Name & ID */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-aos="fade-up" data-aos-delay="500">
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">আপনার নাম *</label>
-              <input type="text" id="fullName" required value={formData.fullName} onChange={handleChange} placeholder="Full Name" className="glass-input w-full text-sm rounded-xl block p-3.5" />
+              <input type="text" id="fullName" required value={formData.fullName} onChange={handleChange} placeholder="Full Name" className="glass-input w-full text-sm rounded-xl block p-3.5 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
             </div>
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">স্টুডেন্ট আইডি *</label>
-              <input type="text" id="studentId" required value={formData.studentId} onChange={handleChange} placeholder="e.g. 2101001" className="glass-input w-full text-sm rounded-xl block p-3.5" />
+              <input type="text" id="studentId" required value={formData.studentId} onChange={handleChange} placeholder="e.g. 2101001" className="glass-input w-full text-sm rounded-xl block p-3.5 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
             </div>
           </div>
 
-          {/* Row 2: Email & Phone */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-aos="fade-up" data-aos-delay="550">
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">ইমেইল অ্যাড্রেস *</label>
-              <input type="email" id="email" required value={formData.email} onChange={handleChange} placeholder="example@cuet.ac.bd" className="glass-input w-full text-sm rounded-xl block p-3.5" />
+              <input type="email" id="email" required value={formData.email} onChange={handleChange} placeholder="example@cuet.ac.bd" className="glass-input w-full text-sm rounded-xl block p-3.5 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
             </div>
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">নিজের ফোন নম্বর *</label>
-              <input type="tel" id="phone" required value={formData.phone} onChange={handleChange} placeholder="01XXXXXXXXX" className="glass-input w-full text-sm rounded-xl block p-3.5" />
+              <input type="tel" id="phone" required value={formData.phone} onChange={handleChange} placeholder="01XXXXXXXXX" className="glass-input w-full text-sm rounded-xl block p-3.5 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
             </div>
           </div>
 
-          {/* Row 3: Dept & Batch */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-aos="fade-up" data-aos-delay="600">
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">ডিপার্টমেন্ট *</label>
-              <input type="text" id="department" required value={formData.department} onChange={handleChange} placeholder="e.g. ME, CE..." className="glass-input w-full text-sm rounded-xl block p-3.5 uppercase" />
+              <input type="text" id="department" required value={formData.department} onChange={handleChange} placeholder="e.g. ME, CE..." className="glass-input w-full text-sm rounded-xl block p-3.5 uppercase bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
             </div>
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">ব্যাচ (সাল) *</label>
-              <select id="batch" required value={formData.batch} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer">
+              <select id="batch" required value={formData.batch} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none">
                 <option value="" disabled>নির্বাচন করুন</option>
                 {years.map(year => <option key={year} value={year}>{year}</option>)}
               </select>
             </div>
           </div>
 
-          {/* Row 4: Gender & Blood Group */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-aos="fade-up" data-aos-delay="650">
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">জেন্ডার *</label>
-              <select id="gender" required value={formData.gender} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer">
+              <select id="gender" required value={formData.gender} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none">
                 <option value="" disabled>নির্বাচন করুন</option>
                 <option value="Male">পুরুষ (Male)</option>
                 <option value="Female">নারী (Female)</option>
@@ -205,7 +202,7 @@ export default function SignupPage() {
             </div>
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">রক্তের গ্রুপ *</label>
-              <select id="bloodGroup" required value={formData.bloodGroup} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer">
+              <select id="bloodGroup" required value={formData.bloodGroup} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none">
                 <option value="" disabled>নির্বাচন করুন</option>
                 <option value="A+">A+</option><option value="A-">A-</option>
                 <option value="B+">B+</option><option value="B-">B-</option>
@@ -215,11 +212,10 @@ export default function SignupPage() {
             </div>
           </div>
 
-          {/* Row 5: Hall & T-shirt */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-aos="fade-up" data-aos-delay="700">
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">আবাসিক হল *</label>
-              <select id="hall" required value={formData.hall} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer">
+              <select id="hall" required value={formData.hall} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none">
                 <option value="" disabled>নির্বাচন করুন</option>
                 <option value="Muktijoddha Hall">Muktijoddha Hall</option>
                 <option value="Shahid Mohammad Shah Hall">Shahid Mohammad Shah Hall</option>
@@ -233,7 +229,7 @@ export default function SignupPage() {
             </div>
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">টি-শার্ট সাইজ *</label>
-              <select id="tshirtSize" required value={formData.tshirtSize} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer">
+              <select id="tshirtSize" required value={formData.tshirtSize} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none">
                 <option value="" disabled>নির্বাচন করুন</option>
                 <option value="S">S (Small)</option><option value="M">M (Medium)</option>
                 <option value="L">L (Large)</option><option value="XL">XL (Extra Large)</option>
@@ -242,23 +238,21 @@ export default function SignupPage() {
             </div>
           </div>
 
-          {/* Row 6: Emergency Contact & Relation */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-aos="fade-up" data-aos-delay="750">
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">জরুরি কন্টাক্ট নম্বর *</label>
-              <input type="tel" id="emergencyContact" required value={formData.emergencyContact} onChange={handleChange} placeholder="01XXXXXXXXX" className="glass-input w-full text-sm rounded-xl block p-3.5" />
+              <input type="tel" id="emergencyContact" required value={formData.emergencyContact} onChange={handleChange} placeholder="01XXXXXXXXX" className="glass-input w-full text-sm rounded-xl block p-3.5 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
             </div>
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">সম্পর্ক (যেমন: বাবা/ভাই) *</label>
-              <input type="text" id="emergencyRelation" required value={formData.emergencyRelation} onChange={handleChange} placeholder="e.g. Father, Brother" className="glass-input w-full text-sm rounded-xl block p-3.5" />
+              <input type="text" id="emergencyRelation" required value={formData.emergencyRelation} onChange={handleChange} placeholder="e.g. Father, Brother" className="glass-input w-full text-sm rounded-xl block p-3.5 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
             </div>
           </div>
 
-          {/* Row 7: Swimming & Bicycle */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-aos="fade-up" data-aos-delay="800">
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">सাঁতার জানেন? *</label>
-              <select id="swimmingSkill" required value={formData.swimmingSkill} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer">
+              <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">সাঁতার জানেন? *</label>
+              <select id="swimmingSkill" required value={formData.swimmingSkill} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none">
                 <option value="" disabled>নির্বাচন করুন</option>
                 <option value="Yes">হ্যাঁ</option>
                 <option value="No">না</option>
@@ -266,7 +260,7 @@ export default function SignupPage() {
             </div>
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">নিজের সাইকেল আছে? *</label>
-              <select id="hasBicycle" required value={formData.hasBicycle} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer">
+              <select id="hasBicycle" required value={formData.hasBicycle} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none">
                 <option value="" disabled>নির্বাচন করুন</option>
                 <option value="Yes">হ্যাঁ</option>
                 <option value="No">না</option>
@@ -274,10 +268,9 @@ export default function SignupPage() {
             </div>
           </div>
 
-          {/* Row 8: Experience */}
           <div data-aos="fade-up" data-aos-delay="850">
             <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">অ্যাডভেঞ্চার অভিজ্ঞতা *</label>
-            <select id="experienceLevel" required value={formData.experienceLevel} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer">
+            <select id="experienceLevel" required value={formData.experienceLevel} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none">
               <option value="" disabled>নির্বাচন করুন</option>
               <option value="Beginner">বিগিনার (Beginner)</option>
               <option value="Intermediate">ইন্টারমিডিয়েট (Intermediate)</option>
@@ -285,27 +278,25 @@ export default function SignupPage() {
             </select>
           </div>
 
-          {/* Row 9: Social Links */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-aos="fade-up" data-aos-delay="900">
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">ফেসবুক প্রোফাইল লিংক (ঐচ্ছিক)</label>
-              <input type="text" id="fbLink" value={formData.fbLink} onChange={handleChange} placeholder="e.g. facebook.com/username" className="glass-input w-full text-sm rounded-xl block p-3.5" />
+              <input type="text" id="fbLink" value={formData.fbLink} onChange={handleChange} placeholder="e.g. facebook.com/username" className="glass-input w-full text-sm rounded-xl block p-3.5 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
             </div>
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">ইন্সটাগ্রাম লিংক (ঐচ্ছিক)</label>
-              <input type="text" id="instaLink" value={formData.instaLink} onChange={handleChange} placeholder="e.g. instagram.com/username" className="glass-input w-full text-sm rounded-xl block p-3.5" />
+              <input type="text" id="instaLink" value={formData.instaLink} onChange={handleChange} placeholder="e.g. instagram.com/username" className="glass-input w-full text-sm rounded-xl block p-3.5 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
             </div>
           </div>
 
-          {/* Row 10: Passwords */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-4" data-aos="fade-up" data-aos-delay="950">
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">পাসওয়ার্ড *</label>
-              <input type="password" id="password" required value={formData.password} onChange={handleChange} placeholder="••••••••" className="glass-input w-full text-sm rounded-xl block p-3.5" />
+              <input type="password" id="password" required value={formData.password} onChange={handleChange} placeholder="••••••••" className="glass-input w-full text-sm rounded-xl block p-3.5 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
             </div>
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">পুনরায় পাসওয়ার্ড দিন *</label>
-              <input type="password" id="confirmPassword" required value={formData.confirmPassword} onChange={handleChange} placeholder="••••••••" className="glass-input w-full text-sm rounded-xl block p-3.5" />
+              <input type="password" id="confirmPassword" required value={formData.confirmPassword} onChange={handleChange} placeholder="••••••••" className="glass-input w-full text-sm rounded-xl block p-3.5 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
             </div>
           </div>
 
