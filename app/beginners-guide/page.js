@@ -1,6 +1,6 @@
 // app/beginners-guide/page.js
 import Link from 'next/link';
-import { guideData } from '@/data/guideData'; // পাথটি তোমার ফোল্ডার স্ট্রাকচার অনুযায়ী ঠিক আছে কিনা দেখে নিও
+import { guideData } from '../../data/guideData'; 
 
 export default function BeginnersGuidePage() {
   return (
