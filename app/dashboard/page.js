@@ -27,19 +27,44 @@ export default function DashboardPage() {
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50 })
-    fetchDashboardData()
-  }, [])
+    
+    let isMounted = true
 
-  const fetchDashboardData = async () => {
-    try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError || !session) {
-        router.push('/login')
+    const initializeDashboard = async () => {
+      // 🟢 FIX: গুগল লগইন থেকে আসলে সুপাবেজকে টোকেন প্রসেস করার সময় দেওয়া
+      if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+        await new Promise(resolve => setTimeout(resolve, 800))
+      }
+
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        if (isMounted) router.push('/login')
         return
       }
 
-      const userId = session.user.id
+      await fetchUserData(session.user.id)
+    }
 
+    initializeDashboard()
+
+    // 🟢 FIX: ব্যাকগ্রাউন্ডে লগইন স্টেট চেঞ্জ হলে সাথে সাথে ধরে ফেলা
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        fetchUserData(session.user.id)
+      }
+    })
+
+    return () => {
+      isMounted = false
+      if (authListener && authListener.subscription) {
+        authListener.subscription.unsubscribe()
+      }
+    }
+  }, [router])
+
+  const fetchUserData = async (userId) => {
+    try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -50,7 +75,6 @@ export default function DashboardPage() {
       
       setUser(profileData)
 
-      // ইন্টারসেপ্টর লজিক: ম্যান্ডেটরি ফিল্ড মিসিং থাকলে ফর্ম ওপেন হবে
       if (!profileData.student_id || !profileData.phone || !profileData.blood_group) {
         setShowCompletionForm(true)
       }
@@ -62,9 +86,7 @@ export default function DashboardPage() {
           .select('*', { count: 'exact', head: true })
           .gt('total_treks', userTreks)
         
-        if (!rankError) {
-          setRank(count + 1)
-        }
+        if (!rankError) setRank(count + 1)
       }
 
       const { data: bookingData, error: bookingError } = await supabase
@@ -131,7 +153,6 @@ export default function DashboardPage() {
 
   if (!user) return null
 
-  // Mandatory Profile Completion Overlay (Interceptor)
   if (showCompletionForm) {
     return (
       <div className="min-h-screen bg-[#050b08] flex items-center justify-center p-4 relative z-50">
