@@ -103,10 +103,15 @@ export default function DashboardPage() {
         if (!rankError) setRank(count + 1)
       }
 
+      // 🟢 আপডেটেড বুকিং কোয়েরি: ইভেন্টের কভার, গন্তব্য এবং বুকিং স্ট্যাটাস নিয়ে আসা
       const { data: bookingData, error: bookingError } = await supabase
         .from('bookings')
-        .select('*, events(title)')
+        .select(`
+          id, status, trx_id, payment_method, created_at,
+          events (id, title, start_date, cover_photo, destination)
+        `)
         .eq('user_id', userId)
+        .order('created_at', { ascending: false })
 
       if (!bookingError && bookingData) {
         setBookings(bookingData)
@@ -162,6 +167,22 @@ export default function DashboardPage() {
     }
   }
 
+  // 🟢 বুকিং স্ট্যাটাস অনুযায়ী ডায়নামিক ব্যাজ রেন্ডার করার ফাংশন
+  const getStatusBadge = (status) => {
+    switch(status) {
+      case 'approved':
+        return <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-check-circle mr-1"></i> কনফার্মড</span>
+      case 'pending':
+        return <span className="bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest animate-pulse"><i className="fa-solid fa-clock mr-1"></i> পেন্ডিং</span>
+      case 'free_booking':
+        return <span className="bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-ticket mr-1"></i> ফ্রি বুকিং</span>
+      case 'interested':
+        return <span className="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-heart mr-1"></i> ইন্টারেস্টেড</span>
+      default:
+        return <span className="bg-gray-500/20 text-gray-400 border border-gray-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest">Unknown</span>
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-white bg-[#050b08]">
@@ -176,7 +197,7 @@ export default function DashboardPage() {
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-4 bg-[#050b08]">
         <i className="fa-solid fa-triangle-exclamation text-5xl text-[#e76f51] mb-4"></i>
         <h2 className="text-2xl font-bold text-white mb-2">ডেটা সিঙ্কিং ফেইলর</h2>
-        <p className="text-gray-400 max-w-md mb-6">আপনার অ্যাকাউন্টের তথ্য সার্ভার থেকে লোড করা সম্ভব হয়নি। অনুগ্রহ করে পেজটি রিলোড করুন অথবা পুনরায় লগইন করুন।</p>
+        <p className="text-gray-400 max-w-md mb-6">আপনার অ্যাকাউন্টের তথ্য সার্ভার থেকে লোড করা সম্ভব হয়নি। অনুগ্রহ করে পেজটি রিলোড করুন অথবা পুনরায় লগইন করুন.</p>
         <button onClick={() => window.location.reload()} className="bg-[#2d6a4f] text-white px-6 py-2 rounded-lg font-bold">রিলোড করুন</button>
       </div>
     )
@@ -283,7 +304,7 @@ export default function DashboardPage() {
   const avatarUrl = user.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0a1c13&color=fff&size=128`
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10 pt-24">
       
       {/* LEFT COLUMN: Profile Info */}
       <div className="space-y-6">
@@ -399,32 +420,43 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Bookings Section */}
+        {/* 🟢 আপডেটেড Bookings Section */}
         <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl overflow-hidden" data-aos="fade-up" data-aos-delay="450">
           <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
             <h3 className="text-sm font-bold text-white tracking-widest uppercase flex items-center gap-2">
-              <i className="fa-solid fa-ticket text-[#e76f51]"></i> <span>আমার বুকিংস</span>
+              <i className="fa-solid fa-ticket text-[#e76f51]"></i> <span>আমার বুকিংস ও অ্যাক্টিভিটি</span>
             </h3>
           </div>
           
           {bookings.length > 0 ? (
             <div className="p-6 space-y-4">
               {bookings.map((booking) => (
-                <div key={booking.id} className={`bg-black/30 border ${booking.status === 'approved' ? 'border-emerald-500/30' : 'border-white/10'} p-4 rounded-xl flex justify-between items-center transition-all hover:bg-black/50 hover:-translate-y-1`}>
-                  <div>
-                    <h4 className="font-bold text-white text-sm mb-1">{booking.events?.title || 'Unknown Event'}</h4>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">TrxID: {booking.trx_id}</p>
+                <div key={booking.id} className="bg-[#050b08] border border-white/10 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row gap-5 items-start sm:items-center transition-all hover:border-[#e76f51]/50 shadow-md">
+                  
+                  {/* ইভেন্ট কভার */}
+                  <img src={booking.events?.cover_photo || 'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80'} className="w-full sm:w-28 h-20 object-cover rounded-xl shrink-0" alt="Cover" />
+                  
+                  {/* বিস্তারিত */}
+                  <div className="flex-grow">
+                      <h4 className="font-bold text-white text-base mb-1.5 line-clamp-1">{booking.events?.title || 'Unknown Event'}</h4>
+                      <p className="text-[11px] text-gray-400 mb-2 flex flex-wrap gap-x-4 gap-y-1">
+                          <span><i className="fa-solid fa-map-location-dot text-[#e76f51]"></i> {booking.events?.destination}</span>
+                          <span><i className="fa-solid fa-calendar text-blue-400"></i> {booking.events?.start_date ? new Date(booking.events.start_date).toLocaleDateString('en-GB') : ''}</span>
+                      </p>
+                      
+                      {booking.trx_id && booking.trx_id !== 'NONE' && booking.trx_id !== 'FREE_BOOKING' && (
+                          <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mt-1">
+                              TrxID: <span className="text-gray-300">{booking.trx_id}</span> ({booking.payment_method})
+                          </p>
+                      )}
                   </div>
-                  <div>
-                    {booking.status === 'approved' ? (
-                      <span className="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest">
-                        <i className="fa-solid fa-check mr-1"></i> Confirmed
-                      </span>
-                    ) : (
-                      <span className="bg-yellow-500/20 text-yellow-500 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest animate-pulse">
-                        <i className="fa-solid fa-clock mr-1"></i> Pending
-                      </span>
-                    )}
+                  
+                  {/* স্ট্যাটাস ও বাটন */}
+                  <div className="flex flex-col gap-2 w-full sm:w-auto shrink-0 items-start sm:items-end mt-2 sm:mt-0">
+                      {getStatusBadge(booking.status)}
+                      <Link href={`/event-details?id=${booking.events?.id}`} className="text-xs text-blue-400 hover:text-blue-300 font-bold mt-1.5 underline decoration-blue-400/30 underline-offset-4">
+                          বিস্তারিত দেখুন <i className="fa-solid fa-arrow-right ml-1"></i>
+                      </Link>
                   </div>
                 </div>
               ))}
