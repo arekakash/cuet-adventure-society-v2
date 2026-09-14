@@ -136,15 +136,17 @@ export default function ActiveEvents() {
                   </div>
                   
                   <div className="flex flex-col sm:flex-row md:flex-col lg:flex-row gap-3 w-full md:w-auto shrink-0 mt-2 md:mt-0">
+                      
+                      {/* ডায়নামিক রাউটিং এর বদলে কুয়েরি প্যারামিটার ব্যবহার করা হলো */}
                       <Link 
-                        href={`/admin/events/${ev.id}`} 
+                        href={`/admin/events/details?id=${ev.id}`} 
                         className="w-full sm:w-auto bg-[#e76f51]/20 text-[#e76f51] border border-[#e76f51]/30 hover:bg-[#e76f51] hover:text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2"
                       >
                           <i className="fa-solid fa-chart-pie"></i> ইভেন্ট ড্যাশবোর্ড
                       </Link>
                       
                       <Link 
-                        href={`/admin/events/edit/${ev.id}`} 
+                        href={`/admin/events/edit?id=${ev.id}`} 
                         className="w-full sm:w-auto bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500 hover:text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2"
                       >
                           <i className="fa-solid fa-pen-to-square"></i> Edit
