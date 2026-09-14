@@ -8,9 +8,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",
-    "autoprefixer": "latest",
+    "@tailwindcss/postcss": "latest",
     "next": "latest",
-    "postcss": "latest",
     "react": "latest",
     "react-dom": "latest",
     "tailwindcss": "latest"
