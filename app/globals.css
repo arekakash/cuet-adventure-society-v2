@@ -29,3 +29,19 @@
     box-shadow: 0 0 15px rgba(231, 111, 81, 0.3);
     outline: none;
 }
+
+/* Landing Page Additions */
+.glass-dark {
+    background: rgba(10, 28, 19, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+@keyframes pulseGlowBlue {
+    0%, 100% { text-shadow: 0 0 15px rgba(6, 182, 212, 0.5), 0 0 30px rgba(6, 182, 212, 0.3); }
+    50% { text-shadow: 0 0 25px rgba(6, 182, 212, 0.9), 0 0 50px rgba(6, 182, 212, 0.6), 0 0 80px rgba(6, 182, 212, 0.4); }
+}
+
+.text-glow-futuristic {
+    animation: pulseGlowBlue 4s ease-in-out infinite;
+}
