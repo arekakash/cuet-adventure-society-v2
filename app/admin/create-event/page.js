@@ -84,7 +84,7 @@ export default function CreateEvent() {
 
     try {
       // 1. ImgBB তে ছবি আপলোড (এখানে তোমার ImgBB API Key বসাবে)
-      const IMGBB_API_KEY = 'YOUR_IMGBB_API_KEY_HERE' // <--- তোমার আসল চাবিটি এখানে দেবে
+      const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23' // <--- তোমার আসল চাবিটি এখানে দেবে
       const imgFormData = new FormData()
       imgFormData.append('image', imageFile)
 
