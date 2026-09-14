@@ -14,7 +14,7 @@ import Cropper from 'react-cropper'
 import 'cropperjs/dist/cropper.css'
 
 // তোমার ImgBB API Key এখানে বসাও
-const IMGBB_API_KEY = 'YOUR_IMGBB_API_KEY_HERE' 
+const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23' 
 
 export default function WriteBlog() {
   const router = useRouter()
