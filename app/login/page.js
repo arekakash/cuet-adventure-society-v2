@@ -1,0 +1,147 @@
+'use client'
+
+import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+
+export default function LoginPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      // Supabase-এর মাধ্যমে ইমেইল-পাসওয়ার্ড লগইন
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      })
+
+      if (error) throw error
+
+      if (data.user) {
+        // লগইন সফল হলে ড্যাশবোর্ডে রিডাইরেক্ট
+        router.push('/dashboard')
+      }
+    } catch (error) {
+      alert('ইমেইল অথবা পাসওয়ার্ড ভুল হয়েছে! আবার চেষ্টা করুন।\n(' + error.message + ')')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // পাসওয়ার্ড রিকভারি ফাংশন
+  const handlePasswordReset = async () => {
+    if (!email) {
+      alert('পাসওয়ার্ড রিসেট করতে আগে উপরের বক্সে আপনার ইমেইলটি লিখুন।')
+      return
+    }
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://cuet-adventure-society-v2.pages.dev/reset-password',
+      })
+      if (error) throw error
+      alert('রিসেট লিংক পাঠানো হয়েছে! আপনার ইমেইল ইনবক্স চেক করুন।')
+    } catch (error) {
+      alert('ইমেইল পাঠাতে সমস্যা হয়েছে: ' + error.message)
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-[#050b08] text-gray-300 font-sans flex md:items-center justify-center py-12 px-4 sm:px-6 relative overflow-x-hidden">
+      
+      {/* Dynamic Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#050b08]/90 via-[#0a1c13]/80 to-[#050b08]/90"></div>
+        <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-[#e76f51]/10 rounded-full blur-[100px] animate-pulse"></div>
+        <div className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-[#2d6a4f]/10 rounded-full blur-[80px] animate-pulse"></div>
+      </div>
+
+      {/* Main Glass Container */}
+      <div className="max-w-5xl w-full bg-[#0a1c13]/70 backdrop-blur-xl rounded-[2rem] shadow-[0_0_20px_rgba(231,111,81,0.1)] overflow-hidden flex flex-col md:flex-row relative z-10 border border-white/10">
+        
+        {/* Left Side: Hero */}
+        <div className="w-full md:w-5/12 bg-black/40 p-10 lg:p-14 flex flex-col justify-center border-r border-white/5 relative overflow-hidden">
+          <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-[#e76f51] transition-colors bg-white/5 px-4 py-2 rounded-full text-xs font-bold uppercase border border-white/10 w-max mb-12 relative z-10">
+            ← হোমপেজে ফিরে যান
+          </Link>
+          
+          <div className="relative z-10">
+            <h2 className="text-4xl lg:text-5xl font-black leading-tight mb-5 text-white">
+              ফিরে আসার <br/><span className="text-[#e76f51]">রোমাঞ্চ</span>
+            </h2>
+            <p className="text-gray-400 text-sm border-l-2 border-[#e76f51] pl-4">
+              আপনার পরবর্তী অ্যাডভেঞ্চার অপেক্ষা করছে। ক্লাবের ইভেন্ট বুকিং ও ড্যাশবোর্ড অ্যাক্সেস করতে লগইন করুন।
+            </p>
+          </div>
+        </div>
+
+        {/* Right Side: Form */}
+        <div className="w-full md:w-7/12 p-8 sm:p-12 lg:p-16 flex flex-col justify-center">
+          <div className="mb-10 border-b border-white/10 pb-6">
+            <h3 className="text-2xl lg:text-3xl font-black text-white mb-2">ড্যাশবোর্ডে লগইন করুন</h3>
+            <p className="text-sm text-gray-400">নিরাপদে আপনার অ্যাকাউন্টে প্রবেশ করুন</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">ইমেইল অ্যাড্রেস</label>
+              <input 
+                type="email" 
+                required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="example@cuet.ac.bd" 
+                className="w-full bg-black/40 border border-white/10 text-white rounded-xl block p-4 focus:border-[#e76f51] focus:ring-1 focus:ring-[#e76f51] outline-none transition-all" 
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider">পাসওয়ার্ড</label>
+                <button 
+                  type="button" 
+                  onClick={handlePasswordReset} 
+                  className="text-[10px] text-[#e76f51] hover:text-white transition-colors font-bold tracking-wide"
+                >
+                  পাসওয়ার্ড ভুলে গেছেন?
+                </button>
+              </div>
+              <input 
+                type="password" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••" 
+                className="w-full bg-black/40 border border-white/10 text-white rounded-xl block p-4 focus:border-[#e76f51] focus:ring-1 focus:ring-[#e76f51] outline-none transition-all" 
+              />
+            </div>
+
+            <div className="pt-6">
+              <button 
+                type="submit" 
+                disabled={loading} 
+                className="w-full bg-[#e76f51] hover:bg-orange-600 text-white font-black text-lg py-4 px-4 rounded-xl transition-all shadow-[0_0_15px_rgba(231,111,81,0.4)] hover:-translate-y-1 flex justify-center items-center gap-2"
+              >
+                {loading ? 'লগইন হচ্ছে...' : 'লগইন করুন'}
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-400">
+              অ্যাকাউন্ট নেই? <Link href="/signup" className="text-[#e76f51] font-bold hover:text-white transition-colors border-b border-transparent hover:border-white pb-0.5">নতুন অ্যাডভেঞ্চার অ্যাকাউন্ট তৈরি করুন</Link>
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  )
+}
