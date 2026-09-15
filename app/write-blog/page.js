@@ -8,13 +8,12 @@ import dynamic from "next/dynamic";
 import AOS from "aos";
 import "aos/dist/aos.css";
 
-// রিঅ্যাক্ট কুইল এবং ক্রপারের স্টাইল ইম্পোর্ট
 import 'react-quill/dist/quill.snow.css'; 
-import Cropper from "react-cropper";
 import "cropperjs/dist/cropper.css";
 
-// SSR এরর এড়াতে ডায়নামিক ইম্পোর্ট
+// SSR ক্র্যাশ এড়াতে দুটোকেই ডায়নামিক ইম্পোর্ট করা হলো
 const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
+const Cropper = dynamic(() => import("react-cropper"), { ssr: false });
 
 export default function WriteBlogPage() {
   const router = useRouter();
@@ -24,7 +23,7 @@ export default function WriteBlogPage() {
   // ফর্ম স্টেট
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [coverImage, setCoverImage] = useState(null); // চূড়ান্ত কম্প্রেসড ফাইল এখানে থাকবে
+  const [coverImage, setCoverImage] = useState(null); 
   const [previewImg, setPreviewImg] = useState(null);
 
   // ক্রপার স্টেট
@@ -57,7 +56,6 @@ export default function WriteBlogPage() {
     if (data) setUserProfile(data);
   };
 
-  // ১. ছবি সিলেক্ট করলে ক্রপার ওপেন করার লজিক
   const handleImageSelect = (e) => {
     e.preventDefault();
     let files;
@@ -77,7 +75,6 @@ export default function WriteBlogPage() {
     }
   };
 
-  // ২. ছবি ১০০ কিলোবাইটের নিচে কম্প্রেস করার জাদুকরী লজিক (Canvas API)
   const compressImage = (dataUrl, targetSizeKB = 100) => {
     return new Promise((resolve) => {
       const img = new window.Image();
@@ -92,7 +89,6 @@ export default function WriteBlogPage() {
         let quality = 0.9;
         let resultDataUrl = canvas.toDataURL("image/jpeg", quality);
         
-        // Base64 স্ট্রিংয়ের সাইজ কিলোবাইটে হিসাব করা
         let sizeKB = Math.round((resultDataUrl.length * 3) / 4 / 1024);
 
         while (sizeKB > targetSizeKB && quality > 0.1) {
@@ -105,7 +101,6 @@ export default function WriteBlogPage() {
     });
   };
 
-  // Data URL কে File অবজেক্টে কনভার্ট করার হেল্পার ফাংশন
   const dataURLtoFile = (dataurl, filename) => {
     let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
     bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
@@ -115,16 +110,11 @@ export default function WriteBlogPage() {
     return new File([u8arr], filename, {type:mime});
   };
 
-  // ৩. ক্রপ সম্পন্ন করার লজিক
   const getCropData = async () => {
     if (typeof cropperRef.current?.cropper !== "undefined") {
-      // প্রথমে ক্রপ করা ছবি বের করা
       const croppedDataUrl = cropperRef.current?.cropper.getCroppedCanvas().toDataURL("image/jpeg");
-      
-      // এরপর সেটিকে ১০০ কিলোবাইটের নিচে কম্প্রেস করা
       const compressedDataUrl = await compressImage(croppedDataUrl, 100);
       
-      // প্রিভিউ সেট করা এবং আপলোডের জন্য File তৈরি করা
       setPreviewImg(compressedDataUrl);
       const finalFile = dataURLtoFile(compressedDataUrl, "cover-image.jpg");
       setCoverImage(finalFile);
@@ -132,7 +122,6 @@ export default function WriteBlogPage() {
     }
   };
 
-  // ImgBB তে ছবি আপলোড করার ফাংশন
   const uploadToImgBB = async (imageFile) => {
     const formData = new FormData();
     formData.append("image", imageFile);
@@ -154,7 +143,6 @@ export default function WriteBlogPage() {
     }
   };
 
-  // গল্প সাবমিট লজিক
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -236,7 +224,6 @@ export default function WriteBlogPage() {
 
         <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
           
-          {/* Cover Image Selection */}
           <div data-aos="fade-up" data-aos-delay="100">
             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">কভার ছবি (ঐচ্ছিক)</label>
             <div className="relative border-2 border-dashed border-white/20 hover:border-blue-500/50 rounded-2xl overflow-hidden bg-black/40 transition-colors group">
@@ -258,7 +245,6 @@ export default function WriteBlogPage() {
             </div>
           </div>
 
-          {/* Title */}
           <div data-aos="fade-up" data-aos-delay="200">
             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">গল্পের শিরোনাম *</label>
             <input 
@@ -271,7 +257,6 @@ export default function WriteBlogPage() {
             />
           </div>
 
-          {/* Rich Text Content */}
           <div data-aos="fade-up" data-aos-delay="300" className="write-blog-editor">
             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">গল্পের বিস্তারিত *</label>
             <div className="bg-black/40 rounded-xl border border-white/10 overflow-hidden">
@@ -338,7 +323,6 @@ export default function WriteBlogPage() {
                 ref={cropperRef}
                 style={{ height: "100%", width: "100%" }}
                 zoomTo={0.5}
-                initialAspectRatio={NaN} // ফ্রি সাইজ ক্রপিং
                 preview=".img-preview"
                 src={rawImage}
                 viewMode={1}
