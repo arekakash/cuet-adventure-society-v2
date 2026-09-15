@@ -1,11 +1,26 @@
 // app/write-blog/page.js
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/lib/supabase"; 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import AOS from "aos";
 import "aos/dist/aos.css";
+
+import 'react-quill/dist/quill.snow.css'; 
+
+// Next.js এ React Quill যেন সার্ভার সাইডে রেন্ডার হয়ে ক্র্যাশ না করে, তাই ডায়নামিক ইম্পোর্ট
+const ReactQuill = dynamic(
+  async () => {
+    const { default: RQ } = await import("react-quill");
+    // ForwardRef ব্যবহার করা হয়েছে যাতে আমরা এডিটরের ভেতরের কার্সর (Cursor) কন্ট্রোল করতে পারি
+    const QuillWrapper = ({ forwardedRef, ...props }) => <RQ ref={forwardedRef} {...props} />;
+    QuillWrapper.displayName = 'QuillWrapper';
+    return QuillWrapper;
+  },
+  { ssr: false }
+);
 
 export default function WriteBlogPage() {
   const router = useRouter();
@@ -18,6 +33,8 @@ export default function WriteBlogPage() {
   const [content, setContent] = useState("");
   const [coverImage, setCoverImage] = useState(null); 
   const [previewImg, setPreviewImg] = useState(null);
+
+  const quillRef = useRef(null);
 
   // তোমার সংরক্ষিত ImgBB API Key
   const IMGBB_API_KEY = "C8e142b508f46f59807dbb6a3a2ccb23";
@@ -44,7 +61,7 @@ export default function WriteBlogPage() {
     if (data) setUserProfile(data);
   };
 
-  // নেটিভ Canvas API ব্যবহার করে ছবি কম্প্রেস করার ফাংশন
+  // নেটিভ Canvas API ব্যবহার করে ছবি কম্প্রেস করার ফাংশন (১০০ কেবির নিচে)
   const compressImage = (dataUrl, targetSizeKB = 100) => {
     return new Promise((resolve) => {
       const img = new window.Image();
@@ -91,26 +108,6 @@ export default function WriteBlogPage() {
     return new File([u8arr], filename, {type:mime});
   };
 
-  // ছবি সিলেক্ট করার সাথে সাথেই অটো কম্প্রেস হবে
-  const handleImageSelect = (e) => {
-    e.preventDefault();
-    const files = e.target.files;
-    
-    if (files && files.length > 0) {
-      setImageProcessing(true);
-      const reader = new FileReader();
-      reader.onload = async () => {
-        // ১০০ কেবির নিচে কম্প্রেস করা হচ্ছে
-        const compressedDataUrl = await compressImage(reader.result, 100);
-        setPreviewImg(compressedDataUrl);
-        const finalFile = dataURLtoFile(compressedDataUrl, "cover-image.jpg");
-        setCoverImage(finalFile);
-        setImageProcessing(false);
-      };
-      reader.readAsDataURL(files[0]);
-    }
-  };
-
   const uploadToImgBB = async (imageFile) => {
     const formData = new FormData();
     formData.append("image", imageFile);
@@ -132,10 +129,90 @@ export default function WriteBlogPage() {
     }
   };
 
+  // কভার ছবি সিলেক্ট করার সাথে সাথেই অটো কম্প্রেস হবে
+  const handleCoverSelect = (e) => {
+    e.preventDefault();
+    const files = e.target.files;
+    
+    if (files && files.length > 0) {
+      setImageProcessing(true);
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const compressedDataUrl = await compressImage(reader.result, 100);
+        setPreviewImg(compressedDataUrl);
+        const finalFile = dataURLtoFile(compressedDataUrl, "cover-image.jpg");
+        setCoverImage(finalFile);
+        setImageProcessing(false);
+      };
+      reader.readAsDataURL(files[0]);
+    }
+  };
+
+  // গল্পের মাঝে ছবি আপলোড করার লজিক (Custom Image Handler)
+  const imageHandler = () => {
+    const input = document.createElement("input");
+    input.setAttribute("type", "file");
+    input.setAttribute("accept", "image/*");
+    input.click();
+
+    input.onchange = async () => {
+      const file = input.files[0];
+      if (file) {
+        // এডিটরের বর্তমান কার্সরের পজিশন বের করা
+        const quill = quillRef.current.getEditor();
+        const range = quill.getSelection(true);
+
+        // আপলোড হওয়া পর্যন্ত ইউজারের দেখার জন্য একটি টেক্সট বসানো
+        quill.insertText(range.index, " (Uploading Image...) ", "user");
+
+        try {
+          const reader = new FileReader();
+          reader.onload = async () => {
+            // ইনলাইন ছবিকেও ১০০ কেবির নিচে কম্প্রেস করা হচ্ছে
+            const compressedDataUrl = await compressImage(reader.result, 100);
+            const finalFile = dataURLtoFile(compressedDataUrl, "inline-image.jpg");
+            
+            // ImgBB তে আপলোড
+            const url = await uploadToImgBB(finalFile);
+
+            // আপলোডিং টেক্সট মুছে সেখানে আসল ছবিটি বসিয়ে দেওয়া
+            quill.deleteText(range.index, 22); 
+            if (url) {
+              quill.insertEmbed(range.index, "image", url);
+              quill.setSelection(range.index + 1);
+            } else {
+              alert("Image Upload Failed!");
+            }
+          };
+          reader.readAsDataURL(file);
+        } catch (error) {
+          quill.deleteText(range.index, 22);
+          alert("Error: " + error.message);
+        }
+      }
+    };
+  };
+
+  // ইনফিনিট লুপ এড়াতে useMemo ব্যবহার করে মডিউল সেটআপ করা হয়েছে
+  const modules = useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ 'header': [3, 4, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        ['link', 'image'], // Image আইকন যুক্ত করা হলো
+        ['clean']
+      ],
+      handlers: {
+        image: imageHandler // Custom Image Handler যুক্ত করা হলো
+      }
+    }
+  }), []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!title.trim() || !content.trim()) {
+    if (!title.trim() || !content.trim() || content === "<p><br></p>") {
       alert("দয়া করে গল্পের শিরোনাম এবং বিস্তারিত অংশ পূরণ করুন।");
       return;
     }
@@ -145,10 +222,11 @@ export default function WriteBlogPage() {
     try {
       let finalImageUrl = "";
       
+      // কভার ইমেজ আপলোড
       if (coverImage) {
         finalImageUrl = await uploadToImgBB(coverImage);
         if (!finalImageUrl) {
-          alert("ছবি আপলোডে সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+          alert("কভার ছবি আপলোডে সমস্যা হয়েছে। আবার চেষ্টা করুন।");
           setLoading(false);
           return;
         }
@@ -157,8 +235,7 @@ export default function WriteBlogPage() {
       const { error } = await supabase.from('stories').insert([
         {
           title: title,
-          // লাইন ব্রেকগুলো HTML <br> এ কনভার্ট করে সেভ করা হচ্ছে
-          content: content.replace(/\n/g, "<br />"),
+          content: content,
           cover_image: finalImageUrl,
           author_id: userProfile.id,
           status: 'pending' 
@@ -167,7 +244,7 @@ export default function WriteBlogPage() {
 
       if (error) throw error;
 
-      alert("আপনার গল্পটি সফলভাবে সাবমিট হয়েছে! অ্যাডমিন অ্যাপ্রুভ করার পর এটি পাবলিক স্টোরিজ পেজে দেখা যাবে।");
+      alert("আপনার গল্পটি সফলভাবে সাবমিট হয়েছে! অ্যাডমিন অ্যাপ্রুভ করার পর এটি পাবলিক ব্লগে দেখা যাবে।");
       router.push("/stories");
 
     } catch (error) {
@@ -180,7 +257,7 @@ export default function WriteBlogPage() {
 
   if (!userProfile) return (
     <div className="min-h-screen flex justify-center items-center bg-[#050b08]">
-      <i className="fa-solid fa-compass fa-spin text-4xl text-blue-500"></i>
+      <i className="fa-solid fa-compass fa-spin text-4xl text-[#e76f51]"></i>
     </div>
   );
 
@@ -188,27 +265,28 @@ export default function WriteBlogPage() {
     <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto glass-panel rounded-[2rem] p-6 sm:p-10 border border-white/10 relative overflow-hidden" data-aos="fade-up">
         
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#e76f51]/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="flex items-center gap-4 mb-8 border-b border-white/10 pb-6 relative z-10">
-          <Link href="/stories" className="text-gray-400 hover:text-white transition-colors w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-blue-500/20">
+          <Link href="/stories" className="text-gray-400 hover:text-white transition-colors w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-[#e76f51]/20">
             <i className="fa-solid fa-arrow-left"></i>
           </Link>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white">নতুন গল্প লিখুন</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-white">আপনার অ্যাডভেঞ্চার শেয়ার করুন</h1>
             <p className="text-sm text-gray-400 mt-1">
-              লেখক: <span className="text-blue-400 font-bold">{userProfile.full_name}</span> ({userProfile.department} - {userProfile.batch})
+              লেখক: <span className="text-[#e76f51] font-bold">{userProfile.full_name}</span> ({userProfile.department} - {userProfile.batch})
             </p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
           
+          {/* Cover Photo */}
           <div data-aos="fade-up" data-aos-delay="100">
             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">কভার ছবি (ঐচ্ছিক)</label>
-            <div className="relative border-2 border-dashed border-white/20 hover:border-blue-500/50 rounded-2xl overflow-hidden bg-black/40 transition-colors group">
+            <div className="relative border-2 border-dashed border-white/20 hover:border-[#e76f51]/50 rounded-2xl overflow-hidden bg-black/40 transition-colors group cursor-pointer">
               {imageProcessing ? (
-                <div className="w-full h-32 flex flex-col items-center justify-center text-blue-400">
+                <div className="w-full h-32 flex flex-col items-center justify-center text-[#e76f51]">
                   <i className="fa-solid fa-circle-notch fa-spin text-3xl mb-2"></i>
                   <span className="text-sm font-bold">ছবি অপটিমাইজ হচ্ছে...</span>
                 </div>
@@ -220,16 +298,17 @@ export default function WriteBlogPage() {
                   </div>
                 </>
               ) : (
-                <div className="w-full h-32 flex flex-col items-center justify-center text-gray-500 group-hover:text-blue-400 transition-colors">
+                <div className="w-full h-32 flex flex-col items-center justify-center text-gray-500 group-hover:text-[#e76f51] transition-colors">
                   <i className="fa-solid fa-image text-3xl mb-2"></i>
-                  <span className="text-sm font-bold">ক্লিক করে ছবি আপলোড করুন</span>
+                  <span className="text-sm font-bold">ক্লিক করে কভার ছবি আপলোড করুন</span>
                   <span className="text-[10px] mt-1 text-gray-500">স্বয়ংক্রিয়ভাবে ১০০ কেবির নিচে অপটিমাইজ হয়ে যাবে</span>
                 </div>
               )}
-              <input type="file" accept="image/*" onChange={handleImageSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+              <input type="file" accept="image/*" onChange={handleCoverSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
             </div>
           </div>
 
+          {/* Title */}
           <div data-aos="fade-up" data-aos-delay="200">
             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">গল্পের শিরোনাম *</label>
             <input 
@@ -238,29 +317,78 @@ export default function WriteBlogPage() {
               value={title} 
               onChange={(e) => setTitle(e.target.value)} 
               placeholder="রোমাঞ্চকর কোনো শিরোনাম দিন..." 
-              className="w-full text-lg sm:text-xl font-bold rounded-xl p-4 bg-black/40 border border-white/10 text-white focus:border-blue-500 outline-none transition-colors"
+              className="w-full text-lg sm:text-xl font-bold rounded-xl p-4 bg-black/40 border border-white/10 text-white focus:border-[#e76f51] outline-none transition-colors"
             />
           </div>
 
-          <div data-aos="fade-up" data-aos-delay="300">
-            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">গল্পের বিস্তারিত *</label>
-            <textarea 
-              required
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="আপনার অ্যাডভেঞ্চারের রোমাঞ্চকর অভিজ্ঞতা এখানে লিখুন... (প্যারাগ্রাফ করতে এন্টার চাপুন)"
-              className="w-full min-h-[300px] text-base sm:text-lg leading-relaxed rounded-xl p-5 bg-black/40 border border-white/10 text-gray-200 focus:border-blue-500 outline-none transition-colors resize-y"
-            ></textarea>
+          {/* Quill Rich Text Editor */}
+          <div data-aos="fade-up" data-aos-delay="300" className="write-blog-editor">
+            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">মূল গল্প (মাঝে ছবি দিতে Image আইকনে ক্লিক করুন) *</label>
+            <div className="bg-black/40 rounded-xl border border-white/10 overflow-hidden relative">
+              <ReactQuill 
+                forwardedRef={quillRef}
+                theme="snow" 
+                value={content} 
+                onChange={setContent} 
+                modules={modules}
+                placeholder="আপনার অ্যাডভেঞ্চারের রোমাঞ্চকর অভিজ্ঞতা এখানে লিখুন..."
+                className="text-gray-200"
+              />
+            </div>
+            
+            {/* Custom CSS for Quill Editor inside Next.js */}
+            <style jsx global>{`
+              .write-blog-editor .ql-toolbar {
+                background: rgba(255, 255, 255, 0.05);
+                border: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                border-top-left-radius: 0.75rem;
+                border-top-right-radius: 0.75rem;
+              }
+              .write-blog-editor .ql-container {
+                border: none;
+                min-height: 350px;
+                font-size: 1.1rem;
+                font-family: inherit;
+              }
+              .write-blog-editor .ql-editor {
+                padding: 1.5rem;
+              }
+              .write-blog-editor .ql-editor p {
+                margin-bottom: 1rem;
+                line-height: 1.8;
+              }
+              /* ইনলাইন ইমেজের জন্য দারুণ ডিজাইন */
+              .write-blog-editor .ql-editor img {
+                border-radius: 12px;
+                margin: 1.5rem auto;
+                max-width: 100%;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+                display: block;
+              }
+              .write-blog-editor .ql-stroke {
+                stroke: #9ca3af;
+              }
+              .write-blog-editor .ql-fill {
+                fill: #9ca3af;
+              }
+              .write-blog-editor .ql-toolbar button:hover .ql-stroke {
+                stroke: #e76f51;
+              }
+              .write-blog-editor .ql-picker {
+                color: #9ca3af;
+              }
+            `}</style>
           </div>
 
           <div className="pt-6 border-t border-white/10 flex justify-end" data-aos="fade-up" data-aos-delay="400">
             <button 
               type="submit" 
               disabled={loading || imageProcessing} 
-              className="bg-blue-500 hover:bg-blue-600 text-white font-black text-lg py-3 px-8 rounded-xl transition-all shadow-[0_0_15px_rgba(59,130,246,0.4)] flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-[#e76f51] hover:bg-orange-600 text-white font-black text-lg py-4 px-8 rounded-xl transition-all shadow-[0_0_20px_rgba(231,111,81,0.4)] flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
             >
               {loading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-paper-plane"></i>}
-              <span>{loading ? 'সাবমিট হচ্ছে...' : 'রিভিউর জন্য পাঠান'}</span>
+              <span>{loading ? 'সাবমিট হচ্ছে...' : 'গল্পটি সাবমিট করুন'}</span>
             </button>
           </div>
 
