@@ -1,8 +1,8 @@
 // app/beginners-guide/page.js
 "use client";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase"; 
-import { megaCurriculum } from "@/data/guideData"; 
+import { supabase } from "../../lib/supabase"; 
+import { megaCurriculum } from "../../data/guideData"; 
 
 export default function BeginnersGuidePage() {
   const [userProfile, setUserProfile] = useState(null);
