@@ -69,6 +69,8 @@ export default function Navbar() {
   };
 
   const isLoggedIn = !!session;
+  // অ্যাডমিন কিনা তা চেক করার লজিক
+  const isAdmin = userProfile?.role === 'admin';
   const avatarUrl = userProfile?.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.full_name || 'User')}&background=e76f51&color=fff`;
 
   return (
@@ -98,10 +100,12 @@ export default function Navbar() {
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="text-right hidden md:block pr-4 border-r border-white/10">
                   <p className="text-xs font-bold text-gray-200">{userProfile?.full_name || 'Explorer'}</p>
-                  <p className="text-[10px] text-campfire uppercase tracking-widest">{userProfile?.role || 'User'}</p>
+                  <p className={`text-[10px] uppercase tracking-widest ${isAdmin ? 'text-emerald-400 font-bold' : 'text-campfire'}`}>
+                    {userProfile?.role || 'User'}
+                  </p>
                 </div>
                 <div className="relative">
-                  <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="block w-10 h-10 rounded-full border-2 border-campfire p-0.5 overflow-hidden bg-white/5 focus:outline-none hover:border-white transition-colors shadow-glow">
+                  <button onClick={() => setIsProfileOpen(!isProfileOpen)} className={`block w-10 h-10 rounded-full border-2 p-0.5 overflow-hidden focus:outline-none transition-colors shadow-glow ${isAdmin ? 'border-emerald-500 hover:border-white bg-emerald-500/10' : 'border-campfire hover:border-white bg-white/5'}`}>
                     <img src={avatarUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
                   </button>
                   
@@ -110,6 +114,14 @@ export default function Navbar() {
                       <Link href="/dashboard" onClick={() => setIsProfileOpen(false)} className="block px-4 py-3 text-sm hover:bg-white/5 hover:text-white transition-colors flex items-center gap-3">
                         <i className="fa-solid fa-user w-5 text-center text-[#e76f51]"></i> <span>আমার প্রোফাইল</span>
                       </Link>
+                      
+                      {/* 🔴 স্মার্ট অ্যাডমিন অপশন (শুধুমাত্র অ্যাডমিনরা দেখবে) */}
+                      {isAdmin && (
+                        <Link href="/admin" onClick={() => setIsProfileOpen(false)} className="block px-4 py-3 text-sm hover:bg-white/5 hover:text-white transition-colors flex items-center gap-3 text-emerald-400 font-bold">
+                          <i className="fa-solid fa-shield-halved w-5 text-center"></i> <span>অ্যাডমিন প্যানেল</span>
+                        </Link>
+                      )}
+
                       <button onClick={() => { setIsSettingsOpen(true); setIsProfileOpen(false); }} className="w-full text-left px-4 py-3 text-sm hover:bg-white/5 hover:text-white transition-colors flex items-center gap-3">
                         <i className="fa-solid fa-gear w-5 text-center text-blue-400"></i> <span>সেটিংস</span>
                       </button>
@@ -169,6 +181,18 @@ export default function Navbar() {
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform"><i className="fa-solid fa-map"></i></div>
             <span className="font-bold text-sm">বিগিনার গাইড</span>
           </Link>
+
+          {/* 🔴 স্মার্ট অ্যাডমিন অপশন (সাইডবার) */}
+          {isAdmin && (
+            <>
+              <div className="border-t border-white/5 my-4"></div>
+              <p className="text-[10px] font-black tracking-widest text-emerald-500 uppercase mb-4">অ্যাডমিন কন্ট্রোল</p>
+              <Link href="/admin" onClick={() => setIsSidebarOpen(false)} className="block py-3 px-4 rounded-xl hover:bg-emerald-500/10 text-emerald-400 hover:text-emerald-300 transition-all group flex items-center gap-4 border border-transparent hover:border-emerald-500/30">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform"><i className="fa-solid fa-shield-halved"></i></div>
+                <span className="font-bold text-sm">অ্যাডমিন প্যানেল</span>
+              </Link>
+            </>
+          )}
 
           <div className="border-t border-white/5 my-4"></div>
           <button onClick={() => { setIsSettingsOpen(true); setIsSidebarOpen(false); }} className="w-full text-left py-3 px-4 rounded-xl hover:bg-white/5 hover:text-white transition-all group flex items-center gap-4">
