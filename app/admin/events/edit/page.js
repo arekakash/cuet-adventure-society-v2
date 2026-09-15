@@ -34,6 +34,12 @@ export default function EditEvent() {
   // ডে-টু-ডে প্ল্যানার
   const [itinerary, setItinerary] = useState([{ day: 1, title: '', desc: '' }])
 
+  // 3-Step Delete Modal States
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState(1);
+  const [isCheckboxChecked, setIsCheckboxChecked] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
   const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23' 
 
   // URL থেকে ID নিয়ে ইভেন্ট ফেচ করা
@@ -60,7 +66,6 @@ export default function EditEvent() {
 
       if (error) throw error;
       if (data) {
-        // ডেটা ফর্মে সেট করা
         setFormData({
           title: data.title || '', subtitle: data.subtitle || '', category: data.category || 'Trekking', destination: data.destination || '',
           startDate: data.start_date ? new Date(data.start_date).toISOString().slice(0, 16) : '', 
@@ -85,7 +90,6 @@ export default function EditEvent() {
 
         setItinerary(data.itinerary || [{ day: 1, title: '', desc: '' }]);
         
-        // ইমেজ প্রিভিউ সেট করা
         setExistingImage(data.cover_photo || '');
         setImagePreview(data.cover_photo || '');
       }
@@ -101,7 +105,6 @@ export default function EditEvent() {
     const { id, value } = e.target
     setFormData(prev => ({ ...prev, [id]: value }))
 
-    // ডে-টু-ডে প্ল্যানার অটো-আপডেট
     if (id === 'totalDays') {
       const days = parseInt(value) || 1
       if (days > 0 && days <= 20) {
@@ -115,7 +118,6 @@ export default function EditEvent() {
     }
   }
 
-  // ছবি সিলেক্ট এবং প্রিভিউ
   const handleImageChange = (e) => {
     const file = e.target.files[0]
     if (file) {
@@ -124,7 +126,6 @@ export default function EditEvent() {
     }
   }
 
-  // ডায়নামিক ট্যাগ হ্যান্ডলিং
   const handleTagAdd = (category) => {
     const value = tagInputs[category].trim()
     if (value) {
@@ -140,7 +141,7 @@ export default function EditEvent() {
     }))
   }
 
-  // ইভেন্ট আপডেট ফাংশন (SUBMIT UPDATE)
+  // ইভেন্ট আপডেট ফাংশন
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -148,7 +149,6 @@ export default function EditEvent() {
     try {
       let finalCoverPhotoUrl = existingImage;
 
-      // যদি নতুন ছবি সিলেক্ট করা হয়, তবে ImgBB তে আপলোড হবে
       if (imageFile) {
         const imgFormData = new FormData()
         imgFormData.append('image', imageFile)
@@ -163,7 +163,6 @@ export default function EditEvent() {
         finalCoverPhotoUrl = imgbbData.data.url
       }
 
-      // 2. সুপাবেজে ডেটা UPDATE করা
       const updateData = {
         title: formData.title,
         subtitle: formData.subtitle,
@@ -214,6 +213,24 @@ export default function EditEvent() {
       setLoading(false)
     }
   }
+
+  // ইভেন্ট ট্র্যাশ বিনে পাঠানোর ফাংশন
+  const handleMoveToTrash = async () => {
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({ deleted_at: new Date().toISOString() }) 
+        .eq('id', eventId);
+
+      if (error) throw error;
+
+      alert('ইভেন্টটি সফলভাবে ট্র্যাশ বিনে পাঠানো হয়েছে। ৩০ দিন পর এটি চিরতরে মুছে যাবে।');
+      router.push('/admin/trash'); 
+    } catch (error) {
+      console.error(error);
+      alert('সমস্যা হয়েছে: ' + error.message);
+    }
+  };
 
   if (fetching) {
     return (
@@ -349,7 +366,7 @@ export default function EditEvent() {
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ডিফিকাল্টি *</label>
                         <select id="difficulty" value={formData.difficulty} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white">
                             <option value="Beginner">Beginner (সহজ)</option>
-                            <option value="Moderate">Moderate (মাঝারি)</option>
+                            <option value="Moderate">Moderate (মাারি)</option>
                             <option value="Hard">Hard (কঠিন)</option>
                             <option value="Extreme">Extreme</option>
                         </select>
@@ -456,15 +473,103 @@ export default function EditEvent() {
                 </div>
             </div>
 
-            {/* আপডেট বাটন */}
-            <div className="pt-6 mt-4 border-t border-white/10">
-                <button type="submit" disabled={loading} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black text-lg py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(59,130,246,0.4)] flex items-center justify-center gap-3">
+            {/* আপডেট ও ডিলিট বাটন */}
+            <div className="pt-6 mt-4 border-t border-white/10 flex flex-col sm:flex-row gap-4">
+                <button type="submit" disabled={loading} className="w-full sm:w-2/3 bg-blue-500 hover:bg-blue-600 text-white font-black text-lg py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(59,130,246,0.4)] flex items-center justify-center gap-3">
                     {loading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-pen-to-square"></i>}
                     <span>{loading ? 'আপডেট হচ্ছে...' : 'ইভেন্ট আপডেট করুন'}</span>
+                </button>
+                <button 
+                    type="button" 
+                    onClick={() => { setIsDeleteModalOpen(true); setDeleteStep(1); setIsCheckboxChecked(false); setDeleteConfirmText(''); }}
+                    className="w-full sm:w-1/3 bg-red-500/20 border border-red-500/50 hover:bg-red-500 hover:text-white text-red-500 font-black text-lg py-4 rounded-xl transition-all flex items-center justify-center gap-3"
+                >
+                    <i className="fa-solid fa-trash"></i>
+                    <span>ডিলিট করুন</span>
                 </button>
             </div>
 
         </form>
+
+        {/* 3-STEP DELETE MODAL */}
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#0a1c13] border border-red-500/30 rounded-3xl p-8 max-w-md w-full mx-4 relative shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+              
+              {/* Step 1: Extreme Warning */}
+              {deleteStep === 1 && (
+                <div className="text-center">
+                  <i className="fa-solid fa-triangle-exclamation text-5xl text-red-500 mb-4 animate-pulse"></i>
+                  <h3 className="text-2xl font-black text-white mb-2">চরম সতর্কতা!</h3>
+                  <p className="text-gray-400 text-sm mb-6">
+                    আপনি একটি ইভেন্ট ডিলিট করতে যাচ্ছেন। এটি ট্র্যাশ বিনে জমা হবে এবং <span className="text-red-400 font-bold">৩০ দিন পর চিরতরে মুছে যাবে</span>। আপনি কি নিশ্চিত?
+                  </p>
+                  <div className="flex gap-4">
+                    <button onClick={() => setIsDeleteModalOpen(false)} className="w-1/2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all">বাতিল করুন</button>
+                    <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/50 py-3 rounded-xl font-bold transition-all">পরবর্তী ধাপ</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Checkbox Confirmation */}
+              {deleteStep === 2 && (
+                <div className="text-center">
+                  <i className="fa-solid fa-clipboard-check text-5xl text-orange-500 mb-4"></i>
+                  <h3 className="text-xl font-black text-white mb-4">দায়িত্ব স্বীকার</h3>
+                  <label className="flex items-start gap-3 text-left bg-black/40 p-4 rounded-xl border border-white/5 mb-6 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="mt-1 w-5 h-5 accent-red-500" 
+                      checked={isCheckboxChecked}
+                      onChange={(e) => setIsCheckboxChecked(e.target.checked)}
+                    />
+                    <span className="text-sm text-gray-300">আমি বুঝতে পারছি যে এই ইভেন্ট ডিলিট করলে এর সাথে যুক্ত সকল ইউজারের বুকিং স্ট্যাটাস প্রভাবিত হতে পারে। আমি নিজ দায়িত্বে এটি করছি।</span>
+                  </label>
+                  <div className="flex gap-4">
+                    <button onClick={() => setDeleteStep(1)} className="w-1/2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all">পেছনে যান</button>
+                    <button 
+                      disabled={!isCheckboxChecked}
+                      onClick={() => setDeleteStep(3)} 
+                      className={`w-1/2 py-3 rounded-xl font-bold transition-all ${isCheckboxChecked ? 'bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'bg-red-500/20 text-red-500/50 cursor-not-allowed'}`}
+                    >পরবর্তী ধাপ</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Manual Type & Final Delete */}
+              {deleteStep === 3 && (
+                <div className="text-center">
+                  <i className="fa-solid fa-skull-crossbones text-5xl text-red-600 mb-4"></i>
+                  <h3 className="text-xl font-black text-white mb-2">চূড়ান্ত পদক্ষেপ</h3>
+                  <p className="text-gray-400 text-xs mb-4">ট্র্যাশ বিনে পাঠাতে নিচের বক্সে ইংরেজিতে বড় হাতের অক্ষরে <span className="font-bold text-white select-none">DELETE</span> টাইপ করুন।</p>
+                  <input 
+                    type="text" 
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="DELETE" 
+                    className="w-full bg-black/40 border border-red-500/30 text-white text-center font-black tracking-widest rounded-xl p-4 focus:border-red-500 outline-none mb-6 uppercase"
+                  />
+                  <div className="flex gap-4">
+                    <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all">পেছনে যান</button>
+                    <button 
+                      disabled={deleteConfirmText !== 'DELETE'}
+                      onClick={handleMoveToTrash} 
+                      className={`w-1/2 py-3 rounded-xl font-black transition-all flex items-center justify-center gap-2 ${deleteConfirmText === 'DELETE' ? 'bg-red-600 hover:bg-red-700 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)]' : 'bg-red-500/20 text-red-500/50 cursor-not-allowed'}`}
+                    >
+                      <i className="fa-solid fa-trash-can"></i> ট্র্যাশে পাঠান
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Close Button */}
+              <button onClick={() => setIsDeleteModalOpen(false)} className="absolute -top-4 -right-4 w-10 h-10 bg-black border border-white/10 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   )
