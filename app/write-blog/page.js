@@ -1,47 +1,23 @@
 // app/write-blog/page.js
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase"; 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import AOS from "aos";
 import "aos/dist/aos.css";
-
-import 'react-quill/dist/quill.snow.css'; 
-import "cropperjs/dist/cropper.css";
-
-// SSR ক্র্যাশ এড়াতে দুটোকেই ডায়নামিক ইম্পোর্ট করা হলো
-const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
-const Cropper = dynamic(() => import("react-cropper"), { ssr: false });
-
-// 🔴 ফিক্স: ইনফিনিট লুপ (Infinite Loop) এবং ব্রাউজার ক্র্যাশ ঠেকাতে 
-// modules অবজেক্টটিকে মেইন কম্পোনেন্টের বাইরে বের করে আনা হয়েছে।
-const modules = {
-  toolbar: [
-    [{ 'header': [3, 4, false] }],
-    ['bold', 'italic', 'underline', 'strike'],
-    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-    ['link'],
-    ['clean']
-  ],
-};
 
 export default function WriteBlogPage() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [imageProcessing, setImageProcessing] = useState(false);
   
   // ফর্ম স্টেট
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [coverImage, setCoverImage] = useState(null); 
   const [previewImg, setPreviewImg] = useState(null);
-
-  // ক্রপার স্টেট
-  const [cropModalOpen, setCropModalOpen] = useState(false);
-  const [rawImage, setRawImage] = useState(null);
-  const cropperRef = useRef(null);
 
   // তোমার সংরক্ষিত ImgBB API Key
   const IMGBB_API_KEY = "C8e142b508f46f59807dbb6a3a2ccb23";
@@ -68,25 +44,7 @@ export default function WriteBlogPage() {
     if (data) setUserProfile(data);
   };
 
-  const handleImageSelect = (e) => {
-    e.preventDefault();
-    let files;
-    if (e.dataTransfer) {
-      files = e.dataTransfer.files;
-    } else if (e.target) {
-      files = e.target.files;
-    }
-    
-    if (files && files.length > 0) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setRawImage(reader.result);
-        setCropModalOpen(true);
-      };
-      reader.readAsDataURL(files[0]);
-    }
-  };
-
+  // নেটিভ Canvas API ব্যবহার করে ছবি কম্প্রেস করার ফাংশন
   const compressImage = (dataUrl, targetSizeKB = 100) => {
     return new Promise((resolve) => {
       const img = new window.Image();
@@ -94,15 +52,26 @@ export default function WriteBlogPage() {
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
+        
+        // ম্যাক্সিমাম উইডথ 1200px রেখে প্রোপোরশনালি সাইজ কমানো
+        const MAX_WIDTH = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
 
         let quality = 0.9;
         let resultDataUrl = canvas.toDataURL("image/jpeg", quality);
-        
         let sizeKB = Math.round((resultDataUrl.length * 3) / 4 / 1024);
 
+        // টার্গেট সাইজের নিচে না আসা পর্যন্ত কোয়ালিটি কমানো হবে
         while (sizeKB > targetSizeKB && quality > 0.1) {
           quality -= 0.1;
           resultDataUrl = canvas.toDataURL("image/jpeg", quality);
@@ -122,15 +91,23 @@ export default function WriteBlogPage() {
     return new File([u8arr], filename, {type:mime});
   };
 
-  const getCropData = async () => {
-    if (typeof cropperRef.current?.cropper !== "undefined") {
-      const croppedDataUrl = cropperRef.current?.cropper.getCroppedCanvas().toDataURL("image/jpeg");
-      const compressedDataUrl = await compressImage(croppedDataUrl, 100);
-      
-      setPreviewImg(compressedDataUrl);
-      const finalFile = dataURLtoFile(compressedDataUrl, "cover-image.jpg");
-      setCoverImage(finalFile);
-      setCropModalOpen(false);
+  // ছবি সিলেক্ট করার সাথে সাথেই অটো কম্প্রেস হবে
+  const handleImageSelect = (e) => {
+    e.preventDefault();
+    const files = e.target.files;
+    
+    if (files && files.length > 0) {
+      setImageProcessing(true);
+      const reader = new FileReader();
+      reader.onload = async () => {
+        // ১০০ কেবির নিচে কম্প্রেস করা হচ্ছে
+        const compressedDataUrl = await compressImage(reader.result, 100);
+        setPreviewImg(compressedDataUrl);
+        const finalFile = dataURLtoFile(compressedDataUrl, "cover-image.jpg");
+        setCoverImage(finalFile);
+        setImageProcessing(false);
+      };
+      reader.readAsDataURL(files[0]);
     }
   };
 
@@ -158,7 +135,7 @@ export default function WriteBlogPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!title.trim() || !content.trim() || content === "<p><br></p>") {
+    if (!title.trim() || !content.trim()) {
       alert("দয়া করে গল্পের শিরোনাম এবং বিস্তারিত অংশ পূরণ করুন।");
       return;
     }
@@ -180,7 +157,8 @@ export default function WriteBlogPage() {
       const { error } = await supabase.from('stories').insert([
         {
           title: title,
-          content: content,
+          // লাইন ব্রেকগুলো HTML <br> এ কনভার্ট করে সেভ করা হচ্ছে
+          content: content.replace(/\n/g, "<br />"),
           cover_image: finalImageUrl,
           author_id: userProfile.id,
           status: 'pending' 
@@ -229,7 +207,12 @@ export default function WriteBlogPage() {
           <div data-aos="fade-up" data-aos-delay="100">
             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">কভার ছবি (ঐচ্ছিক)</label>
             <div className="relative border-2 border-dashed border-white/20 hover:border-blue-500/50 rounded-2xl overflow-hidden bg-black/40 transition-colors group">
-              {previewImg ? (
+              {imageProcessing ? (
+                <div className="w-full h-32 flex flex-col items-center justify-center text-blue-400">
+                  <i className="fa-solid fa-circle-notch fa-spin text-3xl mb-2"></i>
+                  <span className="text-sm font-bold">ছবি অপটিমাইজ হচ্ছে...</span>
+                </div>
+              ) : previewImg ? (
                 <>
                   <img src={previewImg} alt="Cover Preview" className="w-full h-48 sm:h-64 object-cover opacity-80" />
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -240,7 +223,7 @@ export default function WriteBlogPage() {
                 <div className="w-full h-32 flex flex-col items-center justify-center text-gray-500 group-hover:text-blue-400 transition-colors">
                   <i className="fa-solid fa-image text-3xl mb-2"></i>
                   <span className="text-sm font-bold">ক্লিক করে ছবি আপলোড করুন</span>
-                  <span className="text-[10px] mt-1 text-gray-500">ছবি অটোমেটিক ক্রপ ও ১০০ কেবির নিচে কম্প্রেস হয়ে যাবে</span>
+                  <span className="text-[10px] mt-1 text-gray-500">স্বয়ংক্রিয়ভাবে ১০০ কেবির নিচে অপটিমাইজ হয়ে যাবে</span>
                 </div>
               )}
               <input type="file" accept="image/*" onChange={handleImageSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
@@ -259,52 +242,21 @@ export default function WriteBlogPage() {
             />
           </div>
 
-          <div data-aos="fade-up" data-aos-delay="300" className="write-blog-editor">
+          <div data-aos="fade-up" data-aos-delay="300">
             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">গল্পের বিস্তারিত *</label>
-            <div className="bg-black/40 rounded-xl border border-white/10 overflow-hidden">
-              <ReactQuill 
-                theme="snow" 
-                value={content} 
-                onChange={setContent} 
-                modules={modules}
-                placeholder="আপনার অ্যাডভেঞ্চারের রোমাঞ্চকর অভিজ্ঞতা এখানে লিখুন..."
-                className="text-gray-200"
-              />
-            </div>
-            <style jsx global>{`
-              .write-blog-editor .ql-toolbar {
-                background: rgba(255, 255, 255, 0.05);
-                border: none;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-              }
-              .write-blog-editor .ql-container {
-                border: none;
-                min-height: 300px;
-                font-size: 1.1rem;
-              }
-              .write-blog-editor .ql-editor {
-                padding: 1.5rem;
-              }
-              .write-blog-editor .ql-editor p {
-                margin-bottom: 1rem;
-                line-height: 1.8;
-              }
-              .write-blog-editor .ql-stroke {
-                stroke: #9ca3af;
-              }
-              .write-blog-editor .ql-fill {
-                fill: #9ca3af;
-              }
-              .write-blog-editor .ql-picker {
-                color: #9ca3af;
-              }
-            `}</style>
+            <textarea 
+              required
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="আপনার অ্যাডভেঞ্চারের রোমাঞ্চকর অভিজ্ঞতা এখানে লিখুন... (প্যারাগ্রাফ করতে এন্টার চাপুন)"
+              className="w-full min-h-[300px] text-base sm:text-lg leading-relaxed rounded-xl p-5 bg-black/40 border border-white/10 text-gray-200 focus:border-blue-500 outline-none transition-colors resize-y"
+            ></textarea>
           </div>
 
           <div className="pt-6 border-t border-white/10 flex justify-end" data-aos="fade-up" data-aos-delay="400">
             <button 
               type="submit" 
-              disabled={loading} 
+              disabled={loading || imageProcessing} 
               className="bg-blue-500 hover:bg-blue-600 text-white font-black text-lg py-3 px-8 rounded-xl transition-all shadow-[0_0_15px_rgba(59,130,246,0.4)] flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-paper-plane"></i>}
@@ -314,40 +266,6 @@ export default function WriteBlogPage() {
 
         </form>
       </div>
-
-      {/* Image Cropper Modal */}
-      {cropModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 px-4">
-          <div className="bg-[#0a1c13] border border-white/10 rounded-2xl p-6 w-full max-w-2xl relative shadow-2xl">
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><i className="fa-solid fa-crop text-blue-400"></i> ছবি ক্রপ করুন (ফ্রি সাইজ)</h3>
-            <div className="w-full bg-black rounded-lg overflow-hidden h-[60vh]">
-              <Cropper
-                ref={cropperRef}
-                style={{ height: "100%", width: "100%" }}
-                zoomTo={0.5}
-                preview=".img-preview"
-                src={rawImage}
-                viewMode={1}
-                minCropBoxHeight={10}
-                minCropBoxWidth={10}
-                background={false}
-                responsive={true}
-                autoCropArea={1}
-                checkOrientation={false} 
-                guides={true}
-              />
-            </div>
-            <div className="mt-6 flex justify-end gap-4">
-              <button onClick={() => setCropModalOpen(false)} className="px-6 py-2 rounded-xl border border-white/10 text-gray-300 hover:bg-white/5 transition-colors font-bold">
-                ক্যান্সেল
-              </button>
-              <button onClick={getCropData} className="px-6 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold transition-all shadow-glow-blue">
-                ক্রপ ও সেভ করুন
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
