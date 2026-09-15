@@ -23,7 +23,24 @@ export default function DashboardPage() {
     swimming_skill: '', has_bicycle: '', experience_level: ''
   })
 
-  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
+  // ১৯৬৮ থেকে ২০৫০ সাল পর্যন্ত ডায়নামিক ক্যালকুলেশন
+  const years = Array.from({ length: 2050 - 1968 + 1 }, (_, i) => 2050 - i)
+
+  // চুয়েটের আবাসিক হলের তালিকা
+  const maleHalls = [
+    "Dr. Qudrat-E-Khuda Hall",
+    "Kabi Kazi Nazrul Islam Hall",
+    "Muktijoddha Hall",
+    "Shaheed Abu Sayeed Hall",
+    "Shaheed Mohammad Shah Hall",
+    "Shaheed Tareq Huda Hall"
+  ]
+
+  const femaleHalls = [
+    "Sufia Kamal Hall",
+    "Shamsennahar Khan Hall",
+    "Taposhi Rabeya Hall"
+  ]
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50 })
@@ -124,8 +141,14 @@ export default function DashboardPage() {
     }
   }
 
+  // জেন্ডার চেঞ্জ করলে হল অটোমেটিক রিসেট হওয়ার লজিক
   const handleFormChange = (e) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value })
+    const { id, value } = e.target;
+    if (id === 'gender') {
+      setFormData((prev) => ({ ...prev, gender: value, hall: '' }));
+    } else {
+      setFormData((prev) => ({ ...prev, [id]: value }));
+    }
   }
 
   const handleProfileComplete = async (e) => {
@@ -235,6 +258,29 @@ export default function DashboardPage() {
                 </select>
               </div>
               <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">জেন্ডার *</label>
+                <select id="gender" required value={formData.gender} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
+                  <option value="" disabled>নির্বাচন করুন</option>
+                  <option value="Male">Male</option><option value="Female">Female</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">আবাসিক হল *</label>
+                <select 
+                  id="hall" 
+                  required 
+                  value={formData.hall} 
+                  onChange={handleFormChange} 
+                  disabled={!formData.gender}
+                  className={`w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51] ${!formData.gender ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <option value="" disabled>{formData.gender ? "নির্বাচন করুন" : "প্রথমে জেন্ডার নির্বাচন করুন"}</option>
+                  {formData.gender === 'Male' && maleHalls.map(h => <option key={h} value={h}>{h}</option>)}
+                  {formData.gender === 'Female' && femaleHalls.map(h => <option key={h} value={h}>{h}</option>)}
+                  <option value="Attached/Non-residential">অ্যাটাচড/অনাবাসিক</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">রক্তের গ্রুপ *</label>
                 <select id="blood_group" required value={formData.blood_group} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
                   <option value="" disabled>নির্বাচন করুন</option>
@@ -243,42 +289,32 @@ export default function DashboardPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">আবাসিক হল *</label>
-                <select id="hall" required value={formData.hall} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
-                  <option value="" disabled>নির্বাচন করুন</option>
-                  <option value="Bangabandhu Hall">Bangabandhu Hall</option>
-                  <option value="Tareq Huda Hall">Tareq Huda Hall</option>
-                  <option value="Sufia Kamal Hall">Sufia Kamal Hall</option>
-                  <option value="Attached/Non-residential">Attached/Non-residential</option>
-                </select>
-              </div>
-              <div>
                 <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">টি-শার্ট সাইজ *</label>
                 <select id="tshirt_size" required value={formData.tshirt_size} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
                   <option value="" disabled>নির্বাচন করুন</option>
-                  <option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
+                  <option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">জেন্ডার *</label>
-                <select id="gender" required value={formData.gender} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
-                  <option value="" disabled>নির্বাচন করুন</option>
-                  <option value="Male">Male</option><option value="Female">Female</option>
-                </select>
-              </div>
+              
               <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5 p-4 border border-red-500/30 bg-red-500/5 rounded-xl">
                 <div>
                   <label className="block text-[11px] font-bold text-red-400 mb-1.5 uppercase">জরুরি কন্টাক্ট নম্বর *</label>
                   <input type="tel" id="emergency_contact" required value={formData.emergency_contact} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-red-500" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-red-400 mb-1.5 uppercase">সম্পর্ক (যেমন: বাবা) *</label>
+                  <label className="block text-[11px] font-bold text-red-400 mb-1.5 uppercase">সম্পর্ক (যেমন: বাবা/ভাই) *</label>
                   <input type="text" id="emergency_relation" required value={formData.emergency_relation} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-red-500" />
                 </div>
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">সাঁতার জানেন? *</label>
                 <select id="swimming_skill" required value={formData.swimming_skill} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
+                  <option value="" disabled>নির্বাচন করুন</option><option value="Yes">হ্যাঁ</option><option value="No">না</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase">নিজের সাইকেল আছে? *</label>
+                <select id="has_bicycle" required value={formData.has_bicycle} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl outline-none focus:border-[#e76f51]">
                   <option value="" disabled>নির্বাচন করুন</option><option value="Yes">হ্যাঁ</option><option value="No">না</option>
                 </select>
               </div>
