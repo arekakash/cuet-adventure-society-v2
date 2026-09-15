@@ -15,6 +15,18 @@ import "cropperjs/dist/cropper.css";
 const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
 const Cropper = dynamic(() => import("react-cropper"), { ssr: false });
 
+// 🔴 ফিক্স: ইনফিনিট লুপ (Infinite Loop) এবং ব্রাউজার ক্র্যাশ ঠেকাতে 
+// modules অবজেক্টটিকে মেইন কম্পোনেন্টের বাইরে বের করে আনা হয়েছে।
+const modules = {
+  toolbar: [
+    [{ 'header': [3, 4, false] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+    ['link'],
+    ['clean']
+  ],
+};
+
 export default function WriteBlogPage() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState(null);
@@ -186,16 +198,6 @@ export default function WriteBlogPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const modules = {
-    toolbar: [
-      [{ 'header': [3, 4, false] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      ['link'],
-      ['clean']
-    ],
   };
 
   if (!userProfile) return (
