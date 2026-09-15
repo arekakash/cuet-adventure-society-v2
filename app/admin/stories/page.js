@@ -11,11 +11,12 @@ export default function AdminStories() {
 
   const fetchStories = async () => {
     try {
+      // cover_photo এর বদলে cover_image এবং profiles এর রিলেশন ঠিক করা হলো
       const { data, error } = await supabase
         .from('stories')
         .select(`
-          id, title, cover_photo,
-          profiles (id, full_name)
+          id, title, cover_image,
+          profiles!inner(id, full_name)
         `)
         .eq('status', 'pending')
         
@@ -103,7 +104,9 @@ export default function AdminStories() {
           <div className="space-y-4">
             {stories.map((story) => (
               <div key={story.id} className="bg-[#0a1c13] border border-white/10 p-5 rounded-2xl flex flex-col sm:flex-row gap-5 items-start sm:items-center">
-                  <img src={story.cover_photo || 'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80&w=600'} className="w-full sm:w-32 h-24 object-cover rounded-xl" alt="Cover" />
+                  {/* cover_photo এর বদলে cover_image ব্যবহার করা হয়েছে */}
+                  <img src={story.cover_image || 'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80&w=600'} className="w-full sm:w-32 h-24 object-cover rounded-xl" alt="Cover" />
+                  
                   <div className="flex-grow">
                       <h3 className="text-lg font-bold text-white mb-1">{story.title}</h3>
                       <p className="text-xs text-gray-400 mb-2">
