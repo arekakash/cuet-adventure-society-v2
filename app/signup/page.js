@@ -20,14 +20,37 @@ export default function SignupPage() {
     fbLink: '', instaLink: '', password: '', confirmPassword: ''
   })
 
-  const years = Array.from({ length: 83 }, (_, i) => 2050 - i)
+  // ১৯৬৮ থেকে ২০৫০ সাল পর্যন্ত ডায়নামিক ক্যালকুলেশন
+  const years = Array.from({ length: 2050 - 1968 + 1 }, (_, i) => 2050 - i)
+
+  // চুয়েটের আবাসিক হলের তালিকা
+  const maleHalls = [
+    "Dr. Qudrat-E-Khuda Hall",
+    "Kabi Kazi Nazrul Islam Hall",
+    "Muktijoddha Hall",
+    "Shaheed Abu Sayeed Hall",
+    "Shaheed Mohammad Shah Hall",
+    "Shaheed Tareq Huda Hall"
+  ]
+
+  const femaleHalls = [
+    "Sufia Kamal Hall",
+    "Shamsennahar Khan Hall",
+    "Taposhi Rabeya Hall"
+  ]
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 })
   }, [])
 
+  // জেন্ডার চেঞ্জ করলে হল অটোমেটিক রিসেট হওয়ার লজিক
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value })
+    const { id, value } = e.target;
+    if (id === 'gender') {
+      setFormData((prev) => ({ ...prev, gender: value, hall: '' }));
+    } else {
+      setFormData((prev) => ({ ...prev, [id]: value }));
+    }
   }
 
   const handleGoogleLogin = async () => {
@@ -36,7 +59,6 @@ export default function SignupPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { 
-          // আমাদের নতুন ওয়েটিং রুমের লিংক
           redirectTo: 'https://cuet-adventure-society-v2.pages.dev/auth/callback' 
         }
       })
@@ -84,7 +106,7 @@ export default function SignupPage() {
             emergency_contact: formData.emergencyContact,
             emergency_relation: formData.emergencyRelation,
             swimming_skill: formData.swimmingSkill,
-            has_bicycle: formData.hasBicycle,
+            has_bicycle: formData.hasBicycle, // সাইকেলের ডেটা এখন পারফেক্টলি সেভ হবে
             experience_level: formData.experienceLevel,
             fb_link: formData.fbLink,
             insta_link: formData.instaLink,
@@ -234,15 +256,17 @@ export default function SignupPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-aos="fade-up" data-aos-delay="700">
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">আবাসিক হল *</label>
-              <select id="hall" required value={formData.hall} onChange={handleChange} className="glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none">
-                <option value="" disabled>নির্বাচন করুন</option>
-                <option value="Muktijoddha Hall">Muktijoddha Hall</option>
-                <option value="Shahid Mohammad Shah Hall">Shahid Mohammad Shah Hall</option>
-                <option value="Dr. Qudrat-E-Khuda Hall">Dr. Qudrat-E-Khuda Hall</option>
-                <option value="Kabi Kazi Nazrul Islam Hall">Kabi Kazi Nazrul Islam Hall</option>
-                <option value="Shaheed Tareq Huda Hall">Shaheed Tareq Huda Hall</option>
-                <option value="Shaheed Abu Sayed Hall">Shaheed Abu Sayed Hall</option>
-                <option value="Sufia kamal Hall">Sufia kamal Hall</option>
+              <select 
+                id="hall" 
+                required 
+                value={formData.hall} 
+                onChange={handleChange} 
+                disabled={!formData.gender}
+                className={`glass-input w-full text-sm rounded-xl block p-3.5 appearance-none cursor-pointer bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none ${!formData.gender ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <option value="" disabled>{formData.gender ? "নির্বাচন করুন" : "প্রথমে জেন্ডার নির্বাচন করুন"}</option>
+                {formData.gender === 'Male' && maleHalls.map(h => <option key={h} value={h}>{h}</option>)}
+                {formData.gender === 'Female' && femaleHalls.map(h => <option key={h} value={h}>{h}</option>)}
                 <option value="Attached/Non-residential">অ্যাটাচড/অনাবাসিক</option>
               </select>
             </div>
