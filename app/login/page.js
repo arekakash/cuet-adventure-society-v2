@@ -45,7 +45,15 @@ export default function LoginPage() {
         router.push('/dashboard')
       }
     } catch (error) {
-      alert('ইমেইল অথবা পাসওয়ার্ড ভুল হয়েছে! আবার চেষ্টা করুন।\n(' + error.message + ')')
+      // ⚠️ স্মার্ট (Smart) এরর হ্যান্ডলিং: JWT ও ঘড়ির সময়ের এরর যাচাই
+      if (error.message.includes('JWT') || error.message.includes('future') || error.message.includes('expired')) {
+        alert(
+          '⚠️ আপনার ডিভাইসের ঘড়ির সময় সঠিক নেই!\n\n' +
+          'দয়া করে আপনার মোবাইলের বা কম্পিউটারের সেটিংসে গিয়ে "Automatic Date & Time" (Network Time) চালু করুন এবং পেজটি রিলোড দিয়ে আবার চেষ্টা করুন। ঘড়ির সময় ঠিক না থাকলে নিরাপত্তার কারণে লগইন করা যায় না।'
+        );
+      } else {
+        alert('ইমেইল অথবা পাসওয়ার্ড ভুল হয়েছে! আবার চেষ্টা করুন।\n(' + error.message + ')')
+      }
     } finally {
       setLoading(false)
     }
