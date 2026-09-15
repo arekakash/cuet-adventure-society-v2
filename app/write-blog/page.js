@@ -1,16 +1,14 @@
 // app/write-blog/page.js
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase"; 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import AOS from "aos";
 import "aos/dist/aos.css";
-import 'react-quill/dist/quill.snow.css'; 
 
-// SSR ক্র্যাশ ও মেমোরি লিক এড়াতে সিম্পল ডায়নামিক ইম্পোর্ট (কোনো জটিল wrapper ছাড়া)
-const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
+// অরিজিনাল Quill এর সিএসএস ইম্পোর্ট
+import 'quill/dist/quill.snow.css';
 
 // কম্পোনেন্টের বাইরে হেল্পার ফাংশন রাখা হলো যাতে পেজ বারবার রেন্ডার না হয়
 const compressImageHelper = (dataUrl, targetSizeKB = 100) => {
@@ -63,9 +61,12 @@ export default function WriteBlogPage() {
   
   // ফর্ম স্টেট
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
   const [coverImage, setCoverImage] = useState(null); 
   const [previewImg, setPreviewImg] = useState(null);
+
+  // অরিজিনাল কুইলের জন্য Ref 
+  const editorRef = useRef(null);
+  const quillInstance = useRef(null);
 
   // তোমার সংরক্ষিত ImgBB API Key
   const IMGBB_API_KEY = "C8e142b508f46f59807dbb6a3a2ccb23";
@@ -73,6 +74,81 @@ export default function WriteBlogPage() {
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
     checkAuth();
+
+    // 🔴 ভ্যানিলা কুইল ইনিশিয়ালাইজেশন (SSR এরর এবং মেমোরি ক্র্যাশ ঠেকাতে)
+    if (typeof window !== "undefined" && !quillInstance.current && editorRef.current) {
+      import("quill").then((QuillModule) => {
+        const Quill = QuillModule.default;
+
+        // ইনলাইন ইমেজের কাস্টম হ্যান্ডলার
+        const imageHandler = () => {
+          const input = document.createElement("input");
+          input.setAttribute("type", "file");
+          input.setAttribute("accept", "image/*");
+          input.click();
+
+          input.onchange = async () => {
+            const file = input.files[0];
+            if (file) {
+              const quill = quillInstance.current;
+              const range = quill.getSelection(true);
+              quill.insertText(range.index, " (Uploading Image...) ", "user");
+
+              try {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                  // ইনলাইন ছবি কম্প্রেস করা হচ্ছে
+                  const compressedDataUrl = await compressImageHelper(reader.result, 100);
+                  const finalFile = dataURLtoFileHelper(compressedDataUrl, "inline-image.jpg");
+
+                  const formData = new FormData();
+                  formData.append("image", finalFile);
+
+                  // ImgBB তে সরাসরি আপলোড
+                  const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                    method: "POST",
+                    body: formData,
+                  });
+                  const data = await response.json();
+
+                  quill.deleteText(range.index, 22);
+                  if (data.success) {
+                    quill.insertEmbed(range.index, "image", data.data.url);
+                    quill.setSelection(range.index + 1);
+                  } else {
+                    alert("Image Upload Failed!");
+                  }
+                };
+                reader.readAsDataURL(file);
+              } catch (error) {
+                quill.deleteText(range.index, 22);
+                alert("Error: " + error.message);
+              }
+            }
+          };
+        };
+
+        // কুইল সেটআপ
+        quillInstance.current = new Quill(editorRef.current, {
+          theme: "snow",
+          placeholder: "আপনার অ্যাডভেঞ্চারের রোমাঞ্চকর অভিজ্ঞতা এখানে লিখুন...",
+          modules: {
+            toolbar: {
+              container: [
+                [{ 'header': [3, 4, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                ['link', 'image'],
+                ['clean']
+              ],
+              handlers: {
+                image: imageHandler
+              }
+            }
+          }
+        });
+      });
+    }
   }, []);
 
   const checkAuth = async () => {
@@ -92,7 +168,6 @@ export default function WriteBlogPage() {
     if (data) setUserProfile(data);
   };
 
-  // কভার ছবি সিলেক্ট করার সাথে সাথেই অটো কম্প্রেস
   const handleCoverSelect = (e) => {
     e.preventDefault();
     const files = e.target.files;
@@ -132,73 +207,11 @@ export default function WriteBlogPage() {
     }
   };
 
-  // ইনফিনিট লুপ ঠেকাতে useMemo এবং this.quill এর জাদুকরী ব্যবহার
-  const modules = useMemo(() => {
-    return {
-      toolbar: {
-        container: [
-          [{ 'header': [3, 4, false] }],
-          ['bold', 'italic', 'underline', 'strike'],
-          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-          ['link', 'image'], // Image আইকন
-          ['clean']
-        ],
-        handlers: {
-          image: function () { // Arrow function ব্যবহার করা যাবে না এখানে
-            const input = document.createElement("input");
-            input.setAttribute("type", "file");
-            input.setAttribute("accept", "image/*");
-            input.click();
-
-            input.onchange = async () => {
-              const file = input.files[0];
-              if (file) {
-                // কোনো Ref ছাড়াই সরাসরি Quill অবজেক্ট পেয়ে যাচ্ছি!
-                const quill = this.quill; 
-                const range = quill.getSelection(true);
-                
-                quill.insertText(range.index, " (Uploading Image...) ", "user");
-
-                try {
-                  const reader = new FileReader();
-                  reader.onload = async () => {
-                    // ইনলাইন ছবি কম্প্রেস করা হচ্ছে ১০০ কেবির নিচে
-                    const compressedDataUrl = await compressImageHelper(reader.result, 100);
-                    const finalFile = dataURLtoFileHelper(compressedDataUrl, "inline-image.jpg");
-
-                    const formData = new FormData();
-                    formData.append("image", finalFile);
-
-                    // ImgBB তে সরাসরি আপলোড
-                    const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-                      method: "POST",
-                      body: formData,
-                    });
-                    const data = await response.json();
-
-                    quill.deleteText(range.index, 22); // "(Uploading Image...)" মুছে ফেলা
-                    if (data.success) {
-                      quill.insertEmbed(range.index, "image", data.data.url);
-                      quill.setSelection(range.index + 1);
-                    } else {
-                      alert("Image Upload Failed!");
-                    }
-                  };
-                  reader.readAsDataURL(file);
-                } catch (error) {
-                  quill.deleteText(range.index, 22);
-                  alert("Error: " + error.message);
-                }
-              }
-            };
-          }
-        }
-      }
-    };
-  }, []);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // ভ্যানিলা কুইল থেকে সরাসরি কনটেন্ট নেওয়া হচ্ছে (রিঅ্যাক্ট স্টেটের দরকার নেই!)
+    const content = quillInstance.current ? quillInstance.current.root.innerHTML : "";
     
     if (!title.trim() || !content.trim() || content === "<p><br></p>") {
       alert("দয়া করে গল্পের শিরোনাম এবং বিস্তারিত অংশ পূরণ করুন।");
@@ -308,18 +321,11 @@ export default function WriteBlogPage() {
             />
           </div>
 
-          {/* Quill Rich Text Editor */}
+          {/* Vanilla Quill Editor Container */}
           <div data-aos="fade-up" data-aos-delay="300" className="write-blog-editor">
             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">মূল গল্প (মাঝে ছবি দিতে Image আইকনে ক্লিক করুন) *</label>
             <div className="bg-black/40 rounded-xl border border-white/10 overflow-hidden relative">
-              <ReactQuill 
-                theme="snow" 
-                value={content} 
-                onChange={setContent} 
-                modules={modules}
-                placeholder="আপনার অ্যাডভেঞ্চারের রোমাঞ্চকর অভিজ্ঞতা এখানে লিখুন..."
-                className="text-gray-200"
-              />
+              <div ref={editorRef} className="text-gray-200"></div>
             </div>
             
             <style jsx global>{`
@@ -343,7 +349,6 @@ export default function WriteBlogPage() {
                 margin-bottom: 1rem;
                 line-height: 1.8;
               }
-              /* ইনলাইন ইমেজের জন্য দারুণ ডিজাইন */
               .write-blog-editor .ql-editor img {
                 border-radius: 12px;
                 margin: 1.5rem auto;
