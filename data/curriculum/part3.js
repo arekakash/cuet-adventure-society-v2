@@ -340,4 +340,4 @@ export const part3 = [
     ]
   }
 ];
-⁶
+
