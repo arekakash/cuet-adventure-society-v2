@@ -1,26 +1,59 @@
 // app/write-blog/page.js
 "use client";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase"; 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import AOS from "aos";
 import "aos/dist/aos.css";
-
 import 'react-quill/dist/quill.snow.css'; 
 
-// Next.js এ React Quill যেন সার্ভার সাইডে রেন্ডার হয়ে ক্র্যাশ না করে, তাই ডায়নামিক ইম্পোর্ট
-const ReactQuill = dynamic(
-  async () => {
-    const { default: RQ } = await import("react-quill");
-    // ForwardRef ব্যবহার করা হয়েছে যাতে আমরা এডিটরের ভেতরের কার্সর (Cursor) কন্ট্রোল করতে পারি
-    const QuillWrapper = ({ forwardedRef, ...props }) => <RQ ref={forwardedRef} {...props} />;
-    QuillWrapper.displayName = 'QuillWrapper';
-    return QuillWrapper;
-  },
-  { ssr: false }
-);
+// SSR ক্র্যাশ ও মেমোরি লিক এড়াতে সিম্পল ডায়নামিক ইম্পোর্ট (কোনো জটিল wrapper ছাড়া)
+const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
+
+// কম্পোনেন্টের বাইরে হেল্পার ফাংশন রাখা হলো যাতে পেজ বারবার রেন্ডার না হয়
+const compressImageHelper = (dataUrl, targetSizeKB = 100) => {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.src = dataUrl;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const MAX_WIDTH = 1200;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > MAX_WIDTH) {
+        height = Math.round((height * MAX_WIDTH) / width);
+        width = MAX_WIDTH;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      let quality = 0.9;
+      let resultDataUrl = canvas.toDataURL("image/jpeg", quality);
+      let sizeKB = Math.round((resultDataUrl.length * 3) / 4 / 1024);
+
+      while (sizeKB > targetSizeKB && quality > 0.1) {
+        quality -= 0.1;
+        resultDataUrl = canvas.toDataURL("image/jpeg", quality);
+        sizeKB = Math.round((resultDataUrl.length * 3) / 4 / 1024);
+      }
+      resolve(resultDataUrl);
+    };
+  });
+};
+
+const dataURLtoFileHelper = (dataurl, filename) => {
+  let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+  bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+  while(n--){
+      u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, {type:mime});
+};
 
 export default function WriteBlogPage() {
   const router = useRouter();
@@ -33,8 +66,6 @@ export default function WriteBlogPage() {
   const [content, setContent] = useState("");
   const [coverImage, setCoverImage] = useState(null); 
   const [previewImg, setPreviewImg] = useState(null);
-
-  const quillRef = useRef(null);
 
   // তোমার সংরক্ষিত ImgBB API Key
   const IMGBB_API_KEY = "C8e142b508f46f59807dbb6a3a2ccb23";
@@ -61,51 +92,23 @@ export default function WriteBlogPage() {
     if (data) setUserProfile(data);
   };
 
-  // নেটিভ Canvas API ব্যবহার করে ছবি কম্প্রেস করার ফাংশন (১০০ কেবির নিচে)
-  const compressImage = (dataUrl, targetSizeKB = 100) => {
-    return new Promise((resolve) => {
-      const img = new window.Image();
-      img.src = dataUrl;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        
-        // ম্যাক্সিমাম উইডথ 1200px রেখে প্রোপোরশনালি সাইজ কমানো
-        const MAX_WIDTH = 1200;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > MAX_WIDTH) {
-          height = Math.round((height * MAX_WIDTH) / width);
-          width = MAX_WIDTH;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-
-        let quality = 0.9;
-        let resultDataUrl = canvas.toDataURL("image/jpeg", quality);
-        let sizeKB = Math.round((resultDataUrl.length * 3) / 4 / 1024);
-
-        // টার্গেট সাইজের নিচে না আসা পর্যন্ত কোয়ালিটি কমানো হবে
-        while (sizeKB > targetSizeKB && quality > 0.1) {
-          quality -= 0.1;
-          resultDataUrl = canvas.toDataURL("image/jpeg", quality);
-          sizeKB = Math.round((resultDataUrl.length * 3) / 4 / 1024);
-        }
-        resolve(resultDataUrl);
+  // কভার ছবি সিলেক্ট করার সাথে সাথেই অটো কম্প্রেস
+  const handleCoverSelect = (e) => {
+    e.preventDefault();
+    const files = e.target.files;
+    
+    if (files && files.length > 0) {
+      setImageProcessing(true);
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const compressedDataUrl = await compressImageHelper(reader.result, 100);
+        setPreviewImg(compressedDataUrl);
+        const finalFile = dataURLtoFileHelper(compressedDataUrl, "cover-image.jpg");
+        setCoverImage(finalFile);
+        setImageProcessing(false);
       };
-    });
-  };
-
-  const dataURLtoFile = (dataurl, filename) => {
-    let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
-    bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
-    while(n--){
-        u8arr[n] = bstr.charCodeAt(n);
+      reader.readAsDataURL(files[0]);
     }
-    return new File([u8arr], filename, {type:mime});
   };
 
   const uploadToImgBB = async (imageFile) => {
@@ -129,85 +132,70 @@ export default function WriteBlogPage() {
     }
   };
 
-  // কভার ছবি সিলেক্ট করার সাথে সাথেই অটো কম্প্রেস হবে
-  const handleCoverSelect = (e) => {
-    e.preventDefault();
-    const files = e.target.files;
-    
-    if (files && files.length > 0) {
-      setImageProcessing(true);
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const compressedDataUrl = await compressImage(reader.result, 100);
-        setPreviewImg(compressedDataUrl);
-        const finalFile = dataURLtoFile(compressedDataUrl, "cover-image.jpg");
-        setCoverImage(finalFile);
-        setImageProcessing(false);
-      };
-      reader.readAsDataURL(files[0]);
-    }
-  };
+  // ইনফিনিট লুপ ঠেকাতে useMemo এবং this.quill এর জাদুকরী ব্যবহার
+  const modules = useMemo(() => {
+    return {
+      toolbar: {
+        container: [
+          [{ 'header': [3, 4, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+          ['link', 'image'], // Image আইকন
+          ['clean']
+        ],
+        handlers: {
+          image: function () { // Arrow function ব্যবহার করা যাবে না এখানে
+            const input = document.createElement("input");
+            input.setAttribute("type", "file");
+            input.setAttribute("accept", "image/*");
+            input.click();
 
-  // গল্পের মাঝে ছবি আপলোড করার লজিক (Custom Image Handler)
-  const imageHandler = () => {
-    const input = document.createElement("input");
-    input.setAttribute("type", "file");
-    input.setAttribute("accept", "image/*");
-    input.click();
+            input.onchange = async () => {
+              const file = input.files[0];
+              if (file) {
+                // কোনো Ref ছাড়াই সরাসরি Quill অবজেক্ট পেয়ে যাচ্ছি!
+                const quill = this.quill; 
+                const range = quill.getSelection(true);
+                
+                quill.insertText(range.index, " (Uploading Image...) ", "user");
 
-    input.onchange = async () => {
-      const file = input.files[0];
-      if (file) {
-        // এডিটরের বর্তমান কার্সরের পজিশন বের করা
-        const quill = quillRef.current.getEditor();
-        const range = quill.getSelection(true);
+                try {
+                  const reader = new FileReader();
+                  reader.onload = async () => {
+                    // ইনলাইন ছবি কম্প্রেস করা হচ্ছে ১০০ কেবির নিচে
+                    const compressedDataUrl = await compressImageHelper(reader.result, 100);
+                    const finalFile = dataURLtoFileHelper(compressedDataUrl, "inline-image.jpg");
 
-        // আপলোড হওয়া পর্যন্ত ইউজারের দেখার জন্য একটি টেক্সট বসানো
-        quill.insertText(range.index, " (Uploading Image...) ", "user");
+                    const formData = new FormData();
+                    formData.append("image", finalFile);
 
-        try {
-          const reader = new FileReader();
-          reader.onload = async () => {
-            // ইনলাইন ছবিকেও ১০০ কেবির নিচে কম্প্রেস করা হচ্ছে
-            const compressedDataUrl = await compressImage(reader.result, 100);
-            const finalFile = dataURLtoFile(compressedDataUrl, "inline-image.jpg");
-            
-            // ImgBB তে আপলোড
-            const url = await uploadToImgBB(finalFile);
+                    // ImgBB তে সরাসরি আপলোড
+                    const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                      method: "POST",
+                      body: formData,
+                    });
+                    const data = await response.json();
 
-            // আপলোডিং টেক্সট মুছে সেখানে আসল ছবিটি বসিয়ে দেওয়া
-            quill.deleteText(range.index, 22); 
-            if (url) {
-              quill.insertEmbed(range.index, "image", url);
-              quill.setSelection(range.index + 1);
-            } else {
-              alert("Image Upload Failed!");
-            }
-          };
-          reader.readAsDataURL(file);
-        } catch (error) {
-          quill.deleteText(range.index, 22);
-          alert("Error: " + error.message);
+                    quill.deleteText(range.index, 22); // "(Uploading Image...)" মুছে ফেলা
+                    if (data.success) {
+                      quill.insertEmbed(range.index, "image", data.data.url);
+                      quill.setSelection(range.index + 1);
+                    } else {
+                      alert("Image Upload Failed!");
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                } catch (error) {
+                  quill.deleteText(range.index, 22);
+                  alert("Error: " + error.message);
+                }
+              }
+            };
+          }
         }
       }
     };
-  };
-
-  // ইনফিনিট লুপ এড়াতে useMemo ব্যবহার করে মডিউল সেটআপ করা হয়েছে
-  const modules = useMemo(() => ({
-    toolbar: {
-      container: [
-        [{ 'header': [3, 4, false] }],
-        ['bold', 'italic', 'underline', 'strike'],
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-        ['link', 'image'], // Image আইকন যুক্ত করা হলো
-        ['clean']
-      ],
-      handlers: {
-        image: imageHandler // Custom Image Handler যুক্ত করা হলো
-      }
-    }
-  }), []);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -222,7 +210,6 @@ export default function WriteBlogPage() {
     try {
       let finalImageUrl = "";
       
-      // কভার ইমেজ আপলোড
       if (coverImage) {
         finalImageUrl = await uploadToImgBB(coverImage);
         if (!finalImageUrl) {
@@ -244,7 +231,7 @@ export default function WriteBlogPage() {
 
       if (error) throw error;
 
-      alert("আপনার গল্পটি সফলভাবে সাবমিট হয়েছে! অ্যাডমিন অ্যাপ্রুভ করার পর এটি পাবলিক ব্লগে দেখা যাবে।");
+      alert("আপনার গল্পটি সফলভাবে সাবমিট হয়েছে! অ্যাডমিন অ্যাপ্রুভ করার পর এটি পাবলিক স্টোরিজ পেজে দেখা যাবে।");
       router.push("/stories");
 
     } catch (error) {
@@ -326,7 +313,6 @@ export default function WriteBlogPage() {
             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">মূল গল্প (মাঝে ছবি দিতে Image আইকনে ক্লিক করুন) *</label>
             <div className="bg-black/40 rounded-xl border border-white/10 overflow-hidden relative">
               <ReactQuill 
-                forwardedRef={quillRef}
                 theme="snow" 
                 value={content} 
                 onChange={setContent} 
@@ -336,7 +322,6 @@ export default function WriteBlogPage() {
               />
             </div>
             
-            {/* Custom CSS for Quill Editor inside Next.js */}
             <style jsx global>{`
               .write-blog-editor .ql-toolbar {
                 background: rgba(255, 255, 255, 0.05);
