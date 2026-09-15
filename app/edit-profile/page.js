@@ -14,7 +14,7 @@ export default function EditProfilePage() {
   const [user, setUser] = useState(null)
   
   // ImgBB API Key (তোমার দেওয়া কি)
-  const IMGBB_API_KEY = 'C8e142b508f46f59807dbb6a3a2ccb23'
+  const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23'
 
   const [avatarPreview, setAvatarPreview] = useState('')
   const [croppedBase64Image, setCroppedBase64Image] = useState(null)
@@ -27,7 +27,24 @@ export default function EditProfilePage() {
     fb_link: '', insta_link: ''
   })
 
-  const years = Array.from({ length: 83 }, (_, i) => 2050 - i)
+  // ১৯৬৮ থেকে ২০৫০ সাল পর্যন্ত ডায়নামিক ক্যালকুলেশন
+  const years = Array.from({ length: 2050 - 1968 + 1 }, (_, i) => 2050 - i)
+
+  // চুয়েটের আবাসিক হলের তালিকা
+  const maleHalls = [
+    "Dr. Qudrat-E-Khuda Hall",
+    "Kabi Kazi Nazrul Islam Hall",
+    "Muktijoddha Hall",
+    "Shaheed Abu Sayeed Hall",
+    "Shaheed Mohammad Shah Hall",
+    "Shaheed Tareq Huda Hall"
+  ]
+
+  const femaleHalls = [
+    "Sufia Kamal Hall",
+    "Shamsennahar Khan Hall",
+    "Taposhi Rabeya Hall"
+  ]
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50 })
@@ -64,8 +81,14 @@ export default function EditProfilePage() {
     }
   }
 
+  // জেন্ডার চেঞ্জ করলে হল অটোমেটিক রিসেট হওয়ার লজিক
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value })
+    const { id, value } = e.target;
+    if (id === 'gender') {
+      setFormData((prev) => ({ ...prev, gender: value, hall: '' }));
+    } else {
+      setFormData((prev) => ({ ...prev, [id]: value }));
+    }
   }
 
   // ১:১ ক্রপ এবং <30KB কম্প্রেশন (Canvas API)
@@ -220,19 +243,32 @@ export default function EditProfilePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6" data-aos="fade-up">
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">আবাসিক হল *</label>
-              <select id="hall" required value={formData.hall} onChange={handleChange} className="w-full bg-black/40 border border-white/10 text-white rounded-xl block p-3.5 outline-none cursor-pointer focus:border-campfire">
+              <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">জেন্ডার *</label>
+              <select id="gender" required value={formData.gender} onChange={handleChange} className="w-full bg-black/40 border border-white/10 text-white rounded-xl block p-3.5 outline-none cursor-pointer focus:border-campfire">
                 <option value="" disabled>নির্বাচন করুন</option>
-                <option value="Muktijoddha Hall">Muktijoddha Hall</option>
-                <option value="Shahid Mohammad Shah Hall">Shahid Mohammad Shah Hall</option>
-                <option value="Dr. Qudrat-E-Khuda Hall">Dr. Qudrat-E-Khuda Hall</option>
-                <option value="Kabi Kazi Nazrul Islam Hall">Kabi Kazi Nazrul Islam Hall</option>
-                <option value="Shaheed Tareq Huda Hall">Shaheed Tareq Huda Hall</option>
-                <option value="Shaheed Abu Sayed Hall">Shaheed Abu Sayed Hall</option>
-                <option value="Sufia kamal Hall">Sufia kamal Hall</option>
+                <option value="Male">পুরুষ (Male)</option>
+                <option value="Female">নারী (Female)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">আবাসিক হল *</label>
+              <select 
+                id="hall" 
+                required 
+                value={formData.hall} 
+                onChange={handleChange} 
+                disabled={!formData.gender}
+                className={`w-full bg-black/40 border border-white/10 text-white rounded-xl block p-3.5 outline-none cursor-pointer focus:border-campfire ${!formData.gender ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <option value="" disabled>{formData.gender ? "নির্বাচন করুন" : "প্রথমে জেন্ডার নির্বাচন করুন"}</option>
+                {formData.gender === 'Male' && maleHalls.map(h => <option key={h} value={h}>{h}</option>)}
+                {formData.gender === 'Female' && femaleHalls.map(h => <option key={h} value={h}>{h}</option>)}
                 <option value="Attached/Non-residential">অ্যাটাচড/অনাবাসিক</option>
               </select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6" data-aos="fade-up">
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">রক্তের গ্রুপ *</label>
               <select id="blood_group" required value={formData.blood_group} onChange={handleChange} className="w-full bg-black/40 border border-white/10 text-white rounded-xl block p-3.5 outline-none cursor-pointer focus:border-campfire">
@@ -241,6 +277,14 @@ export default function EditProfilePage() {
                 <option value="B+">B+</option><option value="B-">B-</option>
                 <option value="O+">O+</option><option value="O-">O-</option>
                 <option value="AB+">AB+</option><option value="AB-">AB-</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">টি-শার্ট সাইজ *</label>
+              <select id="tshirt_size" required value={formData.tshirt_size} onChange={handleChange} className="w-full bg-black/40 border border-white/10 text-white rounded-xl block p-3.5 outline-none cursor-pointer focus:border-campfire">
+                <option value="S">S (Small)</option><option value="M">M (Medium)</option>
+                <option value="L">L (Large)</option><option value="XL">XL (Extra Large)</option>
+                <option value="XXL">XXL (Double XL)</option>
               </select>
             </div>
           </div>
@@ -258,27 +302,8 @@ export default function EditProfilePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6" data-aos="fade-up">
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">জেন্ডার *</label>
-              <select id="gender" required value={formData.gender} onChange={handleChange} className="w-full bg-black/40 border border-white/10 text-white rounded-xl block p-3.5 outline-none cursor-pointer focus:border-campfire">
-                <option value="" disabled>নির্বাচন করুন</option>
-                <option value="Male">পুরুষ (Male)</option>
-                <option value="Female">নারী (Female)</option>
-              </select>
-            </div>
-            <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">জরুরি কন্টাক্টের সাথে সম্পর্ক *</label>
               <input type="text" id="emergency_relation" required value={formData.emergency_relation} onChange={handleChange} placeholder="e.g. Father, Brother" className="w-full bg-black/40 border border-white/10 text-white rounded-xl block p-3.5 outline-none focus:border-campfire" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6" data-aos="fade-up">
-            <div>
-              <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">টি-শার্ট সাইজ *</label>
-              <select id="tshirt_size" required value={formData.tshirt_size} onChange={handleChange} className="w-full bg-black/40 border border-white/10 text-white rounded-xl block p-3.5 outline-none cursor-pointer focus:border-campfire">
-                <option value="S">S (Small)</option><option value="M">M (Medium)</option>
-                <option value="L">L (Large)</option><option value="XL">XL (Extra Large)</option>
-                <option value="XXL">XXL (Double XL)</option>
-              </select>
             </div>
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">অ্যাডভেঞ্চার অভিজ্ঞতা *</label>
