@@ -4,13 +4,11 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase"; 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Script from "next/script";
 import AOS from "aos";
 import "aos/dist/aos.css";
 
-// অরিজিনাল Quill এর সিএসএস ইম্পোর্ট
-import 'quill/dist/quill.snow.css';
-
-// কম্পোনেন্টের বাইরে হেল্পার ফাংশন রাখা হলো যাতে পেজ বারবার রেন্ডার না হয়
+// হেল্পার ফাংশন (কম্প্রেস এবং ফাইল কনভার্ট)
 const compressImageHelper = (dataUrl, targetSizeKB = 100) => {
   return new Promise((resolve) => {
     const img = new window.Image();
@@ -59,96 +57,17 @@ export default function WriteBlogPage() {
   const [loading, setLoading] = useState(false);
   const [imageProcessing, setImageProcessing] = useState(false);
   
-  // ফর্ম স্টেট
   const [title, setTitle] = useState("");
   const [coverImage, setCoverImage] = useState(null); 
   const [previewImg, setPreviewImg] = useState(null);
 
-  // অরিজিনাল কুইলের জন্য Ref 
-  const editorRef = useRef(null);
   const quillInstance = useRef(null);
 
-  // তোমার সংরক্ষিত ImgBB API Key
   const IMGBB_API_KEY = "C8e142b508f46f59807dbb6a3a2ccb23";
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
     checkAuth();
-
-    // 🔴 ভ্যানিলা কুইল ইনিশিয়ালাইজেশন (SSR এরর এবং মেমোরি ক্র্যাশ ঠেকাতে)
-    if (typeof window !== "undefined" && !quillInstance.current && editorRef.current) {
-      import("quill").then((QuillModule) => {
-        const Quill = QuillModule.default;
-
-        // ইনলাইন ইমেজের কাস্টম হ্যান্ডলার
-        const imageHandler = () => {
-          const input = document.createElement("input");
-          input.setAttribute("type", "file");
-          input.setAttribute("accept", "image/*");
-          input.click();
-
-          input.onchange = async () => {
-            const file = input.files[0];
-            if (file) {
-              const quill = quillInstance.current;
-              const range = quill.getSelection(true);
-              quill.insertText(range.index, " (Uploading Image...) ", "user");
-
-              try {
-                const reader = new FileReader();
-                reader.onload = async () => {
-                  // ইনলাইন ছবি কম্প্রেস করা হচ্ছে
-                  const compressedDataUrl = await compressImageHelper(reader.result, 100);
-                  const finalFile = dataURLtoFileHelper(compressedDataUrl, "inline-image.jpg");
-
-                  const formData = new FormData();
-                  formData.append("image", finalFile);
-
-                  // ImgBB তে সরাসরি আপলোড
-                  const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-                    method: "POST",
-                    body: formData,
-                  });
-                  const data = await response.json();
-
-                  quill.deleteText(range.index, 22);
-                  if (data.success) {
-                    quill.insertEmbed(range.index, "image", data.data.url);
-                    quill.setSelection(range.index + 1);
-                  } else {
-                    alert("Image Upload Failed!");
-                  }
-                };
-                reader.readAsDataURL(file);
-              } catch (error) {
-                quill.deleteText(range.index, 22);
-                alert("Error: " + error.message);
-              }
-            }
-          };
-        };
-
-        // কুইল সেটআপ
-        quillInstance.current = new Quill(editorRef.current, {
-          theme: "snow",
-          placeholder: "আপনার অ্যাডভেঞ্চারের রোমাঞ্চকর অভিজ্ঞতা এখানে লিখুন...",
-          modules: {
-            toolbar: {
-              container: [
-                [{ 'header': [3, 4, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['link', 'image'],
-                ['clean']
-              ],
-              handlers: {
-                image: imageHandler
-              }
-            }
-          }
-        });
-      });
-    }
   }, []);
 
   const checkAuth = async () => {
@@ -166,6 +85,76 @@ export default function WriteBlogPage() {
       .single();
       
     if (data) setUserProfile(data);
+  };
+
+  // তোমার পুরনো প্রজেক্টের স্টাইলে ভ্যানিলা কুইল ইনিশিয়ালাইজেশন
+  const initQuill = () => {
+    if (window.Quill && !quillInstance.current) {
+      
+      const imageHandler = () => {
+        const input = document.createElement("input");
+        input.setAttribute("type", "file");
+        input.setAttribute("accept", "image/*");
+        input.click();
+
+        input.onchange = async () => {
+          const file = input.files[0];
+          if (file) {
+            const quill = quillInstance.current;
+            const range = quill.getSelection(true);
+            quill.insertText(range.index, " (Uploading Image...) ", "user");
+
+            try {
+              const reader = new FileReader();
+              reader.onload = async () => {
+                const compressedDataUrl = await compressImageHelper(reader.result, 100);
+                const finalFile = dataURLtoFileHelper(compressedDataUrl, "inline-image.jpg");
+
+                const formData = new FormData();
+                formData.append("image", finalFile);
+
+                const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                  method: "POST",
+                  body: formData,
+                });
+                const data = await response.json();
+
+                quill.deleteText(range.index, 22);
+                if (data.success) {
+                  quill.insertEmbed(range.index, "image", data.data.url);
+                  quill.setSelection(range.index + 1);
+                } else {
+                  alert("Image Upload Failed!");
+                }
+              };
+              reader.readAsDataURL(file);
+            } catch (error) {
+              quill.deleteText(range.index, 22);
+              alert("Error: " + error.message);
+            }
+          }
+        };
+      };
+
+      quillInstance.current = new window.Quill('#editor-container', {
+        theme: 'snow',
+        placeholder: 'আপনার অ্যাডভেঞ্চারের রোমাঞ্চকর অভিজ্ঞতা এখানে লিখুন...',
+        modules: {
+          toolbar: {
+            container: [
+              [{ 'header': [3, 4, false] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+              ['link', 'image'],
+              ['clean']
+            ],
+            handlers: {
+              image: imageHandler
+            }
+          }
+        }
+      });
+    }
   };
 
   const handleCoverSelect = (e) => {
@@ -210,7 +199,7 @@ export default function WriteBlogPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // ভ্যানিলা কুইল থেকে সরাসরি কনটেন্ট নেওয়া হচ্ছে (রিঅ্যাক্ট স্টেটের দরকার নেই!)
+    // ভ্যানিলা কুইল থেকে সরাসরি HTML নেওয়া
     const content = quillInstance.current ? quillInstance.current.root.innerHTML : "";
     
     if (!title.trim() || !content.trim() || content === "<p><br></p>") {
@@ -263,6 +252,15 @@ export default function WriteBlogPage() {
 
   return (
     <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+      
+      {/* Quill এর অরিজিনাল CSS ও JS لوڈ করা হচ্ছে */}
+      <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
+      <Script 
+        src="https://cdn.quilljs.com/1.3.6/quill.min.js" 
+        strategy="afterInteractive" 
+        onLoad={initQuill} 
+      />
+
       <div className="max-w-4xl mx-auto glass-panel rounded-[2rem] p-6 sm:p-10 border border-white/10 relative overflow-hidden" data-aos="fade-up">
         
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#e76f51]/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -281,7 +279,6 @@ export default function WriteBlogPage() {
 
         <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
           
-          {/* Cover Photo */}
           <div data-aos="fade-up" data-aos-delay="100">
             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">কভার ছবি (ঐচ্ছিক)</label>
             <div className="relative border-2 border-dashed border-white/20 hover:border-[#e76f51]/50 rounded-2xl overflow-hidden bg-black/40 transition-colors group cursor-pointer">
@@ -308,7 +305,6 @@ export default function WriteBlogPage() {
             </div>
           </div>
 
-          {/* Title */}
           <div data-aos="fade-up" data-aos-delay="200">
             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">গল্পের শিরোনাম *</label>
             <input 
@@ -321,11 +317,12 @@ export default function WriteBlogPage() {
             />
           </div>
 
-          {/* Vanilla Quill Editor Container */}
           <div data-aos="fade-up" data-aos-delay="300" className="write-blog-editor">
             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">মূল গল্প (মাঝে ছবি দিতে Image আইকনে ক্লিক করুন) *</label>
+            
+            {/* অরিজিনাল কুইল কন্টেইনার */}
             <div className="bg-black/40 rounded-xl border border-white/10 overflow-hidden relative">
-              <div ref={editorRef} className="text-gray-200"></div>
+              <div id="editor-container" className="text-gray-200"></div>
             </div>
             
             <style jsx global>{`
