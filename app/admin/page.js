@@ -11,7 +11,8 @@ export default function AdminDashboard() {
     totalUsers: 0,
     pendingBookings: 0,
     pendingStories: 0,
-    activeEvents: 0
+    activeEvents: 0,
+    trashedEvents: 0 // নতুন স্টেট ট্র্যাশ বিনের জন্য
   })
   const [loading, setLoading] = useState(true)
 
@@ -23,11 +24,15 @@ export default function AdminDashboard() {
         const { count: userCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true })
         const { count: bookingCount } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending')
         
+        // ট্র্যাশ বিনে থাকা ইভেন্টের সংখ্যা বের করা (যেখানে deleted_at কলামে ডেটা আছে)
+        const { count: trashCount } = await supabase.from('events').select('*', { count: 'exact', head: true }).not('deleted_at', 'is', null)
+        
         setStats({
           totalUsers: userCount || 0,
           pendingBookings: bookingCount || 0,
           pendingStories: 0, 
-          activeEvents: 0
+          activeEvents: 0,
+          trashedEvents: trashCount || 0
         })
       } catch (error) {
         console.error('Stats loading error:', error)
@@ -60,7 +65,8 @@ export default function AdminDashboard() {
             </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10" data-aos="fade-up" data-aos-delay="50">
+        {/* 5-Column Grid for exactly 5 items on large screens */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-10" data-aos="fade-up" data-aos-delay="50">
             <Link href="/admin/stories" className="bg-[#0a1c13] border border-yellow-500/30 p-5 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-yellow-500/10 hover:-translate-y-1">
                 <i className="fa-solid fa-book-open text-2xl mb-2 text-yellow-500"></i>
                 <span className="font-black text-sm text-white">গল্প রিভিউ</span>
@@ -83,6 +89,13 @@ export default function AdminDashboard() {
                 <i className="fa-solid fa-bolt text-2xl mb-2 text-emerald-400"></i>
                 <span className="font-black text-sm text-white">অ্যাক্টিভ ইভেন্ট</span>
                 <span className="mt-2 bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-md text-[10px] font-bold border border-emerald-500/30">{stats.activeEvents}</span>
+            </Link>
+
+            {/* নতুন ট্র্যাশ বিন কার্ড */}
+            <Link href="/admin/trash" className="bg-[#0a1c13] border border-red-500/30 p-5 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-red-500/10 hover:-translate-y-1">
+                <i className="fa-solid fa-trash-can text-2xl mb-2 text-red-500"></i>
+                <span className="font-black text-sm text-white">ট্র্যাশ বিন</span>
+                <span className="mt-2 bg-red-500/20 text-red-400 px-2 py-0.5 rounded-md text-[10px] font-bold border border-red-500/30">{stats.trashedEvents}</span>
             </Link>
         </div>
 
