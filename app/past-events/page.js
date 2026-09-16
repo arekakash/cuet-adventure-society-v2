@@ -120,6 +120,21 @@ export default function PastEventsPage() {
     }
   }
 
+  // 🔴 ক্যাটাগরি অনুযায়ী ডায়নামিক আইকন সেট করার ফাংশন
+  const getCategoryIcon = (category) => {
+    switch (category) {
+      case 'Trekking': return 'fa-solid fa-mountain'
+      case 'Cycling': return 'fa-solid fa-bicycle'
+      case 'Swimming': return 'fa-solid fa-person-swimming'
+      case 'Camping': return 'fa-solid fa-campground'
+      case 'Houseboat/Cruise': return 'fa-solid fa-ship'
+      case 'Day Tour': return 'fa-solid fa-bus-simple'
+      case 'Workshop': return 'fa-solid fa-chalkboard-user'
+      case 'Expedition': return 'fa-solid fa-map-location-dot'
+      default: return 'fa-solid fa-compass'
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#050b08] text-gray-300 font-sans relative overflow-x-hidden pt-24 pb-16">
       
@@ -182,22 +197,28 @@ export default function PastEventsPage() {
             <span className="text-sm font-bold text-white tracking-widest uppercase">ফিল্টার:</span>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            
+            {/* 🔴 আপডেট করা ড্রপডাউন ক্যাটাগরি */}
             <select 
               value={filters.category} 
               onChange={(e) => setFilters({...filters, category: e.target.value})}
-              className="bg-black/50 border border-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-[#e76f51] cursor-pointer"
+              className="bg-black/50 border border-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-[#e76f51] cursor-pointer font-bold"
             >
               <option value="All">সব ক্যাটাগরি</option>
               <option value="Trekking">Trekking</option>
               <option value="Camping">Camping</option>
+              <option value="Cycling">Cycling</option>
+              <option value="Swimming">Swimming</option>
               <option value="Houseboat/Cruise">Houseboat/Cruise</option>
+              <option value="Expedition">Expedition</option>
               <option value="Day Tour">Day Tour</option>
+              <option value="Workshop">Workshop</option>
             </select>
             
             <select 
               value={filters.year} 
               onChange={(e) => setFilters({...filters, year: e.target.value})}
-              className="bg-black/50 border border-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-[#e76f51] cursor-pointer"
+              className="bg-black/50 border border-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-[#e76f51] cursor-pointer font-bold"
             >
               <option value="All">সব বছর</option>
               {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
@@ -231,12 +252,12 @@ export default function PastEventsPage() {
                     <i className="fa-solid fa-check-double"></i> Mission Accomplished
                   </div>
 
-                  {/* Category Badge */}
-                  <div className="absolute top-4 right-4 z-20 bg-black/50 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/20">
-                    {ev.category}
+                  {/* 🔴 Category Badge with Icon */}
+                  <div className="absolute top-4 right-4 z-20 bg-black/50 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/20 flex items-center gap-1.5">
+                    <i className={getCategoryIcon(ev.category)}></i> {ev.category}
                   </div>
 
-                  {/* 🔴 অ্যাডমিন ডিলিট বাটন (শুধুমাত্র অ্যাডমিন দেখবে) */}
+                  {/* অ্যাডমিন ডিলিট বাটন (শুধুমাত্র অ্যাডমিন দেখবে) */}
                   {isAdmin && (
                     <button
                       onClick={(e) => {
@@ -273,8 +294,12 @@ export default function PastEventsPage() {
                       <p className="font-black text-gray-200">{ev.booked_seats || 0} জন</p>
                     </div>
                     <div className="bg-white/5 p-2 rounded-xl text-center">
-                      <p className="text-[10px] text-gray-500 font-bold uppercase mb-0.5">দূরত্ব</p>
-                      <p className="font-black text-blue-400">{ev.stats_meta?.distance || 0} km</p>
+                      {/* 🔴 ডায়নামিক স্ট্যাটস আইকন */}
+                      <p className="text-[10px] text-gray-500 font-bold uppercase mb-0.5 flex justify-center items-center gap-1">
+                        <i className={ev.category === 'Cycling' ? 'fa-solid fa-bicycle' : ev.category === 'Swimming' ? 'fa-solid fa-person-swimming' : 'fa-solid fa-shoe-prints'}></i> 
+                        দূরত্ব
+                      </p>
+                      <p className="font-black text-blue-400">{ev.stats_meta?.distance || 0} {ev.category === 'Swimming' ? 'm' : 'km'}</p>
                     </div>
                   </div>
                 </div>
