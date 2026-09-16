@@ -12,10 +12,13 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
-  // 🔴 নতুন: পাসওয়ার্ড রিসেট পপআপ স্টেট
+  // পাসওয়ার্ড রিসেট পপআপ স্টেট
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
   const [resetStatus, setResetStatus] = useState('idle') // 'idle', 'loading', 'success'
+
+  // 🔴 নতুন: মজার এরর পপআপ স্টেট
+  const [showErrorModal, setShowErrorModal] = useState(false)
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
@@ -55,14 +58,14 @@ export default function LoginPage() {
           'দয়া করে আপনার মোবাইলের বা কম্পিউটারের সেটিংসে গিয়ে "Automatic Date & Time" (Network Time) চালু করুন এবং পেজটি রিলোড দিয়ে আবার চেষ্টা করুন। ঘড়ির সময় ঠিক না থাকলে নিরাপত্তার কারণে লগইন করা যায় না।'
         );
       } else {
-        alert('ইমেইল অথবা পাসওয়ার্ড ভুল হয়েছে! আবার চেষ্টা করুন।\n(' + error.message + ')')
+        // 🔴 বোরিং অ্যালার্টের বদলে এখন আমাদের মজার পপআপ ওপেন হবে
+        setShowErrorModal(true)
       }
     } finally {
       setLoading(false)
     }
   }
 
-  // 🔴 নতুন: কাস্টম রিসেট লজিক
   const submitPasswordReset = async (e) => {
     e.preventDefault()
     if (!resetEmail) return
@@ -74,7 +77,6 @@ export default function LoginPage() {
       })
       if (error) throw error
       
-      // সফল হলে স্ট্যাটাস চেঞ্জ হবে
       setResetStatus('success')
     } catch (error) {
       alert('ইমেইল পাঠাতে সমস্যা হয়েছে: ' + error.message)
@@ -82,9 +84,8 @@ export default function LoginPage() {
     }
   }
 
-  // রিসেট পপআপ খোলার ফাংশন
   const openResetModal = () => {
-    setResetEmail(email) // লগইন ফর্মে ইমেইল লেখা থাকলে অটো ফিল হয়ে যাবে
+    setResetEmail(email)
     setResetStatus('idle')
     setShowResetModal(true)
   }
@@ -167,7 +168,6 @@ export default function LoginPage() {
               <div className="flex justify-between items-center mb-1.5">
                 <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider">পাসওয়ার্ড</label>
                 
-                {/* 🔴 স্টাইলিশ পাসওয়ার্ড রিসেট ট্রিগার */}
                 <button 
                   type="button" 
                   onClick={openResetModal} 
@@ -209,7 +209,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* 🔴 পাসওয়ার্ড রিসেট কাস্টম পপআপ (Modal) */}
+      {/* পাসওয়ার্ড রিসেট কাস্টম পপআপ (Modal) */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowResetModal(false)}></div>
@@ -221,7 +221,6 @@ export default function LoginPage() {
             </button>
 
             {resetStatus === 'success' ? (
-              // 🟢 সাকসেস মেসেজ ও স্প্যাম ফোল্ডার ওয়ার্নিং
               <div className="text-center py-4">
                 <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 border border-emerald-500/30">
                   <i className="fa-solid fa-envelope-circle-check"></i>
@@ -231,7 +230,6 @@ export default function LoginPage() {
                   <strong className="text-white">{resetEmail}</strong> ঠিকানায় একটি পাসওয়ার্ড রিসেট লিংক পাঠানো হয়েছে।
                 </p>
 
-                {/* স্প্যাম অ্যালার্ট বক্স */}
                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 mb-8 text-left flex items-start gap-3 shadow-inner">
                   <i className="fa-solid fa-triangle-exclamation text-yellow-500 mt-0.5 text-lg animate-pulse"></i>
                   <div>
@@ -250,7 +248,6 @@ export default function LoginPage() {
                 </button>
               </div>
             ) : (
-              // 🟠 রিসেট ইমেইল ইনপুট ফর্ম
               <div className="py-2">
                 <div className="w-12 h-12 bg-[#e76f51]/20 text-[#e76f51] rounded-full flex items-center justify-center text-xl mb-4 border border-[#e76f51]/30">
                   <i className="fa-solid fa-unlock-keyhole"></i>
@@ -283,6 +280,34 @@ export default function LoginPage() {
                 </form>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 🔴 মজার এরর পপআপ (Modal) */}
+      {showErrorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowErrorModal(false)}></div>
+          
+          <div className="bg-[#0a1c13] border border-red-500/30 rounded-3xl p-6 sm:p-8 w-full max-w-sm relative z-10 shadow-[0_0_40px_rgba(239,68,68,0.15)] transform transition-all text-center">
+            
+            <div className="text-6xl animate-bounce mb-4">
+              😉
+            </div>
+            
+            <h3 className="text-2xl font-black text-white mb-3">ভুল পাসওয়ার্ড!</h3>
+            
+            <p className="text-sm text-gray-400 leading-relaxed mb-6">
+              আপনার যে পাসওয়ার্ড ভুলে যাওয়ার রোগ শুরু হয়েছে তা কি বাসায় জানে? <br/><br/>
+              দয়া করে সঠিক পাসওয়ার্ড দিন।
+            </p>
+
+            <button 
+              onClick={() => setShowErrorModal(false)} 
+              className="w-full bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/50 font-bold py-3 rounded-xl transition-all"
+            >
+              ঠিক আছে, আবার চেষ্টা করছি
+            </button>
           </div>
         </div>
       )}
