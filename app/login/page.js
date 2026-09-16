@@ -12,13 +12,17 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
+  // 🔴 নতুন: পাসওয়ার্ড রিসেট পপআপ স্টেট
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetStatus, setResetStatus] = useState('idle') // 'idle', 'loading', 'success'
+
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // আমাদের নতুন ওয়েটিং রুমের লিংক
           redirectTo: 'https://cuet-adventure-society-v2.pages.dev/auth/callback'
         }
       })
@@ -45,7 +49,6 @@ export default function LoginPage() {
         router.push('/dashboard')
       }
     } catch (error) {
-      // ⚠️ স্মার্ট (Smart) এরর হ্যান্ডলিং: JWT ও ঘড়ির সময়ের এরর যাচাই
       if (error.message.includes('JWT') || error.message.includes('future') || error.message.includes('expired')) {
         alert(
           '⚠️ আপনার ডিভাইসের ঘড়ির সময় সঠিক নেই!\n\n' +
@@ -59,26 +62,37 @@ export default function LoginPage() {
     }
   }
 
-  const handlePasswordReset = async () => {
-    if (!email) {
-      alert('পাসওয়ার্ড রিসেট করতে আগে উপরের বক্সে আপনার ইমেইলটি লিখুন।')
-      return
-    }
+  // 🔴 নতুন: কাস্টম রিসেট লজিক
+  const submitPasswordReset = async (e) => {
+    e.preventDefault()
+    if (!resetEmail) return
     
+    setResetStatus('loading')
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         redirectTo: 'https://cuet-adventure-society-v2.pages.dev/reset-password',
       })
       if (error) throw error
-      alert('রিসেট লিংক পাঠানো হয়েছে! আপনার ইমেইল ইনবক্স চেক করুন।')
+      
+      // সফল হলে স্ট্যাটাস চেঞ্জ হবে
+      setResetStatus('success')
     } catch (error) {
       alert('ইমেইল পাঠাতে সমস্যা হয়েছে: ' + error.message)
+      setResetStatus('idle')
     }
+  }
+
+  // রিসেট পপআপ খোলার ফাংশন
+  const openResetModal = () => {
+    setResetEmail(email) // লগইন ফর্মে ইমেইল লেখা থাকলে অটো ফিল হয়ে যাবে
+    setResetStatus('idle')
+    setShowResetModal(true)
   }
 
   return (
     <main className="min-h-screen bg-[#050b08] text-gray-300 font-sans flex md:items-center justify-center py-12 px-4 sm:px-6 relative overflow-x-hidden">
       
+      {/* Background Effects */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-[#050b08]/90 via-[#0a1c13]/80 to-[#050b08]/90"></div>
         <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-[#e76f51]/10 rounded-full blur-[100px] animate-pulse"></div>
@@ -87,6 +101,7 @@ export default function LoginPage() {
 
       <div className="max-w-5xl w-full bg-[#0a1c13]/70 backdrop-blur-xl rounded-[2rem] shadow-[0_0_20px_rgba(231,111,81,0.1)] overflow-hidden flex flex-col md:flex-row relative z-10 border border-white/10">
         
+        {/* Left Column */}
         <div className="w-full md:w-5/12 bg-black/40 p-10 lg:p-14 flex flex-col justify-center border-r border-white/5 relative overflow-hidden">
           <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-[#e76f51] transition-colors bg-white/5 px-4 py-2 rounded-full text-xs font-bold uppercase border border-white/10 w-max mb-12 relative z-10">
             ← হোমপেজে ফিরে যান
@@ -102,6 +117,7 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Right Column: Login Form */}
         <div className="w-full md:w-7/12 p-8 sm:p-12 lg:p-16 flex flex-col justify-center">
           <div className="mb-8 border-b border-white/10 pb-6">
             <h3 className="text-2xl lg:text-3xl font-black text-white mb-2">ড্যাশবোর্ডে লগইন করুন</h3>
@@ -113,7 +129,7 @@ export default function LoginPage() {
             onClick={handleGoogleLogin} 
             disabled={googleLoading}
             type="button" 
-            className="w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-gray-200 hover:border-[#e76f51]/50 font-bold py-3.5 px-4 rounded-xl transition-all mb-6 relative overflow-hidden backdrop-blur-sm shadow-sm"
+            className="w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-gray-200 hover:border-[#e76f51]/50 font-bold py-3.5 px-4 rounded-xl transition-all mb-6 relative overflow-hidden backdrop-blur-sm shadow-sm hover:shadow-[0_0_15px_rgba(231,111,81,0.2)] hover:-translate-y-0.5"
           >
             {googleLoading ? (
               <i className="fa-solid fa-circle-notch fa-spin text-gray-400"></i>
@@ -150,12 +166,17 @@ export default function LoginPage() {
             <div>
               <div className="flex justify-between items-center mb-1.5">
                 <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider">পাসওয়ার্ড</label>
+                
+                {/* 🔴 স্টাইলিশ পাসওয়ার্ড রিসেট ট্রিগার */}
                 <button 
                   type="button" 
-                  onClick={handlePasswordReset} 
-                  className="text-[10px] text-[#e76f51] hover:text-white transition-colors font-bold tracking-wide"
+                  onClick={openResetModal} 
+                  className="group flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-white transition-colors"
                 >
-                  পাসওয়ার্ড ভুলে গেছেন?
+                  <span>পাসওয়ার্ড ভুলে গেছেন?</span>
+                  <span className="bg-[#e76f51]/10 text-[#e76f51] px-2 py-0.5 rounded-full border border-[#e76f51]/20 group-hover:bg-[#e76f51] group-hover:text-white transition-all flex items-center gap-1">
+                    <i className="fa-solid fa-key text-[9px]"></i> রিসেট
+                  </span>
                 </button>
               </div>
               <input 
@@ -174,6 +195,7 @@ export default function LoginPage() {
                 disabled={loading} 
                 className="w-full bg-[#e76f51] hover:bg-orange-600 text-white font-black text-lg py-4 px-4 rounded-xl transition-all shadow-[0_0_15px_rgba(231,111,81,0.4)] hover:-translate-y-1 flex justify-center items-center gap-2"
               >
+                {loading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-right-to-bracket"></i>}
                 {loading ? 'লগইন হচ্ছে...' : 'লগইন করুন'}
               </button>
             </div>
@@ -185,8 +207,86 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
-
       </div>
+
+      {/* 🔴 পাসওয়ার্ড রিসেট কাস্টম পপআপ (Modal) */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowResetModal(false)}></div>
+          
+          <div className="bg-[#0a1c13] border border-[#e76f51]/30 rounded-3xl p-6 sm:p-8 w-full max-w-md relative z-10 shadow-[0_0_40px_rgba(231,111,81,0.15)] transform transition-all">
+            
+            <button onClick={() => setShowResetModal(false)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+
+            {resetStatus === 'success' ? (
+              // 🟢 সাকসেস মেসেজ ও স্প্যাম ফোল্ডার ওয়ার্নিং
+              <div className="text-center py-4">
+                <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 border border-emerald-500/30">
+                  <i className="fa-solid fa-envelope-circle-check"></i>
+                </div>
+                <h3 className="text-2xl font-black text-white mb-2">লিংক পাঠানো হয়েছে!</h3>
+                <p className="text-sm text-gray-400 mb-6">
+                  <strong className="text-white">{resetEmail}</strong> ঠিকানায় একটি পাসওয়ার্ড রিসেট লিংক পাঠানো হয়েছে।
+                </p>
+
+                {/* স্প্যাম অ্যালার্ট বক্স */}
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 mb-8 text-left flex items-start gap-3 shadow-inner">
+                  <i className="fa-solid fa-triangle-exclamation text-yellow-500 mt-0.5 text-lg animate-pulse"></i>
+                  <div>
+                    <strong className="text-yellow-500 block mb-1 text-sm">ইমেইল খুঁজে পাচ্ছেন না?</strong>
+                    <p className="text-xs text-gray-300 leading-relaxed">
+                      অনেক সময় সিকিউরিটির কারণে ইমেইল সরাসরি ইনবক্সে না গিয়ে <strong className="text-white border-b border-white border-dashed pb-0.5">Spam</strong> বা <strong className="text-white border-b border-white border-dashed pb-0.5">Junk</strong> ফোল্ডারে চলে যেতে পারে। দয়া করে আপনার স্প্যাম ফোল্ডারটি চেক করুন।
+                    </p>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setShowResetModal(false)} 
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl transition-all"
+                >
+                  ঠিক আছে, বুঝতে পেরেছি
+                </button>
+              </div>
+            ) : (
+              // 🟠 রিসেট ইমেইল ইনপুট ফর্ম
+              <div className="py-2">
+                <div className="w-12 h-12 bg-[#e76f51]/20 text-[#e76f51] rounded-full flex items-center justify-center text-xl mb-4 border border-[#e76f51]/30">
+                  <i className="fa-solid fa-unlock-keyhole"></i>
+                </div>
+                <h3 className="text-xl font-black text-white mb-2">পাসওয়ার্ড রিকভারি</h3>
+                <p className="text-xs sm:text-sm text-gray-400 mb-6">
+                  আপনার অ্যাকাউন্টের ইমেইল অ্যাড্রেসটি দিন। আমরা আপনাকে একটি পাসওয়ার্ড রিসেট লিংক পাঠিয়ে দেবো।
+                </p>
+
+                <form onSubmit={submitPasswordReset} className="space-y-5">
+                  <div>
+                    <input 
+                      type="email" 
+                      required 
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      placeholder="আপনার ইমেইল লিখুন" 
+                      className="w-full bg-black/50 border border-white/10 text-white rounded-xl block p-4 focus:border-[#e76f51] outline-none transition-all text-sm" 
+                    />
+                  </div>
+                  
+                  <button 
+                    type="submit" 
+                    disabled={resetStatus === 'loading'} 
+                    className="w-full bg-[#e76f51] hover:bg-orange-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(231,111,81,0.3)] flex justify-center items-center gap-2"
+                  >
+                    {resetStatus === 'loading' ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-regular fa-paper-plane"></i>}
+                    {resetStatus === 'loading' ? 'পাঠানো হচ্ছে...' : 'রিসেট লিংক পাঠান'}
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </main>
   )
 }
