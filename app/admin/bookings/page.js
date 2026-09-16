@@ -8,8 +8,6 @@ export default function AdminBookings() {
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState(null)
-  
-  // 🟢 নতুন: কপি ট্র্যাকিং স্টেট
   const [copiedId, setCopiedId] = useState(null)
 
   const fetchBookings = async () => {
@@ -18,8 +16,8 @@ export default function AdminBookings() {
         .from('bookings')
         .select(`
           *,
-          events (title, id, booked_seats, total_seats),
-          profiles (full_name, phone, blood_group, emergency_contact)
+          events (title, id, booked_seats, total_seats, category, stats_meta),
+          profiles (id, full_name, phone, blood_group, emergency_contact, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance)
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: true }) 
@@ -37,31 +35,68 @@ export default function AdminBookings() {
     fetchBookings()
   }, [])
 
-  const handleApprove = async (bookingId, eventId, currentBooked, totalSeats) => {
-    if (currentBooked >= totalSeats) {
+  // 🔴 স্মার্ট অ্যাপ্রুভাল লজিক (গ্যামিফিকেশন রিওয়ার্ডস সহ)
+  const handleApprove = async (booking) => {
+    const event = booking.events
+    const profile = booking.profiles
+    
+    if (event.booked_seats >= event.total_seats) {
         alert("⚠️ এই ইভেন্টের সব সিট ইতোমধ্যে বুক হয়ে গেছে! আপনি আর অ্যাপ্রুভ করতে পারবেন না।")
         return
     }
 
-    if (!window.confirm("পেমেন্ট সঠিক হলে অ্যাপ্রুভ করুন। নিশ্চিত?")) return
-    setProcessingId(bookingId)
+    if (!window.confirm("পেমেন্ট সঠিক হলে অ্যাপ্রুভ করুন। ইউজারের প্রোফাইলে রিওয়ার্ড যোগ হবে। নিশ্চিত?")) return
+    setProcessingId(booking.id)
 
     try {
+      // ১. বুকিং স্ট্যাটাস আপডেট
       const { error: bookingError } = await supabase
         .from('bookings')
         .update({ status: 'approved' })
-        .eq('id', bookingId)
+        .eq('id', booking.id)
 
       if (bookingError) throw bookingError
 
+      // ২. ইভেন্টের সিট সংখ্যা আপডেট
       const { error: eventError } = await supabase
         .from('events')
-        .update({ booked_seats: currentBooked + 1 })
-        .eq('id', eventId)
+        .update({ booked_seats: event.booked_seats + 1 })
+        .eq('id', event.id)
         
       if (eventError) throw eventError
 
-      alert("বুকিং কনফার্ম করা হয়েছে এবং সিট আপডেট হয়েছে!")
+      // 🔴 ৩. ইউজারের প্রোফাইলে ডায়নামিক রিওয়ার্ড যোগ করা
+      let profileUpdateData = {}
+      const rewardCount = event.stats_meta?.treks || 0
+      const rewardDistance = event.stats_meta?.distance || 0
+
+      if (event.category === 'Cycling') {
+        profileUpdateData = {
+          total_rides: (profile.total_rides || 0) + rewardCount,
+          cycling_distance: (profile.cycling_distance || 0) + rewardDistance
+        }
+      } else if (event.category === 'Swimming' || event.category === 'Houseboat/Cruise') {
+        profileUpdateData = {
+          total_swims: (profile.total_swims || 0) + rewardCount,
+          swimming_distance: (profile.swimming_distance || 0) + rewardDistance
+        }
+      } else {
+        // Trekking, Expedition, Day Tour etc.
+        profileUpdateData = {
+          total_treks: (profile.total_treks || 0) + rewardCount,
+          total_distance: (profile.total_distance || 0) + rewardDistance
+        }
+      }
+
+      // প্রোফাইল আপডেট করা
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(profileUpdateData)
+        .eq('id', profile.id)
+
+      if (profileError) throw profileError
+
+      alert("বুকিং কনফার্ম করা হয়েছে এবং ইউজারের প্রোফাইলে রিওয়ার্ড যোগ হয়েছে!")
       fetchBookings()
     } catch (error) {
       alert("বুকিং অ্যাপ্রুভ করতে সমস্যা হয়েছে: " + error.message)
@@ -91,11 +126,10 @@ export default function AdminBookings() {
     }
   }
 
-  // 🟢 নতুন: কপি করার ফাংশন
   const handleCopy = (trxId, id) => {
     navigator.clipboard.writeText(trxId)
     setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000) // ২ সেকেন্ড পর আইকন আগের মতো হয়ে যাবে
+    setTimeout(() => setCopiedId(null), 2000)
   }
 
   if (loading) {
@@ -159,12 +193,11 @@ export default function AdminBookings() {
                             </div>
                         </div>
 
-                        {/* পেমেন্ট ইনফো (TrxID & Method) */}
+                        {/* পেমেন্ট ইনফো */}
                         <div className="flex items-center gap-3">
                             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-400 font-bold tracking-widest uppercase text-[10px]">
                                 <i className="fa-solid fa-hashtag"></i> TrxID: <span className="text-gray-200">{booking.trx_id}</span>
                                 
-                                {/* 🟢 নতুন: কপি বাটন */}
                                 {booking.trx_id && booking.trx_id !== 'NONE' && booking.trx_id !== 'FREE_BOOKING' && (
                                   <button 
                                     onClick={() => handleCopy(booking.trx_id, booking.id)}
@@ -191,8 +224,9 @@ export default function AdminBookings() {
 
                     {/* অ্যাকশন বাটন */}
                     <div className="flex flex-row md:flex-col gap-2 w-full md:w-36 shrink-0 mt-2 md:mt-0 border-t border-white/5 md:border-none pt-4 md:pt-0">
+                        {/* 🔴 আপডেট: পুরো বুকিং অবজেক্ট পাস করা হচ্ছে */}
                         <button 
-                          onClick={() => handleApprove(booking.id, booking.event_id, booking.events?.booked_seats, booking.events?.total_seats)} 
+                          onClick={() => handleApprove(booking)} 
                           disabled={processingId === booking.id || isFull}
                           className="flex-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-white py-2.5 rounded-xl text-sm font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
