@@ -22,7 +22,7 @@ export default function LeaderboardPage() {
     
     // 🔴 ডায়নামিক সর্টিং কলাম নির্ধারণ
     let orderByColumn = 'survival_iq' // Default
-    if (activeTab === 'total_events') orderByColumn = 'total_events' // (অথবা total_treks যদি আলাদা কলাম না থাকে)
+    if (activeTab === 'total_events') orderByColumn = 'total_events' 
     if (activeTab === 'trekking') orderByColumn = 'total_distance'
     if (activeTab === 'cycling') orderByColumn = 'cycling_distance'
     if (activeTab === 'swimming') orderByColumn = 'swimming_distance'
@@ -54,7 +54,6 @@ export default function LeaderboardPage() {
         mainValue: user.survival_iq || 0, mainLabel: "IQ Points", subValue: null, unit: "Pts"
     }
     if (activeTab === "total_events") return { 
-        // যদি total_events কলাম না থাকে, তবে total_treks কে ফলব্যাক হিসেবে নেবে
         mainValue: user.total_events || user.total_treks || 0, mainLabel: "Events Done", subValue: null, unit: ""
     }
     if (activeTab === "trekking") return { 
@@ -87,10 +86,9 @@ export default function LeaderboardPage() {
           </p>
         </div>
 
-        {/* 🔴 ৩টি প্রধান ফিল্টার ট্যবস (তোমার আইডিয়া অনুযায়ী) */}
+        {/* 🔴 ৩টি প্রধান ফিল্টার ট্যবস */}
         <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-10 relative z-10">
           
-          {/* Tab 1: Survival IQ */}
           <button 
             onClick={() => setActiveTab("survival_iq")}
             className={`px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === "survival_iq" ? "bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-105" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"}`}
@@ -98,7 +96,6 @@ export default function LeaderboardPage() {
             <i className="fa-solid fa-brain"></i> Survival IQ
           </button>
           
-          {/* Tab 2: Total Events */}
           <button 
             onClick={() => setActiveTab("total_events")}
             className={`px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === "total_events" ? "bg-[#e76f51] text-white shadow-[0_0_15px_rgba(231,111,81,0.4)] scale-105" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"}`}
@@ -118,7 +115,6 @@ export default function LeaderboardPage() {
             {/* Dropdown Menu */}
             {isActivityDropdownOpen && (
               <>
-                {/* Invisible overlay to close dropdown when clicked outside */}
                 <div className="fixed inset-0 z-40" onClick={() => setIsActivityDropdownOpen(false)}></div>
                 
                 <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-48 bg-[#0a1c13] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden py-2 animate-fade-in-up">
@@ -183,7 +179,8 @@ export default function LeaderboardPage() {
 
                     {/* Name & Title */}
                     <div>
-                      <Link href={`/profile/${user.id}`} className="text-lg sm:text-xl font-bold text-white hover:text-[#e76f51] transition-colors">
+                      {/* 🔴 এখানে লিংক ফিক্স করা হয়েছে */}
+                      <Link href={`/public-profile?id=${user.id}`} className="text-lg sm:text-xl font-bold text-white hover:text-[#e76f51] transition-colors">
                         {user.full_name || 'Unknown Explorer'}
                       </Link>
                       
@@ -192,7 +189,6 @@ export default function LeaderboardPage() {
                           {rank.label}
                         </p>
                         
-                        {/* সাব-লেবেল (যেমন: 5 Treks) শুধুমাত্র Activities ট্যাবে দেখাবে */}
                         {displayData.subValue !== null && (
                           <>
                             <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
