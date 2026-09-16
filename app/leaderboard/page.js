@@ -12,18 +12,28 @@ export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState("survival_iq") 
   const [isActivityDropdownOpen, setIsActivityDropdownOpen] = useState(false)
   
+  // 🔴 নতুন: ফিল্টার স্টেট এবং ড্রপডাউন Ref
+  const [filterBatch, setFilterBatch] = useState("All")
+  const [filterDept, setFilterDept] = useState("All")
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false)
+  
   // ড্রপডাউনের বাইরে ক্লিক করলে বন্ধ করার জন্য Ref
   const dropdownRef = useRef(null)
+  const filterDropdownRef = useRef(null) // নতুন ফিল্টার ড্রপডাউনের জন্য
 
   useEffect(() => {
     fetchLeaderboard()
-  }, [activeTab])
+  }, [activeTab, filterBatch, filterDept]) // 🔴 নতুন ডিপেন্ডেন্সি যুক্ত করা হয়েছে
 
   // ড্রপডাউনের বাইরে ক্লিক হ্যান্ডলার
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsActivityDropdownOpen(false)
+      }
+      // 🔴 ফিল্টার ড্রপডাউন বন্ধ করার লজিক
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target)) {
+        setIsFilterDropdownOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -40,13 +50,24 @@ export default function LeaderboardPage() {
     if (activeTab === 'cycling') orderByColumn = 'cycling_distance'
     if (activeTab === 'swimming') orderByColumn = 'swimming_distance'
 
-    // সুপাবেজ কোয়েরি (যাদের স্কোর ০, তাদেরও দেখাবে)
-    const { data, error } = await supabase
+    // 🔴 সুপাবেজ কোয়েরি বিল্ডার (ডায়নামিক ফিল্টারিংয়ের জন্য)
+    let query = supabase
       .from('profiles')
-      .select('id, full_name, photo_url, survival_iq, total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, role')
-      // .gt(orderByColumn, 0) <--- এই লাইনটি রিমুভ করা হয়েছে যাতে ০ স্কোর হলেও দেখায়
+      .select('id, full_name, photo_url, survival_iq, total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, role, student_id, batch')
       .order(orderByColumn, { ascending: false, nullsFirst: false })
-      .limit(50)
+
+    // ব্যাচ ফিল্টার লজিক
+    if (filterBatch !== "All") {
+      query = query.eq('batch', filterBatch)
+    }
+
+    // ডিপার্টমেন্ট ফিল্টার লজিক (আইডির ৩য় ও ৪র্থ ডিজিট চেক করার জন্য like কোয়েরি)
+    if (filterDept !== "All") {
+      // '__' মানে প্রথম ২ ডিজিট (বছর) যাই হোক না কেন, তারপরের ২ ডিজিট হবে ডিপার্টমেন্ট কোড, এরপর '%' মানে বাকি রোল
+      query = query.like('student_id', `__${filterDept}%`)
+    }
+
+    const { data, error } = await query.limit(50)
 
     if (data) {
       setLeaders(data)
@@ -85,7 +106,7 @@ export default function LeaderboardPage() {
   // ড্রপডাউন অপশন সিলেক্ট করার ফাংশন
   const handleActivitySelect = (activity) => {
     setActiveTab(activity)
-    setIsActivityDropdownOpen(false) // অপশন সিলেক্ট করার সাথে সাথেই ড্রপডাউন বন্ধ হয়ে যাবে
+    setIsActivityDropdownOpen(false) 
   }
 
   return (
@@ -120,10 +141,10 @@ export default function LeaderboardPage() {
             <i className="fa-solid fa-tent"></i> <span className="hidden sm:inline">Total</span> Events
           </button>
           
-          {/* 🔴 Smooth Dropdown Menu */}
+          {/* Smooth Dropdown Menu */}
           <div className="relative" ref={dropdownRef}>
             <button 
-              onClick={() => setIsActivityDropdownOpen(!isActivityDropdownOpen)}
+              onClick={() => { setIsActivityDropdownOpen(!isActivityDropdownOpen); setIsFilterDropdownOpen(false); }}
               className={`px-3 sm:px-6 py-2 sm:py-3 rounded-full font-bold text-[10px] sm:text-sm transition-all duration-300 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${isActivityActive ? "bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.4)] sm:scale-105" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"}`}
             >
               <i className="fa-solid fa-chart-line"></i> Activities <i className={`fa-solid fa-chevron-down text-[8px] sm:text-xs transition-transform ${isActivityDropdownOpen ? "rotate-180" : ""}`}></i>
@@ -149,6 +170,77 @@ export default function LeaderboardPage() {
                 >
                   <i className="fa-solid fa-person-swimming w-4 sm:w-5 text-center"></i> Swimming
                 </button>
+              </div>
+            )}
+          </div>
+
+          {/* 🔴 নতুন: Filter Dropdown Button */}
+          <div className="relative" ref={filterDropdownRef}>
+            <button 
+              onClick={() => { setIsFilterDropdownOpen(!isFilterDropdownOpen); setIsActivityDropdownOpen(false); }}
+              className={`px-3 sm:px-6 py-2 sm:py-3 rounded-full font-bold text-[10px] sm:text-sm transition-all duration-300 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${(filterBatch !== "All" || filterDept !== "All") ? "bg-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] sm:scale-105" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"}`}
+            >
+              <i className="fa-solid fa-filter"></i> <span className="hidden sm:inline">Filter</span>
+            </button>
+
+            {isFilterDropdownOpen && (
+              <div className="absolute top-full right-0 mt-2 sm:mt-3 w-64 bg-[#0a1c13] border border-white/10 rounded-xl sm:rounded-2xl shadow-2xl z-50 p-4 animate-fade-in-up">
+                
+                {/* ডিপার্টমেন্ট ফিল্টার */}
+                <div className="mb-4">
+                  <label className="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">ডিপার্টমেন্ট</label>
+                  <div className="relative">
+                    <select 
+                      value={filterDept} 
+                      onChange={(e) => setFilterDept(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 text-gray-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-[#e76f51] transition-colors appearance-none"
+                    >
+                      <option value="All">সকল ডিপার্টমেন্ট</option>
+                      <option value="01">Civil Engineering (CE)</option>
+                      <option value="02">Electrical & Electronic (EEE)</option>
+                      <option value="03">Mechanical Engineering (ME)</option>
+                      <option value="04">Computer Science (CSE)</option>
+                      <option value="05">Urban & Regional Planning (URP)</option>
+                      <option value="06">Architecture (ARCH)</option>
+                      <option value="07">Petroleum & Mining (PME)</option>
+                      <option value="08">Electronics & Telecomm (ETE)</option>
+                      <option value="09">Mechatronics & Industrial (MIE)</option>
+                      <option value="10">Water Resources (WRE)</option>
+                      <option value="11">Biomedical Engineering (BME)</option>
+                      <option value="12">Materials & Metallurgical (MME)</option>
+                    </select>
+                    <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-[10px] pointer-events-none"></i>
+                  </div>
+                </div>
+
+                {/* ব্যাচ ফিল্টার */}
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">ব্যাচ</label>
+                  <div className="relative">
+                    <select 
+                      value={filterBatch} 
+                      onChange={(e) => setFilterBatch(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 text-gray-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-[#e76f51] transition-colors appearance-none max-h-48"
+                    >
+                      <option value="All">সকল ব্যাচ</option>
+                      {/* ১৯৬৮ থেকে ২০৫০ পর্যন্ত ব্যাচ লুপ */}
+                      {Array.from({length: 2050 - 1968 + 1}, (_, i) => 2050 - i).map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                    <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-[10px] pointer-events-none"></i>
+                  </div>
+                </div>
+
+                {/* ক্লিয়ার ফিল্টার বাটন */}
+                {(filterBatch !== "All" || filterDept !== "All") && (
+                  <button 
+                    onClick={() => { setFilterBatch("All"); setFilterDept("All"); }}
+                    className="mt-4 w-full py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                  >
+                    <i className="fa-solid fa-xmark"></i> রিসেট করুন
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -227,7 +319,7 @@ export default function LeaderboardPage() {
               <div className="text-center py-16 bg-white/5 rounded-3xl border border-white/10">
                 <i className="fa-solid fa-ghost text-5xl text-gray-600 mb-4 opacity-50"></i>
                 <h3 className="text-xl font-bold text-gray-400">লিডারবোর্ড ফাঁকা!</h3>
-                <p className="text-sm text-gray-500 mt-2">এই ক্যাটাগরিতে এখনো কেউ পয়েন্ট অর্জন করেনি।</p>
+                <p className="text-sm text-gray-500 mt-2">এই ক্যাটাগরি ও ফিল্টারে কাউকে পাওয়া যায়নি।</p>
               </div>
             )}
           </div>
