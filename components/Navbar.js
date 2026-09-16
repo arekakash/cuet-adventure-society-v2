@@ -159,10 +159,13 @@ export default function Navbar() {
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#e76f51] group-hover:scale-110 transition-transform"><i className="fa-solid fa-calendar-day"></i></div>
             <span className="font-bold text-sm">আপকামিং ইভেন্ট</span>
           </Link>
+          
+          {/* 🔴 পূর্ববর্তী ইভেন্ট লিংকটি এনাবল করা হলো */}
           <Link href="/past-events" onClick={() => setIsSidebarOpen(false)} className="block py-3 px-4 rounded-xl hover:bg-white/5 hover:text-white transition-all group flex items-center gap-4">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-gray-400 group-hover:text-white group-hover:scale-110 transition-transform"><i className="fa-solid fa-clock-rotate-left"></i></div>
             <span className="font-bold text-sm">পূর্ববর্তী ইভেন্ট</span>
           </Link>
+          
           <Link href="/stories" onClick={() => setIsSidebarOpen(false)} className="block py-3 px-4 rounded-xl hover:bg-white/5 hover:text-white transition-all group flex items-center gap-4">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform"><i className="fa-solid fa-book-open-reader"></i></div>
             <span className="font-bold text-sm">অ্যাডভেঞ্চারের গল্প</span>
