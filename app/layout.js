@@ -4,6 +4,8 @@ import Navbar from '@/components/Navbar';
 export const metadata = {
   title: 'CUET Adventure Society',
   description: 'Official website of CUET Adventure Society (CAS)',
+  manifest: '/manifest.json',
+  themeColor: '#0a1c13',
 };
 
 export default function RootLayout({ children }) {
