@@ -15,14 +15,12 @@ function EventDetailsContent() {
   const [user, setUser] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
   
-  // বুকিং এবং পেমেন্ট স্টেট
   const [bookingStatus, setBookingStatus] = useState(null)
   const [processing, setProcessing] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [trxId, setTrxId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('')
 
-  // Past Event এর জন্য নতুন স্টেট (Approved vs Interested)
   const [approvedExplorers, setApprovedExplorers] = useState([])
   const [interestedExplorers, setInterestedExplorers] = useState([])
 
@@ -31,7 +29,6 @@ function EventDetailsContent() {
 
     const fetchData = async () => {
       try {
-        // ১. ইভেন্টের ডেটা টানা
         const { data: eventData, error: eventError } = await supabase
           .from('events')
           .select('*')
@@ -41,7 +38,6 @@ function EventDetailsContent() {
         if (eventError) throw eventError
         if (isMounted) setEvent(eventData)
 
-        // ২. যদি ইভেন্টটি Completed হয়, তবে সব অংশগ্রহণকারী ও আগ্রহীদের তালিকা টানা
         if (eventData.status === 'completed') {
           const { data: bookingData } = await supabase
             .from('bookings')
@@ -53,13 +49,11 @@ function EventDetailsContent() {
             .eq('event_id', eventId)
 
           if (bookingData && isMounted) {
-            // যারা সফলভাবে গিয়েছে (Approved)
             const approved = bookingData
               .filter(b => b.status === 'approved')
               .map(b => b.profiles)
               .filter(Boolean)
             
-            // যারা আগ্রহী বা ওয়েটিংয়ে ছিল (Interested, Pending, Free Booking)
             const interested = bookingData
               .filter(b => b.status === 'interested' || b.status === 'pending' || b.status === 'free_booking')
               .map(b => b.profiles)
@@ -70,7 +64,6 @@ function EventDetailsContent() {
           }
         }
 
-        // ৩. ইউজার লগইন আছে কিনা চেক করা
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
           if (isMounted) setUser(session.user)
@@ -82,7 +75,6 @@ function EventDetailsContent() {
             .single()
           if (isMounted) setUserProfile(profile)
 
-          // এই ইউজার আগে বুকিং করেছে কিনা
           if (eventData.status !== 'completed') {
             const { data: existingBooking } = await supabase
               .from('bookings')
@@ -114,14 +106,13 @@ function EventDetailsContent() {
       return false
     }
     if (!userProfile?.student_id || !userProfile?.phone || !userProfile?.emergency_contact) {
-      alert("আপনার প্রোফাইল অসম্পূর্ণ! বুকিং করার আগে ড্যাশবোর্ড থেকে প্রোফাইলের জরুরি তথ্যগুলো (যেমন: আইডি, কন্টাক্ট নম্বর) পূরণ করুন।")
+      alert("আপনার প্রোফাইল অসম্পূর্ণ! বুকিং করার আগে ড্যাশবোর্ড থেকে প্রোফাইলের জরুরি তথ্যগুলো পূরণ করুন।")
       router.push('/dashboard')
       return false
     }
     return true
   }
 
-  // --- বুকিং লজিকগুলো ---
   const handleInterested = async () => {
     if (!checkProfileCompletion()) return
     setProcessing(true)
@@ -168,6 +159,8 @@ function EventDetailsContent() {
 
   const isFull = (event.booked_seats || 0) >= event.total_seats
   const isPastEvent = event.status === 'completed'
+  const isCycling = event.category === 'Cycling'
+  const isSwimming = event.category === 'Swimming'
 
   return (
     <div className="min-h-screen bg-[#050b08] pt-20 pb-20 relative text-gray-300">
@@ -177,7 +170,6 @@ function EventDetailsContent() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#050b08] via-[#050b08]/50 to-transparent z-10"></div>
         <img src={event.cover_photo || 'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80'} className="w-full h-full object-cover" alt="Event Cover" />
         
-        {/* Past Event Badge */}
         {isPastEvent && (
           <div className="absolute top-6 left-4 sm:left-6 z-20 bg-emerald-500/90 backdrop-blur-md text-white text-[10px] sm:text-xs font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.5)] border border-emerald-400/50 flex items-center gap-2">
             <i className="fa-solid fa-check-double"></i> Mission Accomplished
@@ -188,17 +180,15 @@ function EventDetailsContent() {
             <div className="max-w-5xl mx-auto">
                 <span className="bg-[#e76f51] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-3 inline-block">{event.category}</span>
                 <h1 className="text-3xl md:text-5xl font-black text-white leading-tight mb-2">{event.title}</h1>
-                <p className="text-lg md:text-xl text-gray-300 font-medium">{event.subtitle}</p>
             </div>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* লেফট কলাম (বিস্তারিত) */}
+        {/* লেফট কলাম */}
         <div className="lg:col-span-2 space-y-8">
             
-            {/* ইনফো গ্রিড */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#0a1c13] p-5 rounded-2xl border border-white/10">
                 <div className="text-center p-2 border-r border-white/5">
                     <i className="fa-solid fa-map-location-dot text-[#e76f51] text-xl mb-1"></i>
@@ -214,9 +204,13 @@ function EventDetailsContent() {
                 {isPastEvent ? (
                   <>
                     <div className="text-center p-2 border-r border-white/5">
-                        <i className="fa-solid fa-shoe-prints text-emerald-400 text-xl mb-1"></i>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">দূরত্ব অতিক্রম</p>
-                        <p className="font-bold text-white text-sm">{event.stats_meta?.distance || 0} km</p>
+                        <i className={`text-emerald-400 text-xl mb-1 ${isCycling ? 'fa-solid fa-bicycle' : isSwimming ? 'fa-solid fa-person-swimming' : 'fa-solid fa-shoe-prints'}`}></i>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">
+                          {isCycling ? 'রাইডিং দূরত্ব' : isSwimming ? 'সাঁতারের দূরত্ব' : 'দূরত্ব অতিক্রম'}
+                        </p>
+                        <p className="font-bold text-white text-sm">
+                          {event.stats_meta?.distance || 0} {isSwimming ? 'm' : 'km'}
+                        </p>
                     </div>
                     <div className="text-center p-2">
                         <i className="fa-solid fa-users-viewfinder text-purple-400 text-xl mb-1"></i>
@@ -240,16 +234,13 @@ function EventDetailsContent() {
                 )}
             </div>
 
-            {/* বিবরণ */}
             <div>
                 <h3 className="text-xl font-bold text-white mb-4 border-l-4 border-[#e76f51] pl-3">{isPastEvent ? 'অভিযানের সারাংশ' : 'অ্যাডভেঞ্চার বিবরণ'}</h3>
                 <p className="text-gray-400 leading-relaxed whitespace-pre-line">{event.description}</p>
             </div>
 
-            {/* Past Event হলে অংশগ্রহণকারীদের লিস্ট (Explorers Roster) দেখাবে */}
             {isPastEvent && (
               <div className="space-y-8">
-                {/* Section 1: The Survivors / Approved */}
                 <div>
                   <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
                     <h3 className="text-xl font-bold text-white border-l-4 border-emerald-400 pl-3">সাফল্যের সাথে সম্পন্নকারী (The Explorers)</h3>
@@ -279,7 +270,6 @@ function EventDetailsContent() {
                   )}
                 </div>
 
-                {/* Section 2: Interested / Backups */}
                 {interestedExplorers.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
@@ -299,7 +289,6 @@ function EventDetailsContent() {
               </div>
             )}
 
-            {/* Upcoming Event হলে চেকলিস্ট দেখাবে */}
             {!isPastEvent && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {event.included && event.included.length > 0 && (
@@ -321,7 +310,6 @@ function EventDetailsContent() {
               </div>
             )}
 
-            {/* ইটিনেরারি (সব ইভেন্টেই দেখাবে) */}
             {event.itinerary && event.itinerary.length > 0 && (
                 <div>
                     <h3 className="text-xl font-bold text-white mb-6 border-l-4 border-blue-400 pl-3">ডে-টু-ডে প্ল্যান</h3>
@@ -344,11 +332,10 @@ function EventDetailsContent() {
             )}
         </div>
 
-        {/* রাইট কলাম (বুকিং প্যানেল বা মেমোরি প্যানেল) */}
+        {/* রাইট কলাম */}
         <div className="lg:col-span-1">
             <div className="bg-[#0a1c13] border border-white/10 p-6 rounded-2xl sticky top-24 shadow-2xl">
                 
-                {/* টিম লিডার ইনফো (সবসময় দেখাবে) */}
                 <div className="mb-6 bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-[#e76f51]/20 text-[#e76f51] flex items-center justify-center text-xl shrink-0">
                     <i className="fa-solid fa-user-astronaut"></i>
@@ -369,7 +356,9 @@ function EventDetailsContent() {
 
                     <div className="space-y-3 mb-6 text-sm text-gray-300">
                         <p className="flex justify-between"><span className="text-gray-500">ডেডলাইন:</span> <span className="font-bold text-red-400">{new Date(event.deadline).toLocaleDateString('en-GB')}</span></p>
-                        <p className="flex justify-between"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
+                        {event.stay_type && event.stay_type !== 'None' && (
+                          <p className="flex justify-between"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
+                        )}
                     </div>
 
                     <div className="border-t border-white/10 pt-6 space-y-3">
@@ -415,7 +404,6 @@ function EventDetailsContent() {
                     </div>
                   </>
                 ) : (
-                  // Past Event এর সাইডবার প্যানেল (অ্যালবাম লিংক সহ)
                   <div className="space-y-6">
                     <div className="text-center p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-xl relative overflow-hidden">
                       <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
@@ -425,12 +413,13 @@ function EventDetailsContent() {
                     </div>
 
                     <div className="space-y-3 text-sm text-gray-300">
-                      <p className="flex justify-between border-b border-white/5 pb-2"><span className="text-gray-500">গ্যামিফিকেশন রিওয়ার্ড:</span> <span className="font-bold text-yellow-500">+{event.stats_meta?.treks || 0} Trek</span></p>
-                      <p className="flex justify-between border-b border-white/5 pb-2"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
-                      <p className="flex justify-between"><span className="text-gray-500">টোটাল ইভেন্ট ফি:</span> <span>৳ {event.tour_fee}</span></p>
+                      <p className="flex justify-between border-b border-white/5 pb-2"><span className="text-gray-500">রিওয়ার্ড পয়েন্ট:</span> <span className="font-bold text-yellow-500">+{event.stats_meta?.treks || 0} Count</span></p>
+                      {event.stay_type && event.stay_type !== 'None' && (
+                        <p className="flex justify-between border-b border-white/5 pb-2"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
+                      )}
+                      <p className="flex justify-between"><span className="text-gray-500">টোটাল প্যাকেজ ফি:</span> <span>৳ {event.tour_fee}</span></p>
                     </div>
 
-                    {/* 🔴 ইভেন্ট অ্যালবাম বাটন (যদি লিংক থাকে) */}
                     {event.album_link && (
                       <div className="pt-4 border-t border-white/10">
                         <a href={event.album_link} target="_blank" rel="noopener noreferrer" className="w-full bg-[#3b82f6] hover:bg-blue-600 text-white py-3.5 rounded-xl font-black transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)] flex items-center justify-center gap-3 group">
@@ -447,7 +436,6 @@ function EventDetailsContent() {
         </div>
       </div>
 
-      {/* পেমেন্ট ইনফো মডেল (অপরিবর্তিত) */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowPaymentModal(false)}></div>
