@@ -1,0 +1,23 @@
+{
+  "name": "CUET Adventure Society",
+  "short_name": "CUET AS",
+  "description": "The official adventure club of CUET.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050b08",
+  "theme_color": "#0a1c13",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
