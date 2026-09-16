@@ -83,7 +83,15 @@ export default function Navbar() {
               <i className="fa-solid fa-bars-staggered"></i>
             </button>
             <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
-              <i className="fa-solid fa-compass text-campfire text-2xl sm:text-3xl group-hover:rotate-45 transition-transform duration-500"></i>
+              {/* 🔴 নতুন CAS আইকন এবং কালারফুল অ্যানিমেশন */}
+              <div className="relative inline-flex items-center justify-center">
+                <div className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-[#e76f51] rounded-lg blur opacity-75 group-hover:opacity-100 animate-pulse transition duration-500"></div>
+                <div className="relative bg-[#0a1c13] px-2 py-0.5 rounded-lg border border-white/10">
+                  <span className="font-black text-xl sm:text-2xl tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-[#e76f51] to-red-500">
+                    CAS
+                  </span>
+                </div>
+              </div>
               <span className="font-black text-lg sm:text-xl tracking-widest text-white drop-shadow-md hidden sm:block">CUET AS</span>
             </Link>
           </div>
@@ -183,6 +191,12 @@ export default function Navbar() {
           <Link href="/beginners-guide" onClick={() => setIsSidebarOpen(false)} className="block py-3 px-4 rounded-xl hover:bg-white/5 hover:text-white transition-all group flex items-center gap-4">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform"><i className="fa-solid fa-map"></i></div>
             <span className="font-bold text-sm">বিগিনার গাইড</span>
+          </Link>
+
+          {/* 🔴 নতুন যোগ করা অপশন: নেপথ্যে যারা */}
+          <Link href="/behind-the-scenes" onClick={() => setIsSidebarOpen(false)} className="block py-3 px-4 rounded-xl hover:bg-white/5 hover:text-white transition-all group flex items-center gap-4">
+            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-pink-400 group-hover:scale-110 transition-transform"><i className="fa-solid fa-users"></i></div>
+            <span className="font-bold text-sm">নেপথ্যে যারা</span>
           </Link>
 
           {/* 🔴 স্মার্ট অ্যাডমিন অপশন (সাইডবার) */}
