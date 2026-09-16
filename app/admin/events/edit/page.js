@@ -1,4 +1,3 @@
-// app/admin/events/edit/page.js
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -16,14 +15,14 @@ export default function EditEvent() {
   const [imagePreview, setImagePreview] = useState('')
   const [existingImage, setExistingImage] = useState('')
 
-  // ফর্মের সাধারণ ডেটা
+  // ফর্মের সাধারণ ডেটা (albumLink যুক্ত করা হলো)
   const [formData, setFormData] = useState({
     title: '', subtitle: '', category: 'Trekking', destination: '',
     startDate: '', endDate: '', reportingPlace: '', deadline: '',
     bookingFee: '', totalFee: '', totalSeats: '', refundPolicy: 'Non-Refundable', paymentMethods: '',
     stayType: 'Resort/Hotel Shared', washroom: 'Attached & Shared', foodPlan: '',
     difficulty: 'Moderate', tourVibe: 'Hardcore Trekking', fitnessLevel: '', teamLeader: '', leaderPhone: '', leaderWhatsapp: '',
-    description: '', totalDays: 1,
+    description: '', albumLink: '', totalDays: 1,
     metaTreks: 1, metaDistance: '', metaNights: ''
   })
 
@@ -78,7 +77,7 @@ export default function EditEvent() {
           difficulty: data.difficulty || 'Moderate', tourVibe: data.tour_vibe || 'Hardcore Trekking', 
           fitnessLevel: data.fitness_level || '', teamLeader: data.team_leader || '', 
           leaderPhone: data.leader_phone || '', leaderWhatsapp: data.leader_whatsapp || '',
-          description: data.description || '', 
+          description: data.description || '', albumLink: data.album_link || '',
           totalDays: data.itinerary ? data.itinerary.length : 1,
           metaTreks: data.stats_meta?.treks || 0, metaDistance: data.stats_meta?.distance || 0, metaNights: data.stats_meta?.nights || 0
         });
@@ -188,6 +187,7 @@ export default function EditEvent() {
         leader_phone: formData.leaderPhone,
         leader_whatsapp: formData.leaderWhatsapp,
         description: formData.description,
+        album_link: formData.albumLink, // 🔴 নতুন যুক্ত হলো
         included: tags.included,
         required_gear: tags.gear,
         excluded: tags.excluded,
@@ -356,7 +356,7 @@ export default function EditEvent() {
                 </div>
             </div>
 
-            {/* সেকশন ৪: লজিস্টিকস ও ভাইব */}
+            {/* সেকশন ৪: লজিস্টিকস ও ভাইব (এখানে অ্যালবাম লিংক যোগ হলো) */}
             <div>
                 <h3 className="font-bold text-purple-400 mb-6 text-lg flex items-center gap-2 border-b border-purple-400/20 pb-2">
                     <i className="fa-solid fa-campground"></i> ৪. লজিস্টিকস ও ভাইব
@@ -379,6 +379,24 @@ export default function EditEvent() {
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">লিডার ফোন *</label>
                         <input type="text" id="leaderPhone" required value={formData.leaderPhone} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
                     </div>
+                    
+                    {/* 🔴 নতুন: ইভেন্ট অ্যালবাম লিংক ফিল্ড */}
+                    <div className="md:col-span-3">
+                        <label className="block text-xs font-bold text-blue-400 mb-2 uppercase">ইভেন্ট অ্যালবাম লিংক (Google Drive/Photos) - ঐচ্ছিক</label>
+                        <div className="flex items-center gap-3 bg-black/40 border border-white/10 p-2 rounded-xl focus-within:border-blue-400 transition-colors">
+                            <i className="fa-brands fa-google-drive text-blue-400 pl-3"></i>
+                            <input 
+                              type="url" 
+                              id="albumLink" 
+                              value={formData.albumLink} 
+                              onChange={handleInputChange} 
+                              placeholder="https://drive.google.com/drive/folders/..." 
+                              className="w-full bg-transparent text-white outline-none p-2 text-sm" 
+                            />
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-1">ইভেন্ট শেষ হওয়ার পর ছবিগুলো একটি গুগল ড্রাইভে আপলোড করে লিংকটি এখানে দিন।</p>
+                    </div>
+
                     <div className="md:col-span-3">
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">সংক্ষিপ্ত বিবরণ *</label>
                         <textarea id="description" required rows="3" value={formData.description} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white resize-none"></textarea>
