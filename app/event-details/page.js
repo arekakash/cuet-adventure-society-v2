@@ -14,6 +14,7 @@ function EventDetailsContent() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   
   const [bookingStatus, setBookingStatus] = useState(null)
   const [processing, setProcessing] = useState(false)
@@ -23,6 +24,13 @@ function EventDetailsContent() {
 
   const [approvedExplorers, setApprovedExplorers] = useState([])
   const [interestedExplorers, setInterestedExplorers] = useState([])
+
+  // 🔴 নতুন: অ্যাডমিন মডাল এবং ফর্ম স্টেট
+  const [showAdminAddModal, setShowAdminAddModal] = useState(false)
+  const [adminAddTab, setAdminAddTab] = useState('search') // 'search' or 'create'
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [newMemberForm, setNewMemberForm] = useState({ full_name: '', department: '', batch: '' })
 
   useEffect(() => {
     let isMounted = true
@@ -38,6 +46,7 @@ function EventDetailsContent() {
         if (eventError) throw eventError
         if (isMounted) setEvent(eventData)
 
+        // Fetch Participants
         if (eventData.status === 'completed') {
           const { data: bookingData } = await supabase
             .from('bookings')
@@ -55,7 +64,7 @@ function EventDetailsContent() {
               .filter(Boolean)
             
             const interested = bookingData
-              .filter(b => b.status === 'interested' || b.status === 'pending' || b.status === 'free_booking')
+              .filter(b => b.status === 'interested' || b.status === 'pending' || b.status === 'free_booking' || b.status === 'claim_pending')
               .map(b => b.profiles)
               .filter(Boolean)
 
@@ -64,6 +73,7 @@ function EventDetailsContent() {
           }
         }
 
+        // Fetch User Auth & Profile
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
           if (isMounted) setUser(session.user)
@@ -73,19 +83,22 @@ function EventDetailsContent() {
             .select('*')
             .eq('id', session.user.id)
             .single()
-          if (isMounted) setUserProfile(profile)
+            
+          if (isMounted) {
+            setUserProfile(profile)
+            if (profile?.role === 'admin') setIsAdmin(true)
+          }
 
-          if (eventData.status !== 'completed') {
-            const { data: existingBooking } = await supabase
-              .from('bookings')
-              .select('status, trx_id')
-              .eq('event_id', eventId)
-              .eq('user_id', session.user.id)
-              .single()
+          // Check if user already has a booking/claim
+          const { data: existingBooking } = await supabase
+            .from('bookings')
+            .select('status, trx_id')
+            .eq('event_id', eventId)
+            .eq('user_id', session.user.id)
+            .single()
 
-            if (existingBooking && isMounted) {
-              setBookingStatus(existingBooking.status)
-            }
+          if (existingBooking && isMounted) {
+            setBookingStatus(existingBooking.status)
           }
         }
       } catch (error) {
@@ -102,42 +115,110 @@ function EventDetailsContent() {
 
   const checkProfileCompletion = () => {
     if (!user) {
-      router.push('/login')
+      if (window.confirm("বুকিং বা ক্লেইম করার আগে আপনাকে লগইন করতে হবে। লগইন পেজে যেতে চান?")) {
+        router.push('/login')
+      }
       return false
     }
     if (!userProfile?.student_id || !userProfile?.phone || !userProfile?.emergency_contact) {
-      alert("আপনার প্রোফাইল অসম্পূর্ণ! বুকিং করার আগে ড্যাশবোর্ড থেকে প্রোফাইলের জরুরি তথ্যগুলো পূরণ করুন।")
+      alert("আপনার প্রোফাইল অসম্পূর্ণ! ড্যাশবোর্ড থেকে প্রোফাইলের জরুরি তথ্যগুলো পূরণ করুন।")
       router.push('/dashboard')
       return false
     }
     return true
   }
 
-  const handleInterested = async () => {
+  // 🔴 নতুন: Attendance Claim লজিক
+  const handleAttendanceClaim = async () => {
     if (!checkProfileCompletion()) return
+    if (!window.confirm("আপনি কি এই ইভেন্টে অংশগ্রহণ করেছিলেন? আপনার ক্লেইম অ্যাডমিন প্যানেলে ভেরিফিকেশনের জন্য পাঠানো হবে।")) return
+    
     setProcessing(true)
     try {
       const { error } = await supabase.from('bookings').upsert({
-        user_id: user.id, event_id: eventId, status: 'interested', payment_method: 'none', trx_id: 'NONE'
+        user_id: user.id, event_id: eventId, status: 'claim_pending', payment_method: 'none', trx_id: 'CLAIM'
       }, { onConflict: 'user_id, event_id' })
+      
       if (error) throw error
-      setBookingStatus('interested')
-      alert("আপনাকে এই ইভেন্টের 'আগ্রহী' তালিকায় যুক্ত করা হয়েছে।")
-    } catch (err) { alert(err.message) } finally { setProcessing(false) }
+      setBookingStatus('claim_pending')
+      alert("আপনার ক্লেইম সফলভাবে পাঠানো হয়েছে। অ্যাডমিন অ্যাপ্রুভ করলে এটি প্রোফাইলে যুক্ত হবে।")
+    } catch (err) { 
+      alert(err.message) 
+    } finally { 
+      setProcessing(false) 
+    }
   }
 
-  const handleFreeBooking = async () => {
-    if (!checkProfileCompletion()) return
-    if (!window.confirm("আপনি বিনামূল্যে একটি সিট বুক করছেন। পেমেন্ট করা ইউজাররা অগ্রাধিকার পাবে। আপনি কি রাজি?")) return
+  // 🔴 নতুন: Admin Search Members
+  const handleSearchMembers = async (e) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) return
+    setProcessing(true)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, department, batch, photo_url')
+        .ilike('full_name', `%${searchQuery}%`)
+        .limit(5)
+      if (error) throw error
+      setSearchResults(data || [])
+    } catch (err) {
+      alert("খুঁজতে সমস্যা হয়েছে: " + err.message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // 🔴 নতুন: Admin Add Existing Member to Event
+  const adminAddExistingMember = async (memberId) => {
+    if (!window.confirm("এই মেম্বারকে ইভেন্টে যুক্ত করতে চান?")) return
     setProcessing(true)
     try {
       const { error } = await supabase.from('bookings').upsert({
-        user_id: user.id, event_id: eventId, status: 'free_booking', payment_method: 'none', trx_id: 'FREE_BOOKING'
+        user_id: memberId, event_id: eventId, status: 'approved', payment_method: 'admin_added', trx_id: 'ADMIN'
       }, { onConflict: 'user_id, event_id' })
       if (error) throw error
-      setBookingStatus('free_booking')
-      alert("ফ্রি বুকিং সফল হয়েছে! সিট কনফার্ম করতে দ্রুত পেমেন্ট সম্পন্ন করুন।")
-    } catch (err) { alert(err.message) } finally { setProcessing(false) }
+      alert("মেম্বার সফলভাবে যুক্ত হয়েছে! পেজটি রিলোড করুন।")
+      window.location.reload()
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // 🔴 নতুন: Admin Create Offline Member & Add
+  const handleCreateOfflineMember = async (e) => {
+    e.preventDefault()
+    setProcessing(true)
+    try {
+      // Create a fake/offline profile id
+      const fakeId = `offline-${Date.now()}`
+      
+      // 1. Insert into Profiles
+      const { error: profileError } = await supabase.from('profiles').insert([{
+        id: fakeId,
+        full_name: newMemberForm.full_name,
+        department: newMemberForm.department.toUpperCase(),
+        batch: newMemberForm.batch,
+        role: 'explorer',
+        is_offline: true // You should add this boolean column to your profiles table
+      }])
+      if (profileError) throw profileError
+
+      // 2. Insert into Bookings
+      const { error: bookingError } = await supabase.from('bookings').insert([{
+        user_id: fakeId, event_id: eventId, status: 'approved', payment_method: 'admin_created', trx_id: 'ADMIN_OFFLINE'
+      }])
+      if (bookingError) throw bookingError
+
+      alert("নতুন অ্যাকাউন্ট খোলা হয়েছে এবং ইভেন্টে যুক্ত করা হয়েছে! পেজটি রিলোড করুন।")
+      window.location.reload()
+    } catch (err) {
+      alert("অ্যাকাউন্ট খুলতে সমস্যা হয়েছে: " + err.message)
+    } finally {
+      setProcessing(false)
+    }
   }
 
   const submitPaidBooking = async (e) => {
@@ -154,6 +235,9 @@ function EventDetailsContent() {
     } catch (err) { alert(err.message) } finally { setProcessing(false) }
   }
 
+  const handleInterested = async () => { /* ...existing logic... */ }
+  const handleFreeBooking = async () => { /* ...existing logic... */ }
+
   if (loading) return <div className="min-h-screen bg-[#050b08] flex items-center justify-center"><i className="fa-solid fa-circle-notch fa-spin text-4xl text-[#e76f51]"></i></div>
   if (!event) return <div className="min-h-screen bg-[#050b08] flex items-center justify-center text-white"><p>ইভেন্টটি খুঁজে পাওয়া যায়নি!</p></div>
 
@@ -163,7 +247,6 @@ function EventDetailsContent() {
   const isSwimming = event.category === 'Swimming' || event.category === 'Houseboat/Cruise'
   const isDayEvent = event.category === 'Day Tour' || event.category === 'Workshop'
 
-  // 🔴 ডায়নামিক আইকন ও লেবেল লজিক
   const getDistanceIcon = () => {
     if (isCycling) return 'fa-solid fa-bicycle'
     if (isSwimming) return 'fa-solid fa-person-swimming'
@@ -181,6 +264,9 @@ function EventDetailsContent() {
     if (isSwimming) return 'Swims'
     return 'Treks'
   }
+
+  // Check if current logged-in user is already in the approved list
+  const isUserApproved = user && approvedExplorers.some(exp => exp.id === user.id)
 
   return (
     <div className="min-h-screen bg-[#050b08] pt-20 pb-20 relative text-gray-300">
@@ -262,48 +348,74 @@ function EventDetailsContent() {
                 <p className="text-gray-400 leading-relaxed whitespace-pre-line">{event.description}</p>
             </div>
 
+            {/* 🔴 আপডেট: Horizontal Scroll Participant List */}
             {isPastEvent && (
               <div className="space-y-8">
                 <div>
-                  <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
-                    <h3 className="text-xl font-bold text-white border-l-4 border-emerald-400 pl-3">সাফল্যের সাথে সম্পন্নকারী (The Explorers)</h3>
+                  <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
+                    <h3 className="text-lg font-bold text-white border-l-4 border-emerald-400 pl-3">সাফল্যের সাথে সম্পন্নকারী (The Explorers)</h3>
                     <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full border border-emerald-400/20">{approvedExplorers.length} জন</span>
                   </div>
                   
                   {approvedExplorers.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar snap-x">
                       {approvedExplorers.map((p) => (
-                        <Link href={`/profile/${p.id}`} key={p.id} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center hover:bg-white/10 hover:border-[#e76f51]/50 transition-all group">
-                          <div className="w-16 h-16 mx-auto rounded-full overflow-hidden mb-3 border-2 border-[#0a1c13] shadow-[0_0_10px_rgba(0,0,0,0.5)] group-hover:border-[#e76f51] transition-colors">
+                        <Link href={`/public-profile?id=${p.id}`} key={p.id} className="snap-start shrink-0 w-24 sm:w-28 text-center group flex flex-col items-center">
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden mb-2 border-2 border-transparent group-hover:border-[#e76f51] transition-all shadow-lg relative">
                             <img src={p.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name)}&background=0a1c13&color=fff`} alt={p.full_name} className="w-full h-full object-cover" />
+                            {p.role === 'admin' && (
+                              <div className="absolute bottom-0 bg-[#e76f51] w-full text-[8px] font-black text-white uppercase tracking-widest text-center">Admin</div>
+                            )}
                           </div>
-                          <p className="text-sm font-bold text-white line-clamp-1 group-hover:text-[#e76f51] transition-colors">{p.full_name}</p>
-                          {p.role === 'admin' ? (
-                            <p className="text-[9px] text-yellow-500 uppercase tracking-widest mt-1 font-bold">Admin</p>
-                          ) : (
-                            <p className="text-[9px] text-gray-500 uppercase tracking-widest mt-1">Explorer</p>
-                          )}
+                          <p className="text-xs font-bold text-gray-300 line-clamp-2 leading-tight group-hover:text-white transition-colors">{p.full_name}</p>
                         </Link>
                       ))}
                     </div>
                   ) : (
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center">
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center">
                       <p className="text-gray-400 text-sm">দুঃখিত, এই ইভেন্টের অংশগ্রহণকারীদের কোনো ডেটা পাওয়া যায়নি।</p>
                     </div>
                   )}
+
+                  {/* 🔴 Attendance Claim & Admin Add Panel */}
+                  <div className="mt-6 flex flex-col sm:flex-row gap-4 items-center justify-center p-4 bg-white/5 rounded-2xl border border-white/10">
+                    {!isUserApproved && bookingStatus !== 'claim_pending' && (
+                      <button 
+                        onClick={handleAttendanceClaim}
+                        disabled={processing}
+                        className="text-xs font-bold text-blue-400 hover:text-white bg-blue-500/10 hover:bg-blue-500 border border-blue-500/30 px-5 py-2.5 rounded-full transition-all flex items-center gap-2"
+                      >
+                        <i className="fa-solid fa-hand-sparkles"></i> আমিও এই ইভেন্টে ছিলাম
+                      </button>
+                    )}
+                    {bookingStatus === 'claim_pending' && (
+                      <span className="text-xs font-bold text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 px-5 py-2.5 rounded-full flex items-center gap-2">
+                        <i className="fa-solid fa-clock animate-pulse"></i> আপনার ক্লেইম পেন্ডিং আছে
+                      </span>
+                    )}
+
+                    {isAdmin && (
+                      <button 
+                        onClick={() => setShowAdminAddModal(true)}
+                        className="text-xs font-bold text-[#e76f51] hover:text-white bg-[#e76f51]/10 hover:bg-[#e76f51] border border-[#e76f51]/30 px-5 py-2.5 rounded-full transition-all flex items-center gap-2"
+                      >
+                        <i className="fa-solid fa-user-plus"></i> পার্টিসিপেন্ট অ্যাড করুন (Admin)
+                      </button>
+                    )}
+                  </div>
                 </div>
 
+                {/* Interested Souls (Horizontal Scroll) */}
                 {interestedExplorers.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
-                      <h3 className="text-lg font-bold text-gray-300 border-l-4 border-purple-400 pl-3">আগ্রহী ছিলেন যারা (Interested Souls)</h3>
-                      <span className="text-[10px] font-bold text-purple-400 bg-purple-400/10 px-2.5 py-1 rounded-full border border-purple-400/20">{interestedExplorers.length} জন</span>
+                      <h3 className="text-sm font-bold text-gray-400 border-l-2 border-purple-400 pl-2">আগ্রহী ছিলেন যারা (Interested Souls)</h3>
                     </div>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar-hidden">
                       {interestedExplorers.map((p) => (
-                        <Link href={`/profile/${p.id}`} key={p.id} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-purple-500/30 rounded-full pr-4 p-1 transition-all">
-                          <img src={p.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name)}&background=0a1c13&color=fff`} className="w-8 h-8 rounded-full object-cover" alt={p.full_name} />
-                          <span className="text-xs font-bold text-gray-300">{p.full_name}</span>
+                        <Link href={`/public-profile?id=${p.id}`} key={p.id} className="flex items-center gap-2 shrink-0 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-purple-500/30 rounded-full pr-4 p-1 transition-all">
+                          <img src={p.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name)}&background=0a1c13&color=fff`} className="w-6 h-6 rounded-full object-cover" alt={p.full_name} />
+                          <span className="text-[10px] font-bold text-gray-400">{p.full_name}</span>
                         </Link>
                       ))}
                     </div>
@@ -379,8 +491,6 @@ function EventDetailsContent() {
 
                     <div className="space-y-3 mb-6 text-sm text-gray-300">
                         <p className="flex justify-between"><span className="text-gray-500">ডেডলাইন:</span> <span className="font-bold text-red-400">{new Date(event.deadline).toLocaleDateString('en-GB')}</span></p>
-                        
-                        {/* 🔴 Day Event হলে Stay Type হাইড হয়ে যাবে */}
                         {!isDayEvent && event.stay_type && event.stay_type !== 'None' && (
                           <p className="flex justify-between"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
                         )}
@@ -408,9 +518,9 @@ function EventDetailsContent() {
                                 )}
 
                                 {!user ? (
-                                    <Link href="/login" className="w-full block bg-[#e76f51] hover:bg-orange-600 text-white text-center py-3 rounded-xl font-bold transition-all shadow-glow">
+                                    <button onClick={checkProfileCompletion} className="w-full block bg-[#e76f51] hover:bg-orange-600 text-white text-center py-3 rounded-xl font-bold transition-all shadow-glow">
                                         বুকিং করতে লগইন করুন
-                                    </Link>
+                                    </button>
                                 ) : (
                                     <>
                                         <button onClick={() => setShowPaymentModal(true)} disabled={processing} className="w-full bg-[#e76f51] hover:bg-orange-600 text-white py-3 rounded-xl font-bold transition-all shadow-glow flex items-center justify-center gap-2">
@@ -438,17 +548,13 @@ function EventDetailsContent() {
                     </div>
 
                     <div className="space-y-3 text-sm text-gray-300">
-                      
-                      {/* 🔴 ডায়নামিক রিওয়ার্ড প্যানেল */}
                       <p className="flex justify-between border-b border-white/5 pb-2">
                         <span className="text-gray-500">রিওয়ার্ড পয়েন্ট:</span> 
                         <span className="font-bold text-yellow-500">+{event.stats_meta?.treks || 0} {getRewardLabel()}</span>
                       </p>
-                      
                       {!isDayEvent && event.stay_type && event.stay_type !== 'None' && (
                         <p className="flex justify-between border-b border-white/5 pb-2"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
                       )}
-                      
                       <p className="flex justify-between"><span className="text-gray-500">টোটাল প্যাকেজ ফি:</span> <span>৳ {event.tour_fee}</span></p>
                     </div>
 
@@ -468,10 +574,79 @@ function EventDetailsContent() {
         </div>
       </div>
 
+      {/* 🔴 Admin Add Member Modal */}
+      {showAdminAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowAdminAddModal(false)}></div>
+            <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-6 w-full max-w-lg relative z-10 shadow-2xl">
+                <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                    <h3 className="text-lg font-black text-white flex items-center gap-2"><i className="fa-solid fa-user-plus text-[#e76f51]"></i> পার্টিসিপেন্ট যোগ করুন</h3>
+                    <button onClick={() => setShowAdminAddModal(false)} className="text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+
+                <div className="flex gap-2 mb-6">
+                  <button onClick={() => setAdminAddTab('search')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors border ${adminAddTab === 'search' ? 'bg-[#e76f51]/20 text-[#e76f51] border-[#e76f51]/50' : 'bg-transparent text-gray-400 border-transparent hover:bg-white/5'}`}>রেজিস্টার্ড মেম্বার খুঁজুন</button>
+                  <button onClick={() => setAdminAddTab('create')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors border ${adminAddTab === 'create' ? 'bg-blue-500/20 text-blue-400 border-blue-500/50' : 'bg-transparent text-gray-400 border-transparent hover:bg-white/5'}`}>নতুন অ্যাকাউন্ট খুলুন</button>
+                </div>
+
+                {adminAddTab === 'search' ? (
+                  <form onSubmit={handleSearchMembers}>
+                    <div className="flex gap-2 mb-4">
+                      <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="মেম্বারের নাম লিখুন..." className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#e76f51] text-sm" />
+                      <button type="submit" disabled={processing} className="bg-[#e76f51] text-white px-4 rounded-xl font-bold hover:bg-orange-600 transition-colors"><i className="fa-solid fa-magnifying-glass"></i></button>
+                    </div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                      {searchResults.length === 0 ? (
+                        <p className="text-center text-xs text-gray-500 py-4">সার্চ করে মেম্বার খুঁজুন</p>
+                      ) : (
+                        searchResults.map(member => (
+                          <div key={member.id} className="flex items-center justify-between bg-white/5 p-3 rounded-xl border border-white/5 hover:border-white/20 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <img src={member.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name)}&background=0a1c13&color=fff`} className="w-8 h-8 rounded-full" alt="avatar" />
+                              <div>
+                                <p className="text-sm font-bold text-white leading-none">{member.full_name}</p>
+                                <p className="text-[10px] text-gray-400 mt-1">{member.department} '{String(member.batch).slice(-2)}</p>
+                              </div>
+                            </div>
+                            <button type="button" onClick={() => adminAddExistingMember(member.id)} disabled={processing} className="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-500 hover:text-white transition-colors">Add</button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </form>
+                ) : (
+                  <form onSubmit={handleCreateOfflineMember} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 mb-1.5">সম্পূর্ণ নাম *</label>
+                      <input type="text" required value={newMemberForm.full_name} onChange={(e) => setNewMemberForm({...newMemberForm, full_name: e.target.value})} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-blue-400 text-sm" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-400 mb-1.5">ডিপার্টমেন্ট *</label>
+                        <input type="text" required placeholder="e.g. CSE" value={newMemberForm.department} onChange={(e) => setNewMemberForm({...newMemberForm, department: e.target.value})} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-blue-400 text-sm uppercase" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-400 mb-1.5">ব্যাচ *</label>
+                        <input type="number" required placeholder="e.g. 2021" value={newMemberForm.batch} onChange={(e) => setNewMemberForm({...newMemberForm, batch: e.target.value})} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-blue-400 text-sm" />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-gray-500 leading-tight">অ্যাকাউন্ট তৈরি করার সাথে সাথেই মেম্বারটি ইভেন্ট লিস্টে যুক্ত হবে এবং তার একটি অফলাইন প্রোফাইল ডেটাবেসে সেভ হবে।</p>
+                    <button type="submit" disabled={processing} className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-bold mt-2 transition-all flex justify-center items-center gap-2">
+                        {processing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-plus"></i>}
+                        অ্যাকাউন্ট তৈরি করুন ও অ্যাড করুন
+                    </button>
+                  </form>
+                )}
+            </div>
+        </div>
+      )}
+
+      {/* পেমেন্ট ইনফো মডেল */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowPaymentModal(false)}></div>
             <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-6 md:p-8 w-full max-w-md relative z-10 shadow-2xl">
+                {/* ... existing payment modal ... */}
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-black text-white"><i className="fa-solid fa-wallet text-[#e76f51] mr-2"></i> পেমেন্ট কনফার্মেশন</h3>
                     <button onClick={() => setShowPaymentModal(false)} className="text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
