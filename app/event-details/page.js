@@ -160,7 +160,27 @@ function EventDetailsContent() {
   const isFull = (event.booked_seats || 0) >= event.total_seats
   const isPastEvent = event.status === 'completed'
   const isCycling = event.category === 'Cycling'
-  const isSwimming = event.category === 'Swimming'
+  const isSwimming = event.category === 'Swimming' || event.category === 'Houseboat/Cruise'
+  const isDayEvent = event.category === 'Day Tour' || event.category === 'Workshop'
+
+  // 🔴 ডায়নামিক আইকন ও লেবেল লজিক
+  const getDistanceIcon = () => {
+    if (isCycling) return 'fa-solid fa-bicycle'
+    if (isSwimming) return 'fa-solid fa-person-swimming'
+    return 'fa-solid fa-shoe-prints'
+  }
+
+  const getDistanceLabel = () => {
+    if (isCycling) return 'রাইডিং দূরত্ব'
+    if (isSwimming) return 'সাঁতারের দূরত্ব'
+    return 'দূরত্ব অতিক্রম'
+  }
+
+  const getRewardLabel = () => {
+    if (isCycling) return 'Rides'
+    if (isSwimming) return 'Swims'
+    return 'Treks'
+  }
 
   return (
     <div className="min-h-screen bg-[#050b08] pt-20 pb-20 relative text-gray-300">
@@ -178,7 +198,10 @@ function EventDetailsContent() {
 
         <div className="absolute bottom-0 left-0 w-full z-20 px-4 sm:px-6 pb-8">
             <div className="max-w-5xl mx-auto">
-                <span className="bg-[#e76f51] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-3 inline-block">{event.category}</span>
+                <span className="bg-[#e76f51] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-3 inline-block flex items-center gap-2 w-max">
+                  <i className={isCycling ? "fa-solid fa-bicycle" : isSwimming ? "fa-solid fa-person-swimming" : "fa-solid fa-mountain"}></i>
+                  {event.category}
+                </span>
                 <h1 className="text-3xl md:text-5xl font-black text-white leading-tight mb-2">{event.title}</h1>
             </div>
         </div>
@@ -204,9 +227,9 @@ function EventDetailsContent() {
                 {isPastEvent ? (
                   <>
                     <div className="text-center p-2 border-r border-white/5">
-                        <i className={`text-emerald-400 text-xl mb-1 ${isCycling ? 'fa-solid fa-bicycle' : isSwimming ? 'fa-solid fa-person-swimming' : 'fa-solid fa-shoe-prints'}`}></i>
+                        <i className={`${getDistanceIcon()} text-emerald-400 text-xl mb-1`}></i>
                         <p className="text-[10px] text-gray-500 uppercase tracking-widest">
-                          {isCycling ? 'রাইডিং দূরত্ব' : isSwimming ? 'সাঁতারের দূরত্ব' : 'দূরত্ব অতিক্রম'}
+                          {getDistanceLabel()}
                         </p>
                         <p className="font-bold text-white text-sm">
                           {event.stats_meta?.distance || 0} {isSwimming ? 'm' : 'km'}
@@ -356,7 +379,9 @@ function EventDetailsContent() {
 
                     <div className="space-y-3 mb-6 text-sm text-gray-300">
                         <p className="flex justify-between"><span className="text-gray-500">ডেডলাইন:</span> <span className="font-bold text-red-400">{new Date(event.deadline).toLocaleDateString('en-GB')}</span></p>
-                        {event.stay_type && event.stay_type !== 'None' && (
+                        
+                        {/* 🔴 Day Event হলে Stay Type হাইড হয়ে যাবে */}
+                        {!isDayEvent && event.stay_type && event.stay_type !== 'None' && (
                           <p className="flex justify-between"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
                         )}
                     </div>
@@ -413,10 +438,17 @@ function EventDetailsContent() {
                     </div>
 
                     <div className="space-y-3 text-sm text-gray-300">
-                      <p className="flex justify-between border-b border-white/5 pb-2"><span className="text-gray-500">রিওয়ার্ড পয়েন্ট:</span> <span className="font-bold text-yellow-500">+{event.stats_meta?.treks || 0} Count</span></p>
-                      {event.stay_type && event.stay_type !== 'None' && (
+                      
+                      {/* 🔴 ডায়নামিক রিওয়ার্ড প্যানেল */}
+                      <p className="flex justify-between border-b border-white/5 pb-2">
+                        <span className="text-gray-500">রিওয়ার্ড পয়েন্ট:</span> 
+                        <span className="font-bold text-yellow-500">+{event.stats_meta?.treks || 0} {getRewardLabel()}</span>
+                      </p>
+                      
+                      {!isDayEvent && event.stay_type && event.stay_type !== 'None' && (
                         <p className="flex justify-between border-b border-white/5 pb-2"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
                       )}
+                      
                       <p className="flex justify-between"><span className="text-gray-500">টোটাল প্যাকেজ ফি:</span> <span>৳ {event.tour_fee}</span></p>
                     </div>
 
