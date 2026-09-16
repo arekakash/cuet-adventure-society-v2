@@ -22,9 +22,9 @@ function EventDetailsContent() {
   const [trxId, setTrxId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('')
 
-  // Past Event এর জন্য নতুন স্টেট
-  const [participants, setParticipants] = useState([])
-  const [linkedBlogs, setLinkedBlogs] = useState([]) // ভবিষ্যতের জন্য (কানেক্টেড ট্রাভেলগ)
+  // Past Event এর জন্য নতুন স্টেট (Approved vs Interested)
+  const [approvedExplorers, setApprovedExplorers] = useState([])
+  const [interestedExplorers, setInterestedExplorers] = useState([])
 
   useEffect(() => {
     let isMounted = true
@@ -41,21 +41,32 @@ function EventDetailsContent() {
         if (eventError) throw eventError
         if (isMounted) setEvent(eventData)
 
-        // ২. যদি ইভেন্টটি Completed হয়, তবে অংশগ্রহণকারীদের তালিকা টানা
+        // ২. যদি ইভেন্টটি Completed হয়, তবে সব অংশগ্রহণকারী ও আগ্রহীদের তালিকা টানা
         if (eventData.status === 'completed') {
           const { data: bookingData } = await supabase
             .from('bookings')
             .select(`
+              status,
               user_id,
               profiles:user_id (id, full_name, photo_url, role)
             `)
             .eq('event_id', eventId)
-            .eq('status', 'approved')
 
           if (bookingData && isMounted) {
-            // বুকিং ডেটা থেকে শুধু প্রোফাইলগুলো আলাদা করা
-            const profiles = bookingData.map(b => b.profiles).filter(Boolean)
-            setParticipants(profiles)
+            // যারা সফলভাবে গিয়েছে (Approved)
+            const approved = bookingData
+              .filter(b => b.status === 'approved')
+              .map(b => b.profiles)
+              .filter(Boolean)
+            
+            // যারা আগ্রহী বা ওয়েটিংয়ে ছিল (Interested, Pending, Free Booking)
+            const interested = bookingData
+              .filter(b => b.status === 'interested' || b.status === 'pending' || b.status === 'free_booking')
+              .map(b => b.profiles)
+              .filter(Boolean)
+
+            setApprovedExplorers(approved)
+            setInterestedExplorers(interested)
           }
         }
 
@@ -110,7 +121,7 @@ function EventDetailsContent() {
     return true
   }
 
-  // --- বুকিং লজিকগুলো (অপরিবর্তিত) ---
+  // --- বুকিং লজিকগুলো ---
   const handleInterested = async () => {
     if (!checkProfileCompletion()) return
     setProcessing(true)
@@ -187,7 +198,7 @@ function EventDetailsContent() {
         {/* লেফট কলাম (বিস্তারিত) */}
         <div className="lg:col-span-2 space-y-8">
             
-            {/* ইনফো গ্রিড (Past ইভেন্টের জন্য স্ট্যাটস পরিবর্তন হবে) */}
+            {/* ইনফো গ্রিড */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#0a1c13] p-5 rounded-2xl border border-white/10">
                 <div className="text-center p-2 border-r border-white/5">
                     <i className="fa-solid fa-map-location-dot text-[#e76f51] text-xl mb-1"></i>
@@ -210,7 +221,7 @@ function EventDetailsContent() {
                     <div className="text-center p-2">
                         <i className="fa-solid fa-users-viewfinder text-purple-400 text-xl mb-1"></i>
                         <p className="text-[10px] text-gray-500 uppercase tracking-widest">অভিযাত্রী</p>
-                        <p className="font-bold text-white text-sm">{event.booked_seats || 0} জন</p>
+                        <p className="font-bold text-white text-sm">{approvedExplorers.length || 0} জন</p>
                     </div>
                   </>
                 ) : (
@@ -237,31 +248,52 @@ function EventDetailsContent() {
 
             {/* Past Event হলে অংশগ্রহণকারীদের লিস্ট (Explorers Roster) দেখাবে */}
             {isPastEvent && (
-              <div>
-                <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
-                  <h3 className="text-xl font-bold text-white border-l-4 border-emerald-400 pl-3">অভিযাত্রীদের তালিকা (Explorers Roster)</h3>
-                  <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full border border-emerald-400/20">{participants.length} জন</span>
-                </div>
-                
-                {participants.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                    {participants.map((p) => (
-                      <Link href={`/profile/${p.id}`} key={p.id} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center hover:bg-white/10 hover:border-[#e76f51]/50 transition-all group">
-                        <div className="w-16 h-16 mx-auto rounded-full overflow-hidden mb-3 border-2 border-[#0a1c13] shadow-[0_0_10px_rgba(0,0,0,0.5)] group-hover:border-[#e76f51] transition-colors">
-                          <img src={p.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name)}&background=0a1c13&color=fff`} alt={p.full_name} className="w-full h-full object-cover" />
-                        </div>
-                        <p className="text-sm font-bold text-white line-clamp-1 group-hover:text-[#e76f51] transition-colors">{p.full_name}</p>
-                        {p.role === 'admin' ? (
-                          <p className="text-[9px] text-yellow-500 uppercase tracking-widest mt-1 font-bold">Admin</p>
-                        ) : (
-                          <p className="text-[9px] text-gray-500 uppercase tracking-widest mt-1">Explorer</p>
-                        )}
-                      </Link>
-                    ))}
+              <div className="space-y-8">
+                {/* Section 1: The Survivors / Approved */}
+                <div>
+                  <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
+                    <h3 className="text-xl font-bold text-white border-l-4 border-emerald-400 pl-3">সাফল্যের সাথে সম্পন্নকারী (The Explorers)</h3>
+                    <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full border border-emerald-400/20">{approvedExplorers.length} জন</span>
                   </div>
-                ) : (
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center">
-                    <p className="text-gray-400 text-sm">দুঃখিত, এই ইভেন্টের অংশগ্রহণকারীদের কোনো ডেটা পাওয়া যায়নি।</p>
+                  
+                  {approvedExplorers.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {approvedExplorers.map((p) => (
+                        <Link href={`/profile/${p.id}`} key={p.id} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center hover:bg-white/10 hover:border-[#e76f51]/50 transition-all group">
+                          <div className="w-16 h-16 mx-auto rounded-full overflow-hidden mb-3 border-2 border-[#0a1c13] shadow-[0_0_10px_rgba(0,0,0,0.5)] group-hover:border-[#e76f51] transition-colors">
+                            <img src={p.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name)}&background=0a1c13&color=fff`} alt={p.full_name} className="w-full h-full object-cover" />
+                          </div>
+                          <p className="text-sm font-bold text-white line-clamp-1 group-hover:text-[#e76f51] transition-colors">{p.full_name}</p>
+                          {p.role === 'admin' ? (
+                            <p className="text-[9px] text-yellow-500 uppercase tracking-widest mt-1 font-bold">Admin</p>
+                          ) : (
+                            <p className="text-[9px] text-gray-500 uppercase tracking-widest mt-1">Explorer</p>
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center">
+                      <p className="text-gray-400 text-sm">দুঃখিত, এই ইভেন্টের অংশগ্রহণকারীদের কোনো ডেটা পাওয়া যায়নি।</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Interested / Backups */}
+                {interestedExplorers.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
+                      <h3 className="text-lg font-bold text-gray-300 border-l-4 border-purple-400 pl-3">আগ্রহী ছিলেন যারা (Interested Souls)</h3>
+                      <span className="text-[10px] font-bold text-purple-400 bg-purple-400/10 px-2.5 py-1 rounded-full border border-purple-400/20">{interestedExplorers.length} জন</span>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {interestedExplorers.map((p) => (
+                        <Link href={`/profile/${p.id}`} key={p.id} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-purple-500/30 rounded-full pr-4 p-1 transition-all">
+                          <img src={p.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name)}&background=0a1c13&color=fff`} className="w-8 h-8 rounded-full object-cover" alt={p.full_name} />
+                          <span className="text-xs font-bold text-gray-300">{p.full_name}</span>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -383,10 +415,11 @@ function EventDetailsContent() {
                     </div>
                   </>
                 ) : (
-                  // Past Event এর সাইডবার প্যানেল
+                  // Past Event এর সাইডবার প্যানেল (অ্যালবাম লিংক সহ)
                   <div className="space-y-6">
-                    <div className="text-center p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                      <i className="fa-solid fa-medal text-4xl text-emerald-400 mb-3"></i>
+                    <div className="text-center p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-xl relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
+                      <i className="fa-solid fa-medal text-4xl text-emerald-400 mb-3 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]"></i>
                       <h4 className="text-lg font-black text-white">সাফল্যের সাথে সম্পন্ন</h4>
                       <p className="text-xs text-emerald-500 mt-2 font-bold tracking-widest">CUET ADVENTURE SOCIETY</p>
                     </div>
@@ -396,6 +429,17 @@ function EventDetailsContent() {
                       <p className="flex justify-between border-b border-white/5 pb-2"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
                       <p className="flex justify-between"><span className="text-gray-500">টোটাল ইভেন্ট ফি:</span> <span>৳ {event.tour_fee}</span></p>
                     </div>
+
+                    {/* 🔴 ইভেন্ট অ্যালবাম বাটন (যদি লিংক থাকে) */}
+                    {event.album_link && (
+                      <div className="pt-4 border-t border-white/10">
+                        <a href={event.album_link} target="_blank" rel="noopener noreferrer" className="w-full bg-[#3b82f6] hover:bg-blue-600 text-white py-3.5 rounded-xl font-black transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)] flex items-center justify-center gap-3 group">
+                          <i className="fa-brands fa-google-drive text-xl group-hover:scale-110 transition-transform"></i> 
+                          ইভেন্ট অ্যালবাম দেখুন
+                        </a>
+                        <p className="text-[10px] text-gray-500 text-center mt-2">অংশগ্রহণকারীদের তোলা ছবি ও স্মৃতি</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
