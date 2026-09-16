@@ -128,7 +128,7 @@ function EventDetailsContent() {
     return true
   }
 
-  // 🔴 নতুন: Attendance Claim লজিক
+  // 🔴 Attendance Claim লজিক
   const handleAttendanceClaim = async () => {
     if (!checkProfileCompletion()) return
     if (!window.confirm("আপনি কি এই ইভেন্টে অংশগ্রহণ করেছিলেন? আপনার ক্লেইম অ্যাডমিন প্যানেলে ভেরিফিকেশনের জন্য পাঠানো হবে।")) return
@@ -149,7 +149,7 @@ function EventDetailsContent() {
     }
   }
 
-  // 🔴 নতুন: Admin Search Members
+  // 🔴 Admin Search Members
   const handleSearchMembers = async (e) => {
     e.preventDefault()
     if (!searchQuery.trim()) return
@@ -169,7 +169,7 @@ function EventDetailsContent() {
     }
   }
 
-  // 🔴 নতুন: Admin Add Existing Member to Event
+  // 🔴 Admin Add Existing Member to Event
   const adminAddExistingMember = async (memberId) => {
     if (!window.confirm("এই মেম্বারকে ইভেন্টে যুক্ত করতে চান?")) return
     setProcessing(true)
@@ -187,7 +187,7 @@ function EventDetailsContent() {
     }
   }
 
-  // 🔴 নতুন: Admin Create Offline Member & Add
+  // 🔴 Admin Create Offline Member & Add
   const handleCreateOfflineMember = async (e) => {
     e.preventDefault()
     setProcessing(true)
@@ -202,7 +202,7 @@ function EventDetailsContent() {
         department: newMemberForm.department.toUpperCase(),
         batch: newMemberForm.batch,
         role: 'explorer',
-        is_offline: true // You should add this boolean column to your profiles table
+        is_offline: true 
       }])
       if (profileError) throw profileError
 
@@ -235,8 +235,33 @@ function EventDetailsContent() {
     } catch (err) { alert(err.message) } finally { setProcessing(false) }
   }
 
-  const handleInterested = async () => { /* ...existing logic... */ }
-  const handleFreeBooking = async () => { /* ...existing logic... */ }
+  // 🔴 FIX: হারানো ফাংশনগুলো রিস্টোর করা হলো!
+  const handleInterested = async () => {
+    if (!checkProfileCompletion()) return
+    setProcessing(true)
+    try {
+      const { error } = await supabase.from('bookings').upsert({
+        user_id: user.id, event_id: eventId, status: 'interested', payment_method: 'none', trx_id: 'NONE'
+      }, { onConflict: 'user_id, event_id' })
+      if (error) throw error
+      setBookingStatus('interested')
+      alert("আপনাকে এই ইভেন্টের 'আগ্রহী' তালিকায় যুক্ত করা হয়েছে।")
+    } catch (err) { alert(err.message) } finally { setProcessing(false) }
+  }
+
+  const handleFreeBooking = async () => {
+    if (!checkProfileCompletion()) return
+    if (!window.confirm("আপনি বিনামূল্যে একটি সিট বুক করছেন। পেমেন্ট করা ইউজাররা অগ্রাধিকার পাবে। আপনি কি রাজি?")) return
+    setProcessing(true)
+    try {
+      const { error } = await supabase.from('bookings').upsert({
+        user_id: user.id, event_id: eventId, status: 'free_booking', payment_method: 'none', trx_id: 'FREE_BOOKING'
+      }, { onConflict: 'user_id, event_id' })
+      if (error) throw error
+      setBookingStatus('free_booking')
+      alert("ফ্রি বুকিং সফল হয়েছে! সিট কনফার্ম করতে দ্রুত পেমেন্ট সম্পন্ন করুন।")
+    } catch (err) { alert(err.message) } finally { setProcessing(false) }
+  }
 
   if (loading) return <div className="min-h-screen bg-[#050b08] flex items-center justify-center"><i className="fa-solid fa-circle-notch fa-spin text-4xl text-[#e76f51]"></i></div>
   if (!event) return <div className="min-h-screen bg-[#050b08] flex items-center justify-center text-white"><p>ইভেন্টটি খুঁজে পাওয়া যায়নি!</p></div>
@@ -265,7 +290,6 @@ function EventDetailsContent() {
     return 'Treks'
   }
 
-  // Check if current logged-in user is already in the approved list
   const isUserApproved = user && approvedExplorers.some(exp => exp.id === user.id)
 
   return (
@@ -348,7 +372,7 @@ function EventDetailsContent() {
                 <p className="text-gray-400 leading-relaxed whitespace-pre-line">{event.description}</p>
             </div>
 
-            {/* 🔴 আপডেট: Horizontal Scroll Participant List */}
+            {/* Horizontal Scroll Participant List */}
             {isPastEvent && (
               <div className="space-y-8">
                 <div>
@@ -377,7 +401,7 @@ function EventDetailsContent() {
                     </div>
                   )}
 
-                  {/* 🔴 Attendance Claim & Admin Add Panel */}
+                  {/* Attendance Claim & Admin Add Panel */}
                   <div className="mt-6 flex flex-col sm:flex-row gap-4 items-center justify-center p-4 bg-white/5 rounded-2xl border border-white/10">
                     {!isUserApproved && bookingStatus !== 'claim_pending' && (
                       <button 
@@ -518,9 +542,14 @@ function EventDetailsContent() {
                                 )}
 
                                 {!user ? (
-                                    <button onClick={checkProfileCompletion} className="w-full block bg-[#e76f51] hover:bg-orange-600 text-white text-center py-3 rounded-xl font-bold transition-all shadow-glow">
-                                        বুকিং করতে লগইন করুন
-                                    </button>
+                                    <div className="space-y-3">
+                                      <button onClick={checkProfileCompletion} className="w-full block bg-[#e76f51] hover:bg-orange-600 text-white text-center py-3 rounded-xl font-bold transition-all shadow-glow">
+                                          বুকিং করতে লগইন করুন
+                                      </button>
+                                      <button onClick={checkProfileCompletion} className="w-full bg-black/40 border border-white/10 hover:border-yellow-500 hover:text-yellow-500 text-gray-300 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                                          <i className="fa-solid fa-ticket"></i> বিনামূল্যে সিট বুক করুন
+                                      </button>
+                                    </div>
                                 ) : (
                                     <>
                                         <button onClick={() => setShowPaymentModal(true)} disabled={processing} className="w-full bg-[#e76f51] hover:bg-orange-600 text-white py-3 rounded-xl font-bold transition-all shadow-glow flex items-center justify-center gap-2">
@@ -531,6 +560,12 @@ function EventDetailsContent() {
                                             <button onClick={handleFreeBooking} disabled={processing} className="w-full bg-black/40 border border-white/10 hover:border-yellow-500 hover:text-yellow-500 text-gray-300 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
                                                 <i className="fa-solid fa-ticket"></i> বিনামূল্যে সিট বুক করুন
                                             </button>
+                                        )}
+                                        
+                                        {!bookingStatus && (
+                                          <button onClick={handleInterested} disabled={processing} className="w-full bg-purple-500/10 border border-purple-500/30 hover:bg-purple-500 hover:text-white text-purple-400 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 mt-2">
+                                              <i className="fa-solid fa-heart"></i> আগ্রহী
+                                          </button>
                                         )}
                                     </>
                                 )}
@@ -574,7 +609,7 @@ function EventDetailsContent() {
         </div>
       </div>
 
-      {/* 🔴 Admin Add Member Modal */}
+      {/* Admin Add Member Modal */}
       {showAdminAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowAdminAddModal(false)}></div>
@@ -646,7 +681,6 @@ function EventDetailsContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowPaymentModal(false)}></div>
             <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-6 md:p-8 w-full max-w-md relative z-10 shadow-2xl">
-                {/* ... existing payment modal ... */}
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-black text-white"><i className="fa-solid fa-wallet text-[#e76f51] mr-2"></i> পেমেন্ট কনফার্মেশন</h3>
                     <button onClick={() => setShowPaymentModal(false)} className="text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
@@ -691,3 +725,7 @@ export default function EventDetailsPage() {
     </Suspense>
   )
 }
+
+এটি টেস্ট করে দেখলাম অসাধারণ কাজ করছে । বন্ধু আমাদের এখন একটি এডমিন ড্যাশবোর্ড তৈরি করতে হবে । এটি কিভাবে তৈরি করা যায় সে ব্যাপারে আমাকে একটু সাজেশন দাও ।  আমি এমন একটি ড্যাশবোর্ড তৈরি করতে চাচ্ছিলাম যেটা শুধুমাত্র কম্পিউটারের স্ক্রিনে দেখা যাবে । এবং যেখানে সাইড মেনুবার সহ সমস্ত ইনফর্মেশন গুলো এক নজরে দেখার ব্যবস্থা থাকবে ।  এবং এর আগে আমরা এডমিনের বিভিন্ন পার্ট আলাদা আলাদা পেজে তৈরি করেছিলাম । সেগুলোর লিংক গুলোকে আমাদের এই এডমিন ড্যাশবোর্ড প্যানেলের সাথে সুন্দর ভাবে গুছিয়ে যুক্ত করে দিবে । এই পেজটির কোডিং তুমি আমাকে দিয়ে দাও । আমরা এডমিন পেজটিকে রেসপন্সিভ করতে চাই না । এডমিনকে এই পেজটিতে কাজ করতে হলে তাকে ডেস্কটপে অথবা ল্যাপটপ কম্পিউটার স্ক্রিনে কাজ করতে হবে । তবে হ্যাঁ তুমি যদি চাও এটি মোবাইলে দেখাবে সে ক্ষেত্রে মোবাইলে রোটেট অপশন অন করে হরিজন্টাল দেখানোর অপশনটি রাখতে পারো ।
+
+অর্থাৎ এডমিন পেজটি কম্পিউটার এর ডিজাইন অনুসারে হবে । কেউ মোবাইল স্ক্রিনে এটি অন করলে সে যেন কোন এরর বা ভাঙ্গাচোরা পেজ দেখতে না পায় সে জন্য তাকে একটি এলার্ট দিয়ে বলবে আপনার স্ক্রিনটিকে হরিজেন্টালি ঘুরিয়ে ফেলুন ।
