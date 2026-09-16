@@ -10,6 +10,7 @@ export default function PastEventsPage() {
   const [events, setEvents] = useState([])
   const [filteredEvents, setFilteredEvents] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
   
   // ফিল্টারিং স্টেট
   const [filters, setFilters] = useState({ category: 'All', year: 'All' })
@@ -22,10 +23,34 @@ export default function PastEventsPage() {
     totalDistance: 0
   })
 
+  // 3-Step Delete Modal States
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [deleteStep, setDeleteStep] = useState(1)
+  const [isCheckboxChecked, setIsCheckboxChecked] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deletingEventId, setDeletingEventId] = useState(null)
+
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 })
     fetchPastEvents()
+    checkAdminAccess()
   }, [])
+
+  // ইউজারের রোল চেক করার ফাংশন
+  const checkAdminAccess = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single()
+      
+      if (data && data.role === 'admin') {
+        setIsAdmin(true)
+      }
+    }
+  }
 
   const fetchPastEvents = async () => {
     try {
@@ -71,6 +96,29 @@ export default function PastEventsPage() {
     }
     setFilteredEvents(result)
   }, [filters, events])
+
+  // ট্র্যাশে পাঠানোর লজিক
+  const handleMoveToTrash = async () => {
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', deletingEventId)
+
+      if (error) throw error
+
+      alert('অতীতের ইভেন্টটি সফলভাবে ট্র্যাশ বিনে পাঠানো হয়েছে।')
+      
+      // লোকাল স্টেট আপডেট করে সাথে সাথেই কার্ডটি গায়েব করে দেওয়া
+      setEvents(events.filter(ev => ev.id !== deletingEventId))
+      setFilteredEvents(filteredEvents.filter(ev => ev.id !== deletingEventId))
+      setIsDeleteModalOpen(false)
+      
+    } catch (error) {
+      console.error(error)
+      alert('সমস্যা হয়েছে: ' + error.message)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#050b08] text-gray-300 font-sans relative overflow-x-hidden pt-24 pb-16">
@@ -179,14 +227,33 @@ export default function PastEventsPage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0a1c13] via-transparent to-transparent"></div>
                   
                   {/* Status Badge */}
-                  <div className="absolute top-4 left-4 bg-emerald-500/90 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg border border-emerald-400/50 flex items-center gap-1.5">
+                  <div className="absolute top-4 left-4 z-20 bg-emerald-500/90 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg border border-emerald-400/50 flex items-center gap-1.5">
                     <i className="fa-solid fa-check-double"></i> Mission Accomplished
                   </div>
 
                   {/* Category Badge */}
-                  <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/20">
+                  <div className="absolute top-4 right-4 z-20 bg-black/50 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/20">
                     {ev.category}
                   </div>
+
+                  {/* 🔴 অ্যাডমিন ডিলিট বাটন (শুধুমাত্র অ্যাডমিন দেখবে) */}
+                  {isAdmin && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDeletingEventId(ev.id);
+                        setIsDeleteModalOpen(true);
+                        setDeleteStep(1);
+                        setIsCheckboxChecked(false);
+                        setDeleteConfirmText('');
+                      }}
+                      className="absolute top-14 right-4 z-30 bg-red-500/90 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg border border-red-400/50"
+                      title="ট্র্যাশে পাঠান"
+                    >
+                      <i className="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                  )}
                 </div>
 
                 {/* Event Info */}
@@ -216,6 +283,85 @@ export default function PastEventsPage() {
           </div>
         )}
       </div>
+
+      {/* 🔴 3-STEP DELETE MODAL */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#0a1c13] border border-red-500/30 rounded-3xl p-8 max-w-md w-full mx-auto relative shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+            
+            {/* Step 1: Extreme Warning */}
+            {deleteStep === 1 && (
+              <div className="text-center">
+                <i className="fa-solid fa-triangle-exclamation text-5xl text-red-500 mb-4 animate-pulse"></i>
+                <h3 className="text-2xl font-black text-white mb-2">চরম সতর্কতা!</h3>
+                <p className="text-gray-400 text-sm mb-6">
+                  আপনি অতীতের একটি সফল ইভেন্ট ডিলিট করতে যাচ্ছেন। এটি ট্র্যাশ বিনে জমা হবে এবং <span className="text-red-400 font-bold">৩০ দিন পর চিরতরে মুছে যাবে</span>। আপনি কি নিশ্চিত?
+                </p>
+                <div className="flex gap-4">
+                  <button onClick={() => setIsDeleteModalOpen(false)} className="w-1/2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all">বাতিল করুন</button>
+                  <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/50 py-3 rounded-xl font-bold transition-all">পরবর্তী ধাপ</button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Checkbox Confirmation */}
+            {deleteStep === 2 && (
+              <div className="text-center">
+                <i className="fa-solid fa-clipboard-check text-5xl text-orange-500 mb-4"></i>
+                <h3 className="text-xl font-black text-white mb-4">দায়িত্ব স্বীকার</h3>
+                <label className="flex items-start gap-3 text-left bg-black/40 p-4 rounded-xl border border-white/5 mb-6 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="mt-1 w-5 h-5 accent-red-500" 
+                    checked={isCheckboxChecked}
+                    onChange={(e) => setIsCheckboxChecked(e.target.checked)}
+                  />
+                  <span className="text-sm text-gray-300">আমি বুঝতে পারছি যে এই ইভেন্ট ডিলিট করলে ইউজারদের বুকিং হিস্ট্রি বা স্ট্যাটস প্রভাবিত হতে পারে। আমি নিজ দায়িত্বে এটি করছি।</span>
+                </label>
+                <div className="flex gap-4">
+                  <button onClick={() => setDeleteStep(1)} className="w-1/2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all">পেছনে যান</button>
+                  <button 
+                    disabled={!isCheckboxChecked}
+                    onClick={() => setDeleteStep(3)} 
+                    className={`w-1/2 py-3 rounded-xl font-bold transition-all ${isCheckboxChecked ? 'bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'bg-red-500/20 text-red-500/50 cursor-not-allowed'}`}
+                  >পরবর্তী ধাপ</button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Manual Type & Final Delete */}
+            {deleteStep === 3 && (
+              <div className="text-center">
+                <i className="fa-solid fa-skull-crossbones text-5xl text-red-600 mb-4"></i>
+                <h3 className="text-xl font-black text-white mb-2">চূড়ান্ত পদক্ষেপ</h3>
+                <p className="text-gray-400 text-xs mb-4">ট্র্যাশ বিনে পাঠাতে নিচের বক্সে ইংরেজিতে বড় হাতের অক্ষরে <span className="font-bold text-white select-none">DELETE</span> টাইপ করুন।</p>
+                <input 
+                  type="text" 
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE" 
+                  className="w-full bg-black/40 border border-red-500/30 text-white text-center font-black tracking-widest rounded-xl p-4 focus:border-red-500 outline-none mb-6 uppercase"
+                />
+                <div className="flex gap-4">
+                  <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all">পেছনে যান</button>
+                  <button 
+                    disabled={deleteConfirmText !== 'DELETE'}
+                    onClick={handleMoveToTrash} 
+                    className={`w-1/2 py-3 rounded-xl font-black transition-all flex items-center justify-center gap-2 ${deleteConfirmText === 'DELETE' ? 'bg-red-600 hover:bg-red-700 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)]' : 'bg-red-500/20 text-red-500/50 cursor-not-allowed'}`}
+                  >
+                    <i className="fa-solid fa-trash-can"></i> ট্র্যাশে পাঠান
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Close Button */}
+            <button onClick={() => setIsDeleteModalOpen(false)} className="absolute -top-4 -right-4 w-10 h-10 bg-black border border-white/10 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
