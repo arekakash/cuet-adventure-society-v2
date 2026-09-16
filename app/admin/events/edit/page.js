@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Cropper from 'react-easy-crop' // 🔴 নতুন যুক্ত হলো
 
 export default function EditEvent() {
   const router = useRouter()
@@ -11,13 +12,19 @@ export default function EditEvent() {
   const [fetching, setFetching] = useState(true)
   const [eventId, setEventId] = useState(null)
   
+  // Image & Cropper States
   const [imageFile, setImageFile] = useState(null)
-  const [imagePreview, setImagePreview] = useState('')
+  const [imageSrc, setImageSrc] = useState(null) // Raw uploaded image
+  const [imagePreview, setImagePreview] = useState('') // Final cropped preview
   const [existingImage, setExistingImage] = useState('')
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+  const [showCropper, setShowCropper] = useState(false)
 
-  // ফর্মের সাধারণ ডেটা (albumLink যুক্ত করা হলো)
+  // ফর্মের সাধারণ ডেটা
   const [formData, setFormData] = useState({
-    title: '', subtitle: '', category: 'Trekking', destination: '',
+    title: '', category: 'Trekking', destination: '',
     startDate: '', endDate: '', reportingPlace: '', deadline: '',
     bookingFee: '', totalFee: '', totalSeats: '', refundPolicy: 'Non-Refundable', paymentMethods: '',
     stayType: 'Resort/Hotel Shared', washroom: 'Attached & Shared', foodPlan: '',
@@ -25,6 +32,20 @@ export default function EditEvent() {
     description: '', albumLink: '', totalDays: 1,
     metaTreks: 1, metaDistance: '', metaNights: ''
   })
+
+  // 🔴 প্রি-ডিফাইনড চেকলিস্ট (বাংলাদেশের কনটেক্সট)
+  const presetIncluded = [
+    "ঢাকা-গন্তব্য আপ-ডাউন বাস টিকেট", "প্রতিদিন ৩ বেলা মূল খাবার", "রিসোর্ট/হোটেল ভাড়া",
+    "ক্যাম্পিং টেন্ট ও স্লিপিং ব্যাগ", "লোকাল ট্রান্সপোর্ট (চাঁদের গাড়ি/লোকাল বাস)",
+    "অভিজ্ঞ গাইড ফি", "পার্কিং ও এন্ট্রি ফি", "বারবিকিউ ডিনার", "স্ন্যাকস ও চা",
+    "ফাস্ট এইড সাপোর্ট", "লাইফ জ্যাকেট", "বন বিভাগের অনুমতি ফি", "ট্রেইল ক্লিনিং ফি"
+  ]
+
+  const presetExcluded = [
+    "যেকোনো ব্যক্তিগত খরচ", "বাসযাত্রার খাবার", "ওষুধ ও মেডিকেল খরচ",
+    "পোর্টার (কুলি) ফি", "ক্যামেরা বা ড্রোন এন্ট্রি ফি", "শপিং ও স্যুভেনিয়ার",
+    "প্যারাসেইলিং/ওয়াটার স্পোর্টস রাইড", "আলাদা রুমে থাকার খরচ", "মোবাইল রিচার্জ বা ওয়াইফাই"
+  ]
 
   // ডায়নামিক ট্যাগস (চেকলিস্ট)
   const [tags, setTags] = useState({ included: [], gear: [], excluded: [], warnings: [] })
@@ -34,10 +55,10 @@ export default function EditEvent() {
   const [itinerary, setItinerary] = useState([{ day: 1, title: '', desc: '' }])
 
   // 3-Step Delete Modal States
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [deleteStep, setDeleteStep] = useState(1);
-  const [isCheckboxChecked, setIsCheckboxChecked] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [deleteStep, setDeleteStep] = useState(1)
+  const [isCheckboxChecked, setIsCheckboxChecked] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
   const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23' 
 
@@ -66,7 +87,7 @@ export default function EditEvent() {
       if (error) throw error;
       if (data) {
         setFormData({
-          title: data.title || '', subtitle: data.subtitle || '', category: data.category || 'Trekking', destination: data.destination || '',
+          title: data.title || '', category: data.category || 'Trekking', destination: data.destination || '',
           startDate: data.start_date ? new Date(data.start_date).toISOString().slice(0, 16) : '', 
           endDate: data.end_date ? new Date(data.end_date).toISOString().slice(0, 16) : '', 
           reportingPlace: data.reporting_place || '', 
@@ -117,27 +138,74 @@ export default function EditEvent() {
     }
   }
 
-  const handleImageChange = (e) => {
+  // 🔴 Image Cropper Logic
+  const handleImageSelect = (e) => {
     const file = e.target.files[0]
     if (file) {
-      setImageFile(file)
-      setImagePreview(URL.createObjectURL(file))
+      const reader = new FileReader()
+      reader.onload = () => {
+        setImageSrc(reader.result)
+        setShowCropper(true)
+      }
+      reader.readAsDataURL(file)
     }
   }
 
-  const handleTagAdd = (category) => {
-    const value = tagInputs[category].trim()
-    if (value) {
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels)
+  }, [])
+
+  const getCroppedImg = async () => {
+    try {
+      const image = new Image()
+      image.src = imageSrc
+      await new Promise(resolve => image.onload = resolve)
+
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+
+      canvas.width = croppedAreaPixels.width
+      canvas.height = croppedAreaPixels.height
+
+      ctx.drawImage(
+        image,
+        croppedAreaPixels.x,
+        croppedAreaPixels.y,
+        croppedAreaPixels.width,
+        croppedAreaPixels.height,
+        0,
+        0,
+        croppedAreaPixels.width,
+        croppedAreaPixels.height
+      )
+
+      const base64Image = canvas.toDataURL('image/jpeg', 0.8)
+      setImagePreview(base64Image)
+      
+      // Convert to file for upload
+      fetch(base64Image)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], "cropped-cover.jpg", { type: "image/jpeg" })
+          setImageFile(file)
+          setShowCropper(false)
+        })
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  // 🔴 Smart Checklist Logic
+  const handleTagAdd = (category, presetValue = null) => {
+    const value = presetValue || tagInputs[category].trim()
+    if (value && !tags[category].includes(value)) {
       setTags(prev => ({ ...prev, [category]: [...prev[category], value] }))
-      setTagInputs(prev => ({ ...prev, [category]: '' }))
+      if (!presetValue) setTagInputs(prev => ({ ...prev, [category]: '' }))
     }
   }
 
   const handleTagRemove = (category, index) => {
-    setTags(prev => ({
-      ...prev,
-      [category]: prev[category].filter((_, i) => i !== index)
-    }))
+    setTags(prev => ({ ...prev, [category]: prev[category].filter((_, i) => i !== index) }))
   }
 
   // ইভেন্ট আপডেট ফাংশন
@@ -164,7 +232,6 @@ export default function EditEvent() {
 
       const updateData = {
         title: formData.title,
-        subtitle: formData.subtitle,
         category: formData.category,
         destination: formData.destination,
         cover_photo: finalCoverPhotoUrl,
@@ -187,7 +254,7 @@ export default function EditEvent() {
         leader_phone: formData.leaderPhone,
         leader_whatsapp: formData.leaderWhatsapp,
         description: formData.description,
-        album_link: formData.albumLink, // 🔴 নতুন যুক্ত হলো
+        album_link: formData.albumLink, 
         included: tags.included,
         required_gear: tags.gear,
         excluded: tags.excluded,
@@ -217,14 +284,9 @@ export default function EditEvent() {
   // ইভেন্ট ট্র্যাশ বিনে পাঠানোর ফাংশন
   const handleMoveToTrash = async () => {
     try {
-      const { error } = await supabase
-        .from('events')
-        .update({ deleted_at: new Date().toISOString() }) 
-        .eq('id', eventId);
-
+      const { error } = await supabase.from('events').update({ deleted_at: new Date().toISOString() }).eq('id', eventId);
       if (error) throw error;
-
-      alert('ইভেন্টটি সফলভাবে ট্র্যাশ বিনে পাঠানো হয়েছে। ৩০ দিন পর এটি চিরতরে মুছে যাবে।');
+      alert('ইভেন্টটি সফলভাবে ট্র্যাশ বিনে পাঠানো হয়েছে।');
       router.push('/admin/trash'); 
     } catch (error) {
       console.error(error);
@@ -235,16 +297,20 @@ export default function EditEvent() {
   if (fetching) {
     return (
       <div className="min-h-screen bg-[#050b08] flex items-center justify-center">
-        <i className="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500"></i>
+        <i className="fa-solid fa-circle-notch fa-spin text-4xl text-[#e76f51]"></i>
       </div>
     );
   }
+
+  // Smart Category Variables
+  const isDayEvent = formData.category === 'Day Tour' || formData.category === 'Workshop'
+  const isCycling = formData.category === 'Cycling'
+  const isSwimming = formData.category === 'Swimming'
 
   return (
     <div className="min-h-screen bg-[#050b08] pb-12 px-4 sm:px-6 relative text-gray-300 pt-24">
       <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
         <div className="flex items-center gap-4 mb-8">
             <Link href="/admin/events" className="text-gray-400 hover:text-white bg-white/5 p-3 rounded-xl transition-colors">
                 <i className="fa-solid fa-arrow-left"></i>
@@ -263,22 +329,20 @@ export default function EditEvent() {
                     <i className="fa-solid fa-compass"></i> ১. বেসিক ইনফরমেশন
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
+                    <div className="md:col-span-2">
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ইভেন্টের শিরোনাম *</label>
                         <input type="text" id="title" required value={formData.title} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-[#e76f51] text-white font-bold" />
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">সাবটাইটেল / ট্যাগলাইন</label>
-                        <input type="text" id="subtitle" value={formData.subtitle} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-[#e76f51] text-white" />
-                    </div>
+                    
+                    {/* 🔴 Image Upload & Crop Trigger */}
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">কভার ছবি (নতুন ছবি দিলে আপলোড করুন)</label>
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">কভার ছবি (16:9 রেশিও)</label>
                         <div className="relative w-full h-48 sm:h-64 rounded-2xl border-2 border-dashed border-gray-600 overflow-hidden bg-black/20 flex items-center justify-center hover:border-[#e76f51] transition-colors">
                             {imagePreview ? (
                                 <>
                                   <img src={imagePreview} className="absolute inset-0 w-full h-full object-cover" alt="Preview" />
                                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                    <span className="text-white font-bold bg-black/60 px-4 py-2 rounded">Change Image</span>
+                                    <span className="text-white font-bold bg-black/60 px-4 py-2 rounded"><i className="fa-solid fa-crop"></i> Change & Crop Image</span>
                                   </div>
                                 </>
                             ) : (
@@ -287,16 +351,21 @@ export default function EditEvent() {
                                     <p className="text-sm font-bold text-gray-400">ক্লিক করে ছবি নির্বাচন করুন</p>
                                 </div>
                             )}
-                            <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                            <input type="file" accept="image/*" onChange={handleImageSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                         </div>
                     </div>
+                    
                     <div>
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ক্যাটাগরি *</label>
                         <select id="category" value={formData.category} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-[#e76f51] text-white">
                             <option value="Trekking">Trekking</option>
                             <option value="Camping">Camping</option>
+                            <option value="Cycling">Cycling</option>
+                            <option value="Swimming">Swimming</option>
                             <option value="Houseboat/Cruise">Houseboat/Cruise</option>
+                            <option value="Expedition">Expedition</option>
                             <option value="Day Tour">Day Tour</option>
+                            <option value="Workshop">Workshop</option>
                         </select>
                     </div>
                     <div>
@@ -317,7 +386,7 @@ export default function EditEvent() {
                         <input type="datetime-local" id="startDate" required value={formData.startDate} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-400 text-white" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ফিরে আসা *</label>
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">{isDayEvent ? 'ইভেন্ট শেষ' : 'ফিরে আসা'} *</label>
                         <input type="datetime-local" id="endDate" required value={formData.endDate} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-400 text-white" />
                     </div>
                     <div>
@@ -356,45 +425,49 @@ export default function EditEvent() {
                 </div>
             </div>
 
-            {/* সেকশন ৪: লজিস্টিকস ও ভাইব (এখানে অ্যালবাম লিংক যোগ হলো) */}
+            {/* সেকশন ৪: স্মার্ট লজিস্টিকস */}
             <div>
                 <h3 className="font-bold text-purple-400 mb-6 text-lg flex items-center gap-2 border-b border-purple-400/20 pb-2">
                     <i className="fa-solid fa-campground"></i> ৪. লজিস্টিকস ও ভাইব
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ডিফিকাল্টি *</label>
-                        <select id="difficulty" value={formData.difficulty} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white">
-                            <option value="Beginner">Beginner (সহজ)</option>
-                            <option value="Moderate">Moderate (মাারি)</option>
-                            <option value="Hard">Hard (কঠিন)</option>
-                            <option value="Extreme">Extreme</option>
-                        </select>
-                    </div>
+                    
+                    {formData.category !== 'Workshop' && (
+                      <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ডিফিকাল্টি *</label>
+                          <select id="difficulty" value={formData.difficulty} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white">
+                              <option value="Beginner">Beginner (সহজ)</option>
+                              <option value="Moderate">Moderate (মাঝারি)</option>
+                              <option value="Hard">Hard (কঠিন)</option>
+                              <option value="Extreme">Extreme</option>
+                          </select>
+                      </div>
+                    )}
+
+                    {!isDayEvent && (
+                      <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">থাকার ব্যবস্থা *</label>
+                          <select id="stayType" value={formData.stayType} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white">
+                              <option value="Resort/Hotel Shared">Resort/Hotel Shared</option>
+                              <option value="Tent Camping">Tent Camping</option>
+                              <option value="Houseboat">Houseboat</option>
+                              <option value="Tribal Cottage">Tribal Cottage</option>
+                              <option value="No Stay (Overnight Travel)">No Stay (Overnight Travel)</option>
+                          </select>
+                      </div>
+                    )}
+
                     <div>
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">টিম লিডার *</label>
                         <input type="text" id="teamLeader" required value={formData.teamLeader} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">লিডার ফোন *</label>
-                        <input type="text" id="leaderPhone" required value={formData.leaderPhone} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
-                    </div>
                     
-                    {/* 🔴 নতুন: ইভেন্ট অ্যালবাম লিংক ফিল্ড */}
                     <div className="md:col-span-3">
-                        <label className="block text-xs font-bold text-blue-400 mb-2 uppercase">ইভেন্ট অ্যালবাম লিংক (Google Drive/Photos) - ঐচ্ছিক</label>
+                        <label className="block text-xs font-bold text-blue-400 mb-2 uppercase">ইভেন্ট অ্যালবাম লিংক (Google Drive) - ঐচ্ছিক</label>
                         <div className="flex items-center gap-3 bg-black/40 border border-white/10 p-2 rounded-xl focus-within:border-blue-400 transition-colors">
                             <i className="fa-brands fa-google-drive text-blue-400 pl-3"></i>
-                            <input 
-                              type="url" 
-                              id="albumLink" 
-                              value={formData.albumLink} 
-                              onChange={handleInputChange} 
-                              placeholder="https://drive.google.com/drive/folders/..." 
-                              className="w-full bg-transparent text-white outline-none p-2 text-sm" 
-                            />
+                            <input type="url" id="albumLink" value={formData.albumLink} onChange={handleInputChange} placeholder="https://drive.google.com/..." className="w-full bg-transparent text-white outline-none p-2 text-sm" />
                         </div>
-                        <p className="text-[10px] text-gray-500 mt-1">ইভেন্ট শেষ হওয়ার পর ছবিগুলো একটি গুগল ড্রাইভে আপলোড করে লিংকটি এখানে দিন।</p>
                     </div>
 
                     <div className="md:col-span-3">
@@ -404,7 +477,7 @@ export default function EditEvent() {
                 </div>
             </div>
 
-            {/* সেকশন ৫: ডায়নামিক ট্যাগস */}
+            {/* 🔴 সেকশন ৫: স্মার্ট ডায়নামিক চেকলিস্ট */}
             <div>
                 <h3 className="font-bold text-yellow-500 mb-6 text-lg flex items-center gap-2 border-b border-yellow-500/20 pb-2">
                     <i className="fa-solid fa-list-check"></i> ৫. রুলস ও চেকলিস্ট
@@ -413,28 +486,62 @@ export default function EditEvent() {
                     
                     {/* Included */}
                     <div className="bg-black/20 p-5 rounded-2xl border border-emerald-500/20">
-                        <label className="block text-xs font-bold text-emerald-400 mb-3 uppercase">যা যা ইনক্লুডেড</label>
+                        <label className="block text-xs font-bold text-emerald-400 mb-3 uppercase">যা যা ইনক্লুডেড (Included)</label>
+                        
+                        {/* Preset Dropdown */}
+                        <select 
+                          onChange={(e) => {
+                            if(e.target.value) {
+                              handleTagAdd('included', e.target.value)
+                              e.target.value = "" // reset
+                            }
+                          }} 
+                          className="w-full bg-black/40 border border-emerald-500/30 p-3 rounded-lg text-sm text-gray-300 mb-3 outline-none cursor-pointer"
+                        >
+                          <option value="">-- সাজেশন থেকে নির্বাচন করুন --</option>
+                          {presetIncluded.map(item => <option key={item} value={item}>{item}</option>)}
+                        </select>
+
+                        {/* Custom Input */}
                         <div className="flex gap-2 mb-3">
-                            <input type="text" value={tagInputs.included} onChange={(e) => setTagInputs({...tagInputs, included: e.target.value})} className="bg-black/40 border border-white/10 flex-grow p-2 rounded-lg text-sm text-white" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd('included'))} />
+                            <input type="text" placeholder="অথবা নিজে টাইপ করুন..." value={tagInputs.included} onChange={(e) => setTagInputs({...tagInputs, included: e.target.value})} className="bg-black/40 border border-white/10 flex-grow p-2 rounded-lg text-sm text-white" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd('included'))} />
                             <button type="button" onClick={() => handleTagAdd('included')} className="bg-emerald-500 text-white px-4 rounded-lg font-bold">Add</button>
                         </div>
+                        
                         <div className="flex flex-wrap gap-2">
                             {tags.included.map((tag, idx) => (
-                                <span key={idx} className="bg-white/10 px-3 py-1 rounded-full text-xs flex items-center gap-2">{tag} <i className="fa-solid fa-xmark text-red-400 cursor-pointer" onClick={() => handleTagRemove('included', idx)}></i></span>
+                                <span key={idx} className="bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full text-xs flex items-center gap-2 text-emerald-400">{tag} <i className="fa-solid fa-xmark text-red-400 cursor-pointer hover:text-red-500" onClick={() => handleTagRemove('included', idx)}></i></span>
                             ))}
                         </div>
                     </div>
 
                     {/* Excluded */}
                     <div className="bg-black/20 p-5 rounded-2xl border border-gray-500/30">
-                        <label className="block text-xs font-bold text-gray-400 mb-3 uppercase">যা ইনক্লুডেড নয়</label>
+                        <label className="block text-xs font-bold text-gray-400 mb-3 uppercase">যা ইনক্লুডেড নয় (Excluded)</label>
+                        
+                        {/* Preset Dropdown */}
+                        <select 
+                          onChange={(e) => {
+                            if(e.target.value) {
+                              handleTagAdd('excluded', e.target.value)
+                              e.target.value = "" // reset
+                            }
+                          }} 
+                          className="w-full bg-black/40 border border-gray-500/30 p-3 rounded-lg text-sm text-gray-300 mb-3 outline-none cursor-pointer"
+                        >
+                          <option value="">-- সাজেশন থেকে নির্বাচন করুন --</option>
+                          {presetExcluded.map(item => <option key={item} value={item}>{item}</option>)}
+                        </select>
+
+                        {/* Custom Input */}
                         <div className="flex gap-2 mb-3">
-                            <input type="text" value={tagInputs.excluded} onChange={(e) => setTagInputs({...tagInputs, excluded: e.target.value})} className="bg-black/40 border border-white/10 flex-grow p-2 rounded-lg text-sm text-white" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd('excluded'))} />
+                            <input type="text" placeholder="অথবা নিজে টাইপ করুন..." value={tagInputs.excluded} onChange={(e) => setTagInputs({...tagInputs, excluded: e.target.value})} className="bg-black/40 border border-white/10 flex-grow p-2 rounded-lg text-sm text-white" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd('excluded'))} />
                             <button type="button" onClick={() => handleTagAdd('excluded')} className="bg-gray-600 text-white px-4 rounded-lg font-bold">Add</button>
                         </div>
+                        
                         <div className="flex flex-wrap gap-2">
                             {tags.excluded.map((tag, idx) => (
-                                <span key={idx} className="bg-white/10 px-3 py-1 rounded-full text-xs flex items-center gap-2">{tag} <i className="fa-solid fa-xmark text-red-400 cursor-pointer" onClick={() => handleTagRemove('excluded', idx)}></i></span>
+                                <span key={idx} className="bg-white/10 px-3 py-1 rounded-full text-xs flex items-center gap-2 text-gray-300">{tag} <i className="fa-solid fa-xmark text-red-400 cursor-pointer hover:text-red-500" onClick={() => handleTagRemove('excluded', idx)}></i></span>
                             ))}
                         </div>
                     </div>
@@ -470,24 +577,32 @@ export default function EditEvent() {
                 </div>
             </div>
 
-            {/* সেকশন ৭: গ্যামিফিকেশন */}
+            {/* 🔴 সেকশন ৭: ইউজারের প্রোফাইল রিওয়ার্ড (ডায়নামিক) */}
             <div>
                 <h3 className="font-bold text-amber-500 mb-6 text-lg flex items-center gap-2 border-b border-amber-500/20 pb-2">
-                    <i className="fa-solid fa-chart-line"></i> ৭. গ্যামিফিকেশন স্ট্যাটস
+                    <i className="fa-solid fa-medal"></i> ৭. ইউজার প্রোফাইল পয়েন্ট ও রিওয়ার্ড
                 </h3>
+                <p className="text-xs text-gray-500 mb-4">এই ইভেন্টটি সম্পন্ন হলে ইউজারের প্রোফাইলে এই পয়েন্টগুলো স্বয়ংক্রিয়ভাবে যোগ হবে।</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ট্রেকের সংখ্যা</label>
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
+                          {isCycling ? 'মোট রাইডের সংখ্যা' : isSwimming ? 'সাঁতারের সেশন' : 'ট্রেকের সংখ্যা (পয়েন্ট)'}
+                        </label>
                         <input type="number" id="metaTreks" required value={formData.metaTreks} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">মোট হাঁটার দূরত্ব (কি.মি.)</label>
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
+                          {isCycling ? 'মোট রাইডিং দূরত্ব (কি.মি.)' : isSwimming ? 'মোট সাঁতারের দূরত্ব (মি.)' : 'মোট হাঁটার দূরত্ব (কি.মি.)'}
+                        </label>
                         <input type="number" id="metaDistance" required value={formData.metaDistance} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ক্যাম্পিং রাত</label>
-                        <input type="number" id="metaNights" required value={formData.metaNights} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
-                    </div>
+                    
+                    {!isDayEvent && (
+                      <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ক্যাম্পিং রাত</label>
+                          <input type="number" id="metaNights" required value={formData.metaNights} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
+                      </div>
+                    )}
                 </div>
             </div>
 
@@ -509,11 +624,31 @@ export default function EditEvent() {
 
         </form>
 
-        {/* 3-STEP DELETE MODAL */}
+        {/* 🔴 Image Cropper Modal */}
+        {showCropper && (
+          <div className="fixed inset-0 z-[70] flex flex-col bg-black">
+            <div className="relative flex-grow">
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={16 / 9}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+              />
+            </div>
+            <div className="h-24 bg-[#0a1c13] flex items-center justify-between px-6 border-t border-white/10">
+              <button onClick={() => setShowCropper(false)} className="text-red-400 font-bold hover:bg-red-500/20 px-4 py-2 rounded-lg">Cancel</button>
+              <button onClick={getCroppedImg} className="bg-[#e76f51] hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-bold">Crop & Save</button>
+            </div>
+          </div>
+        )}
+
+        {/* 3-STEP DELETE MODAL (আগের মতোই) */}
         {isDeleteModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <div className="bg-[#0a1c13] border border-red-500/30 rounded-3xl p-8 max-w-md w-full mx-4 relative shadow-[0_0_30px_rgba(239,68,68,0.2)]">
-              
               {/* Step 1: Extreme Warning */}
               {deleteStep === 1 && (
                 <div className="text-center">
@@ -528,7 +663,6 @@ export default function EditEvent() {
                   </div>
                 </div>
               )}
-
               {/* Step 2: Checkbox Confirmation */}
               {deleteStep === 2 && (
                 <div className="text-center">
@@ -553,7 +687,6 @@ export default function EditEvent() {
                   </div>
                 </div>
               )}
-
               {/* Step 3: Manual Type & Final Delete */}
               {deleteStep === 3 && (
                 <div className="text-center">
