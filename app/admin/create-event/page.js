@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -11,9 +11,9 @@ export default function CreateEvent() {
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
 
-  // ফর্মের সাধারণ ডেটা
+  // ফর্মের সাধারণ ডেটা (subtitle রিমুভ করা হয়েছে)
   const [formData, setFormData] = useState({
-    title: '', subtitle: '', category: 'Trekking', destination: '',
+    title: '', category: 'Trekking', destination: '',
     startDate: '', endDate: '', reportingPlace: '', deadline: '',
     bookingFee: '', totalFee: '', totalSeats: '', refundPolicy: 'Non-Refundable', paymentMethods: '',
     stayType: 'Resort/Hotel Shared', washroom: 'Attached & Shared', foodPlan: '',
@@ -28,6 +28,8 @@ export default function CreateEvent() {
 
   // ডে-টু-ডে প্ল্যানার
   const [itinerary, setItinerary] = useState([{ day: 1, title: '', desc: '' }])
+
+  const canvasRef = useRef(null)
 
   const handleInputChange = (e) => {
     const { id, value } = e.target
@@ -47,16 +49,64 @@ export default function CreateEvent() {
     }
   }
 
-  // ছবি সিলেক্ট এবং প্রিভিউ
+  // 🔴 অ্যাডভান্সড 16:9 ক্রপার লজিক (Canvas)
   const handleImageChange = (e) => {
     const file = e.target.files[0]
     if (file) {
-      setImageFile(file)
-      setImagePreview(URL.createObjectURL(file))
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          
+          // 16:9 Aspect Ratio (e.g., 1280x720)
+          canvas.width = 1280
+          canvas.height = 720
+          
+          const imgRatio = img.width / img.height
+          const targetRatio = 16 / 9
+          let drawWidth, drawHeight, offsetX, offsetY
+
+          if (imgRatio > targetRatio) {
+            drawHeight = canvas.height
+            drawWidth = img.width * (canvas.height / img.height)
+            offsetX = (canvas.width - drawWidth) / 2
+            offsetY = 0
+          } else {
+            drawWidth = canvas.width
+            drawHeight = img.height * (canvas.width / img.width)
+            offsetX = 0
+            offsetY = (canvas.height - drawHeight) / 2
+          }
+          
+          ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight)
+          
+          let quality = 0.8
+          let base64String = canvas.toDataURL('image/jpeg', quality)
+          
+          // Compress < 100KB for mobile safety
+          while (base64String.length > 150000 && quality > 0.2) {
+            quality -= 0.1
+            base64String = canvas.toDataURL('image/jpeg', quality)
+          }
+          
+          setImagePreview(base64String)
+          
+          // Convert base64 back to Blob/File for ImgBB
+          fetch(base64String)
+            .then(res => res.blob())
+            .then(blob => {
+              const compressedFile = new File([blob], "cover.jpg", { type: "image/jpeg" })
+              setImageFile(compressedFile)
+            })
+        }
+        img.src = event.target.result
+      }
+      reader.readAsDataURL(file)
     }
   }
 
-  // ডায়নামিক ট্যাগ হ্যান্ডলিং
   const handleTagAdd = (category) => {
     const value = tagInputs[category].trim()
     if (value) {
@@ -72,7 +122,6 @@ export default function CreateEvent() {
     }))
   }
 
-  // ইভেন্ট সাবমিট ফাংশন
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!imageFile) {
@@ -83,8 +132,7 @@ export default function CreateEvent() {
     setLoading(true)
 
     try {
-      // 1. ImgBB তে ছবি আপলোড (এখানে তোমার ImgBB API Key বসাবে)
-      const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23' // <--- তোমার আসল চাবিটি এখানে দেবে
+      const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23' 
       const imgFormData = new FormData()
       imgFormData.append('image', imageFile)
 
@@ -98,10 +146,8 @@ export default function CreateEvent() {
       
       const coverPhotoUrl = imgbbData.data.url
 
-      // 2. সুপাবেজে ডেটা সেভ করা
       const newEvent = {
         title: formData.title,
-        subtitle: formData.subtitle,
         category: formData.category,
         destination: formData.destination,
         cover_photo: coverPhotoUrl,
@@ -152,6 +198,11 @@ export default function CreateEvent() {
     }
   }
 
+  // 🔴 স্মার্ট ক্যাটাগরি লজিক ভ্যারিয়েবলস
+  const isDayEvent = formData.category === 'Day Tour' || formData.category === 'Workshop'
+  const isCycling = formData.category === 'Cycling'
+  const isSwimming = formData.category === 'Swimming' || formData.category === 'Houseboat/Cruise'
+
   return (
     <div className="min-h-screen bg-[#050b08] pb-12 px-4 sm:px-6 relative text-gray-300">
       <div className="max-w-7xl mx-auto">
@@ -163,7 +214,7 @@ export default function CreateEvent() {
             </Link>
             <div>
                 <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">স্মার্ট ইভেন্ট লঞ্চিং ইঞ্জিন</h1>
-                <p className="text-sm text-gray-400">ট্রেকিং, ক্যাম্পিং বা ডে-ট্যুর কাস্টমাইজ করুন</p>
+                <p className="text-sm text-gray-400">ট্রেকিং, সাইক্লিং বা ক্যাম্পিং কাস্টমাইজ করুন</p>
             </div>
         </div>
 
@@ -175,16 +226,13 @@ export default function CreateEvent() {
                     <i className="fa-solid fa-compass"></i> ১. বেসিক ইনফরমেশন
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
+                    <div className="md:col-span-2">
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ইভেন্টের শিরোনাম *</label>
                         <input type="text" id="title" required value={formData.title} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-[#e76f51] text-white font-bold" />
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">সাবটাইটেল / ট্যাগলাইন</label>
-                        <input type="text" id="subtitle" value={formData.subtitle} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-[#e76f51] text-white" />
-                    </div>
+                    
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">কভার ছবি (16:9) *</label>
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">কভার ছবি (অটো 16:9 ক্রপ) *</label>
                         <div className="relative w-full h-48 sm:h-64 rounded-2xl border-2 border-dashed border-gray-600 overflow-hidden bg-black/20 flex items-center justify-center hover:border-[#e76f51] transition-colors">
                             {imagePreview ? (
                                 <img src={imagePreview} className="absolute inset-0 w-full h-full object-cover" alt="Preview" />
@@ -194,16 +242,21 @@ export default function CreateEvent() {
                                     <p className="text-sm font-bold text-gray-400">ক্লিক করে ছবি নির্বাচন করুন</p>
                                 </div>
                             )}
-                            <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                            <input type="file" accept="image/*" required onChange={handleImageChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                         </div>
                     </div>
+                    
                     <div>
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ক্যাটাগরি *</label>
-                        <select id="category" value={formData.category} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-[#e76f51] text-white">
-                            <option value="Trekking">Trekking</option>
-                            <option value="Camping">Camping</option>
+                        <select id="category" value={formData.category} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-[#e76f51] text-white font-bold">
+                            <option value="Trekking">Trekking (ট্রেকিং)</option>
+                            <option value="Camping">Camping (ক্যাম্পিং)</option>
+                            <option value="Cycling">Cycling (সাইক্লিং)</option>
+                            <option value="Swimming">Swimming (সাঁতার)</option>
                             <option value="Houseboat/Cruise">Houseboat/Cruise</option>
+                            <option value="Expedition">Expedition (অভিযান)</option>
                             <option value="Day Tour">Day Tour</option>
+                            <option value="Workshop">Workshop</option>
                         </select>
                     </div>
                     <div>
@@ -224,7 +277,7 @@ export default function CreateEvent() {
                         <input type="datetime-local" id="startDate" required value={formData.startDate} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-400 text-white" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ফিরে আসা *</label>
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">{isDayEvent ? 'ইভেন্ট শেষ' : 'ফিরে আসা'} *</label>
                         <input type="datetime-local" id="endDate" required value={formData.endDate} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-400 text-white" />
                     </div>
                     <div>
@@ -258,26 +311,45 @@ export default function CreateEvent() {
                     </div>
                     <div className="md:col-span-3">
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">পেমেন্ট মেথড ও নাম্বার (বিকাশ/নগদ) *</label>
-                        <input type="text" id="paymentMethods" required value={formData.paymentMethods} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
+                        <input type="text" id="paymentMethods" required value={formData.paymentMethods} onChange={handleInputChange} placeholder="e.g. bKash: 01XXX-XXXXXX (Personal)" className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
                     </div>
                 </div>
             </div>
 
-            {/* সেকশন ৪: লজিস্টিকস ও ভাইব (Combined for brevity) */}
+            {/* সেকশন ৪: স্মার্ট লজিস্টিকস (ক্যাটাগরি অনুযায়ী চেঞ্জ হবে) */}
             <div>
                 <h3 className="font-bold text-purple-400 mb-6 text-lg flex items-center gap-2 border-b border-purple-400/20 pb-2">
-                    <i className="fa-solid fa-campground"></i> ৪. লজিস্টিকস ও ভাইব
+                    <i className="fa-solid fa-campground"></i> ৪. ডায়নামিক লজিস্টিকস ও ভাইব
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ডিফিকাল্টি *</label>
-                        <select id="difficulty" value={formData.difficulty} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white">
-                            <option value="Beginner">Beginner (সহজ)</option>
-                            <option value="Moderate">Moderate (মাঝারি)</option>
-                            <option value="Hard">Hard (কঠিন)</option>
-                            <option value="Extreme">Extreme</option>
-                        </select>
-                    </div>
+                    
+                    {/* ডিফিকাল্টি (Workshop ছাড়া সবখানে দেখাবে) */}
+                    {formData.category !== 'Workshop' && (
+                      <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ডিফিকাল্টি *</label>
+                          <select id="difficulty" value={formData.difficulty} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white">
+                              <option value="Beginner">Beginner (সহজ)</option>
+                              <option value="Moderate">Moderate (মাঝারি)</option>
+                              <option value="Hard">Hard (কঠিন)</option>
+                              <option value="Extreme">Extreme</option>
+                          </select>
+                      </div>
+                    )}
+
+                    {/* স্টে টাইপ (Day ইভেন্ট ছাড়া দেখাবে) */}
+                    {!isDayEvent && (
+                      <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">থাকার ব্যবস্থা *</label>
+                          <select id="stayType" value={formData.stayType} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white">
+                              <option value="Resort/Hotel Shared">Resort/Hotel Shared</option>
+                              <option value="Tent Camping">Tent Camping</option>
+                              <option value="Houseboat">Houseboat</option>
+                              <option value="Tribal Cottage">Tribal Cottage</option>
+                              <option value="No Stay (Overnight Travel)">No Stay (Overnight Travel)</option>
+                          </select>
+                      </div>
+                    )}
+
                     <div>
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">টিম লিডার *</label>
                         <input type="text" id="teamLeader" required value={formData.teamLeader} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
@@ -286,6 +358,7 @@ export default function CreateEvent() {
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">লিডার ফোন *</label>
                         <input type="text" id="leaderPhone" required value={formData.leaderPhone} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
                     </div>
+
                     <div className="md:col-span-3">
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">সংক্ষিপ্ত বিবরণ *</label>
                         <textarea id="description" required rows="3" value={formData.description} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white resize-none"></textarea>
@@ -300,7 +373,6 @@ export default function CreateEvent() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     
-                    {/* Included */}
                     <div className="bg-black/20 p-5 rounded-2xl border border-emerald-500/20">
                         <label className="block text-xs font-bold text-emerald-400 mb-3 uppercase">যা যা ইনক্লুডেড</label>
                         <div className="flex gap-2 mb-3">
@@ -314,7 +386,6 @@ export default function CreateEvent() {
                         </div>
                     </div>
 
-                    {/* Excluded */}
                     <div className="bg-black/20 p-5 rounded-2xl border border-gray-500/30">
                         <label className="block text-xs font-bold text-gray-400 mb-3 uppercase">যা ইনক্লুডেড নয়</label>
                         <div className="flex gap-2 mb-3">
@@ -359,24 +430,29 @@ export default function CreateEvent() {
                 </div>
             </div>
 
-            {/* সেকশন ৭: গ্যামিফিকেশন */}
+            {/* সেকশন ৭: ইউজারের প্রোফাইল রিওয়ার্ড (গ্যামিফিকেশন নাম পরিবর্তন) */}
             <div>
                 <h3 className="font-bold text-amber-500 mb-6 text-lg flex items-center gap-2 border-b border-amber-500/20 pb-2">
-                    <i className="fa-solid fa-chart-line"></i> ৭. গ্যামিফিকেশন স্ট্যাটস
+                    <i className="fa-solid fa-medal"></i> ৭. ইউজার প্রোফাইল পয়েন্ট ও রিওয়ার্ড
                 </h3>
+                <p className="text-xs text-gray-500 mb-4">এই ইভেন্টটি সম্পন্ন হলে ইউজারের প্রোফাইলে এই পয়েন্টগুলো স্বয়ংক্রিয়ভাবে যোগ হবে।</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ট্রেকের সংখ্যা</label>
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ট্রেকের সংখ্যা (পয়েন্ট)</label>
                         <input type="number" id="metaTreks" required value={formData.metaTreks} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">মোট হাঁটার দূরত্ব (কি.মি.)</label>
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">{isCycling ? 'মোট রাইডিং দূরত্ব (কি.মি.)' : 'মোট হাঁটার দূরত্ব (কি.মি.)'}</label>
                         <input type="number" id="metaDistance" required value={formData.metaDistance} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ক্যাম্পিং রাত</label>
-                        <input type="number" id="metaNights" required value={formData.metaNights} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
-                    </div>
+                    
+                    {/* ডে ট্যুর হলে ক্যাম্পিং রাত হাইড হয়ে যাবে */}
+                    {!isDayEvent && (
+                      <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ক্যাম্পিং রাত</label>
+                          <input type="number" id="metaNights" required value={formData.metaNights} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
+                      </div>
+                    )}
                 </div>
             </div>
 
