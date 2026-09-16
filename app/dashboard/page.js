@@ -48,7 +48,6 @@ export default function DashboardPage() {
     let isMounted = true
 
     const initializeDashboard = async () => {
-      // 🟢 FIX: গুগল লগইন থেকে আসলে সুপাবেজকে টোকেন প্রসেস করার সময় দেওয়া
       if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
         await new Promise(resolve => setTimeout(resolve, 800))
       }
@@ -65,7 +64,6 @@ export default function DashboardPage() {
 
     initializeDashboard()
 
-    // 🟢 FIX: ব্যাকগ্রাউন্ডে লগইন স্টেট চেঞ্জ হলে সাথে সাথে ধরে ফেলা
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         fetchUserData(session.user.id)
@@ -82,13 +80,13 @@ export default function DashboardPage() {
 
   const fetchUserData = async (userId) => {
     try {
+      // 🔴 আপডেট: নতুন স্ট্যাটস কলামগুলো ফেচ করা হচ্ছে
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, total_rides, cycling_distance, total_swims, swimming_distance')
         .eq('id', userId)
         .single()
 
-      // 🟢 FIX: ডেটাবেসে প্রোফাইল না পেলে ইন্টারসেপ্টর চালু করে দেওয়া (Safety Net 1)
       if (profileError) {
         if (profileError.code === 'PGRST116') { 
           const { data: { session } } = await supabase.auth.getSession()
@@ -110,22 +108,23 @@ export default function DashboardPage() {
         setShowCompletionForm(true)
       }
 
-      const userTreks = profileData.total_treks || 0
-      if (userTreks > 0) {
+      // 🔴 আপডেট: মোট পয়েন্টের ভিত্তিতে র‍্যাংক (অস্থায়ী লজিক, লিডারবোর্ডে ফাইনাল হবে)
+      const totalActivities = (profileData.total_treks || 0) + (profileData.total_rides || 0) + (profileData.total_swims || 0)
+      if (totalActivities > 0) {
         const { count, error: rankError } = await supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true })
-          .gt('total_treks', userTreks)
+          .gt('total_treks', profileData.total_treks || 0) // আপাতত শুধু ট্রেকের ভিত্তিতে
         
         if (!rankError) setRank(count + 1)
       }
 
-      // 🟢 আপডেটেড বুকিং কোয়েরি: ইভেন্টের কভার, গন্তব্য এবং বুকিং স্ট্যাটাস নিয়ে আসা
+      // আপডেটেড বুকিং কোয়েরি
       const { data: bookingData, error: bookingError } = await supabase
         .from('bookings')
         .select(`
           id, status, trx_id, payment_method, created_at,
-          events (id, title, start_date, cover_photo, destination)
+          events (id, title, start_date, cover_photo, destination, category)
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
@@ -141,7 +140,6 @@ export default function DashboardPage() {
     }
   }
 
-  // জেন্ডার চেঞ্জ করলে হল অটোমেটিক রিসেট হওয়ার লজিক
   const handleFormChange = (e) => {
     const { id, value } = e.target;
     if (id === 'gender') {
@@ -156,7 +154,6 @@ export default function DashboardPage() {
     setUpdating(true)
     
     try {
-      // 🟢 FIX: Update এর বদলে Upsert লজিক ব্যবহার করা (Safety Net 2)
       const { error } = await supabase.from('profiles').upsert({
         id: user.id,
         full_name: user.full_name,
@@ -190,7 +187,6 @@ export default function DashboardPage() {
     }
   }
 
-  // 🟢 বুকিং স্ট্যাটাস অনুযায়ী ডায়নামিক ব্যাজ রেন্ডার করার ফাংশন
   const getStatusBadge = (status) => {
     switch(status) {
       case 'approved':
@@ -206,6 +202,16 @@ export default function DashboardPage() {
     }
   }
 
+  // 🔴 ইভেন্টের ক্যাটাগরি অনুযায়ী আইকন
+  const getCategoryIcon = (category) => {
+    switch (category) {
+      case 'Trekking': return 'fa-solid fa-mountain'
+      case 'Cycling': return 'fa-solid fa-bicycle'
+      case 'Swimming': return 'fa-solid fa-person-swimming'
+      default: return 'fa-solid fa-compass'
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-white bg-[#050b08]">
@@ -214,7 +220,6 @@ export default function DashboardPage() {
     )
   }
 
-  // 🟢 FIX: ডেড-এন্ড বা ব্ল্যাঙ্ক স্ক্রিন চিরতরে রিমুভ করা (Safety Net 3)
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-4 bg-[#050b08]">
@@ -429,7 +434,7 @@ export default function DashboardPage() {
       {/* RIGHT COLUMN: Stats & Bookings */}
       <div className="lg:col-span-2 space-y-6">
         
-        {/* Gamification Stats */}
+        {/* 🔴 মাল্টি-ডিসিপ্লিনারি স্ট্যাটস */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Link href="/leaderboard" className="bg-[#0a1c13]/70 backdrop-blur-md border border-yellow-500/30 p-5 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="50">
             <div className="w-10 h-10 rounded-full bg-yellow-500/20 text-yellow-500 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition-transform"><i className="fa-solid fa-crown"></i></div>
@@ -437,26 +442,29 @@ export default function DashboardPage() {
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Current Rank</p>
           </Link>
 
-          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-white/10 p-5 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="100">
-            <div className="w-10 h-10 rounded-full bg-[#2d6a4f]/20 text-[#2d6a4f] flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition-transform"><i className="fa-solid fa-route"></i></div>
+          {/* Trekking Stats */}
+          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-emerald-500/30 p-5 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="100">
+            <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition-transform"><i className="fa-solid fa-shoe-prints"></i></div>
             <p className="text-3xl font-black text-white drop-shadow-md">{user.total_treks || 0}</p>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Total Treks</p>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">{user.total_distance || 0} km Trek</p>
           </div>
           
-          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-white/10 p-5 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="300">
-            <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition-transform"><i className="fa-solid fa-shoe-prints"></i></div>
-            <p className="text-3xl font-black text-white drop-shadow-md">{user.total_distance || 0}<span className="text-sm font-medium text-gray-500">km</span></p>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Distance</p>
+          {/* Cycling Stats */}
+          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-blue-500/30 p-5 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="200">
+            <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition-transform"><i className="fa-solid fa-bicycle"></i></div>
+            <p className="text-3xl font-black text-white drop-shadow-md">{user.total_rides || 0}</p>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">{user.cycling_distance || 0} km Ride</p>
           </div>
 
-          <Link href="/beginners-guide" className="bg-[#0a1c13]/70 backdrop-blur-md border border-emerald-500/30 p-5 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="400">
-            <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition-transform"><i className="fa-solid fa-brain"></i></div>
-            <p className="text-3xl font-black text-emerald-400 mt-1 drop-shadow-md">{user.survival_iq || 0}</p>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Survival IQ</p>
-          </Link>
+          {/* Swimming Stats */}
+          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-cyan-500/30 p-5 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="300">
+            <div className="w-10 h-10 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition-transform"><i className="fa-solid fa-person-swimming"></i></div>
+            <p className="text-3xl font-black text-white drop-shadow-md">{user.total_swims || 0}</p>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">{user.swimming_distance || 0} m Swim</p>
+          </div>
         </div>
 
-        {/* 🟢 আপডেটেড Bookings Section */}
+        {/* বুকিং সেকশন */}
         <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl overflow-hidden" data-aos="fade-up" data-aos-delay="450">
           <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
             <h3 className="text-sm font-bold text-white tracking-widest uppercase flex items-center gap-2">
@@ -470,7 +478,12 @@ export default function DashboardPage() {
                 <div key={booking.id} className="bg-[#050b08] border border-white/10 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row gap-5 items-start sm:items-center transition-all hover:border-[#e76f51]/50 shadow-md">
                   
                   {/* ইভেন্ট কভার */}
-                  <img src={booking.events?.cover_photo || 'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80'} className="w-full sm:w-28 h-20 object-cover rounded-xl shrink-0" alt="Cover" />
+                  <div className="relative w-full sm:w-28 h-20 shrink-0">
+                    <img src={booking.events?.cover_photo || 'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80'} className="w-full h-full object-cover rounded-xl" alt="Cover" />
+                    <div className="absolute top-1 left-1 bg-black/60 backdrop-blur-sm text-white text-[8px] font-bold uppercase px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <i className={getCategoryIcon(booking.events?.category)}></i> {booking.events?.category}
+                    </div>
+                  </div>
                   
                   {/* বিস্তারিত */}
                   <div className="flex-grow">
