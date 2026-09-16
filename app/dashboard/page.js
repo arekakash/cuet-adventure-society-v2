@@ -14,7 +14,6 @@ export default function DashboardPage() {
   const [bookings, setBookings] = useState([])
   const [rank, setRank] = useState('-')
 
-  // প্রোফাইল কমপ্লিশন ইন্টারসেপ্টর স্টেট
   const [showCompletionForm, setShowCompletionForm] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [formData, setFormData] = useState({
@@ -23,28 +22,19 @@ export default function DashboardPage() {
     swimming_skill: '', has_bicycle: '', experience_level: ''
   })
 
-  // ১৯৬৮ থেকে ২০৫০ সাল পর্যন্ত ডায়নামিক ক্যালকুলেশন
   const years = Array.from({ length: 2050 - 1968 + 1 }, (_, i) => 2050 - i)
 
-  // চুয়েটের আবাসিক হলের তালিকা
   const maleHalls = [
-    "Dr. Qudrat-E-Khuda Hall",
-    "Kabi Kazi Nazrul Islam Hall",
-    "Muktijoddha Hall",
-    "Shaheed Abu Sayeed Hall",
-    "Shaheed Mohammad Shah Hall",
-    "Shaheed Tareq Huda Hall"
+    "Dr. Qudrat-E-Khuda Hall", "Kabi Kazi Nazrul Islam Hall", "Muktijoddha Hall",
+    "Shaheed Abu Sayeed Hall", "Shaheed Mohammad Shah Hall", "Shaheed Tareq Huda Hall"
   ]
 
   const femaleHalls = [
-    "Sufia Kamal Hall",
-    "Shamsennahar Khan Hall",
-    "Taposhi Rabeya Hall"
+    "Sufia Kamal Hall", "Shamsennahar Khan Hall", "Taposhi Rabeya Hall"
   ]
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50 })
-    
     let isMounted = true
 
     const initializeDashboard = async () => {
@@ -80,10 +70,10 @@ export default function DashboardPage() {
 
   const fetchUserData = async (userId) => {
     try {
-      // 🔴 আপডেট: নতুন স্ট্যাটস কলামগুলো ফেচ করা হচ্ছে
+      // 🔴 আপডেট: survival_iq এবং total_events ফেচ করা হচ্ছে
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('*, total_rides, cycling_distance, total_swims, swimming_distance')
+        .select('*, survival_iq, total_events, total_rides, cycling_distance, total_swims, swimming_distance')
         .eq('id', userId)
         .single()
 
@@ -108,18 +98,16 @@ export default function DashboardPage() {
         setShowCompletionForm(true)
       }
 
-      // 🔴 আপডেট: মোট পয়েন্টের ভিত্তিতে র‍্যাংক (অস্থায়ী লজিক, লিডারবোর্ডে ফাইনাল হবে)
       const totalActivities = (profileData.total_treks || 0) + (profileData.total_rides || 0) + (profileData.total_swims || 0)
-      if (totalActivities > 0) {
+      if (totalActivities > 0 || profileData.survival_iq > 0) {
         const { count, error: rankError } = await supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true })
-          .gt('total_treks', profileData.total_treks || 0) // আপাতত শুধু ট্রেকের ভিত্তিতে
+          .gt('survival_iq', profileData.survival_iq || 0) // আপাতত Survival IQ এর ভিত্তিতে র‍্যাংক
         
         if (!rankError) setRank(count + 1)
       }
 
-      // আপডেটেড বুকিং কোয়েরি
       const { data: bookingData, error: bookingError } = await supabase
         .from('bookings')
         .select(`
@@ -202,7 +190,6 @@ export default function DashboardPage() {
     }
   }
 
-  // 🔴 ইভেন্টের ক্যাটাগরি অনুযায়ী আইকন
   const getCategoryIcon = (category) => {
     switch (category) {
       case 'Trekking': return 'fa-solid fa-mountain'
@@ -434,38 +421,50 @@ export default function DashboardPage() {
       {/* RIGHT COLUMN: Stats & Bookings */}
       <div className="lg:col-span-2 space-y-6">
         
-        {/* 🔴 মাল্টি-ডিসিপ্লিনারি স্ট্যাটস */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Link href="/leaderboard" className="bg-[#0a1c13]/70 backdrop-blur-md border border-yellow-500/30 p-5 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="50">
-            <div className="w-10 h-10 rounded-full bg-yellow-500/20 text-yellow-500 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition-transform"><i className="fa-solid fa-crown"></i></div>
-            <p className="text-3xl font-black text-white drop-shadow-md">#{rank}</p>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Current Rank</p>
+        {/* 🔴 General Stats (Rank, IQ, Total Events) */}
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          <Link href="/leaderboard" className="bg-[#0a1c13]/70 backdrop-blur-md border border-yellow-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="50">
+            <div className="w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-500 flex items-center justify-center text-base mb-1.5 group-hover:scale-110 transition-transform"><i className="fa-solid fa-crown"></i></div>
+            <p className="text-2xl font-black text-white drop-shadow-md">#{rank}</p>
+            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Current Rank</p>
           </Link>
 
-          {/* Trekking Stats */}
-          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-emerald-500/30 p-5 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="100">
-            <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition-transform"><i className="fa-solid fa-shoe-prints"></i></div>
-            <p className="text-3xl font-black text-white drop-shadow-md">{user.total_treks || 0}</p>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">{user.total_distance || 0} km Trek</p>
+          <Link href="/beginners-guide" className="bg-[#0a1c13]/70 backdrop-blur-md border border-[#34d399]/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="100">
+            <div className="w-8 h-8 rounded-full bg-[#34d399]/20 text-[#34d399] flex items-center justify-center text-base mb-1.5 group-hover:scale-110 transition-transform"><i className="fa-solid fa-brain"></i></div>
+            <p className="text-2xl font-black text-white drop-shadow-md">{user.survival_iq || 0}</p>
+            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Survival IQ</p>
+          </Link>
+          
+          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-[#e76f51]/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="150">
+            <div className="w-8 h-8 rounded-full bg-[#e76f51]/20 text-[#e76f51] flex items-center justify-center text-base mb-1.5 group-hover:scale-110 transition-transform"><i className="fa-solid fa-tent"></i></div>
+            <p className="text-2xl font-black text-white drop-shadow-md">{user.total_events || user.total_treks || 0}</p>
+            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Total Events</p>
+          </div>
+        </div>
+
+        {/* 🔴 Physical Stats (Trekking, Cycling, Swimming) */}
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-emerald-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="200">
+            <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-base mb-1.5 group-hover:scale-110 transition-transform"><i className="fa-solid fa-shoe-prints"></i></div>
+            <p className="text-2xl font-black text-white drop-shadow-md">{user.total_distance || 0}<span className="text-[10px] text-gray-500 ml-1 font-normal">km</span></p>
+            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">{user.total_treks || 0} Treks</p>
           </div>
           
-          {/* Cycling Stats */}
-          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-blue-500/30 p-5 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="200">
-            <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition-transform"><i className="fa-solid fa-bicycle"></i></div>
-            <p className="text-3xl font-black text-white drop-shadow-md">{user.total_rides || 0}</p>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">{user.cycling_distance || 0} km Ride</p>
+          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-blue-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="250">
+            <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-base mb-1.5 group-hover:scale-110 transition-transform"><i className="fa-solid fa-bicycle"></i></div>
+            <p className="text-2xl font-black text-white drop-shadow-md">{user.cycling_distance || 0}<span className="text-[10px] text-gray-500 ml-1 font-normal">km</span></p>
+            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">{user.total_rides || 0} Rides</p>
           </div>
 
-          {/* Swimming Stats */}
-          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-cyan-500/30 p-5 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="300">
-            <div className="w-10 h-10 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-lg mb-2 group-hover:scale-110 transition-transform"><i className="fa-solid fa-person-swimming"></i></div>
-            <p className="text-3xl font-black text-white drop-shadow-md">{user.total_swims || 0}</p>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">{user.swimming_distance || 0} m Swim</p>
+          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-cyan-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="300">
+            <div className="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-base mb-1.5 group-hover:scale-110 transition-transform"><i className="fa-solid fa-person-swimming"></i></div>
+            <p className="text-2xl font-black text-white drop-shadow-md">{user.swimming_distance || 0}<span className="text-[10px] text-gray-500 ml-1 font-normal">m</span></p>
+            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">{user.total_swims || 0} Swims</p>
           </div>
         </div>
 
         {/* বুকিং সেকশন */}
-        <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl overflow-hidden" data-aos="fade-up" data-aos-delay="450">
+        <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl overflow-hidden" data-aos="fade-up" data-aos-delay="400">
           <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
             <h3 className="text-sm font-bold text-white tracking-widest uppercase flex items-center gap-2">
               <i className="fa-solid fa-ticket text-[#e76f51]"></i> <span>আমার বুকিংস ও অ্যাক্টিভিটি</span>
