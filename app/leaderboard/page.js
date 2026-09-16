@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase" 
 import Link from "next/link"
 
@@ -8,25 +8,11 @@ export default function LeaderboardPage() {
   const [leaders, setLeaders] = useState([])
   const [loading, setLoading] = useState(true)
   
-  // অ্যাক্টিভ ট্যাব ট্র্যাক করা
+  // 🔴 অ্যাক্টিভ ট্যাব এবং ড্রপডাউন স্টেট
   const [activeTab, setActiveTab] = useState("survival_iq") 
-  
-  // ড্রপডাউন স্টেট
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const dropdownRef = useRef(null)
+  const [isActivityDropdownOpen, setIsActivityDropdownOpen] = useState(false)
 
-  // ড্রপডাউনের বাইরে ক্লিক করলে সেটি বন্ধ করার লজিক
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
-
-  // ট্যাব পরিবর্তন হলে ডেটা নতুন করে ফেচ হবে
+  // যখনই ইউজার অন্য ট্যাবে ক্লিক করবে, ডেটা নতুন করে ফেচ হবে
   useEffect(() => {
     fetchLeaderboard()
   }, [activeTab]) 
@@ -34,17 +20,18 @@ export default function LeaderboardPage() {
   const fetchLeaderboard = async () => {
     setLoading(true)
     
-    // ক্যাটাগরি অনুযায়ী সর্টিং কলাম নির্ধারণ
-    let orderByColumn = 'survival_iq'
-    if (activeTab === 'total_events') orderByColumn = 'total_events'
+    // 🔴 ডায়নামিক সর্টিং কলাম নির্ধারণ
+    let orderByColumn = 'survival_iq' // Default
+    if (activeTab === 'total_events') orderByColumn = 'total_events' // (অথবা total_treks যদি আলাদা কলাম না থাকে)
     if (activeTab === 'trekking') orderByColumn = 'total_distance'
     if (activeTab === 'cycling') orderByColumn = 'cycling_distance'
     if (activeTab === 'swimming') orderByColumn = 'swimming_distance'
 
+    // সুপাবেজ কোয়েরি
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name, photo_url, survival_iq, total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, role')
-      .gt(orderByColumn, 0) // যাদের স্কোর ০ এর বেশি, শুধু তাদেরকেই লিডারবোর্ডে দেখাবে
+      .gt(orderByColumn, 0) // যাদের স্কোর ০ এর বেশি, শুধু তাদেরকেই দেখাবে
       .order(orderByColumn, { ascending: false, nullsFirst: false })
       .limit(50)
 
@@ -61,57 +48,29 @@ export default function LeaderboardPage() {
     return { color: "text-[#34d399]", bg: "bg-white/5", border: "border-white/10", shadow: "", icon: "fa-star", label: "Explorer" }
   }
 
-  // ডায়নামিক ডেটা দেখানোর ফাংশন
+  // 🔴 ডায়নামিক ডেটা এবং লেবেল দেখানোর ফাংশন
   const getDisplayValue = (user) => {
     if (activeTab === "survival_iq") return { 
-        mainValue: user.survival_iq || 0, 
-        mainLabel: "IQ Points",
-        subValue: null
+        mainValue: user.survival_iq || 0, mainLabel: "IQ Points", subValue: null, unit: "Pts"
     }
     if (activeTab === "total_events") return { 
-        mainValue: user.total_events || 0, 
-        mainLabel: "Events Done",
-        subValue: null
+        // যদি total_events কলাম না থাকে, তবে total_treks কে ফলব্যাক হিসেবে নেবে
+        mainValue: user.total_events || user.total_treks || 0, mainLabel: "Events Done", subValue: null, unit: ""
     }
     if (activeTab === "trekking") return { 
-        mainValue: user.total_distance || 0, 
-        mainLabel: "KM Walked",
-        subValue: user.total_treks || 0,
-        subLabel: "Treks",
-        unit: "km"
+        mainValue: user.total_distance || 0, mainLabel: "KM Walked", subValue: user.total_treks || 0, subLabel: "Treks", unit: "km"
     }
     if (activeTab === "cycling") return { 
-        mainValue: user.cycling_distance || 0, 
-        mainLabel: "KM Ridden",
-        subValue: user.total_rides || 0,
-        subLabel: "Rides",
-        unit: "km"
+        mainValue: user.cycling_distance || 0, mainLabel: "KM Ridden", subValue: user.total_rides || 0, subLabel: "Rides", unit: "km"
     }
     if (activeTab === "swimming") return { 
-        mainValue: user.swimming_distance || 0, 
-        mainLabel: "Meters Swam",
-        subValue: user.total_swims || 0,
-        subLabel: "Sessions",
-        unit: "m"
+        mainValue: user.swimming_distance || 0, mainLabel: "Meters Swam", subValue: user.total_swims || 0, subLabel: "Sessions", unit: "m"
     }
+    return { mainValue: 0, mainLabel: "Points", subValue: null, unit: "" }
   }
 
-  // অ্যাক্টিভ ট্যাব অনুযায়ী "Activities" বাটনের লেবেল ও স্টাইল চেঞ্জ হবে
+  // চেক করা যে বর্তমানে কোনো অ্যাক্টিভিটি ট্যাব ওপেন আছে কিনা
   const isActivityActive = ["trekking", "cycling", "swimming"].includes(activeTab)
-  
-  const getActivityButtonLabel = () => {
-    if (activeTab === "trekking") return "Trekking"
-    if (activeTab === "cycling") return "Cycling"
-    if (activeTab === "swimming") return "Swimming"
-    return "Activities"
-  }
-
-  const getActivityButtonIcon = () => {
-    if (activeTab === "trekking") return "fa-person-hiking"
-    if (activeTab === "cycling") return "fa-bicycle"
-    if (activeTab === "swimming") return "fa-person-swimming"
-    return "fa-person-running"
-  }
 
   return (
     <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8">
@@ -124,76 +83,67 @@ export default function LeaderboardPage() {
             ক্যাম্পাস <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#e76f51] to-yellow-500">লিডারবোর্ড</span>
           </h1>
           <p className="text-gray-400 text-sm md:text-lg relative z-10 max-w-2xl mx-auto">
-            আমাদের ক্লাবের সেরা এক্সপ্লোরারদের রিয়েল-টাইম র‍্যাংকিং। আপনার ক্যাটাগরি বেছে নিন এবং সেরাদের তালিকা দেখুন!
+            আমাদের ক্লাবের সেরা এক্সপ্লোরারদের রিয়েল-টাইম র‍্যাংকিং। ক্যাটাগরি বেছে নিন এবং সেরাদের তালিকা দেখুন!
           </p>
         </div>
 
-        {/* 🔴 Filter Tabs & Dropdown */}
+        {/* 🔴 ৩টি প্রধান ফিল্টার ট্যবস (তোমার আইডিয়া অনুযায়ী) */}
         <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-10 relative z-10">
           
+          {/* Tab 1: Survival IQ */}
           <button 
             onClick={() => setActiveTab("survival_iq")}
             className={`px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === "survival_iq" ? "bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-105" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"}`}
           >
             <i className="fa-solid fa-brain"></i> Survival IQ
           </button>
-
+          
+          {/* Tab 2: Total Events */}
           <button 
             onClick={() => setActiveTab("total_events")}
-            className={`px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === "total_events" ? "bg-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] scale-105" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"}`}
+            className={`px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === "total_events" ? "bg-[#e76f51] text-white shadow-[0_0_15px_rgba(231,111,81,0.4)] scale-105" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"}`}
           >
             <i className="fa-solid fa-tent"></i> Total Events
           </button>
           
-          {/* Activities Dropdown Container */}
-          <div className="relative" ref={dropdownRef}>
+          {/* Tab 3: Activities (Dropdown) */}
+          <div className="relative">
             <button 
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className={`px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 flex items-center gap-2 ${isActivityActive ? "bg-[#e76f51] text-white shadow-[0_0_15px_rgba(231,111,81,0.4)] scale-105" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"}`}
+              onClick={() => setIsActivityDropdownOpen(!isActivityDropdownOpen)}
+              className={`px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 flex items-center gap-2 ${isActivityActive ? "bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.4)] scale-105" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"}`}
             >
-              <i className={`fa-solid ${getActivityButtonIcon()}`}></i> 
-              {getActivityButtonLabel()}
-              <i className={`fa-solid fa-chevron-down text-[10px] ml-1 transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}></i>
+              <i className="fa-solid fa-chart-line"></i> Activities <i className={`fa-solid fa-chevron-down text-xs transition-transform ${isActivityDropdownOpen ? "rotate-180" : ""}`}></i>
             </button>
 
             {/* Dropdown Menu */}
-            {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-[#0a1c13]/90 backdrop-blur-lg border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(0,0,0,0.5)] overflow-hidden z-50 origin-top-right animate-in fade-in zoom-in-95 duration-200">
-                <div className="p-1">
+            {isActivityDropdownOpen && (
+              <>
+                {/* Invisible overlay to close dropdown when clicked outside */}
+                <div className="fixed inset-0 z-40" onClick={() => setIsActivityDropdownOpen(false)}></div>
+                
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-48 bg-[#0a1c13] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden py-2 animate-fade-in-up">
                   <button 
-                    onClick={() => { setActiveTab("trekking"); setIsDropdownOpen(false) }}
-                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-colors flex items-center gap-3 ${activeTab === "trekking" ? "bg-[#e76f51] text-white" : "text-gray-300 hover:bg-white/10"}`}
+                    onClick={() => { setActiveTab("trekking"); setIsActivityDropdownOpen(false); }}
+                    className={`w-full text-left px-5 py-3 text-sm font-bold flex items-center gap-3 transition-colors ${activeTab === "trekking" ? "bg-white/10 text-emerald-400" : "text-gray-300 hover:bg-white/5 hover:text-white"}`}
                   >
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${activeTab === "trekking" ? "bg-white/20" : "bg-[#e76f51]/20 text-[#e76f51]"}`}>
-                      <i className="fa-solid fa-person-hiking text-xs"></i>
-                    </div>
-                    Trekking
+                    <i className="fa-solid fa-person-hiking w-5 text-center"></i> Trekking
                   </button>
-
                   <button 
-                    onClick={() => { setActiveTab("cycling"); setIsDropdownOpen(false) }}
-                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-colors flex items-center gap-3 ${activeTab === "cycling" ? "bg-blue-500 text-white" : "text-gray-300 hover:bg-white/10"}`}
+                    onClick={() => { setActiveTab("cycling"); setIsActivityDropdownOpen(false); }}
+                    className={`w-full text-left px-5 py-3 text-sm font-bold flex items-center gap-3 transition-colors ${activeTab === "cycling" ? "bg-white/10 text-blue-400" : "text-gray-300 hover:bg-white/5 hover:text-white"}`}
                   >
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${activeTab === "cycling" ? "bg-white/20" : "bg-blue-500/20 text-blue-400"}`}>
-                      <i className="fa-solid fa-bicycle text-xs"></i>
-                    </div>
-                    Cycling
+                    <i className="fa-solid fa-bicycle w-5 text-center"></i> Cycling
                   </button>
-
                   <button 
-                    onClick={() => { setActiveTab("swimming"); setIsDropdownOpen(false) }}
-                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-colors flex items-center gap-3 ${activeTab === "swimming" ? "bg-cyan-500 text-white" : "text-gray-300 hover:bg-white/10"}`}
+                    onClick={() => { setActiveTab("swimming"); setIsActivityDropdownOpen(false); }}
+                    className={`w-full text-left px-5 py-3 text-sm font-bold flex items-center gap-3 transition-colors ${activeTab === "swimming" ? "bg-white/10 text-cyan-400" : "text-gray-300 hover:bg-white/5 hover:text-white"}`}
                   >
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${activeTab === "swimming" ? "bg-white/20" : "bg-cyan-500/20 text-cyan-400"}`}>
-                      <i className="fa-solid fa-person-swimming text-xs"></i>
-                    </div>
-                    Swimming
+                    <i className="fa-solid fa-person-swimming w-5 text-center"></i> Swimming
                   </button>
                 </div>
-              </div>
+              </>
             )}
           </div>
-
         </div>
 
         {/* Loading State */}
@@ -242,7 +192,7 @@ export default function LeaderboardPage() {
                           {rank.label}
                         </p>
                         
-                        {/* সাব-স্ট্যাটস (যেমন: কতটা ট্রেক বা রাইড দিয়েছে) */}
+                        {/* সাব-লেবেল (যেমন: 5 Treks) শুধুমাত্র Activities ট্যাবে দেখাবে */}
                         {displayData.subValue !== null && (
                           <>
                             <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
@@ -257,10 +207,7 @@ export default function LeaderboardPage() {
 
                   {/* Dynamic Score Display */}
                   <div className="text-right shrink-0">
-                    <p className="text-2xl sm:text-4xl font-black text-white">
-                      {displayData.mainValue}
-                      {displayData.unit && <span className="text-sm text-gray-500 ml-1">{displayData.unit}</span>}
-                    </p>
+                    <p className="text-2xl sm:text-4xl font-black text-white">{displayData.mainValue}<span className="text-sm text-gray-500 ml-1">{displayData.unit}</span></p>
                     <p className="text-[10px] sm:text-xs text-gray-500 font-bold uppercase tracking-widest">{displayData.mainLabel}</p>
                   </div>
                 </div>
@@ -271,7 +218,7 @@ export default function LeaderboardPage() {
               <div className="text-center py-16 bg-white/5 rounded-3xl border border-white/10">
                 <i className="fa-solid fa-ghost text-5xl text-gray-600 mb-4 opacity-50"></i>
                 <h3 className="text-xl font-bold text-gray-400">লিডারবোর্ড ফাঁকা!</h3>
-                <p className="text-sm text-gray-500 mt-2">এই ক্যাটাগরিতে এখনো কেউ পয়েন্ট অর্জন করেনি। আপনিই প্রথম হতে পারেন!</p>
+                <p className="text-sm text-gray-500 mt-2">এই ক্যাটাগরিতে এখনো কেউ পয়েন্ট অর্জন করেনি।</p>
               </div>
             )}
           </div>
