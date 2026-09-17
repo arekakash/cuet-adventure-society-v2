@@ -27,7 +27,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://cuet-adventure-society-v2.pages.dev/auth/callback'
+          redirectTo: 'https://cuetas.pages.dev/auth/callback'
         }
       })
       if (error) throw error
@@ -44,7 +44,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: 'https://cuet-adventure-society-v2.pages.dev/auth/callback'
+          redirectTo: 'https://cuetas.pages.dev/auth/callback'
         }
       })
       if (error) throw error
@@ -91,7 +91,7 @@ export default function LoginPage() {
     setResetStatus('loading')
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: 'https://cuet-adventure-society-v2.pages.dev/reset-password',
+        redirectTo: 'https://cuetas.pages.dev/reset-password',
       })
       if (error) throw error
       
