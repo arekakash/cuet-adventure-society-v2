@@ -66,7 +66,7 @@ export default function StoriesPage() {
             <i className="fa-solid fa-compass fa-spin text-4xl text-blue-500"></i>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 relative z-10">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-8 relative z-10">
             {stories.map((story, index) => {
               const author = story.profiles;
               const authorAvatar = author.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(author.full_name || 'Author')}&background=3b82f6&color=fff`;
@@ -76,29 +76,29 @@ export default function StoriesPage() {
                 <div key={story.id} className="glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-blue-500/50 transition-all duration-300 hover:-translate-y-2 group flex flex-col" data-aos="fade-up" data-aos-delay={index * 100}>
                   
                   {/* Card Image (Clickable for reading story) */}
-                  <Link href={`/story-reader?id=${story.id}`} className="block relative h-56 overflow-hidden">
+                  <Link href={`/story-reader?id=${story.id}`} className="block relative h-28 md:h-56 overflow-hidden">
                     <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10"></div>
                     <img src={coverImg} alt={story.title} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" />
                   </Link>
 
                   {/* Card Content */}
-                  <div className="p-6 flex flex-col flex-grow">
+                  <div className="p-3 md:p-6 flex flex-col flex-grow">
                     <Link href={`/story-reader?id=${story.id}`} className="block flex-grow">
-                      <h3 className="text-xl font-black text-white mb-3 line-clamp-2 group-hover:text-blue-400 transition-colors">
+                      <h3 className="text-sm md:text-xl font-black text-white mb-2 md:mb-3 line-clamp-2 group-hover:text-blue-400 transition-colors">
                         {story.title}
                       </h3>
-                      <p className="text-xs text-gray-400 mb-4 flex items-center gap-2">
+                      <p className="text-[10px] md:text-xs text-gray-400 mb-2 md:mb-4 flex items-center gap-1 md:gap-2">
                         <i className="fa-regular fa-calendar text-blue-400"></i> {formatDate(story.created_at)}
                       </p>
                     </Link>
 
                     {/* Author Info (Clickable for Public Profile) */}
-                    <div className="pt-4 border-t border-white/10 mt-auto">
-                      <Link href={`/public-profile?id=${author.id}`} className="flex items-center gap-3 hover:bg-white/5 p-2 -mx-2 rounded-xl transition-colors">
-                        <img src={authorAvatar} alt={author.full_name} className="w-10 h-10 rounded-full border border-blue-500/30 object-cover" />
-                        <div>
-                          <p className="text-sm font-bold text-gray-200 hover:text-white">{author.full_name}</p>
-                          <p className="text-[10px] font-semibold text-[#34d399] tracking-widest uppercase">
+                    <div className="pt-2 md:pt-4 border-t border-white/10 mt-auto">
+                      <Link href={`/public-profile?id=${author.id}`} className="flex items-center gap-2 md:gap-3 hover:bg-white/5 p-1 md:p-2 -mx-1 md:-mx-2 rounded-xl transition-colors">
+                        <img src={authorAvatar} alt={author.full_name} className="w-7 h-7 md:w-10 md:h-10 rounded-full border border-blue-500/30 object-cover flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs md:text-sm font-bold text-gray-200 hover:text-white truncate">{author.full_name}</p>
+                          <p className="text-[8px] md:text-[10px] font-semibold text-[#34d399] tracking-widest uppercase truncate">
                             {author.department} • Batch {author.batch}
                           </p>
                         </div>
