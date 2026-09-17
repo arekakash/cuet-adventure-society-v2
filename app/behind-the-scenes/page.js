@@ -69,7 +69,7 @@ export default function BehindTheScenes() {
               <div className="glass-dark p-6 rounded-2xl border border-white/10 hover:border-yellow-500/50 transition-colors shadow-2xl relative group overflow-hidden">
                 <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <p className="text-sm sm:text-base leading-relaxed text-gray-300">
-                  আইডিয়াটা সে শেয়ার করে তার সহপাঠী ওসমানের সাথে। নাপিত্তাছড়া ট্রেইল জয় করে আসা ওসমান তখন খৈয়াছড়া ট্যুরের মাস্টারমাইন্ড। সেসময় অনলাইনে বা অফলাইনে চুয়েটে ট্রাভেলিংয়ের কোনো অ্যাক্টিভ প্ল্যাটফর্ম ছিল না। নোমানের আইডিয়া আর ওসমানের এক্সিকিউশনে ফেসবুকে জন্ম নিল <span className="font-bold text-white">"চুয়েট টুরিস্ট সোসাইটি"</span>।
+                  আইডিয়াটা সে শেয়ার করে তার সহপাঠী ওসমান গনির সাথে। নাপিত্তাছড়া ট্রেইল জয় করে আসা ওসমান তখন খৈয়াছড়া ট্যুরের মাস্টারমাইন্ড। সেসময় অনলাইনে বা অফলাইনে চুয়েটে ট্রাভেলিংয়ের কোনো অ্যাক্টিভ প্ল্যাটফর্ম ছিল না। নোমানের আইডিয়া আর ওসমানের এক্সিকিউশনে ফেসবুকে জন্ম নিল <span className="font-bold text-white">"চুয়েট টুরিস্ট সোসাইটি"</span>।
                 </p>
               </div>
             </div>
@@ -124,13 +124,16 @@ export default function BehindTheScenes() {
           <div className="relative group" data-aos="fade-up" data-aos-delay="100">
             <div className="absolute inset-0 bg-[#e76f51] rounded-3xl blur-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-500"></div>
             <div className="bg-[#0a1c13]/80 backdrop-blur-xl border border-white/10 rounded-3xl p-6 pt-24 text-center shadow-2xl relative transition-transform duration-500 group-hover:-translate-y-4 h-full flex flex-col justify-between">
-              {/* 3D Pop-out Image (uploaded to public folder) */}
               <div className="absolute -top-20 left-1/2 transform -translate-x-1/2 w-40 h-40 z-30 transition-transform duration-500 group-hover:scale-110 drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]">
                 <img src="/noman.png" alt="Noman" className="w-full h-full object-contain object-bottom" />
               </div>
               <div>
                 <h3 className="text-xl font-black text-white mb-1 uppercase tracking-wider group-hover:text-[#e76f51] transition-colors">আব্দুল্লাহ আল নোমান</h3>
-                <p className="text-xs text-[#e76f51] font-bold tracking-widest uppercase mb-4">The Visionary (ME '13)</p>
+                <p className="text-xs text-[#e76f51] font-bold tracking-widest uppercase mb-2">The Visionary (ME '13)</p>
+                
+                {/* 🔴 Vintage Image Tag */}
+                <p className="text-[9px] text-gray-500 tracking-wider mb-4"><i className="fa-solid fa-camera mr-1"></i> ২০১৫ সালে তৎকালীন তোলা ছবি</p>
+                
                 <div className="border-t border-white/5 my-4"></div>
                 <p className="text-sm text-gray-400 italic">"ক্যাম্পাসের এই বিপুল তারুণ্যকে এক সুতোয় গাঁথার জন্য একটা ট্রাভেল কমিউনিটি বড্ড প্রয়োজন!"</p>
               </div>
@@ -145,8 +148,12 @@ export default function BehindTheScenes() {
                 <img src="/osman.png" alt="Osman" className="w-full h-full object-contain object-bottom" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-white mb-1 uppercase tracking-wider group-hover:text-yellow-500 transition-colors">ওসমান</h3>
-                <p className="text-xs text-yellow-500 font-bold tracking-widest uppercase mb-4">The Mastermind</p>
+                <h3 className="text-xl font-black text-white mb-1 uppercase tracking-wider group-hover:text-yellow-500 transition-colors">ওসমান গনি</h3>
+                <p className="text-xs text-yellow-500 font-bold tracking-widest uppercase mb-2">The Mastermind (ME '13)</p>
+                
+                {/* 🔴 Vintage Image Tag */}
+                <p className="text-[9px] text-gray-500 tracking-wider mb-4"><i className="fa-solid fa-camera mr-1"></i> ২০১৫ সালে তৎকালীন তোলা ছবি</p>
+                
                 <div className="border-t border-white/5 my-4"></div>
                 <p className="text-sm text-gray-400 italic">খৈয়াছড়া ট্যুরের আর্কিটেক্ট, যার হাত ধরে ফেসবুকে প্রথম ভিত্তিপ্রস্তর স্থাপিত হয়।</p>
               </div>
@@ -162,7 +169,11 @@ export default function BehindTheScenes() {
               </div>
               <div>
                 <h3 className="text-xl font-black text-white mb-1 uppercase tracking-wider group-hover:text-emerald-400 transition-colors">তানভীর হক তুহিন</h3>
-                <p className="text-xs text-emerald-400 font-bold tracking-widest uppercase mb-4">The Catalyst (CE '13)</p>
+                <p className="text-xs text-emerald-400 font-bold tracking-widest uppercase mb-2">The Catalyst (CE '13)</p>
+                
+                {/* 🔴 Vintage Image Tag */}
+                <p className="text-[9px] text-gray-500 tracking-wider mb-4"><i className="fa-solid fa-camera mr-1"></i> ২০১৫ সালে তৎকালীন তোলা ছবি</p>
+
                 <div className="border-t border-white/5 my-4"></div>
                 <p className="text-sm text-gray-400 italic">"এই বয়সের জন্য চাই পিওর অ্যাডভেঞ্চার!" - এই একটি লাইনই বদলে দিয়েছিল ক্লাবের ডিএনএ।</p>
               </div>
