@@ -14,7 +14,7 @@ export default function AdminDashboard() {
     pendingStories: 0,
     activeEvents: 0,
     trashedEvents: 0,
-    pendingStoreOrders: 0 // 🔴 স্টোরের পেন্ডিং অর্ডারের স্টেট
+    pendingStoreOrders: 0 
   })
   const [loading, setLoading] = useState(true)
 
@@ -23,6 +23,9 @@ export default function AdminDashboard() {
     
     const fetchAdminStats = async () => {
       try {
+        // 🔴 আজকের তারিখ বের করা হচ্ছে (ISO ফরম্যাটে)
+        const today = new Date().toISOString();
+
         // ১. পেন্ডিং বুকিং কাউন্ট (Payment)
         const { count: bookingCount } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending')
         
@@ -32,13 +35,17 @@ export default function AdminDashboard() {
         // ৩. ট্র্যাশ ইভেন্ট কাউন্ট
         const { count: trashCount } = await supabase.from('events').select('*', { count: 'exact', head: true }).not('deleted_at', 'is', null)
 
-        // ৪. অ্যাক্টিভ ইভেন্ট কাউন্ট 
-        const { count: activeEventCount } = await supabase.from('events').select('*', { count: 'exact', head: true }).is('deleted_at', null)
+        // 🔴 ৪. অ্যাক্টিভ ইভেন্ট কাউন্ট (সংশোধিত লজিক: end_date আজকের সমান বা বড়)
+        const { count: activeEventCount } = await supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .is('deleted_at', null)
+          .gte('end_date', today);
 
         // ৫. পেন্ডিং স্টোরি কাউন্ট 
         const { count: pendingStoryCount } = await supabase.from('stories').select('*', { count: 'exact', head: true }).eq('status', 'pending')
 
-        // 🔴 ৬. পেন্ডিং স্টোর অর্ডার কাউন্ট (Adventure Store)
+        // ৬. পেন্ডিং স্টোর অর্ডার কাউন্ট
         const { count: storeOrderCount } = await supabase.from('store_orders').select('*', { count: 'exact', head: true }).eq('status', 'pending')
         
         setStats({
@@ -46,9 +53,9 @@ export default function AdminDashboard() {
           pendingBookings: bookingCount || 0,
           pendingClaims: claimCount || 0,
           pendingStories: pendingStoryCount || 0, 
-          activeEvents: activeEventCount || 0,
+          activeEvents: activeEventCount || 0, // 🔴 এখন শুধু অ্যাক্টিভ ইভেন্টগুলোই দেখাবে
           trashedEvents: trashCount || 0,
-          pendingStoreOrders: storeOrderCount || 0 // 🔴 ডেটা সেট করা হলো
+          pendingStoreOrders: storeOrderCount || 0 
         })
       } catch (error) {
         console.error('Stats loading error:', error)
@@ -84,7 +91,6 @@ export default function AdminDashboard() {
             </div>
         </div>
 
-        {/* 🔴 Grid আপডেট করা হয়েছে যেন নতুন কার্ডগুলো সুন্দরভাবে ফিট হয় */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-10" data-aos="fade-up" data-aos-delay="50">
             
             <Link href="/admin/stories" className="bg-[#0a1c13] border border-yellow-500/30 p-5 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-yellow-500/10 hover:-translate-y-1 relative">
@@ -117,13 +123,11 @@ export default function AdminDashboard() {
                 <span className="mt-2 bg-red-500/20 text-red-400 px-2 py-0.5 rounded-md text-[10px] font-bold border border-red-500/30">{stats.trashedEvents}</span>
             </Link>
 
-            {/* 🔴 নতুন মডিউল: স্টোর ইনভেন্টরি */}
             <Link href="/admin/store/inventory" className="bg-[#0a1c13] border border-purple-500/30 p-5 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-purple-500/10 hover:-translate-y-1">
                 <i className="fa-solid fa-boxes-stacked text-2xl mb-2 text-purple-400"></i>
                 <span className="font-black text-sm text-white">স্টোর ইনভেন্টরি</span>
             </Link>
 
-            {/* 🔴 নতুন মডিউল: স্টোর অর্ডারস (অ্যাডমিন প্যানেল) */}
             <Link href="/admin/store/orders" className="bg-[#0a1c13] border border-orange-500/30 p-5 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-orange-500/10 hover:-translate-y-1 relative">
                 <i className="fa-solid fa-cart-shopping text-2xl mb-2 text-orange-400"></i>
                 <span className="font-black text-sm text-white">স্টোর অর্ডারস</span>
