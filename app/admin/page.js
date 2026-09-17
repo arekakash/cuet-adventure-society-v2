@@ -10,10 +10,11 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({
     totalUsers: 0,
     pendingBookings: 0,
-    pendingClaims: 0, // 🔴 ক্লেইম কাউন্ট
+    pendingClaims: 0, 
     pendingStories: 0,
     activeEvents: 0,
-    trashedEvents: 0
+    trashedEvents: 0,
+    pendingStoreOrders: 0 // 🔴 স্টোরের পেন্ডিং অর্ডারের স্টেট
   })
   const [loading, setLoading] = useState(true)
 
@@ -25,17 +26,20 @@ export default function AdminDashboard() {
         // ১. পেন্ডিং বুকিং কাউন্ট (Payment)
         const { count: bookingCount } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending')
         
-        // 🔴 ২. পেন্ডিং ক্লেইম কাউন্ট (Attendance)
+        // ২. পেন্ডিং ক্লেইম কাউন্ট (Attendance)
         const { count: claimCount } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'claim_pending')
 
         // ৩. ট্র্যাশ ইভেন্ট কাউন্ট
         const { count: trashCount } = await supabase.from('events').select('*', { count: 'exact', head: true }).not('deleted_at', 'is', null)
 
-        // ৪. অ্যাক্টিভ ইভেন্ট কাউন্ট (যাদের deleted_at কলাম null)
+        // ৪. অ্যাক্টিভ ইভেন্ট কাউন্ট 
         const { count: activeEventCount } = await supabase.from('events').select('*', { count: 'exact', head: true }).is('deleted_at', null)
 
         // ৫. পেন্ডিং স্টোরি কাউন্ট 
         const { count: pendingStoryCount } = await supabase.from('stories').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+
+        // 🔴 ৬. পেন্ডিং স্টোর অর্ডার কাউন্ট (Adventure Store)
+        const { count: storeOrderCount } = await supabase.from('store_orders').select('*', { count: 'exact', head: true }).eq('status', 'pending')
         
         setStats({
           totalUsers: 0,
@@ -43,7 +47,8 @@ export default function AdminDashboard() {
           pendingClaims: claimCount || 0,
           pendingStories: pendingStoryCount || 0, 
           activeEvents: activeEventCount || 0,
-          trashedEvents: trashCount || 0
+          trashedEvents: trashCount || 0,
+          pendingStoreOrders: storeOrderCount || 0 // 🔴 ডেটা সেট করা হলো
         })
       } catch (error) {
         console.error('Stats loading error:', error)
@@ -79,7 +84,9 @@ export default function AdminDashboard() {
             </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-10" data-aos="fade-up" data-aos-delay="50">
+        {/* 🔴 Grid আপডেট করা হয়েছে যেন নতুন কার্ডগুলো সুন্দরভাবে ফিট হয় */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-10" data-aos="fade-up" data-aos-delay="50">
+            
             <Link href="/admin/stories" className="bg-[#0a1c13] border border-yellow-500/30 p-5 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-yellow-500/10 hover:-translate-y-1 relative">
                 <i className="fa-solid fa-book-open text-2xl mb-2 text-yellow-500"></i>
                 <span className="font-black text-sm text-white">গল্প রিভিউ</span>
@@ -91,7 +98,6 @@ export default function AdminDashboard() {
                 <span className="font-black text-sm text-white">নতুন ইভেন্ট</span>
             </Link>
 
-            {/* 🔴 বুকিং রিকোয়েস্ট (এখানে পেমেন্ট এবং ক্লেইম দুটোই মার্জ করা হয়েছে) */}
             <Link href="/admin/bookings" className="bg-[#0a1c13] border border-blue-500/30 p-5 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-blue-500/10 hover:-translate-y-1 relative">
                 <i className="fa-solid fa-ticket text-2xl mb-2 text-blue-400"></i>
                 <span className="font-black text-sm text-white">বুকিং ও ক্লেইম</span>
@@ -110,6 +116,21 @@ export default function AdminDashboard() {
                 <span className="font-black text-sm text-white">ট্র্যাশ বিন</span>
                 <span className="mt-2 bg-red-500/20 text-red-400 px-2 py-0.5 rounded-md text-[10px] font-bold border border-red-500/30">{stats.trashedEvents}</span>
             </Link>
+
+            {/* 🔴 নতুন মডিউল: স্টোর ইনভেন্টরি */}
+            <Link href="/admin/store/inventory" className="bg-[#0a1c13] border border-purple-500/30 p-5 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-purple-500/10 hover:-translate-y-1">
+                <i className="fa-solid fa-boxes-stacked text-2xl mb-2 text-purple-400"></i>
+                <span className="font-black text-sm text-white">স্টোর ইনভেন্টরি</span>
+            </Link>
+
+            {/* 🔴 নতুন মডিউল: স্টোর অর্ডারস (অ্যাডমিন প্যানেল) */}
+            <Link href="/admin/store/orders" className="bg-[#0a1c13] border border-orange-500/30 p-5 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-orange-500/10 hover:-translate-y-1 relative">
+                <i className="fa-solid fa-cart-shopping text-2xl mb-2 text-orange-400"></i>
+                <span className="font-black text-sm text-white">স্টোর অর্ডারস</span>
+                <span className="mt-2 bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-md text-[10px] font-bold border border-orange-500/30">{stats.pendingStoreOrders}</span>
+                {stats.pendingStoreOrders > 0 && <div className="absolute top-0 right-0 w-2 h-full bg-orange-500 animate-pulse rounded-r-2xl"></div>}
+            </Link>
+
         </div>
 
       </div>
