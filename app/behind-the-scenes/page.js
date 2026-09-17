@@ -33,10 +33,11 @@ export default function BehindTheScenes() {
         </div>
 
         <div className="relative z-20 max-w-3xl mx-auto" data-aos="zoom-in">
-          <h1 className="text-4xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-[#e76f51] to-red-500 mb-6 drop-shadow-2xl uppercase tracking-widest">
+          <h1 className="text-4xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-[#e76f51] to-red-500 mb-4 sm:mb-6 drop-shadow-2xl uppercase tracking-widest">
             দ্য স্পার্ক: ২০১৫
           </h1>
-          <p className="text-lg sm:text-2xl font-bold text-gray-200 uppercase tracking-widest typewriter-text">
+          {/* 🔴 Updated Cinematic Text Effect */}
+          <p className="text-sm sm:text-2xl font-bold text-gray-200 uppercase tracking-widest cinematic-reveal leading-relaxed max-w-2xl mx-auto px-2">
             তিন বন্ধু, একটি স্বপ্ন এবং অজানাকে জয় করার নেশা...
           </p>
         </div>
@@ -130,10 +131,7 @@ export default function BehindTheScenes() {
               <div>
                 <h3 className="text-xl font-black text-white mb-1 uppercase tracking-wider group-hover:text-[#e76f51] transition-colors">আব্দুল্লাহ আল নোমান</h3>
                 <p className="text-xs text-[#e76f51] font-bold tracking-widest uppercase mb-2">The Visionary (ME '13)</p>
-                
-                {/* 🔴 Vintage Image Tag */}
                 <p className="text-[9px] text-gray-500 tracking-wider mb-4"><i className="fa-solid fa-camera mr-1"></i> ২০১৫ সালে তৎকালীন তোলা ছবি</p>
-                
                 <div className="border-t border-white/5 my-4"></div>
                 <p className="text-sm text-gray-400 italic">"ক্যাম্পাসের এই বিপুল তারুণ্যকে এক সুতোয় গাঁথার জন্য একটা ট্রাভেল কমিউনিটি বড্ড প্রয়োজন!"</p>
               </div>
@@ -150,10 +148,7 @@ export default function BehindTheScenes() {
               <div>
                 <h3 className="text-xl font-black text-white mb-1 uppercase tracking-wider group-hover:text-yellow-500 transition-colors">ওসমান গনি</h3>
                 <p className="text-xs text-yellow-500 font-bold tracking-widest uppercase mb-2">The Mastermind (ME '13)</p>
-                
-                {/* 🔴 Vintage Image Tag */}
                 <p className="text-[9px] text-gray-500 tracking-wider mb-4"><i className="fa-solid fa-camera mr-1"></i> ২০১৫ সালে তৎকালীন তোলা ছবি</p>
-                
                 <div className="border-t border-white/5 my-4"></div>
                 <p className="text-sm text-gray-400 italic">খৈয়াছড়া ট্যুরের আর্কিটেক্ট, যার হাত ধরে ফেসবুকে প্রথম ভিত্তিপ্রস্তর স্থাপিত হয়।</p>
               </div>
@@ -170,10 +165,7 @@ export default function BehindTheScenes() {
               <div>
                 <h3 className="text-xl font-black text-white mb-1 uppercase tracking-wider group-hover:text-emerald-400 transition-colors">তানভীর হক তুহিন</h3>
                 <p className="text-xs text-emerald-400 font-bold tracking-widest uppercase mb-2">The Catalyst (CE '13)</p>
-                
-                {/* 🔴 Vintage Image Tag */}
                 <p className="text-[9px] text-gray-500 tracking-wider mb-4"><i className="fa-solid fa-camera mr-1"></i> ২০১৫ সালে তৎকালীন তোলা ছবি</p>
-
                 <div className="border-t border-white/5 my-4"></div>
                 <p className="text-sm text-gray-400 italic">"এই বয়সের জন্য চাই পিওর অ্যাডভেঞ্চার!" - এই একটি লাইনই বদলে দিয়েছিল ক্লাবের ডিএনএ।</p>
               </div>
@@ -214,23 +206,20 @@ export default function BehindTheScenes() {
         </div>
       )}
 
-      {/* Basic Custom Styles for Typewriter & Animations */}
+      {/* 🔴 Updated Cinematic Reveal Animations */}
       <style dangerouslySetInnerHTML={{__html: `
-        .typewriter-text {
-          overflow: hidden;
-          border-right: .15em solid #e76f51;
-          white-space: nowrap;
-          margin: 0 auto;
-          letter-spacing: .15em;
-          animation: typing 3.5s steps(40, end), blink-caret .75s step-end infinite;
+        .cinematic-reveal {
+          opacity: 0;
+          animation: cinematicFocus 3s ease-out forwards, textPulse 4s ease-in-out 3s infinite alternate;
         }
-        @keyframes typing {
-          from { width: 0 }
-          to { width: 100% }
+        @keyframes cinematicFocus {
+          0% { opacity: 0; filter: blur(20px) contrast(200%); transform: translateY(20px) scale(1.05); }
+          50% { opacity: 1; filter: blur(2px) contrast(150%); }
+          100% { opacity: 1; filter: blur(0px) contrast(100%); transform: translateY(0) scale(1); }
         }
-        @keyframes blink-caret {
-          from, to { border-color: transparent }
-          50% { border-color: #e76f51; }
+        @keyframes textPulse {
+          0% { text-shadow: 0 0 10px rgba(231,111,81,0.3); }
+          100% { text-shadow: 0 0 20px rgba(231,111,81,0.8), 0 0 30px rgba(220,38,38,0.5); }
         }
         .animate-zoom-in {
           animation: zoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
