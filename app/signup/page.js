@@ -11,6 +11,7 @@ export default function SignupPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [facebookLoading, setFacebookLoading] = useState(false) // 🔴 ফেসবুকের লোডিং স্টেট
   
   const [formData, setFormData] = useState({
     fullName: '', studentId: '', email: '', phone: '',
@@ -43,7 +44,6 @@ export default function SignupPage() {
     AOS.init({ once: true, offset: 50, duration: 800 })
   }, [])
 
-  // জেন্ডার চেঞ্জ করলে হল অটোমেটিক রিসেট হওয়ার লজিক
   const handleChange = (e) => {
     const { id, value } = e.target;
     if (id === 'gender') {
@@ -53,6 +53,7 @@ export default function SignupPage() {
     }
   }
 
+  // 🔴 Google Login Logic
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
     try {
@@ -69,6 +70,24 @@ export default function SignupPage() {
     }
   }
 
+  // 🔴 Facebook Login Logic
+  const handleFacebookLogin = async () => {
+    setFacebookLoading(true)
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'facebook',
+        options: { 
+          redirectTo: 'https://cuet-adventure-society-v2.pages.dev/auth/callback' 
+        }
+      })
+      if (error) throw error
+    } catch (error) {
+      alert('ফেসবুক লগইন ফেইল করেছে: ' + error.message)
+      setFacebookLoading(false)
+    }
+  }
+
+  // Manual Signup Logic
   const handleSignup = async (e) => {
     e.preventDefault()
     if (formData.password !== formData.confirmPassword) {
@@ -119,7 +138,6 @@ export default function SignupPage() {
         router.push('/dashboard')
       }
     } catch (error) {
-      // ⚠️ 스마트 (Smart) এরর হ্যান্ডলিং: JWT ও ঘড়ির সময়ের এরর যাচাই
       if (error.message.includes('JWT') || error.message.includes('future') || error.message.includes('expired')) {
         alert(
           '⚠️ আপনার ডিভাইসের ঘড়ির সময় সঠিক নেই!\n\n' +
@@ -171,17 +189,17 @@ export default function SignupPage() {
             <p className="text-sm text-gray-300 mb-2">
               ইতোমধ্যে কি অ্যাকাউন্ট আছে? <Link href="/login" className="text-[#e76f51] font-bold hover:text-white transition-colors border-b border-transparent hover:border-white pb-0.5">এখানে লগইন করুন</Link>
             </p>
-            <p className="text-xs text-gray-500 font-medium">অধিক নিরাপত্তার জন্য আপনার গুগল অ্যাকাউন্ট সংযুক্ত করুন</p>
+            <p className="text-xs text-gray-500 font-medium">অধিক নিরাপত্তার জন্য আপনার গুগল বা ফেসবুক অ্যাকাউন্ট সংযুক্ত করুন</p>
           </div>
         </div>
 
-        {/* Google Login */}
-        <div data-aos="fade-up" data-aos-delay="400">
+        {/* 🔴 Social Login Buttons (Google & Facebook) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6" data-aos="fade-up" data-aos-delay="400">
           <button 
             onClick={handleGoogleLogin} 
             disabled={googleLoading}
             type="button" 
-            className="w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-gray-200 hover:border-[#e76f51]/50 font-bold py-3.5 px-4 rounded-xl transition-all mb-6 relative overflow-hidden backdrop-blur-sm shadow-sm"
+            className="w-full flex items-center justify-center gap-2 bg-white/5 border border-white/10 text-gray-200 hover:border-[#e76f51]/50 font-bold py-3.5 px-4 rounded-xl transition-all relative overflow-hidden backdrop-blur-sm shadow-sm text-sm"
           >
             {googleLoading ? (
               <i className="fa-solid fa-circle-notch fa-spin text-gray-400"></i>
@@ -193,7 +211,21 @@ export default function SignupPage() {
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
             )}
-            <span>{googleLoading ? 'অপেক্ষা করুন...' : 'গুগল দিয়ে কন্টিনিউ করুন'}</span>
+            <span>{googleLoading ? 'অপেক্ষা করুন...' : 'গুগল দিয়ে সাইন-আপ'}</span>
+          </button>
+
+          <button 
+            onClick={handleFacebookLogin} 
+            disabled={facebookLoading}
+            type="button" 
+            className="w-full flex items-center justify-center gap-2 bg-[#1877F2]/10 border border-[#1877F2]/30 text-gray-200 hover:bg-[#1877F2]/20 font-bold py-3.5 px-4 rounded-xl transition-all relative overflow-hidden backdrop-blur-sm shadow-sm text-sm"
+          >
+            {facebookLoading ? (
+              <i className="fa-solid fa-circle-notch fa-spin text-gray-400"></i>
+            ) : (
+              <i className="fa-brands fa-facebook text-[#1877F2] text-xl"></i>
+            )}
+            <span>{facebookLoading ? 'অপেক্ষা করুন...' : 'ফেসবুক দিয়ে সাইন-আপ'}</span>
           </button>
         </div>
 
