@@ -11,7 +11,10 @@ export default function DashboardPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
+  
+  // States
   const [bookings, setBookings] = useState([])
+  const [storeOrders, setStoreOrders] = useState([]) // 🔴 নতুন: স্টোর অর্ডারের স্টেট
   const [rank, setRank] = useState('-')
 
   const [showCompletionForm, setShowCompletionForm] = useState(false)
@@ -70,7 +73,7 @@ export default function DashboardPage() {
 
   const fetchUserData = async (userId) => {
     try {
-      // 🔴 আপডেট: survival_iq এবং total_events ফেচ করা হচ্ছে
+      // 1. Profile Data
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*, survival_iq, total_events, total_rides, cycling_distance, total_swims, swimming_distance')
@@ -98,16 +101,18 @@ export default function DashboardPage() {
         setShowCompletionForm(true)
       }
 
+      // Rank Calculation
       const totalActivities = (profileData.total_treks || 0) + (profileData.total_rides || 0) + (profileData.total_swims || 0)
       if (totalActivities > 0 || profileData.survival_iq > 0) {
         const { count, error: rankError } = await supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true })
-          .gt('survival_iq', profileData.survival_iq || 0) // আপাতত Survival IQ এর ভিত্তিতে র‍্যাংক
+          .gt('survival_iq', profileData.survival_iq || 0) 
         
         if (!rankError) setRank(count + 1)
       }
 
+      // 2. Event Bookings
       const { data: bookingData, error: bookingError } = await supabase
         .from('bookings')
         .select(`
@@ -117,9 +122,22 @@ export default function DashboardPage() {
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
-      if (!bookingError && bookingData) {
-        setBookings(bookingData)
-      }
+      if (!bookingError && bookingData) setBookings(bookingData)
+
+      // 🔴 3. Store Orders (নতুন ডেটা ফেচিং)
+      const { data: storeData, error: storeError } = await supabase
+        .from('store_orders')
+        .select(`
+          id, total_amount, trx_id, status, order_type, created_at,
+          store_order_items (
+            quantity, size_selected, rent_start_date, rent_end_date, price_at_time,
+            store_products (name, image_url, category)
+          )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (!storeError && storeData) setStoreOrders(storeData)
 
     } catch (error) {
       console.error('ড্যাশবোর্ড ডেটা লোড করতে সমস্যা:', error.message)
@@ -140,7 +158,6 @@ export default function DashboardPage() {
   const handleProfileComplete = async (e) => {
     e.preventDefault()
     setUpdating(true)
-    
     try {
       const { error } = await supabase.from('profiles').upsert({
         id: user.id,
@@ -161,13 +178,10 @@ export default function DashboardPage() {
         has_bicycle: formData.has_bicycle,
         experience_level: formData.experience_level
       })
-
       if (error) throw error
-
       setUser({ ...user, ...formData })
       setShowCompletionForm(false)
       alert('অ্যাডভেঞ্চার প্রোফাইল সফলভাবে আপডেট হয়েছে!')
-      
     } catch (err) {
       alert('প্রোফাইল আপডেট ফেইল করেছে: ' + err.message)
     } finally {
@@ -177,16 +191,13 @@ export default function DashboardPage() {
 
   const getStatusBadge = (status) => {
     switch(status) {
-      case 'approved':
-        return <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-check-circle mr-1"></i> কনফার্মড</span>
-      case 'pending':
-        return <span className="bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest animate-pulse"><i className="fa-solid fa-clock mr-1"></i> পেন্ডিং</span>
-      case 'free_booking':
-        return <span className="bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-ticket mr-1"></i> ফ্রি বুকিং</span>
-      case 'interested':
-        return <span className="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-heart mr-1"></i> ইন্টারেস্টেড</span>
-      default:
-        return <span className="bg-gray-500/20 text-gray-400 border border-gray-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest">Unknown</span>
+      case 'approved': return <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-check-circle mr-1"></i> কনফার্মড</span>
+      case 'pending': return <span className="bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest animate-pulse"><i className="fa-solid fa-clock mr-1"></i> পেন্ডিং</span>
+      case 'rejected': return <span className="bg-red-500/20 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-xmark mr-1"></i> বাতিল</span>
+      case 'returned': return <span className="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-rotate-left mr-1"></i> রিটার্নড</span>
+      case 'free_booking': return <span className="bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-ticket mr-1"></i> ফ্রি বুকিং</span>
+      case 'interested': return <span className="bg-pink-500/20 text-pink-400 border border-pink-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-heart mr-1"></i> ইন্টারেস্টেড</span>
+      default: return <span className="bg-gray-500/20 text-gray-400 border border-gray-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest">Unknown</span>
     }
   }
 
@@ -200,11 +211,7 @@ export default function DashboardPage() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-white bg-[#050b08]">
-        <i className="fa-solid fa-compass fa-spin text-4xl text-[#e76f51]"></i>
-      </div>
-    )
+    return <div className="min-h-screen flex items-center justify-center text-white bg-[#050b08]"><i className="fa-solid fa-compass fa-spin text-4xl text-[#e76f51]"></i></div>
   }
 
   if (!user) {
@@ -336,7 +343,6 @@ export default function DashboardPage() {
       
       {/* LEFT COLUMN: Profile Info */}
       <div className="space-y-6">
-        
         {/* Profile Card */}
         <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl overflow-hidden relative" data-aos="fade-right" data-aos-delay="100">
           <div className="h-24 bg-gradient-to-r from-[#0a1c13] via-[#2d6a4f]/40 to-[#0a1c13] border-b border-white/5"></div>
@@ -350,18 +356,6 @@ export default function DashboardPage() {
                 <span className="text-xs font-bold text-[#2d6a4f] bg-[#2d6a4f]/10 px-2.5 py-1 rounded-lg border border-[#2d6a4f]/20">
                   {user.department} '{String(user.batch).slice(-2)}
                 </span>
-                <div className="flex items-center gap-2">
-                  {user.fb_link && (
-                    <a href={user.fb_link.startsWith('http') ? user.fb_link : `https://${user.fb_link}`} target="_blank" rel="noreferrer" className="w-7 h-7 rounded-full bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center text-xs transition-all hover:scale-110">
-                      <i className="fa-brands fa-facebook-f"></i>
-                    </a>
-                  )}
-                  {user.insta_link && (
-                    <a href={user.insta_link.startsWith('http') ? user.insta_link : `https://${user.insta_link}`} target="_blank" rel="noreferrer" className="w-7 h-7 rounded-full bg-pink-600/20 text-pink-400 hover:bg-pink-600 hover:text-white flex items-center justify-center text-xs transition-all hover:scale-110">
-                      <i className="fa-brands fa-instagram"></i>
-                    </a>
-                  )}
-                </div>
               </div>
               <div className="flex items-center gap-2 mt-2 text-sm text-gray-400 font-medium">
                 <i className="fa-solid fa-building-user text-[#2d6a4f]"></i> <span>{user.hall}</span>
@@ -387,32 +381,13 @@ export default function DashboardPage() {
             <Link href="/edit-profile" className="text-xs font-bold text-[#2d6a4f] hover:text-white transition-colors">এডিট করুন</Link>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="p-3 bg-black/40 border border-white/5 rounded-xl hover:-translate-y-1 transition-transform">
+            <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
               <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Blood Group</p>
               <p className="font-black text-red-500 text-lg flex items-center gap-2"><i className="fa-solid fa-droplet"></i> <span>{user.blood_group}</span></p>
             </div>
-            <div className="p-3 bg-black/40 border border-white/5 rounded-xl hover:-translate-y-1 transition-transform">
+            <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
               <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Combat Gear</p>
               <p className="font-black text-[#2d6a4f] text-lg flex items-center gap-2"><i className="fa-solid fa-shirt"></i> <span>{user.tshirt_size}</span></p>
-            </div>
-            <div className="p-3 bg-black/40 border border-white/5 rounded-xl hover:-translate-y-1 transition-transform">
-              <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Swimming</p>
-              <p className="font-black text-blue-400 text-base flex items-center gap-2"><i className="fa-solid fa-person-swimming"></i> <span>{user.swimming_skill}</span></p>
-            </div>
-            <div className="p-3 bg-black/40 border border-white/5 rounded-xl hover:-translate-y-1 transition-transform">
-              <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Bicycle</p>
-              <p className="font-black text-yellow-500 text-base flex items-center gap-2"><i className="fa-solid fa-bicycle"></i> <span>{user.has_bicycle}</span></p>
-            </div>
-            <div className="p-3 bg-black/40 border border-white/5 rounded-xl col-span-2 hover:-translate-y-1 transition-transform">
-              <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Experience</p>
-              <p className="font-black text-purple-400 text-base flex items-center gap-2"><i className="fa-solid fa-award"></i> <span>{user.experience_level}</span></p>
-            </div>
-            <div className="p-3 bg-black/40 border border-white/5 rounded-xl col-span-2 hover:-translate-y-1 transition-transform">
-              <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">SOS Contact</p>
-              <p className="font-black text-gray-300 tracking-wider flex items-center gap-2">
-                <i className="fa-solid fa-satellite-dish text-blue-400 animate-pulse"></i> 
-                <span>{user.emergency_contact} ({user.emergency_relation})</span>
-              </p>
             </div>
           </div>
         </div>
@@ -421,116 +396,117 @@ export default function DashboardPage() {
       {/* RIGHT COLUMN: Stats & Bookings */}
       <div className="lg:col-span-2 space-y-6">
         
-        {/* 🔴 General Stats (Rank, IQ, Total Events) */}
+        {/* General Stats (Rank, IQ, Total Events) */}
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <Link href="/leaderboard" className="bg-[#0a1c13]/70 backdrop-blur-md border border-yellow-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="50">
-            <div className="w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-500 flex items-center justify-center text-base mb-1.5 group-hover:scale-110 transition-transform"><i className="fa-solid fa-crown"></i></div>
-            <p className="text-2xl font-black text-white drop-shadow-md">#{rank}</p>
+          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-yellow-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center">
+            <div className="w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-500 flex items-center justify-center text-base mb-1.5"><i className="fa-solid fa-crown"></i></div>
+            <p className="text-2xl font-black text-white">#{rank}</p>
             <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Current Rank</p>
-          </Link>
-
-          <Link href="/beginners-guide" className="bg-[#0a1c13]/70 backdrop-blur-md border border-[#34d399]/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="100">
-            <div className="w-8 h-8 rounded-full bg-[#34d399]/20 text-[#34d399] flex items-center justify-center text-base mb-1.5 group-hover:scale-110 transition-transform"><i className="fa-solid fa-brain"></i></div>
-            <p className="text-2xl font-black text-white drop-shadow-md">{user.survival_iq || 0}</p>
+          </div>
+          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-[#34d399]/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center">
+            <div className="w-8 h-8 rounded-full bg-[#34d399]/20 text-[#34d399] flex items-center justify-center text-base mb-1.5"><i className="fa-solid fa-brain"></i></div>
+            <p className="text-2xl font-black text-white">{user.survival_iq || 0}</p>
             <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Survival IQ</p>
-          </Link>
-          
-          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-[#e76f51]/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="150">
-            <div className="w-8 h-8 rounded-full bg-[#e76f51]/20 text-[#e76f51] flex items-center justify-center text-base mb-1.5 group-hover:scale-110 transition-transform"><i className="fa-solid fa-tent"></i></div>
-            <p className="text-2xl font-black text-white drop-shadow-md">{user.total_events || user.total_treks || 0}</p>
+          </div>
+          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-[#e76f51]/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center">
+            <div className="w-8 h-8 rounded-full bg-[#e76f51]/20 text-[#e76f51] flex items-center justify-center text-base mb-1.5"><i className="fa-solid fa-tent"></i></div>
+            <p className="text-2xl font-black text-white">{user.total_events || user.total_treks || 0}</p>
             <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Total Events</p>
           </div>
         </div>
 
-        {/* 🔴 Physical Stats (Trekking, Cycling, Swimming) */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-emerald-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="200">
-            <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-base mb-1.5 group-hover:scale-110 transition-transform"><i className="fa-solid fa-shoe-prints"></i></div>
-            <p className="text-2xl font-black text-white drop-shadow-md">{user.total_distance || 0}<span className="text-[10px] text-gray-500 ml-1 font-normal">km</span></p>
-            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">{user.total_treks || 0} Treks</p>
-          </div>
-          
-          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-blue-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="250">
-            <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-base mb-1.5 group-hover:scale-110 transition-transform"><i className="fa-solid fa-bicycle"></i></div>
-            <p className="text-2xl font-black text-white drop-shadow-md">{user.cycling_distance || 0}<span className="text-[10px] text-gray-500 ml-1 font-normal">km</span></p>
-            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">{user.total_rides || 0} Rides</p>
-          </div>
-
-          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-cyan-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform" data-aos="zoom-in" data-aos-delay="300">
-            <div className="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-base mb-1.5 group-hover:scale-110 transition-transform"><i className="fa-solid fa-person-swimming"></i></div>
-            <p className="text-2xl font-black text-white drop-shadow-md">{user.swimming_distance || 0}<span className="text-[10px] text-gray-500 ml-1 font-normal">m</span></p>
-            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">{user.total_swims || 0} Swims</p>
-          </div>
-        </div>
-
-        {/* বুকিং সেকশন */}
-        <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl overflow-hidden" data-aos="fade-up" data-aos-delay="400">
+        {/* 1. Event Bookings Section */}
+        <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl overflow-hidden" data-aos="fade-up">
           <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
             <h3 className="text-sm font-bold text-white tracking-widest uppercase flex items-center gap-2">
-              <i className="fa-solid fa-ticket text-[#e76f51]"></i> <span>আমার বুকিংস ও অ্যাক্টিভিটি</span>
+              <i className="fa-solid fa-ticket text-[#e76f51]"></i> <span>আমার ইভেন্ট বুকিংস</span>
             </h3>
           </div>
           
           {bookings.length > 0 ? (
             <div className="p-6 space-y-4">
               {bookings.map((booking) => (
-                <div key={booking.id} className="bg-[#050b08] border border-white/10 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row gap-5 items-start sm:items-center transition-all hover:border-[#e76f51]/50 shadow-md">
-                  
-                  {/* ইভেন্ট কভার */}
-                  <div className="relative w-full sm:w-28 h-20 shrink-0">
+                <div key={booking.id} className="bg-[#050b08] border border-white/10 p-4 rounded-2xl flex flex-col sm:flex-row gap-5 items-start sm:items-center">
+                  <div className="relative w-full sm:w-24 h-16 shrink-0">
                     <img src={booking.events?.cover_photo || 'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80'} className="w-full h-full object-cover rounded-xl" alt="Cover" />
-                    <div className="absolute top-1 left-1 bg-black/60 backdrop-blur-sm text-white text-[8px] font-bold uppercase px-2 py-0.5 rounded-md flex items-center gap-1">
-                      <i className={getCategoryIcon(booking.events?.category)}></i> {booking.events?.category}
-                    </div>
                   </div>
-                  
-                  {/* বিস্তারিত */}
                   <div className="flex-grow">
-                      <h4 className="font-bold text-white text-base mb-1.5 line-clamp-1">{booking.events?.title || 'Unknown Event'}</h4>
-                      <p className="text-[11px] text-gray-400 mb-2 flex flex-wrap gap-x-4 gap-y-1">
-                          <span><i className="fa-solid fa-map-location-dot text-[#e76f51]"></i> {booking.events?.destination}</span>
-                          <span><i className="fa-solid fa-calendar text-blue-400"></i> {booking.events?.start_date ? new Date(booking.events.start_date).toLocaleDateString('en-GB') : ''}</span>
-                      </p>
-                      
-                      {booking.trx_id && booking.trx_id !== 'NONE' && booking.trx_id !== 'FREE_BOOKING' && (
-                          <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mt-1">
-                              TrxID: <span className="text-gray-300">{booking.trx_id}</span> ({booking.payment_method})
-                          </p>
-                      )}
+                      <h4 className="font-bold text-white text-sm mb-1">{booking.events?.title || 'Unknown Event'}</h4>
+                      <p className="text-[10px] text-gray-400"><i className="fa-solid fa-calendar text-blue-400 mr-1"></i> {booking.events?.start_date ? new Date(booking.events.start_date).toLocaleDateString('en-GB') : ''}</p>
                   </div>
-                  
-                  {/* স্ট্যাটাস ও বাটন */}
-                  <div className="flex flex-col gap-2 w-full sm:w-auto shrink-0 items-start sm:items-end mt-2 sm:mt-0">
+                  <div className="flex flex-col gap-2 w-full sm:w-auto shrink-0 items-start sm:items-end">
                       {getStatusBadge(booking.status)}
-                      <Link href={`/event-details?id=${booking.events?.id}`} className="text-xs text-blue-400 hover:text-blue-300 font-bold mt-1.5 underline decoration-blue-400/30 underline-offset-4">
-                          বিস্তারিত দেখুন <i className="fa-solid fa-arrow-right ml-1"></i>
-                      </Link>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="p-10 text-center flex flex-col items-center justify-center">
-              <i className="fa-solid fa-ticket text-4xl text-gray-600 mb-4 transform -translate-y-2 animate-bounce"></i>
-              <p className="text-sm font-medium text-gray-400">আপনার কোনো রানিং বুকিং নেই।</p>
-              <Link href="/events" className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-[#e76f51] hover:text-orange-600 transition-colors">
-                নতুন ট্রেইল খুঁজুন <i className="fa-solid fa-arrow-right"></i>
-              </Link>
+            <div className="p-10 text-center">
+              <p className="text-sm font-medium text-gray-500">আপনার কোনো ইভেন্ট বুকিং নেই।</p>
             </div>
           )}
         </div>
 
-        {/* Blog Action Banner */}
-        <div className="bg-[#0a1c13]/70 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden" data-aos="fade-up" data-aos-delay="500">
-          <div className="p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-center bg-[#e76f51]/5 border-l-4 border-[#e76f51]">
-            <div className="text-center sm:text-left mb-4 sm:mb-0">
-              <h3 className="font-black text-white text-xl mb-1">আপনার অ্যাডভেঞ্চার শেয়ার করুন!</h3>
-              <p className="text-sm text-gray-400">ক্যাম্পাস বা ট্যুরের কোনো দারুণ অভিজ্ঞতা আছে? লিখে ফেলুন আমাদের কমিউনিটি ব্লগে।</p>
-            </div>
-            <Link href="/write-blog" className="w-full sm:w-auto text-center bg-[#e76f51] hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold hover:-translate-y-1 hover:shadow-2xl transition-all whitespace-nowrap shadow-[0_0_15px_rgba(231,111,81,0.4)]">
-              <i className="fa-solid fa-pen-nib mr-2"></i> <span>গল্প লিখুন</span>
+        {/* 🔴 2. Store Orders Section (My Orders) */}
+        <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl overflow-hidden" data-aos="fade-up" data-aos-delay="100">
+          <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
+            <h3 className="text-sm font-bold text-white tracking-widest uppercase flex items-center gap-2">
+              <i className="fa-solid fa-bag-shopping text-emerald-400"></i> <span>স্টোর অর্ডারস ও গিয়ার রেন্টাল</span>
+            </h3>
+            <Link href="/store" className="text-[10px] bg-white/5 border border-white/10 hover:border-emerald-500/50 text-emerald-400 px-3 py-1.5 rounded-lg transition-colors font-bold uppercase tracking-widest">
+              স্টোরে যান
             </Link>
           </div>
+          
+          {storeOrders.length > 0 ? (
+            <div className="p-6 space-y-4">
+              {storeOrders.map((order) => (
+                <div key={order.id} className="bg-[#050b08] border border-white/10 p-5 rounded-2xl hover:border-emerald-500/30 transition-all shadow-md">
+                  
+                  {/* Order Header */}
+                  <div className="flex justify-between items-center border-b border-white/5 pb-3 mb-3">
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                        Order ID: <span className="text-gray-300">{order.id.slice(0, 8)}</span>
+                      </p>
+                      <p className="text-[10px] text-gray-400"><i className="fa-solid fa-calendar-days mr-1 text-blue-400"></i> {new Date(order.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="mb-1">{getStatusBadge(order.status)}</div>
+                      <p className="text-xs font-black text-emerald-400">Total: ৳{order.total_amount}</p>
+                    </div>
+                  </div>
+
+                  {/* Order Items */}
+                  <div className="space-y-3">
+                    {order.store_order_items?.map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-4 bg-white/5 p-3 rounded-xl">
+                        <img src={item.store_products?.image_url} alt="Product" className="w-12 h-12 rounded-lg object-contain bg-black/40 p-1" />
+                        <div className="flex-grow">
+                          <h4 className="text-sm font-bold text-white">{item.store_products?.name}</h4>
+                          <div className="text-[10px] text-gray-400 mt-1 flex flex-wrap gap-2">
+                            <span className="font-bold text-gray-300">Qty: {item.quantity}</span>
+                            {item.size_selected && <span className="text-purple-400 border border-purple-500/30 px-1 rounded">Size: {item.size_selected}</span>}
+                            {item.rent_start_date && (
+                              <span className="text-emerald-400 border border-emerald-500/30 px-1 rounded flex items-center gap-1">
+                                <i className="fa-solid fa-calendar-check"></i> {new Date(item.rent_start_date).toLocaleDateString('en-GB')} to {new Date(item.rent_end_date).toLocaleDateString('en-GB')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-10 text-center flex flex-col items-center justify-center">
+              <i className="fa-solid fa-box-open text-4xl text-gray-600 mb-4 transform -translate-y-2 animate-bounce"></i>
+              <p className="text-sm font-medium text-gray-400">আপনি স্টোর থেকে এখনো কোনো কেনাকাটা বা রেন্ট করেননি।</p>
+            </div>
+          )}
         </div>
 
       </div>
