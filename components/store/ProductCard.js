@@ -24,7 +24,7 @@ const ProductSlider = ({ images, altText }) => {
   );
 };
 
-export default function ProductCard({ product, viewMode, activeTab, isAdmin, onProductClick, onAction }) {
+export default function ProductCard({ product, viewMode, activeTab, isAdmin, onProductClick, onAction, onAdminAction }) {
   // ইমেজ গ্যালারি সেটআপ
   const images = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image_url];
   
@@ -36,7 +36,7 @@ export default function ProductCard({ product, viewMode, activeTab, isAdmin, onP
   // আউট অফ স্টক লজিক
   const isOutOfStock = product.stock_quantity <= 0;
   
-  // ইউজার/গেস্ট হলে আউট-অফ-স্টক প্রোডাক্টে ক্লিক করা যাবে না, কিন্তু অ্যাডমিন হলে যাবে
+  // ইউজার/গেস্ট হলে আউট-অ-স্টক প্রোডাক্টে ক্লিক করা যাবে না, কিন্তু অ্যাডমিন হলে যাবে
   const isClickable = !isOutOfStock || isAdmin;
 
   return (
@@ -47,6 +47,15 @@ export default function ProductCard({ product, viewMode, activeTab, isAdmin, onP
         ${viewMode === 'list' ? 'flex flex-row items-stretch h-32 sm:h-48' : 'flex flex-col h-full'}`}
     >
       
+      {/* 🔴 Admin Controls (এডিট, ডিসকাউন্ট, ডিলিট) */}
+      {isAdmin && (
+        <div className="absolute top-2 left-2 z-30 flex gap-1 sm:gap-2 opacity-90 group-hover:opacity-100 transition-opacity">
+          <button onClick={(e) => onAdminAction(e, product, 'edit')} className="bg-purple-500/90 hover:bg-purple-500 text-white p-2 rounded-lg text-xs backdrop-blur-sm shadow-lg" title="এডিট"><i className="fa-solid fa-pen"></i></button>
+          <button onClick={(e) => onAdminAction(e, product, 'discount')} className="bg-blue-500/90 hover:bg-blue-500 text-white p-2 rounded-lg text-xs backdrop-blur-sm shadow-lg" title="ডিসকাউন্ট"><i className="fa-solid fa-tag"></i></button>
+          <button onClick={(e) => onAdminAction(e, product, 'delete')} className="bg-red-500/90 hover:bg-red-500 text-white p-2 rounded-lg text-xs backdrop-blur-sm shadow-lg" title="ডিলিট"><i className="fa-solid fa-trash"></i></button>
+        </div>
+      )}
+
       {/* 🔴 ডিসকাউন্ট ব্যাজ */}
       {hasDiscount && !isOutOfStock && (
         <div className={`absolute z-20 bg-red-500 text-white font-black uppercase shadow-lg animate-pulse flex flex-col items-center justify-center
@@ -110,13 +119,6 @@ export default function ProductCard({ product, viewMode, activeTab, isAdmin, onP
           )}
         </div>
       </div>
-      
-      {/* 🔴 Admin Controls (Placeholder - will be added in Step 3) */}
-      {isAdmin && (
-        <div className="absolute top-2 left-2 z-30 flex gap-1">
-          {/* <AdminControls product={product} /> */}
-        </div>
-      )}
     </div>
   );
 }
