@@ -5,7 +5,7 @@ import AOS from "aos";
 import "aos/dist/aos.css";
 import { supabase } from "@/lib/supabase";
 
-// 🔴 Auto-Slideshow Component
+// Auto-Slideshow Component
 const ProductSlider = ({ images, altText }) => {
   const [currentIdx, setCurrentIdx] = useState(0);
 
@@ -13,7 +13,7 @@ const ProductSlider = ({ images, altText }) => {
     if (!images || images.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentIdx((prev) => (prev + 1) % images.length);
-    }, 3000); // ৩ সেকেন্ড পরপর ছবি চেঞ্জ হবে
+    }, 3000); 
     return () => clearInterval(interval);
   }, [images]);
 
@@ -33,14 +33,14 @@ export default function AdventureStore() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("merch"); 
   const [user, setUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false); // 🔴 Admin Status
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Cart & UI States
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [activeModal, setActiveModal] = useState(null); // 'details', 'options', 'rent', 'checkout', 'discount', 'delete'
+  const [activeModal, setActiveModal] = useState(null); 
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [intendedAction, setIntendedAction] = useState(null); // 'add_cart' or 'buy_now'
+  const [intendedAction, setIntendedAction] = useState(null); 
   
   // Selection States
   const [selectedSize, setSelectedSize] = useState("");
@@ -64,7 +64,6 @@ export default function AdventureStore() {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       setUser(session.user);
-      // 🔴 Admin Check: এখানে আপনার রিয়েল অ্যাডমিন চেক লজিক বসবে (উদা: ইমেইল বা রোল চেক)
       if (session.user.email === 'admin@cuet.ac.bd' || session.user?.user_metadata?.role === 'admin') {
         setIsAdmin(true);
       }
@@ -80,7 +79,6 @@ export default function AdventureStore() {
 
   const filteredProducts = products.filter(item => item.category === activeTab);
 
-  // --- Cart Logistics ---
   const calculateDays = (start, end) => {
     if (!start || !end) return 1;
     const diffDays = Math.ceil(Math.abs(new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24));
@@ -89,9 +87,8 @@ export default function AdventureStore() {
 
   const cartTotal = cart.reduce((total, item) => total + (item.current_price * item.qty * (item.rentDays || 1)), 0);
 
-  // 🔴 Action Handler: When user clicks Buy Now or Add to Cart
   const handleProductAction = (e, product, actionType) => {
-    e.stopPropagation(); // কার্ডের ডিটেইলস পপআপ হওয়া আটকাতে
+    e.stopPropagation(); 
     setSelectedProduct(product);
     setIntendedAction(actionType);
 
@@ -122,7 +119,7 @@ export default function AdventureStore() {
         ...product,
         cartItemId,
         orderType: type,
-        current_price: price, // discounted or regular
+        current_price: price, 
         qty: 1,
         selectedSize: extraData?.size || null,
         selectedColor: extraData?.color || null,
@@ -136,12 +133,10 @@ export default function AdventureStore() {
     if (actionIntent === 'buy_now' || actionIntent === 'rent') {
       setIsCartOpen(true);
     } else {
-      // Add to cart only - you can trigger a toast notification here
       alert("পণ্যটি সফলভাবে কার্টে যুক্ত হয়েছে!");
     }
   };
 
-  // 🔴 Update Cart Quantity
   const updateCartQty = (cartItemId, delta, stockLimit) => {
     setCart(prev => prev.map(item => {
       if (item.cartItemId === cartItemId) {
@@ -152,7 +147,67 @@ export default function AdventureStore() {
     }).filter(item => item.qty > 0));
   };
 
-  // 🔴 Admin Actions
+  // 🔴 1. Functional Checkout & Order Submission Logic
+  const handleCheckoutSubmit = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      alert("অর্ডার কনফার্ম করার জন্য অনুগ্রহ করে লগইন করুন!");
+      return;
+    }
+    if (!trxId) {
+      alert("দয়া করে আপনার ট্রানজেকশন আইডি (TrxID) দিন!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const orderType = cart.every(i => i.orderType === 'buy') ? 'purchase' : (cart.every(i => i.orderType === 'rent') ? 'rental' : 'mixed');
+      const primaryPayment = getUniquePaymentMethods()[0] || { provider: 'bkash' };
+
+      // Main Order Insert
+      const { data: orderData, error: orderError } = await supabase
+        .from('store_orders')
+        .insert([{
+          user_id: user.id,
+          total_amount: cartTotal,
+          trx_id: trxId.trim().toUpperCase(),
+          payment_method: primaryPayment.provider,
+          order_type: orderType,
+          status: 'pending'
+        }])
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Order Items Insert
+      const orderItems = cart.map(item => ({
+        order_id: orderData.id,
+        product_id: item.id,
+        quantity: item.qty,
+        size_selected: item.selectedSize || null,
+        color_selected: item.selectedColor || null,
+        rent_start_date: item.rentStart || null,
+        rent_end_date: item.rentEnd || null,
+        price_at_time: item.current_price
+      }));
+
+      const { error: itemsError } = await supabase.from('store_order_items').insert(orderItems);
+      if (itemsError) throw itemsError;
+
+      alert("✅ আপনার অর্ডার সফলভাবে সাবমিট হয়েছে! অ্যাডমিন পেমেন্ট যাচাই করে দ্রুত এটি অ্যাপ্রুভ করবেন।");
+      setCart([]);
+      setTrxId("");
+      setActiveModal(null);
+      setIsCartOpen(false);
+
+    } catch (err) {
+      alert("❌ অর্ডার প্লেস করতে সমস্যা হয়েছে: " + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleAdminDiscount = async () => {
     if (!discountInput || isNaN(discountInput)) return;
     setIsSubmitting(true);
@@ -187,7 +242,6 @@ export default function AdventureStore() {
     }
   };
 
-  // 🔴 Dynamic Payment Collection for Checkout
   const getUniquePaymentMethods = () => {
     const methods = [];
     cart.forEach(item => {
@@ -200,6 +254,20 @@ export default function AdventureStore() {
       }
     });
     return methods;
+  };
+
+  // 🔴 3. Helper to check if a specific size/color variant is out of stock
+  const isVariantOutOfStock = (product, size, color) => {
+    if (!product.variant_stock) return false;
+    let key = "";
+    if (size && color) key = `${size} - ${color}`;
+    else if (size) key = size;
+    else if (color) key = color;
+
+    if (key && product.variant_stock[key] !== undefined) {
+      return product.variant_stock[key] <= 0;
+    }
+    return false;
   };
 
   return (
@@ -241,7 +309,6 @@ export default function AdventureStore() {
                   className="bg-[#0a1c13]/80 border border-white/10 rounded-3xl overflow-hidden shadow-xl hover:border-[#e76f51]/50 transition-all cursor-pointer group relative flex flex-col"
                   data-aos="fade-up" data-aos-delay={index * 50}
                 >
-                  {/* Admin Controls Overflow */}
                   {isAdmin && (
                     <div className="absolute top-2 left-2 z-30 flex gap-2">
                       <button onClick={(e) => { e.stopPropagation(); setSelectedProduct(product); setActiveModal('discount'); }} className="bg-blue-500/80 hover:bg-blue-500 text-white p-2 rounded-lg text-xs backdrop-blur-sm"><i className="fa-solid fa-tag"></i></button>
@@ -249,7 +316,6 @@ export default function AdventureStore() {
                     </div>
                   )}
 
-                  {/* Badges */}
                   {hasDiscount && (
                     <div className="absolute top-4 right-4 z-20 bg-red-500 text-white text-xs font-black uppercase px-3 py-1 rounded-full shadow-lg rotate-3 animate-pulse">
                       {discountPercent}% OFF
@@ -261,7 +327,6 @@ export default function AdventureStore() {
                     </div>
                   )}
 
-                  {/* Image Slideshow */}
                   <div className="relative h-56 w-full overflow-hidden bg-white/5 flex items-center justify-center p-4">
                     <ProductSlider images={images} altText={product.name} />
                   </div>
@@ -301,7 +366,7 @@ export default function AdventureStore() {
         )}
       </div>
 
-      {/* 🔴 Floating Cart Alert (Nav alternative) */}
+      {/* Floating Cart Button */}
       {cart.length > 0 && (
         <button onClick={() => setIsCartOpen(true)} className="fixed bottom-6 right-6 z-40 bg-[#e76f51] text-white p-4 rounded-full shadow-[0_0_30px_rgba(231,111,81,0.5)] hover:scale-110 transition-transform">
           <i className="fa-solid fa-cart-shopping text-xl"></i>
@@ -309,7 +374,8 @@ export default function AdventureStore() {
         </button>
       )}
 
-      {/* 🔴 Slide-out Cart Panel */}
+      {/* 🔴 2. Slide-out Cart Panel with Backdrop Click-to-Close */}
+      {isCartOpen && <div className="fixed inset-0 z-[65] bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>}
       <div className={`fixed inset-y-0 right-0 z-[70] w-full sm:w-96 bg-[#0a1c13] border-l border-white/10 shadow-2xl transform transition-transform duration-500 ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
         <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
           <h2 className="text-xl font-black text-white"><i className="fa-solid fa-cart-shopping text-[#e76f51] mr-2"></i> কার্ট</h2>
@@ -355,7 +421,7 @@ export default function AdventureStore() {
         </div>
       </div>
 
-      {/* 🔴 Modals Component Mapping */}
+      {/* Modals Component Mapping */}
       {activeModal && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setActiveModal(null)}></div>
@@ -409,7 +475,7 @@ export default function AdventureStore() {
             </div>
           )}
 
-          {/* Options (Size/Color) Selection Modal */}
+          {/* 🔴 3. Options (Size/Color) Selection Modal with Smart Out-of-Stock Fading/Disabling */}
           {activeModal === 'options' && (
             <div className="bg-[#0a1c13] border border-white/10 p-6 rounded-3xl w-full max-w-sm relative z-10 shadow-2xl">
               <h3 className="text-lg font-black text-white mb-4">ভ্যারিয়েশন সিলেক্ট করুন</h3>
@@ -418,9 +484,25 @@ export default function AdventureStore() {
                 <div className="mb-4">
                   <label className="block text-xs text-gray-400 mb-2">সাইজ:</label>
                   <div className="flex flex-wrap gap-2">
-                    {selectedProduct.sizes.map(size => (
-                      <button key={size} onClick={() => setSelectedSize(size)} className={`px-4 py-2 rounded-xl font-bold border ${selectedSize === size ? 'bg-[#e76f51] border-[#e76f51] text-white' : 'bg-white/5 border-white/10 text-gray-400'}`}>{size}</button>
-                    ))}
+                    {selectedProduct.sizes.map(size => {
+                      const outOfStock = isVariantOutOfStock(selectedProduct, size, selectedColor);
+                      return (
+                        <button 
+                          key={size} 
+                          disabled={outOfStock}
+                          onClick={() => setSelectedSize(size)} 
+                          className={`px-4 py-2 rounded-xl font-bold border transition-all ${
+                            selectedSize === size 
+                              ? 'bg-[#e76f51] border-[#e76f51] text-white' 
+                              : outOfStock 
+                              ? 'bg-black/20 border-white/5 text-gray-600 line-through cursor-not-allowed opacity-40' 
+                              : 'bg-white/5 border-white/10 text-gray-300 hover:border-white/30'
+                          }`}
+                        >
+                          {size} {outOfStock && '(Out)'}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -429,9 +511,25 @@ export default function AdventureStore() {
                 <div className="mb-6">
                   <label className="block text-xs text-gray-400 mb-2">কালার:</label>
                   <div className="flex flex-wrap gap-2">
-                    {selectedProduct.colors.map(color => (
-                      <button key={color} onClick={() => setSelectedColor(color)} className={`px-4 py-2 rounded-xl font-bold border ${selectedColor === color ? 'bg-purple-500 border-purple-500 text-white' : 'bg-white/5 border-white/10 text-gray-400'}`}>{color}</button>
-                    ))}
+                    {selectedProduct.colors.map(color => {
+                      const outOfStock = isVariantOutOfStock(selectedProduct, selectedSize, color);
+                      return (
+                        <button 
+                          key={color} 
+                          disabled={outOfStock}
+                          onClick={() => setSelectedColor(color)} 
+                          className={`px-4 py-2 rounded-xl font-bold border transition-all ${
+                            selectedColor === color 
+                              ? 'bg-purple-500 border-purple-500 text-white' 
+                              : outOfStock 
+                              ? 'bg-black/20 border-white/5 text-gray-600 line-through cursor-not-allowed opacity-40' 
+                              : 'bg-white/5 border-white/10 text-gray-300 hover:border-white/30'
+                          }`}
+                        >
+                          {color} {outOfStock && '(Out)'}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -447,10 +545,43 @@ export default function AdventureStore() {
             </div>
           )}
 
-          {/* Checkout / Payments Modal */}
+          {/* Rental Dates Calendar Modal */}
+          {activeModal === 'rent' && (
+            <div className="bg-[#0a1c13] border border-white/10 p-6 rounded-3xl w-full max-w-md relative z-10 shadow-2xl">
+              <h3 className="text-xl font-black text-white mb-2 flex items-center gap-2"><i className="fa-solid fa-calendar-days text-emerald-400"></i> ভাড়ার তারিখ নির্ধারণ</h3>
+              <p className="text-xs text-gray-400 mb-6">কয়দিনের জন্য ভাড়া নিতে চান তা সিলেক্ট করুন।</p>
+              
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 mb-1">পিক-আপ ডেট (শুরুর দিন)</label>
+                  <input type="date" value={rentDates.start} min={new Date().toISOString().split('T')[0]} onChange={(e) => setRentDates({...rentDates, start: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white [color-scheme:dark]" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 mb-1">রিটার্ন ডেট (ফেরত দেওয়ার দিন)</label>
+                  <input type="date" value={rentDates.end} min={rentDates.start || new Date().toISOString().split('T')[0]} onChange={(e) => setRentDates({...rentDates, end: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white [color-scheme:dark]" />
+                </div>
+              </div>
+
+              {rentDates.start && rentDates.end && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-xl mb-6 text-center">
+                  <span className="block text-sm text-gray-300">ভাড়ার মেয়াদ: <strong className="text-emerald-400">{calculateDays(rentDates.start, rentDates.end)} দিন</strong></span>
+                  <span className="block text-lg font-black text-white mt-1">মোট ভাড়া: ৳{calculateDays(rentDates.start, rentDates.end) * selectedProduct.rent_price}</span>
+                </div>
+              )}
+
+              <button onClick={() => {
+                if(!rentDates.start || !rentDates.end) return alert("দয়া করে তারিখ সিলেক্ট করুন!");
+                processAddToCart(selectedProduct, 'rent', selectedProduct.rent_price, { start: rentDates.start, end: rentDates.end, days: calculateDays(rentDates.start, rentDates.end) }, 'rent');
+              }} className="w-full bg-emerald-500 text-white py-3 rounded-xl font-bold hover:bg-emerald-600">
+                কার্টে যোগ করুন
+              </button>
+            </div>
+          )}
+
+          {/* 🔴 1. Active Checkout / Payments Modal */}
           {activeModal === 'checkout' && (
             <div className="bg-[#0a1c13] border border-[#e76f51]/30 p-6 sm:p-8 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto relative z-10 shadow-[0_0_50px_rgba(231,111,81,0.15)]">
-              <button onClick={() => {setActiveModal(null); setIsCartOpen(true);}} className="absolute top-4 right-4 text-gray-400"><i className="fa-solid fa-arrow-left"></i></button>
+              <button onClick={() => {setActiveModal(null); setIsCartOpen(true);}} className="absolute top-4 right-4 text-gray-400 hover:text-white"><i className="fa-solid fa-arrow-left"></i></button>
               <h3 className="text-2xl font-black text-white mb-6 border-b border-white/10 pb-4">পেমেন্ট ও চেকআউট</h3>
               
               <div className="bg-black/30 p-4 rounded-xl border border-white/5 mb-6 text-center">
@@ -472,16 +603,19 @@ export default function AdventureStore() {
                       </span>
                     </div>
                   ))}
-                  {getUniquePaymentMethods().length === 0 && <p className="text-xs text-red-400">অ্যাডমিন কোনো পেমেন্ট মেথড যুক্ত করেনি।</p>}
+                  {getUniquePaymentMethods().length === 0 && <p className="text-xs text-yellow-400">অ্যাডমিন নির্দিষ্ট পেমেন্ট মেথড সেট করেনি। বিকাশ নম্বর: 01700000000 (Send Money) ধরে ট্রাই করতে পারেন।</p>}
                 </div>
               </div>
 
-              <form>
+              <form onSubmit={handleCheckoutSubmit}>
                 <div className="mb-6">
                   <label className="block text-xs font-bold text-gray-400 mb-2">TrxID (ট্রানজেকশন আইডি) সাবমিট করুন *</label>
                   <input required type="text" value={trxId} onChange={(e) => setTrxId(e.target.value)} placeholder="e.g. 9F8A7B6C5D" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#e76f51] font-mono uppercase" />
                 </div>
-                <button type="button" className={`w-full py-4 rounded-xl font-black tracking-widest uppercase bg-[#e76f51] text-white`}>অর্ডার কনফার্ম করুন</button>
+                <button disabled={isSubmitting} type="submit" className={`w-full py-4 rounded-xl font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'bg-gray-600 text-gray-400' : 'bg-[#e76f51] hover:bg-orange-600 text-white shadow-glow'}`}>
+                  {isSubmitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check-double"></i>}
+                  {isSubmitting ? 'প্রসেস হচ্ছে...' : 'অর্ডার কনফার্ম করুন'}
+                </button>
               </form>
             </div>
           )}
