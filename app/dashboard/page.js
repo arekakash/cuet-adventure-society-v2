@@ -124,11 +124,11 @@ export default function DashboardPage() {
 
       if (!bookingError && bookingData) setBookings(bookingData)
 
-      // 3. Store Orders (Updated to fetch gallery and color_selected)
+      // 3. Store Orders 
       const { data: storeData, error: storeError } = await supabase
         .from('store_orders')
         .select(`
-          id, total_amount, trx_id, status, order_type, created_at,
+          id, total_amount, trx_id, payment_method, status, order_type, created_at,
           store_order_items (
             quantity, size_selected, color_selected, rent_start_date, rent_end_date, price_at_time,
             store_products (name, image_url, gallery, category)
@@ -369,57 +369,87 @@ export default function DashboardPage() {
           </div>
           
           {storeOrders.length > 0 ? (
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-6">
               {storeOrders.map((order) => (
                 <div key={order.id} className="bg-[#050b08] border border-white/10 p-5 rounded-2xl hover:border-emerald-500/30 transition-all shadow-md">
                   
-                  {/* Order Header */}
-                  <div className="flex justify-between items-center border-b border-white/5 pb-3 mb-3">
+                  {/* 🔴 Order Header (Updated with TrxID and Payment Method) */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/5 pb-4 mb-4 gap-4">
                     <div>
                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
                         Order ID: <span className="text-gray-300">{order.id.slice(0, 8)}</span>
                       </p>
-                      <p className="text-[10px] text-gray-400"><i className="fa-solid fa-calendar-days mr-1 text-blue-400"></i> {new Date(order.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                      <p className="text-[10px] text-gray-400">
+                        <i className="fa-solid fa-calendar-days mr-1 text-blue-400"></i> 
+                        {new Date(order.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </p>
                     </div>
-                    <div className="text-right">
-                      <div className="mb-1">{getStatusBadge(order.status)}</div>
-                      <p className="text-xs font-black text-emerald-400">Total: ৳{order.total_amount}</p>
+
+                    <div className="text-left sm:text-right w-full sm:w-auto bg-black/40 sm:bg-transparent p-4 sm:p-0 rounded-xl sm:rounded-none border border-white/5 sm:border-none flex flex-col gap-3">
+                      <div className="flex justify-between sm:justify-end items-center gap-6">
+                        <div className="text-left sm:text-right">
+                          <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">TrxID</p>
+                          <p className="text-xs font-mono font-bold text-gray-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">{order.trx_id || 'N/A'}</p>
+                        </div>
+                        <div className="text-right border-l border-white/10 pl-6">
+                          <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Payment via</p>
+                          <p className="text-[11px] font-black text-orange-400 tracking-wider truncate max-w-[120px] sm:max-w-none">{order.payment_method || 'N/A'}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-between sm:justify-end items-center gap-4 pt-3 border-t border-white/5 sm:border-none sm:pt-0">
+                        <div className="mb-0">{getStatusBadge(order.status)}</div>
+                        <p className="text-sm font-black text-emerald-400">Total: ৳{order.total_amount}</p>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Order Items */}
+                  {/* 🔴 Order Items (Updated Design and Fallback logic) */}
                   <div className="space-y-3">
-                    {order.store_order_items?.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-4 bg-white/5 p-3 rounded-xl">
-                        {/* 🔴 Updated Image Display: checking gallery array first */}
-                        <img src={item.store_products?.gallery?.[0]?.url || item.store_products?.image_url} alt="Product" className="w-12 h-12 rounded-lg object-contain bg-black/40 p-1" />
-                        
-                        <div className="flex-grow">
-                          <h4 className="text-sm font-bold text-white">{item.store_products?.name}</h4>
-                          <div className="text-[10px] text-gray-400 mt-1 flex flex-wrap gap-2">
-                            <span className="font-bold text-gray-300">Qty: {item.quantity}</span>
+                    {order.store_order_items?.map((item, idx) => {
+                      const productName = item.store_products?.name || 'Product Unavailable / Deleted';
+                      const productImage = item.store_products?.gallery?.[0]?.url || item.store_products?.image_url || null;
+
+                      return (
+                        <div key={idx} className="flex items-start sm:items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/5 hover:bg-white/10 transition-colors">
+                          
+                          {productImage ? (
+                            <img src={productImage} alt="Product" className="w-12 h-12 rounded-lg object-contain bg-black/40 p-1 shrink-0 border border-white/5" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-lg bg-black/40 flex items-center justify-center border border-white/5 shrink-0">
+                              <i className="fa-solid fa-box-open text-gray-600 text-xl"></i>
+                            </div>
+                          )}
+                          
+                          <div className="flex-grow min-w-0">
+                            <h4 className={`text-sm font-bold truncate pr-2 ${item.store_products ? 'text-white' : 'text-gray-500 line-through'}`}>{productName}</h4>
                             
-                            {/* 🔴 Added Size and Color details */}
-                            {item.size_selected && <span className="text-purple-400 border border-purple-500/30 px-1 rounded">Size: {item.size_selected}</span>}
-                            {item.color_selected && <span className="text-blue-400 border border-blue-500/30 px-1 rounded">Color: {item.color_selected}</span>}
-                            
-                            {item.rent_start_date && (
-                              <span className="text-emerald-400 border border-emerald-500/30 px-1 rounded flex items-center gap-1">
-                                <i className="fa-solid fa-calendar-check"></i> {new Date(item.rent_start_date).toLocaleDateString('en-GB')} to {new Date(item.rent_end_date).toLocaleDateString('en-GB')}
-                              </span>
-                            )}
+                            <div className="text-[10px] mt-1.5 flex flex-wrap gap-2">
+                              <span className="font-bold text-gray-300 bg-black/40 px-2 py-0.5 rounded border border-white/10">Qty: {item.quantity}</span>
+                              
+                              {item.size_selected && <span className="text-purple-400 border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 rounded font-bold">Size: {item.size_selected}</span>}
+                              {item.color_selected && <span className="text-blue-400 border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 rounded font-bold">Color: {item.color_selected}</span>}
+                              
+                              {item.rent_start_date && (
+                                <span className="text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                                  <i className="fa-solid fa-calendar-check"></i> {new Date(item.rent_start_date).toLocaleDateString('en-GB')} to {new Date(item.rent_end_date).toLocaleDateString('en-GB')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="shrink-0 text-right self-center">
+                            <p className="text-xs font-black text-gray-400 bg-black/30 px-2 py-1 rounded-lg">৳{item.price_at_time}</p>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="p-10 text-center flex flex-col items-center justify-center">
-              <i className="fa-solid fa-box-open text-4xl text-gray-600 mb-4 transform -translate-y-2 animate-bounce"></i>
-              <p className="text-sm font-medium text-gray-400">আপনি স্টোর থেকে এখনো কোনো কেনাকাটা বা রেন্ট করেননি।</p>
+              <i className="fa-solid fa-box-open text-5xl text-gray-600 mb-4 transform -translate-y-2 animate-bounce"></i>
+              <p className="text-sm font-bold text-gray-400">আপনি স্টোর থেকে এখনো কোনো কেনাকাটা বা রেন্ট করেননি।</p>
             </div>
           )}
         </div>
