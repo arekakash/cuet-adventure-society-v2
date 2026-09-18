@@ -128,10 +128,10 @@ export default function LoginPage() {
           
           <div className="relative z-10">
             <h2 className="text-4xl lg:text-5xl font-black leading-tight mb-5 text-white">
-              ফিরে আসার <br/><span className="text-[#e76f51]">রোমাঞ্চ</span>
+              চুয়েট অ্যাডভেঞ্চার <br/><span className="text-[#e76f51]">সোসাইটি</span>
             </h2>
             <p className="text-gray-400 text-sm border-l-2 border-[#e76f51] pl-4">
-              আপনার পরবর্তী অ্যাডভেঞ্চার অপেক্ষা করছে। ক্লাবের ইভেন্ট বুকিং ও ড্যাশবোর্ড অ্যাক্সেস করতে লগইন করুন।
+              অজানাকে জানার যাত্রায় আপনাকে স্বাগতম। আপনার অ্যাকাউন্টে প্রবেশ করুন
             </p>
           </div>
         </div>
