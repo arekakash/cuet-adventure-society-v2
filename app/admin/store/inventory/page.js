@@ -1,16 +1,55 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import AOS from 'aos'
 import 'aos/dist/aos.css'
+import Cropper from 'react-easy-crop'
+
+// --- Helper function for Cropping ---
+const createImage = (url) =>
+  new Promise((resolve, reject) => {
+    const image = new Image()
+    image.addEventListener('load', () => resolve(image))
+    image.addEventListener('error', (error) => reject(error))
+    image.setAttribute('crossOrigin', 'anonymous')
+    image.src = url
+  })
+
+async function getCroppedImg(imageSrc, pixelCrop) {
+  const image = await createImage(imageSrc)
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+
+  canvas.width = pixelCrop.width
+  canvas.height = pixelCrop.height
+
+  ctx.drawImage(
+    image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
+    0, 0, pixelCrop.width, pixelCrop.height
+  )
+
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => { resolve(blob) }, 'image/jpeg', 0.8)
+  })
+}
+
+// --- Bank List ---
+const BD_BANKS = [
+  "DBBL (Dutch-Bangla Bank)", "BRAC Bank", "City Bank", "Islami Bank", 
+  "EBL (Eastern Bank)", "Prime Bank", "Pubali Bank", "Mutual Trust Bank (MTB)", 
+  "Southeast Bank", "Trust Bank", "NCC Bank", "UCBL", "Bank Asia", 
+  "AB Bank", "National Bank", "Mercantile Bank", "IFIC Bank", "Jamuna Bank", 
+  "Shahjalal Islami Bank", "Exim Bank", "Al-Arafah Islami Bank", "Premier Bank", 
+  "Dhaka Bank", "Standard Chartered", "HSBC", "Sonali Bank", "Janata Bank", 
+  "Agrani Bank", "Rupali Bank"
+]
 
 export default function StoreInventory() {
-  // গ্লোবাল ImgBB API Key
   const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23';
 
-  // ফর্ম স্টেট (sizesInput নামে নতুন স্ট্রিং যুক্ত করা হয়েছে)
+  // 🔴 ১. ফর্ম স্টেট (sizesInput এবং colorsInput)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -18,24 +57,37 @@ export default function StoreInventory() {
     sale_price: '',
     rent_price: '',
     stock_quantity: '',
-    sizesInput: '' // 🔴 ডায়নামিক সাইজ ইনপুট
+    sizesInput: '',
+    colorsInput: '' 
   })
   
-  const [imageFile, setImageFile] = useState(null)
-  const [imagePreview, setImagePreview] = useState(null)
+  // 🔴 ২. পেমেন্ট মেথড স্টেট
+  const [paymentMethods, setPaymentMethods] = useState([])
+
+  // 🔴 ৩. গ্যালারি ও ক্রপিং স্টেট
+  const [gallery, setGallery] = useState([]) // [{ id, blob, preview, color }]
+  const [cropModalOpen, setCropModalOpen] = useState(false)
+  const [currentImageSrc, setCurrentImageSrc] = useState(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitMessage, setSubmitMessage] = useState('')
-
-  // ইনভেন্টরি লিস্ট স্টেট
   const [inventoryList, setInventoryList] = useState([])
   const [loadingList, setLoadingList] = useState(true)
+
+  // ডায়নামিক কালার লিস্ট (ইমেজের কালার ম্যাপিংয়ের জন্য)
+  const availableColors = formData.colorsInput
+    .split(',')
+    .map(c => c.trim())
+    .filter(c => c !== '')
 
   useEffect(() => {
     AOS.init({ once: true })
     fetchInventory()
   }, [])
 
-  // ডেটাবেস থেকে বর্তমান স্টক ফেচ করা
   const fetchInventory = async () => {
     setLoadingList(true)
     const { data, error } = await supabase
@@ -47,79 +99,114 @@ export default function StoreInventory() {
     setLoadingList(false)
   }
 
-  // ইনপুট হ্যান্ডলার
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  // ছবি সিলেক্ট ও প্রিভিউ লজিক
-  const handleImageSelect = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      setImageFile(file)
-      setImagePreview(URL.createObjectURL(file))
+  // --- Payment Method Handlers ---
+  const addPaymentMethod = () => {
+    setPaymentMethods([...paymentMethods, { 
+      id: Date.now(), 
+      provider: 'bkash', 
+      bankName: '', 
+      accNo: '', 
+      type: 'payment' 
+    }])
+  }
+
+  const updatePaymentMethod = (id, field, value) => {
+    setPaymentMethods(paymentMethods.map(p => 
+      p.id === id ? { ...p, [field]: value } : p
+    ))
+  }
+
+  const removePaymentMethod = (id) => {
+    setPaymentMethods(paymentMethods.filter(p => p.id !== id))
+  }
+
+  // --- Image Selection & Cropping ---
+  const onFileSelect = async (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0]
+      const imageDataUrl = await readFile(file)
+      setCurrentImageSrc(imageDataUrl)
+      setCropModalOpen(true)
+      e.target.value = '' // reset input
     }
   }
 
-  // Canvas API দিয়ে ক্লায়েন্ট সাইড ইমেজ কম্প্রেশন
-  const compressImage = (file) => {
+  const readFile = (file) => {
     return new Promise((resolve) => {
       const reader = new FileReader()
+      reader.addEventListener('load', () => resolve(reader.result), false)
       reader.readAsDataURL(file)
-      reader.onload = (event) => {
-        const img = new Image()
-        img.src = event.target.result
-        img.onload = () => {
-          const canvas = document.createElement('canvas')
-          const MAX_WIDTH = 800
-          const scaleSize = MAX_WIDTH / img.width
-          canvas.width = MAX_WIDTH
-          canvas.height = img.height * scaleSize
-          const ctx = canvas.getContext('2d')
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-          canvas.toBlob((blob) => {
-            resolve(blob)
-          }, 'image/jpeg', 0.8)
-        }
-      }
     })
   }
 
-  // প্রোডাক্ট সেভ করার মাস্টার ফাংশন
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels)
+  }, [])
+
+  const handleCropSave = async () => {
+    try {
+      const croppedBlob = await getCroppedImg(currentImageSrc, croppedAreaPixels)
+      const previewUrl = URL.createObjectURL(croppedBlob)
+      
+      setGallery([...gallery, { 
+        id: Date.now(), 
+        blob: croppedBlob, 
+        preview: previewUrl, 
+        color: '' // Default color mapping is empty
+      }])
+      
+      setCropModalOpen(false)
+      setCurrentImageSrc(null)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const updateGalleryColor = (id, color) => {
+    setGallery(gallery.map(img => img.id === id ? { ...img, color } : img))
+  }
+
+  const removeGalleryImage = (id) => {
+    setGallery(gallery.filter(img => img.id !== id))
+  }
+
+  // --- Submit Handler ---
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    if (gallery.length === 0) {
+      alert("কমপক্ষে একটি ছবি আপলোড করুন!")
+      return
+    }
+
     setIsSubmitting(true)
-    setSubmitMessage('ছবি প্রসেসিং এবং আপলোড হচ্ছে...')
+    setSubmitMessage('ছবিগুলো আপলোড হচ্ছে...')
 
     try {
-      let finalImageUrl = null
-
-      // ১. ছবি আপলোড (ImgBB)
-      if (imageFile) {
-        const compressedBlob = await compressImage(imageFile)
+      // ১. সব ছবি ImgBB তে আপলোড করা
+      const uploadedImages = await Promise.all(gallery.map(async (img) => {
         const uploadData = new FormData()
-        uploadData.append('image', compressedBlob)
-
-        const imgbbRes = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        uploadData.append('image', img.blob)
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
           method: 'POST',
           body: uploadData
         })
-        const imgbbResult = await imgbbRes.json()
-        if (imgbbResult.success) {
-          finalImageUrl = imgbbResult.data.url
-        } else {
-          throw new Error('Image upload failed')
+        const result = await res.json()
+        if (result.success) {
+          return { url: result.data.url, color: img.color }
         }
-      }
+        throw new Error('Image upload failed')
+      }))
 
       setSubmitMessage('ডেটাবেসে সেভ হচ্ছে...')
 
-      // 🔴 কমা দিয়ে লেখা সাইজগুলোকে Array তে কনভার্ট করা
-      const parsedSizes = formData.sizesInput
-        .split(',')
-        .map(s => s.trim())
-        .filter(s => s !== '')
+      const parsedSizes = formData.sizesInput.split(',').map(s => s.trim()).filter(s => s !== '')
+      const parsedColors = formData.colorsInput.split(',').map(s => s.trim()).filter(s => s !== '')
 
       // ২. সুপাবেস ডেটাবেসে ইনসার্ট
       const productData = {
@@ -129,23 +216,24 @@ export default function StoreInventory() {
         sale_price: formData.sale_price ? parseFloat(formData.sale_price) : 0,
         rent_price: formData.category === 'gear' && formData.rent_price ? parseFloat(formData.rent_price) : 0,
         stock_quantity: parseInt(formData.stock_quantity),
-        image_url: finalImageUrl,
-        sizes: parsedSizes // 🔴 কনভার্ট করা Array এখানে সেভ হবে
+        image_url: uploadedImages[0].url, // প্রথম ছবিকে মেইন থাম্বনেইল হিসেবে রাখা হলো
+        gallery: uploadedImages,          // JSON Array
+        sizes: parsedSizes,               // JSON Array
+        colors: parsedColors,             // JSON Array
+        payment_methods: paymentMethods   // JSON Array
       }
 
       const { error } = await supabase.from('store_products').insert([productData])
-
       if (error) throw error
 
       setSubmitMessage('✅ সফলভাবে স্টকে যুক্ত হয়েছে!')
       
-      // ফর্ম রিসেট ও স্টক রিফ্রেশ
       setTimeout(() => {
-        setFormData({ name: '', description: '', category: 'merch', sale_price: '', rent_price: '', stock_quantity: '', sizesInput: '' })
-        setImageFile(null)
-        setImagePreview(null)
+        setFormData({ name: '', description: '', category: 'merch', sale_price: '', rent_price: '', stock_quantity: '', sizesInput: '', colorsInput: '' })
+        setPaymentMethods([])
+        setGallery([])
         setSubmitMessage('')
-        fetchInventory() // রিফ্রেশ লিস্ট
+        fetchInventory() 
       }, 2000)
 
     } catch (error) {
@@ -173,21 +261,21 @@ export default function StoreInventory() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* LEFT SIDE: UPLOAD FORM */}
-          <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative" data-aos="fade-right">
+          <div className="lg:col-span-7 bg-[#0a1c13] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative" data-aos="fade-right">
             <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full pointer-events-none"></div>
             
             <h2 className="text-xl font-black text-white mb-6 uppercase tracking-wider border-b border-white/10 pb-4">
               <i className="fa-solid fa-cloud-arrow-up text-[#e76f51] mr-2"></i> নতুন আইটেম আপলোড
             </h2>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-6">
               
               {/* Category Toggle */}
               <div>
-                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">ক্যাটাগরি সিলেক্ট করুন</label>
+                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">ক্যাটাগরি</label>
                 <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
                   <button type="button" onClick={() => setFormData({...formData, category: 'merch'})} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${formData.category === 'merch' ? 'bg-[#e76f51] text-white shadow-glow' : 'text-gray-400 hover:text-white'}`}>
                     <i className="fa-solid fa-shirt mr-1"></i> মার্চেন্ডাইজ
@@ -205,12 +293,12 @@ export default function StoreInventory() {
                   <input required type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#e76f51] transition-colors" placeholder="যেমন: CAS Official T-Shirt" />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-xs font-bold text-gray-400 mb-2">স্টক সংখ্যা (Quantity) *</label>
+                  <label className="block text-xs font-bold text-gray-400 mb-2">স্টক সংখ্যা *</label>
                   <input required type="number" min="1" name="stock_quantity" value={formData.stock_quantity} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors" placeholder="0" />
                 </div>
               </div>
 
-              {/* Dynamic Pricing */}
+              {/* Pricing */}
               <div className="grid grid-cols-2 gap-4">
                 <div className={formData.category === 'gear' ? 'col-span-1' : 'col-span-2'}>
                   <label className="block text-xs font-bold text-gray-400 mb-2">বিক্রয় মূল্য (৳) {formData.category === 'merch' && '*'}</label>
@@ -224,50 +312,139 @@ export default function StoreInventory() {
                 )}
               </div>
 
-              {/* 🔴 Dynamic Sizes/Variants (Universal for both Merch & Gear) */}
-              <div>
-                <label className="block text-xs font-bold text-gray-400 mb-2">সাইজ বা ভ্যারিয়েশন (ঐচ্ছিক)</label>
-                <input 
-                  type="text" 
-                  name="sizesInput" 
-                  value={formData.sizesInput} 
-                  onChange={handleInputChange} 
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#e76f51] transition-colors" 
-                  placeholder="যেমন: M, L, XL অথবা 39, 40, 42 অথবা 40L, 60L" 
-                />
-                <p className="text-[10px] text-gray-500 mt-1"><i className="fa-solid fa-circle-info mr-1"></i>একাধিক সাইজ থাকলে কমা (,) দিয়ে লিখুন। সাইজ না থাকলে ফাঁকা রাখুন।</p>
+              {/* Sizes & Colors */}
+              <div className="grid grid-cols-2 gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-xs font-bold text-gray-400 mb-2">সাইজ ভ্যারিয়েশন</label>
+                  <input type="text" name="sizesInput" value={formData.sizesInput} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#e76f51] transition-colors text-sm" placeholder="M, L, XL, 40L" />
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-xs font-bold text-gray-400 mb-2">কালার ভ্যারিয়েশন</label>
+                  <input type="text" name="colorsInput" value={formData.colorsInput} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors text-sm" placeholder="Black, Olive, Navy Blue" />
+                </div>
+                <p className="col-span-2 text-[10px] text-gray-500"><i className="fa-solid fa-circle-info mr-1"></i>একাধিক ভ্যারিয়েশন থাকলে কমা (,) দিয়ে লিখুন। না থাকলে ফাঁকা রাখুন।</p>
+              </div>
+
+              {/* Multiple Images & Color Mapping */}
+              <div className="border border-white/10 rounded-2xl p-4 bg-black/20">
+                <div className="flex justify-between items-center mb-4">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">পণ্যের ছবিসমূহ *</label>
+                  <label className="cursor-pointer bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
+                    <i className="fa-solid fa-plus mr-1"></i> ছবি যুক্ত করুন
+                    <input type="file" accept="image/*" onChange={onFileSelect} className="hidden" />
+                  </label>
+                </div>
+                
+                {gallery.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {gallery.map(img => (
+                      <div key={img.id} className="bg-white/5 rounded-xl p-2 border border-white/10 relative group">
+                        <button type="button" onClick={() => removeGalleryImage(img.id)} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
+                          <i className="fa-solid fa-times"></i>
+                        </button>
+                        <div className="aspect-square rounded-lg overflow-hidden mb-2 bg-black/50">
+                          <img src={img.preview} alt="preview" className="w-full h-full object-cover" />
+                        </div>
+                        {availableColors.length > 0 && (
+                          <select 
+                            value={img.color} 
+                            onChange={(e) => updateGalleryColor(img.id, e.target.value)}
+                            className="w-full bg-black/60 border border-white/20 text-white text-[10px] rounded p-1 outline-none focus:border-[#e76f51]"
+                          >
+                            <option value="">(কালার সিলেক্ট)</option>
+                            {availableColors.map((c, i) => <option key={i} value={c}>{c}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 opacity-50 border-2 border-dashed border-white/10 rounded-xl">
+                    <i className="fa-regular fa-images text-3xl mb-2"></i>
+                    <p className="text-xs">কোনো ছবি আপলোড করা হয়নি</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Advanced Payment Methods Integration */}
+              <div className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-white/5 to-transparent">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2"><i className="fa-solid fa-wallet text-emerald-400"></i> পেমেন্ট মেথড</h3>
+                    <p className="text-[10px] text-gray-400 mt-1">ইউজাররা কীভাবে পেমেন্ট করবে তা নির্ধারণ করুন</p>
+                  </div>
+                  <button type="button" onClick={addPaymentMethod} className="bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-emerald-500/30">
+                    <i className="fa-solid fa-plus mr-1"></i> মেথড যুক্ত করুন
+                  </button>
+                </div>
+
+                {paymentMethods.length > 0 ? (
+                  <div className="space-y-3">
+                    {paymentMethods.map((pm, index) => (
+                      <div key={pm.id} className="bg-black/40 border border-white/10 rounded-xl p-3 sm:p-4 relative flex flex-col gap-3">
+                        <button type="button" onClick={() => removePaymentMethod(pm.id)} className="absolute top-3 right-3 text-red-400 hover:text-red-300 transition-colors">
+                          <i className="fa-solid fa-trash-can"></i>
+                        </button>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-6">
+                          <div>
+                            <label className="block text-[10px] text-gray-400 mb-1">প্লাটফর্ম</label>
+                            <select value={pm.provider} onChange={(e) => updatePaymentMethod(pm.id, 'provider', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none">
+                              <option value="bkash">বিকাশ (bKash)</option>
+                              <option value="nagad">নগদ (Nagad)</option>
+                              <option value="rocket">রকেট (Rocket)</option>
+                              <option value="bank">ব্যাংক ট্রান্সফার</option>
+                            </select>
+                          </div>
+                          
+                          {pm.provider === 'bank' && (
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-1">ব্যাংক সিলেক্ট করুন</label>
+                              <select value={pm.bankName} onChange={(e) => updatePaymentMethod(pm.id, 'bankName', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none">
+                                <option value="">ব্যাংক নির্বাচন করুন...</option>
+                                {BD_BANKS.map((b, i) => <option key={i} value={b}>{b}</option>)}
+                              </select>
+                            </div>
+                          )}
+
+                          <div className={pm.provider !== 'bank' ? 'sm:col-span-1' : 'sm:col-span-2'}>
+                            <label className="block text-[10px] text-gray-400 mb-1">অ্যাকাউন্ট নম্বর / বিবরণ</label>
+                            <input type="text" value={pm.accNo} onChange={(e) => updatePaymentMethod(pm.id, 'accNo', e.target.value)} placeholder="017XXXXXXX / Acc No." className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] text-gray-400 mb-1">ট্রানজেকশন টাইপ</label>
+                            <div className="flex gap-4">
+                              <label className="text-xs text-gray-300 flex items-center gap-1.5 cursor-pointer">
+                                <input type="radio" checked={pm.type === 'send_money'} onChange={() => updatePaymentMethod(pm.id, 'type', 'send_money')} className="accent-[#e76f51]" /> Send Money
+                              </label>
+                              <label className="text-xs text-gray-300 flex items-center gap-1.5 cursor-pointer">
+                                <input type="radio" checked={pm.type === 'payment'} onChange={() => updatePaymentMethod(pm.id, 'type', 'payment')} className="accent-[#e76f51]" /> Payment / Transfer
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 italic text-center py-2">কোনো পেমেন্ট মেথড যুক্ত করা হয়নি।</p>
+                )}
               </div>
 
               {/* Description */}
               <div>
                 <label className="block text-xs font-bold text-gray-400 mb-2">বিস্তারিত বিবরণ</label>
-                <textarea name="description" value={formData.description} onChange={handleInputChange} rows="3" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#e76f51] transition-colors resize-none" placeholder="পণ্যটি সম্পর্কে লিখুন..."></textarea>
+                <textarea name="description" value={formData.description} onChange={handleInputChange} rows="3" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#e76f51] transition-colors resize-none" placeholder="পণ্যটি সম্পর্কে বিস্তারিত লিখুন..."></textarea>
               </div>
 
-              {/* Image Upload Area */}
-              <div>
-                <label className="block text-xs font-bold text-gray-400 mb-2">হাই-রেজোলিউশন ছবি *</label>
-                <div className="relative w-full h-40 bg-white/5 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center hover:border-[#e76f51] transition-colors overflow-hidden group">
-                  <input required type="file" accept="image/*" onChange={handleImageSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Preview" className="w-full h-full object-contain p-2 z-10" />
-                  ) : (
-                    <div className="text-center z-10 pointer-events-none">
-                      <i className="fa-solid fa-cloud-arrow-up text-3xl text-gray-400 group-hover:text-[#e76f51] transition-colors mb-2"></i>
-                      <p className="text-sm font-bold text-gray-400">ছবি সিলেক্ট করতে ক্লিক করুন</p>
-                      <p className="text-[10px] text-gray-500 mt-1">অটোমেটিক কম্প্রেস করা হবে</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Submit Button & Messages */}
-              <button disabled={isSubmitting} type="submit" className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all shadow-xl flex justify-center items-center gap-3 ${isSubmitting ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-500 text-white hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]'}`}>
+              {/* Submit Button */}
+              <button disabled={isSubmitting} type="submit" className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all shadow-xl flex justify-center items-center gap-3 ${isSubmitting ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-[#e76f51] hover:bg-orange-600 text-white hover:shadow-[0_0_20px_rgba(231,111,81,0.4)]'}`}>
                 {isSubmitting ? <><i className="fa-solid fa-spinner fa-spin"></i> প্রসেসিং হচ্ছে...</> : <><i className="fa-solid fa-upload"></i> ইনভেন্টরিতে যুক্ত করুন</>}
               </button>
               
               {submitMessage && (
-                <div className={`p-3 rounded-lg text-center text-sm font-bold border ${submitMessage.includes('✅') ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : (submitMessage.includes('❌') ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-blue-500/10 border-blue-500/30 text-blue-400')}`}>
+                <div className={`p-3 rounded-lg text-center text-sm font-bold border ${submitMessage.includes('✅') ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
                   {submitMessage}
                 </div>
               )}
@@ -275,7 +452,7 @@ export default function StoreInventory() {
           </div>
 
           {/* RIGHT SIDE: CURRENT INVENTORY LIST */}
-          <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col h-full" data-aos="fade-left">
+          <div className="lg:col-span-5 bg-[#0a1c13] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col h-[800px] lg:sticky lg:top-24" data-aos="fade-left">
             <h2 className="text-xl font-black text-white mb-6 uppercase tracking-wider border-b border-white/10 pb-4">
               <i className="fa-solid fa-warehouse text-emerald-400 mr-2"></i> বর্তমান স্টক
             </h2>
@@ -287,9 +464,9 @@ export default function StoreInventory() {
                 </div>
               ) : inventoryList.length > 0 ? (
                 inventoryList.map(item => (
-                  <div key={item.id} className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 flex items-center gap-4 hover:bg-white/10 transition-colors group">
-                    <div className="w-16 h-16 bg-black/40 rounded-lg flex-shrink-0 p-1 flex items-center justify-center">
-                      <img src={item.image_url} alt={item.name} className="max-w-full max-h-full object-contain" />
+                  <div key={item.id} className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 flex items-start gap-4 hover:bg-white/10 transition-colors group">
+                    <div className="w-16 h-16 bg-black/40 rounded-lg flex-shrink-0 p-1 flex items-center justify-center border border-white/5">
+                      <img src={item.image_url} alt={item.name} className="max-w-full max-h-full object-contain rounded" />
                     </div>
                     <div className="flex-grow min-w-0">
                       <div className="flex justify-between items-start mb-1">
@@ -299,21 +476,22 @@ export default function StoreInventory() {
                         </span>
                       </div>
                       
-                      {/* 🔴 ডায়নামিক সাইজ রেন্ডারিং */}
-                      {item.sizes && item.sizes.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1 mb-1">
-                          {item.sizes.map((size, idx) => (
-                            <span key={idx} className="text-[8px] font-bold bg-white/10 text-gray-300 px-1.5 py-0.5 rounded">
-                              {size}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      <div className="flex flex-wrap gap-2 mb-1.5">
+                        {item.sizes && item.sizes.length > 0 && (
+                          <div className="text-[10px] text-gray-400">
+                            <i className="fa-solid fa-ruler mr-1"></i> {item.sizes.join(', ')}
+                          </div>
+                        )}
+                        {item.colors && item.colors.length > 0 && (
+                          <div className="text-[10px] text-gray-400">
+                            <i className="fa-solid fa-palette mr-1"></i> {item.colors.join(', ')}
+                          </div>
+                        )}
+                      </div>
 
-                      <div className="flex items-center gap-3 mt-1 text-xs">
+                      <div className="flex items-center gap-3 mt-2 pt-2 border-t border-white/5 text-xs">
                         <span className="text-gray-400"><i className="fa-solid fa-boxes-stacked mr-1"></i> স্টক: <strong className={item.stock_quantity > 0 ? 'text-white' : 'text-red-400'}>{item.stock_quantity}</strong></span>
                         {item.sale_price > 0 && <span className="text-gray-400"><i className="fa-solid fa-tag mr-1"></i> ৳{item.sale_price}</span>}
-                        {item.rent_price > 0 && <span className="text-emerald-400"><i className="fa-solid fa-clock mr-1"></i> ৳{item.rent_price}/দিন</span>}
                       </div>
                     </div>
                   </div>
@@ -329,6 +507,47 @@ export default function StoreInventory() {
 
         </div>
       </div>
+
+      {/* 🔴 Image Cropper Modal */}
+      {cropModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm">
+          <div className="bg-[#0a1c13] rounded-3xl w-full max-w-2xl overflow-hidden border border-white/10 shadow-2xl flex flex-col h-[80vh] max-h-[600px]">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40">
+              <h3 className="text-white font-bold"><i className="fa-solid fa-crop-simple mr-2"></i> ছবি ক্রপ করুন</h3>
+              <button onClick={() => {setCropModalOpen(false); setCurrentImageSrc(null)}} className="text-gray-400 hover:text-white transition-colors">
+                <i className="fa-solid fa-times text-xl"></i>
+              </button>
+            </div>
+            
+            <div className="relative flex-grow bg-black">
+              <Cropper
+                image={currentImageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1} // 1:1 Square aspect ratio
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+              />
+            </div>
+            
+            <div className="p-4 bg-black/40 border-t border-white/10 flex flex-col sm:flex-row gap-4 justify-between items-center">
+              <div className="w-full sm:w-1/2 flex items-center gap-2">
+                <i className="fa-solid fa-magnifying-glass-minus text-gray-400"></i>
+                <input 
+                  type="range" min={1} max={3} step={0.1} value={zoom} 
+                  onChange={(e) => setZoom(e.target.value)} 
+                  className="w-full accent-[#e76f51]"
+                />
+                <i className="fa-solid fa-magnifying-glass-plus text-gray-400"></i>
+              </div>
+              <button onClick={handleCropSave} className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-xl font-bold transition-colors">
+                <i className="fa-solid fa-check mr-2"></i> ক্রপ সেভ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style dangerouslySetInnerHTML={{__html: `
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
