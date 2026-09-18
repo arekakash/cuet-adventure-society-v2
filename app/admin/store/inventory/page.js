@@ -49,7 +49,7 @@ const BD_BANKS = [
 export default function StoreInventory() {
   const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23';
 
-  // 🔴 ১. ফর্ম স্টেট (sizesInput এবং colorsInput)
+  // ফর্ম স্টেট (sizesInput এবং colorsInput)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -61,16 +61,19 @@ export default function StoreInventory() {
     colorsInput: '' 
   })
   
-  // 🔴 ২. পেমেন্ট মেথড স্টেট
+  // পেমেন্ট মেথড স্টেট
   const [paymentMethods, setPaymentMethods] = useState([])
 
-  // 🔴 ৩. গ্যালারি ও ক্রপিং স্টেট
+  // গ্যালারি ও ক্রপিং স্টেট
   const [gallery, setGallery] = useState([]) // [{ id, blob, preview, color }]
   const [cropModalOpen, setCropModalOpen] = useState(false)
   const [currentImageSrc, setCurrentImageSrc] = useState(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+
+  // 🔴 নতুন: ডায়নামিক ভ্যারিয়েশন স্টক স্টেট
+  const [variantStocks, setVariantStocks] = useState({})
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitMessage, setSubmitMessage] = useState('')
@@ -88,6 +91,40 @@ export default function StoreInventory() {
     fetchInventory()
   }, [])
 
+  // 🔴 নতুন: ভ্যারিয়েশন ইনপুট দিলে ডায়নামিকভাবে স্টক ফিল্ড তৈরি করার লজিক
+  useEffect(() => {
+    const sizes = formData.sizesInput.split(',').map(s => s.trim()).filter(Boolean);
+    const colors = formData.colorsInput.split(',').map(c => c.trim()).filter(Boolean);
+    
+    let combinations = [];
+    if (sizes.length > 0 && colors.length > 0) {
+      sizes.forEach(s => {
+        colors.forEach(c => combinations.push(`${s} - ${c}`));
+      });
+    } else if (sizes.length > 0) {
+      combinations = sizes;
+    } else if (colors.length > 0) {
+      combinations = colors;
+    }
+
+    if (combinations.length > 0) {
+      setVariantStocks(prev => {
+        const newStocks = {};
+        let total = 0;
+        combinations.forEach(combo => {
+          newStocks[combo] = prev[combo] || 0;
+          total += parseInt(newStocks[combo] || 0);
+        });
+        
+        // টোটাল স্টক স্বয়ংক্রিয়ভাবে আপডেট করে দেওয়া
+        setFormData(f => ({ ...f, stock_quantity: total }));
+        return newStocks;
+      });
+    } else {
+      setVariantStocks({});
+    }
+  }, [formData.sizesInput, formData.colorsInput]);
+
   const fetchInventory = async () => {
     setLoadingList(true)
     const { data, error } = await supabase
@@ -101,7 +138,21 @@ export default function StoreInventory() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
+    // ম্যানুয়াল স্টক এন্ট্রির ক্ষেত্রে আপডেট
+    if (name === 'stock_quantity' && Object.keys(variantStocks).length > 0) return; // ভ্যারিয়েশন থাকলে ম্যানুয়াল ইনপুট ব্লক
     setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  // 🔴 নতুন: প্রতিটি ভ্যারিয়েশনের স্টক আপডেট করা
+  const handleVariantStockChange = (combo, value) => {
+    const numValue = parseInt(value) || 0;
+    setVariantStocks(prev => {
+      const updated = { ...prev, [combo]: numValue };
+      // নতুন টোটাল স্টক ক্যালকুলেট করা
+      const total = Object.values(updated).reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
+      setFormData(f => ({ ...f, stock_quantity: total }));
+      return updated;
+    });
   }
 
   // --- Payment Method Handlers ---
@@ -132,7 +183,7 @@ export default function StoreInventory() {
       const imageDataUrl = await readFile(file)
       setCurrentImageSrc(imageDataUrl)
       setCropModalOpen(true)
-      e.target.value = '' // reset input
+      e.target.value = '' 
     }
   }
 
@@ -157,7 +208,7 @@ export default function StoreInventory() {
         id: Date.now(), 
         blob: croppedBlob, 
         preview: previewUrl, 
-        color: '' // Default color mapping is empty
+        color: '' 
       }])
       
       setCropModalOpen(false)
@@ -215,12 +266,13 @@ export default function StoreInventory() {
         category: formData.category,
         sale_price: formData.sale_price ? parseFloat(formData.sale_price) : 0,
         rent_price: formData.category === 'gear' && formData.rent_price ? parseFloat(formData.rent_price) : 0,
-        stock_quantity: parseInt(formData.stock_quantity),
-        image_url: uploadedImages[0].url, // প্রথম ছবিকে মেইন থাম্বনেইল হিসেবে রাখা হলো
-        gallery: uploadedImages,          // JSON Array
-        sizes: parsedSizes,               // JSON Array
-        colors: parsedColors,             // JSON Array
-        payment_methods: paymentMethods   // JSON Array
+        stock_quantity: parseInt(formData.stock_quantity) || 0,
+        image_url: uploadedImages[0].url, 
+        gallery: uploadedImages,          
+        sizes: parsedSizes,               
+        colors: parsedColors,             
+        payment_methods: paymentMethods,  
+        variant_stock: variantStocks      // 🔴 নতুন: ভ্যারিয়েশন ভিত্তিক স্টক JSON আকারে সেভ করা
       }
 
       const { error } = await supabase.from('store_products').insert([productData])
@@ -232,6 +284,7 @@ export default function StoreInventory() {
         setFormData({ name: '', description: '', category: 'merch', sale_price: '', rent_price: '', stock_quantity: '', sizesInput: '', colorsInput: '' })
         setPaymentMethods([])
         setGallery([])
+        setVariantStocks({}) // 🔴 ক্লিয়ার স্টেট
         setSubmitMessage('')
         fetchInventory() 
       }, 2000)
@@ -293,8 +346,21 @@ export default function StoreInventory() {
                   <input required type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#e76f51] transition-colors" placeholder="যেমন: CAS Official T-Shirt" />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-xs font-bold text-gray-400 mb-2">স্টক সংখ্যা *</label>
-                  <input required type="number" min="1" name="stock_quantity" value={formData.stock_quantity} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors" placeholder="0" />
+                  {/* 🔴 ভ্যারিয়েশন থাকলে স্টক সংখ্যাটি রিড-ওনলি হয়ে যাবে */}
+                  <label className="block text-xs font-bold text-gray-400 mb-2">
+                    স্টক সংখ্যা {Object.keys(variantStocks).length > 0 ? '(Auto Total)' : '*'}
+                  </label>
+                  <input 
+                    required 
+                    type="number" 
+                    min={Object.keys(variantStocks).length > 0 ? "0" : "1"} 
+                    readOnly={Object.keys(variantStocks).length > 0}
+                    name="stock_quantity" 
+                    value={formData.stock_quantity} 
+                    onChange={handleInputChange} 
+                    className={`w-full border rounded-xl px-4 py-3 text-white focus:outline-none transition-colors ${Object.keys(variantStocks).length > 0 ? 'bg-black/40 border-white/5 text-gray-400 cursor-not-allowed' : 'bg-white/5 border-white/10 focus:border-purple-500'}`} 
+                    placeholder="0" 
+                  />
                 </div>
               </div>
 
@@ -312,17 +378,42 @@ export default function StoreInventory() {
                 )}
               </div>
 
-              {/* Sizes & Colors */}
-              <div className="grid grid-cols-2 gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-xs font-bold text-gray-400 mb-2">সাইজ ভ্যারিয়েশন</label>
-                  <input type="text" name="sizesInput" value={formData.sizesInput} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#e76f51] transition-colors text-sm" placeholder="M, L, XL, 40L" />
+              {/* Sizes, Colors & Dynamic Variant Stocks */}
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-xs font-bold text-gray-400 mb-2">সাইজ ভ্যারিয়েশন</label>
+                    <input type="text" name="sizesInput" value={formData.sizesInput} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#e76f51] transition-colors text-sm" placeholder="M, L, XL, 40L" />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-xs font-bold text-gray-400 mb-2">কালার ভ্যারিয়েশন</label>
+                    <input type="text" name="colorsInput" value={formData.colorsInput} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors text-sm" placeholder="Black, Olive, Navy Blue" />
+                  </div>
+                  <p className="col-span-2 text-[10px] text-gray-500"><i className="fa-solid fa-circle-info mr-1"></i>একাধিক ভ্যারিয়েশন থাকলে কমা (,) দিয়ে লিখুন। না থাকলে ফাঁকা রাখুন।</p>
                 </div>
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-xs font-bold text-gray-400 mb-2">কালার ভ্যারিয়েশন</label>
-                  <input type="text" name="colorsInput" value={formData.colorsInput} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors text-sm" placeholder="Black, Olive, Navy Blue" />
-                </div>
-                <p className="col-span-2 text-[10px] text-gray-500"><i className="fa-solid fa-circle-info mr-1"></i>একাধিক ভ্যারিয়েশন থাকলে কমা (,) দিয়ে লিখুন। না থাকলে ফাঁকা রাখুন।</p>
+
+                {/* 🔴 নতুন: ডায়নামিক স্টক ফিল্ডস রেন্ডারিং */}
+                {Object.keys(variantStocks).length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    <label className="block text-xs font-bold text-[#e76f51] mb-3 uppercase tracking-widest"><i className="fa-solid fa-layer-group"></i> ভ্যারিয়েশন অনুযায়ী স্টক নির্ধারণ করুন</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {Object.keys(variantStocks).map(combo => (
+                        <div key={combo} className="bg-black/30 p-2 rounded-lg border border-white/5">
+                          <label className="block text-[10px] text-gray-300 font-bold mb-1 truncate" title={combo}>{combo}</label>
+                          <input 
+                            type="number" 
+                            min="0" 
+                            required
+                            value={variantStocks[combo]} 
+                            onChange={(e) => handleVariantStockChange(combo, e.target.value)} 
+                            className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white focus:outline-none focus:border-purple-500 transition-colors text-xs" 
+                            placeholder="0" 
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Multiple Images & Color Mapping */}
