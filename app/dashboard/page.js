@@ -124,14 +124,14 @@ export default function DashboardPage() {
 
       if (!bookingError && bookingData) setBookings(bookingData)
 
-      // 3. Store Orders
+      // 3. Store Orders (Updated to fetch gallery and color_selected)
       const { data: storeData, error: storeError } = await supabase
         .from('store_orders')
         .select(`
           id, total_amount, trx_id, status, order_type, created_at,
           store_order_items (
-            quantity, size_selected, rent_start_date, rent_end_date, price_at_time,
-            store_products (name, image_url, category)
+            quantity, size_selected, color_selected, rent_start_date, rent_end_date, price_at_time,
+            store_products (name, image_url, gallery, category)
           )
         `)
         .eq('user_id', userId)
@@ -216,8 +216,6 @@ export default function DashboardPage() {
     )
   }
 
-  // Profile Completion Form rendering omitted for brevity, remains identical
-
   const avatarUrl = user.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0a1c13&color=fff&size=128`
 
   return (
@@ -257,7 +255,7 @@ export default function DashboardPage() {
       {/* RIGHT COLUMN: Stats, Tactical Data, & Bookings */}
       <div className="lg:col-span-2 space-y-6">
         
-        {/* 6 Grid Stats Cards (Rank, IQ, Total Events, Trekking, Cycling, Swimming) */}
+        {/* 6 Grid Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4" data-aos="fade-up">
           <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-yellow-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center">
             <div className="w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-500 flex items-center justify-center text-base mb-1.5"><i className="fa-solid fa-crown"></i></div>
@@ -291,7 +289,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Expanded Tactical Data Section (Moved Below Ranking Cards) */}
+        {/* Tactical Data Section */}
         <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl p-6" data-aos="fade-up" data-aos-delay="100">
           <div className="flex justify-between items-center mb-5 border-b border-white/10 pb-3">
             <h3 className="text-sm font-bold tracking-widest text-gray-500 uppercase flex items-center gap-2">
@@ -393,12 +391,18 @@ export default function DashboardPage() {
                   <div className="space-y-3">
                     {order.store_order_items?.map((item, idx) => (
                       <div key={idx} className="flex items-center gap-4 bg-white/5 p-3 rounded-xl">
-                        <img src={item.store_products?.image_url} alt="Product" className="w-12 h-12 rounded-lg object-contain bg-black/40 p-1" />
+                        {/* 🔴 Updated Image Display: checking gallery array first */}
+                        <img src={item.store_products?.gallery?.[0]?.url || item.store_products?.image_url} alt="Product" className="w-12 h-12 rounded-lg object-contain bg-black/40 p-1" />
+                        
                         <div className="flex-grow">
                           <h4 className="text-sm font-bold text-white">{item.store_products?.name}</h4>
                           <div className="text-[10px] text-gray-400 mt-1 flex flex-wrap gap-2">
                             <span className="font-bold text-gray-300">Qty: {item.quantity}</span>
+                            
+                            {/* 🔴 Added Size and Color details */}
                             {item.size_selected && <span className="text-purple-400 border border-purple-500/30 px-1 rounded">Size: {item.size_selected}</span>}
+                            {item.color_selected && <span className="text-blue-400 border border-blue-500/30 px-1 rounded">Color: {item.color_selected}</span>}
+                            
                             {item.rent_start_date && (
                               <span className="text-emerald-400 border border-emerald-500/30 px-1 rounded flex items-center gap-1">
                                 <i className="fa-solid fa-calendar-check"></i> {new Date(item.rent_start_date).toLocaleDateString('en-GB')} to {new Date(item.rent_end_date).toLocaleDateString('en-GB')}
@@ -409,7 +413,6 @@ export default function DashboardPage() {
                       </div>
                     ))}
                   </div>
-
                 </div>
               ))}
             </div>
