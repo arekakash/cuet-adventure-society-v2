@@ -9,6 +9,10 @@ export default function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
+  // 🔴 নতুন: কার্ট স্টেট এবং স্লাইড-আউট কন্ট্রোল
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cart, setCart] = useState([]); // (বি.দ্র: বাস্তবে এটি Context বা Redux থেকে আসবে)
+  
   // ডায়নামিক স্টেট
   const [session, setSession] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -60,7 +64,6 @@ export default function Navbar() {
     }
   };
 
-  // লগ-আউট ফাংশন
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setIsProfileOpen(false);
@@ -68,8 +71,10 @@ export default function Navbar() {
     router.refresh();
   };
 
+  // 🔴 কার্টের মোট হিসাব
+  const cartTotal = cart.reduce((total, item) => total + (item.current_price * item.qty * (item.rentDays || 1)), 0);
+
   const isLoggedIn = !!session;
-  // অ্যাডমিন কিনা তা চেক করার লজিক
   const isAdmin = userProfile?.role === 'admin';
   const avatarUrl = userProfile?.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.full_name || 'User')}&background=e76f51&color=fff`;
 
@@ -79,11 +84,10 @@ export default function Navbar() {
       <nav className="fixed w-full z-40 glass-dark transition-all duration-300 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
           <div className="flex items-center gap-4 sm:gap-6">
-            <button onClick={() => setIsSidebarOpen(true)} className="text-white text-xl sm:text-2xl hover:text-campfire transition-colors focus:outline-none">
+            <button onClick={() => setIsSidebarOpen(true)} className="text-white text-xl sm:text-2xl hover:text-[#e76f51] transition-colors focus:outline-none">
               <i className="fa-solid fa-bars-staggered"></i>
             </button>
             <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
-              {/* 🔴 নতুন CAS আইকন এবং কালারফুল অ্যানিমেশন */}
               <div className="relative inline-flex items-center justify-center">
                 <div className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-[#e76f51] rounded-lg blur opacity-75 group-hover:opacity-100 animate-pulse transition duration-500"></div>
                 <div className="relative bg-[#0a1c13] px-2 py-0.5 rounded-lg border border-white/10">
@@ -96,24 +100,35 @@ export default function Navbar() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-4 relative">
+          <div className="flex items-center gap-4 sm:gap-6 relative">
+            
+            {/* 🔴 Cart Icon on Navbar */}
+            <button onClick={() => setIsCartOpen(true)} className="relative text-gray-300 hover:text-white transition-colors focus:outline-none group mt-1">
+              <i className="fa-solid fa-cart-shopping text-xl sm:text-2xl group-hover:scale-110 transition-transform"></i>
+              {cart.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-[#e76f51] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-[#0a1c13] animate-pulse">
+                  {cart.length}
+                </span>
+              )}
+            </button>
+
             {!isLoggedIn ? (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 border-l border-white/10 pl-4 sm:pl-6">
                 <Link href="/login" className="hidden sm:block text-sm font-bold text-gray-300 hover:text-white transition-colors border-b border-transparent hover:border-white pb-0.5">লগইন</Link>
-                <Link href="/signup" className="inline-flex items-center gap-2 bg-campfire hover:bg-orange-600 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-full font-bold text-xs sm:text-sm tracking-wide shadow-glow transition-all hover:scale-105">
+                <Link href="/signup" className="inline-flex items-center gap-2 bg-[#e76f51] hover:bg-orange-600 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-full font-bold text-xs sm:text-sm tracking-wide shadow-[0_0_15px_rgba(231,111,81,0.4)] transition-all hover:scale-105">
                   <i className="fa-solid fa-fire"></i> <span>অ্যাকাউন্ট খুলুন</span>
                 </Link>
               </div>
             ) : (
-              <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 border-l border-white/10 pl-4 sm:pl-6">
                 <div className="text-right hidden md:block pr-4 border-r border-white/10">
                   <p className="text-xs font-bold text-gray-200">{userProfile?.full_name || 'Explorer'}</p>
-                  <p className={`text-[10px] uppercase tracking-widest ${isAdmin ? 'text-emerald-400 font-bold' : 'text-campfire'}`}>
+                  <p className={`text-[10px] uppercase tracking-widest ${isAdmin ? 'text-emerald-400 font-bold' : 'text-[#e76f51]'}`}>
                     {userProfile?.role || 'User'}
                   </p>
                 </div>
                 <div className="relative">
-                  <button onClick={() => setIsProfileOpen(!isProfileOpen)} className={`block w-10 h-10 rounded-full border-2 p-0.5 overflow-hidden focus:outline-none transition-colors shadow-glow ${isAdmin ? 'border-emerald-500 hover:border-white bg-emerald-500/10' : 'border-campfire hover:border-white bg-white/5'}`}>
+                  <button onClick={() => setIsProfileOpen(!isProfileOpen)} className={`block w-10 h-10 rounded-full border-2 p-0.5 overflow-hidden focus:outline-none transition-colors shadow-glow ${isAdmin ? 'border-emerald-500 hover:border-white bg-emerald-500/10' : 'border-[#e76f51] hover:border-white bg-white/5'}`}>
                     <img src={avatarUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
                   </button>
                   
@@ -123,7 +138,6 @@ export default function Navbar() {
                         <i className="fa-solid fa-user w-5 text-center text-[#e76f51]"></i> <span>আমার প্রোফাইল</span>
                       </Link>
                       
-                      {/* 🔴 স্মার্ট অ্যাডমিন অপশন (শুধুমাত্র অ্যাডমিনরা দেখবে) */}
                       {isAdmin && (
                         <Link href="/admin" onClick={() => setIsProfileOpen(false)} className="block px-4 py-3 text-sm hover:bg-white/5 hover:text-white transition-colors flex items-center gap-3 text-emerald-400 font-bold">
                           <i className="fa-solid fa-shield-halved w-5 text-center"></i> <span>অ্যাডমিন প্যানেল</span>
@@ -146,14 +160,66 @@ export default function Navbar() {
         </div>
       </nav>
 
+      {/* 🔴 Slide-out Cart Panel */}
+      <div className={`fixed inset-y-0 right-0 z-[70] w-full sm:w-96 bg-[#0a1c13] border-l border-white/10 shadow-2xl transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
+        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
+          <h2 className="text-xl font-black text-white flex items-center gap-2"><i className="fa-solid fa-cart-shopping text-[#e76f51]"></i> আপনার কার্ট</h2>
+          <button onClick={() => setIsCartOpen(false)} className="text-gray-400 hover:text-white transition-colors text-2xl"><i className="fa-solid fa-xmark"></i></button>
+        </div>
+        
+        <div className="flex-grow overflow-y-auto p-4 space-y-4">
+          {cart.length === 0 ? (
+            <div className="text-center py-32 text-gray-500">
+              <i className="fa-solid fa-basket-shopping text-6xl mb-4 opacity-50"></i>
+              <p className="text-sm font-bold">আপনার কার্ট ফাঁকা!</p>
+              <Link href="/store" onClick={() => setIsCartOpen(false)} className="inline-block mt-4 text-[#e76f51] hover:text-white border border-[#e76f51] hover:bg-[#e76f51] px-4 py-2 rounded-full text-xs font-bold transition-colors">স্টোর ভিজিট করুন</Link>
+            </div>
+          ) : (
+            cart.map(item => (
+              <div key={item.cartItemId} className="bg-white/5 border border-white/10 p-3 rounded-xl flex gap-3 hover:bg-white/10 transition-colors">
+                <img src={item.gallery?.[0]?.url || item.image_url} alt={item.name} className="w-16 h-16 object-contain bg-black/40 rounded-lg p-1 border border-white/5" />
+                <div className="flex-grow">
+                  <h4 className="text-sm font-bold text-white truncate pr-4">{item.name}</h4>
+                  <div className="text-[10px] text-gray-400 flex gap-2 my-1">
+                    {item.selectedSize && <span>Size: {item.selectedSize}</span>}
+                    {item.selectedColor && <span>Color: {item.selectedColor}</span>}
+                    {item.orderType === 'rent' && <span className="text-emerald-400 font-bold border border-emerald-500/30 px-1 rounded">Rent: {item.rentDays} Days</span>}
+                  </div>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="font-bold text-white text-sm">৳{item.current_price * item.qty * (item.rentDays || 1)}</span>
+                    <div className="flex items-center gap-3 bg-black/50 rounded-lg px-2 py-1 border border-white/5">
+                      <span className="text-xs text-gray-400 font-bold">Qty: {item.qty}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="p-6 border-t border-white/10 bg-black/50">
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-gray-400 font-bold text-sm">সর্বমোট:</span>
+            <span className="text-2xl font-black text-[#e76f51]">৳{cartTotal}</span>
+          </div>
+          <button 
+            disabled={cart.length === 0} 
+            onClick={() => { setIsCartOpen(false); router.push('/store'); }}
+            className={`w-full py-4 rounded-xl font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2 ${cart.length > 0 ? 'bg-[#e76f51] hover:bg-orange-600 text-white shadow-glow' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+          >
+            চেকআউট করুন <i className="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
       {/* Sidebar Overlay */}
       {isSidebarOpen && (
-        <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"></div>
+        <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[45] transition-opacity"></div>
       )}
 
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-500 ease-in-out z-50 w-72 sm:w-80 bg-[#0a1c13] border-r border-white/5 shadow-2xl flex flex-col h-full overflow-y-auto`}>
-        <div className="p-6 flex justify-between items-center border-b border-white/5">
+      {/* Sidebar Navigation */}
+      <div className={`fixed inset-y-0 left-0 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-500 ease-in-out z-[50] w-72 sm:w-80 bg-[#0a1c13] border-r border-white/5 shadow-2xl flex flex-col h-full overflow-y-auto`}>
+        <div className="p-6 flex justify-between items-center border-b border-white/5 bg-black/20">
           <span className="font-black text-xl tracking-widest text-white"><span className="text-[#e76f51]">C</span>UET <span className="text-[#e76f51]">A</span>S</span>
           <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400 hover:text-white text-2xl transition-colors">
             <i className="fa-solid fa-xmark"></i>
@@ -168,7 +234,6 @@ export default function Navbar() {
             <span className="font-bold text-sm">আপকামিং ইভেন্ট</span>
           </Link>
           
-          {/* 🔴 পূর্ববর্তী ইভেন্ট লিংকটি এনাবল করা হলো */}
           <Link href="/past-events" onClick={() => setIsSidebarOpen(false)} className="block py-3 px-4 rounded-xl hover:bg-white/5 hover:text-white transition-all group flex items-center gap-4">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-gray-400 group-hover:text-white group-hover:scale-110 transition-transform"><i className="fa-solid fa-clock-rotate-left"></i></div>
             <span className="font-bold text-sm">পূর্ববর্তী ইভেন্ট</span>
@@ -188,18 +253,17 @@ export default function Navbar() {
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-orange-400 group-hover:scale-110 transition-transform"><i className="fa-solid fa-store"></i></div>
             <span className="font-bold text-sm">অ্যাডভেঞ্চার স্টোর</span>
           </Link>
+          
           <Link href="/beginners-guide" onClick={() => setIsSidebarOpen(false)} className="block py-3 px-4 rounded-xl hover:bg-white/5 hover:text-white transition-all group flex items-center gap-4">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform"><i className="fa-solid fa-map"></i></div>
             <span className="font-bold text-sm">বিগিনার গাইড</span>
           </Link>
 
-          {/* 🔴 নতুন যোগ করা অপশন: নেপথ্যে যারা */}
           <Link href="/behind-the-scenes" onClick={() => setIsSidebarOpen(false)} className="block py-3 px-4 rounded-xl hover:bg-white/5 hover:text-white transition-all group flex items-center gap-4">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-pink-400 group-hover:scale-110 transition-transform"><i className="fa-solid fa-users"></i></div>
             <span className="font-bold text-sm">নেপথ্যে যারা</span>
           </Link>
 
-          {/* 🔴 স্মার্ট অ্যাডমিন অপশন (সাইডবার) */}
           {isAdmin && (
             <>
               <div className="border-t border-white/5 my-4"></div>
@@ -232,9 +296,9 @@ export default function Navbar() {
 
       {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsSettingsOpen(false)}></div>
-          <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-8 max-w-sm w-full mx-4 relative z-10 shadow-2xl">
+          <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-8 max-w-sm w-full relative z-10 shadow-2xl">
             <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
               <h3 className="text-xl font-black text-white flex items-center gap-2">
                 <i className="fa-solid fa-sliders text-[#e76f51]"></i> <span>সেটিংস</span>
