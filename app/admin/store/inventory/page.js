@@ -49,7 +49,7 @@ const BD_BANKS = [
 export default function StoreInventory() {
   const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23';
 
-  // ফর্ম স্টেট (sizesInput এবং colorsInput)
+  // ফর্ম স্টেট 
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -61,26 +61,25 @@ export default function StoreInventory() {
     colorsInput: '' 
   })
   
-  // পেমেন্ট মেথড স্টেট
   const [paymentMethods, setPaymentMethods] = useState([])
-
-  // গ্যালারি ও ক্রপিং স্টেট
-  const [gallery, setGallery] = useState([]) // [{ id, blob, preview, color }]
+  const [gallery, setGallery] = useState([]) 
   const [cropModalOpen, setCropModalOpen] = useState(false)
   const [currentImageSrc, setCurrentImageSrc] = useState(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
 
-  // 🔴 নতুন: ডায়নামিক ভ্যারিয়েশন স্টক স্টেট
   const [variantStocks, setVariantStocks] = useState({})
+  
+  // 🔴 নতুন: ভিউ মোড এবং সিলেক্টেড আইটেম স্টেট
+  const [viewMode, setViewMode] = useState('list') // 'list' or 'grid'
+  const [selectedInventoryItem, setSelectedInventoryItem] = useState(null)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitMessage, setSubmitMessage] = useState('')
   const [inventoryList, setInventoryList] = useState([])
   const [loadingList, setLoadingList] = useState(true)
 
-  // ডায়নামিক কালার লিস্ট (ইমেজের কালার ম্যাপিংয়ের জন্য)
   const availableColors = formData.colorsInput
     .split(',')
     .map(c => c.trim())
@@ -91,7 +90,7 @@ export default function StoreInventory() {
     fetchInventory()
   }, [])
 
-  // 🔴 নতুন: ভ্যারিয়েশন ইনপুট দিলে ডায়নামিকভাবে স্টক ফিল্ড তৈরি করার লজিক
+  // ভ্যারিয়েশন ইনপুট দিলে ডায়নামিকভাবে স্টক ফিল্ড তৈরি করার লজিক
   useEffect(() => {
     const sizes = formData.sizesInput.split(',').map(s => s.trim()).filter(Boolean);
     const colors = formData.colorsInput.split(',').map(c => c.trim()).filter(Boolean);
@@ -116,7 +115,6 @@ export default function StoreInventory() {
           total += parseInt(newStocks[combo] || 0);
         });
         
-        // টোটাল স্টক স্বয়ংক্রিয়ভাবে আপডেট করে দেওয়া
         setFormData(f => ({ ...f, stock_quantity: total }));
         return newStocks;
       });
@@ -138,17 +136,14 @@ export default function StoreInventory() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
-    // ম্যানুয়াল স্টক এন্ট্রির ক্ষেত্রে আপডেট
-    if (name === 'stock_quantity' && Object.keys(variantStocks).length > 0) return; // ভ্যারিয়েশন থাকলে ম্যানুয়াল ইনপুট ব্লক
+    if (name === 'stock_quantity' && Object.keys(variantStocks).length > 0) return; 
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  // 🔴 নতুন: প্রতিটি ভ্যারিয়েশনের স্টক আপডেট করা
   const handleVariantStockChange = (combo, value) => {
     const numValue = parseInt(value) || 0;
     setVariantStocks(prev => {
       const updated = { ...prev, [combo]: numValue };
-      // নতুন টোটাল স্টক ক্যালকুলেট করা
       const total = Object.values(updated).reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
       setFormData(f => ({ ...f, stock_quantity: total }));
       return updated;
@@ -239,7 +234,6 @@ export default function StoreInventory() {
     setSubmitMessage('ছবিগুলো আপলোড হচ্ছে...')
 
     try {
-      // ১. সব ছবি ImgBB তে আপলোড করা
       const uploadedImages = await Promise.all(gallery.map(async (img) => {
         const uploadData = new FormData()
         uploadData.append('image', img.blob)
@@ -259,7 +253,6 @@ export default function StoreInventory() {
       const parsedSizes = formData.sizesInput.split(',').map(s => s.trim()).filter(s => s !== '')
       const parsedColors = formData.colorsInput.split(',').map(s => s.trim()).filter(s => s !== '')
 
-      // ২. সুপাবেস ডেটাবেসে ইনসার্ট
       const productData = {
         name: formData.name,
         description: formData.description,
@@ -272,7 +265,7 @@ export default function StoreInventory() {
         sizes: parsedSizes,               
         colors: parsedColors,             
         payment_methods: paymentMethods,  
-        variant_stock: variantStocks      // 🔴 নতুন: ভ্যারিয়েশন ভিত্তিক স্টক JSON আকারে সেভ করা
+        variant_stock: variantStocks      
       }
 
       const { error } = await supabase.from('store_products').insert([productData])
@@ -284,7 +277,7 @@ export default function StoreInventory() {
         setFormData({ name: '', description: '', category: 'merch', sale_price: '', rent_price: '', stock_quantity: '', sizesInput: '', colorsInput: '' })
         setPaymentMethods([])
         setGallery([])
-        setVariantStocks({}) // 🔴 ক্লিয়ার স্টেট
+        setVariantStocks({}) 
         setSubmitMessage('')
         fetchInventory() 
       }, 2000)
@@ -346,7 +339,6 @@ export default function StoreInventory() {
                   <input required type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#e76f51] transition-colors" placeholder="যেমন: CAS Official T-Shirt" />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
-                  {/* 🔴 ভ্যারিয়েশন থাকলে স্টক সংখ্যাটি রিড-ওনলি হয়ে যাবে */}
                   <label className="block text-xs font-bold text-gray-400 mb-2">
                     স্টক সংখ্যা {Object.keys(variantStocks).length > 0 ? '(Auto Total)' : '*'}
                   </label>
@@ -392,7 +384,6 @@ export default function StoreInventory() {
                   <p className="col-span-2 text-[10px] text-gray-500"><i className="fa-solid fa-circle-info mr-1"></i>একাধিক ভ্যারিয়েশন থাকলে কমা (,) দিয়ে লিখুন। না থাকলে ফাঁকা রাখুন।</p>
                 </div>
 
-                {/* 🔴 নতুন: ডায়নামিক স্টক ফিল্ডস রেন্ডারিং */}
                 {Object.keys(variantStocks).length > 0 && (
                   <div className="mt-4 pt-4 border-t border-white/10">
                     <label className="block text-xs font-bold text-[#e76f51] mb-3 uppercase tracking-widest"><i className="fa-solid fa-layer-group"></i> ভ্যারিয়েশন অনুযায়ী স্টক নির্ধারণ করুন</label>
@@ -544,49 +535,66 @@ export default function StoreInventory() {
 
           {/* RIGHT SIDE: CURRENT INVENTORY LIST */}
           <div className="lg:col-span-5 bg-[#0a1c13] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col h-[800px] lg:sticky lg:top-24" data-aos="fade-left">
-            <h2 className="text-xl font-black text-white mb-6 uppercase tracking-wider border-b border-white/10 pb-4">
-              <i className="fa-solid fa-warehouse text-emerald-400 mr-2"></i> বর্তমান স্টক
-            </h2>
+            <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+              <h2 className="text-xl font-black text-white uppercase tracking-wider">
+                <i className="fa-solid fa-warehouse text-emerald-400 mr-2"></i> বর্তমান স্টক
+              </h2>
+              {/* 🔴 নতুন: List/Grid View Toggle */}
+              <div className="flex bg-black/40 rounded-lg p-1 border border-white/5">
+                <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'}`}>
+                  <i className="fa-solid fa-list"></i>
+                </button>
+                <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'}`}>
+                  <i className="fa-solid fa-grid-2"></i>
+                </button>
+              </div>
+            </div>
 
-            <div className="flex-grow overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+            <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar">
               {loadingList ? (
                 <div className="flex justify-center items-center py-20">
                   <i className="fa-solid fa-circle-notch fa-spin text-3xl text-emerald-400"></i>
                 </div>
               ) : inventoryList.length > 0 ? (
-                inventoryList.map(item => (
-                  <div key={item.id} className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 flex items-start gap-4 hover:bg-white/10 transition-colors group">
-                    <div className="w-16 h-16 bg-black/40 rounded-lg flex-shrink-0 p-1 flex items-center justify-center border border-white/5">
-                      <img src={item.image_url} alt={item.name} className="max-w-full max-h-full object-contain rounded" />
-                    </div>
-                    <div className="flex-grow min-w-0">
-                      <div className="flex justify-between items-start mb-1">
-                        <h4 className="text-sm font-bold text-white truncate pr-2 group-hover:text-[#e76f51] transition-colors">{item.name}</h4>
-                        <span className={`text-[9px] px-2 py-0.5 rounded uppercase font-black tracking-widest flex-shrink-0 ${item.category === 'merch' ? 'bg-[#e76f51]/20 text-[#e76f51] border border-[#e76f51]/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
-                          {item.category}
-                        </span>
+                <div className={viewMode === 'grid' ? "grid grid-cols-2 gap-4" : "space-y-4"}>
+                  {inventoryList.map(item => (
+                    <div 
+                      key={item.id} 
+                      onClick={() => setSelectedInventoryItem(item)}
+                      className={`bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 hover:bg-white/10 transition-colors group cursor-pointer ${viewMode === 'grid' ? 'flex flex-col' : 'flex items-start gap-4'}`}
+                    >
+                      <div className={`bg-black/40 rounded-lg p-1 flex items-center justify-center border border-white/5 shrink-0 ${viewMode === 'grid' ? 'w-full h-32 mb-3' : 'w-16 h-16'}`}>
+                        <img src={item.image_url} alt={item.name} className="max-w-full max-h-full object-contain rounded" />
                       </div>
-                      
-                      <div className="flex flex-wrap gap-2 mb-1.5">
-                        {item.sizes && item.sizes.length > 0 && (
-                          <div className="text-[10px] text-gray-400">
-                            <i className="fa-solid fa-ruler mr-1"></i> {item.sizes.join(', ')}
-                          </div>
-                        )}
-                        {item.colors && item.colors.length > 0 && (
-                          <div className="text-[10px] text-gray-400">
-                            <i className="fa-solid fa-palette mr-1"></i> {item.colors.join(', ')}
-                          </div>
-                        )}
-                      </div>
+                      <div className={`flex-grow min-w-0 ${viewMode === 'grid' ? 'w-full' : ''}`}>
+                        <div className={`flex justify-between items-start mb-1 ${viewMode === 'grid' ? 'flex-col gap-1' : ''}`}>
+                          <h4 className="text-sm font-bold text-white truncate pr-2 group-hover:text-[#e76f51] transition-colors">{item.name}</h4>
+                          <span className={`text-[9px] px-2 py-0.5 rounded uppercase font-black tracking-widest flex-shrink-0 ${item.category === 'merch' ? 'bg-[#e76f51]/20 text-[#e76f51] border border-[#e76f51]/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
+                            {item.category}
+                          </span>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2 mb-1.5">
+                          {item.sizes && item.sizes.length > 0 && (
+                            <div className="text-[10px] text-gray-400">
+                              <i className="fa-solid fa-ruler mr-1"></i> {item.sizes.join(', ')}
+                            </div>
+                          )}
+                          {item.colors && item.colors.length > 0 && (
+                            <div className="text-[10px] text-gray-400">
+                              <i className="fa-solid fa-palette mr-1"></i> {item.colors.join(', ')}
+                            </div>
+                          )}
+                        </div>
 
-                      <div className="flex items-center gap-3 mt-2 pt-2 border-t border-white/5 text-xs">
-                        <span className="text-gray-400"><i className="fa-solid fa-boxes-stacked mr-1"></i> স্টক: <strong className={item.stock_quantity > 0 ? 'text-white' : 'text-red-400'}>{item.stock_quantity}</strong></span>
-                        {item.sale_price > 0 && <span className="text-gray-400"><i className="fa-solid fa-tag mr-1"></i> ৳{item.sale_price}</span>}
+                        <div className={`flex items-center gap-3 mt-2 pt-2 border-t border-white/5 text-xs ${viewMode === 'grid' ? 'justify-between' : ''}`}>
+                          <span className="text-gray-400"><i className="fa-solid fa-boxes-stacked mr-1"></i> স্টক: <strong className={item.stock_quantity > 0 ? 'text-white' : 'text-red-400'}>{item.stock_quantity}</strong></span>
+                          {item.sale_price > 0 && <span className="text-gray-400"><i className="fa-solid fa-tag mr-1"></i> ৳{item.sale_price}</span>}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
                 <div className="text-center py-20 opacity-50">
                   <i className="fa-solid fa-box-open text-5xl mb-4 text-gray-500"></i>
@@ -599,10 +607,59 @@ export default function StoreInventory() {
         </div>
       </div>
 
-      {/* 🔴 Image Cropper Modal */}
+      {/* 🔴 নতুন: Selected Item / Variant Stock Details Modal */}
+      {selectedInventoryItem && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedInventoryItem(null)}></div>
+          <div className="bg-[#0a1c13] rounded-3xl w-full max-w-md overflow-hidden border border-[#e76f51]/30 shadow-2xl flex flex-col relative z-10 animate-[zoomIn_0.2s_ease-out]">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40">
+              <h3 className="text-white font-bold truncate pr-4">{selectedInventoryItem.name}</h3>
+              <button onClick={() => setSelectedInventoryItem(null)} className="text-gray-400 hover:text-white transition-colors">
+                <i className="fa-solid fa-times text-xl"></i>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-24 h-24 bg-black/40 rounded-xl p-2 border border-white/5 flex items-center justify-center shrink-0">
+                  <img src={selectedInventoryItem.image_url} alt="" className="max-w-full max-h-full object-contain" />
+                </div>
+                <div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-black tracking-widest ${selectedInventoryItem.category === 'merch' ? 'bg-[#e76f51]/20 text-[#e76f51] border border-[#e76f51]/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
+                    {selectedInventoryItem.category}
+                  </span>
+                  <p className="text-white font-black mt-2 text-xl">মোট স্টক: {selectedInventoryItem.stock_quantity}</p>
+                </div>
+              </div>
+
+              <h4 className="text-xs font-bold text-[#e76f51] mb-3 uppercase tracking-widest flex items-center gap-2">
+                <i className="fa-solid fa-layer-group"></i> ভ্যারিয়েশন অনুযায়ী স্টক
+              </h4>
+              
+              {selectedInventoryItem.variant_stock && Object.keys(selectedInventoryItem.variant_stock).length > 0 ? (
+                <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                  {Object.entries(selectedInventoryItem.variant_stock).map(([variant, stock]) => (
+                    <div key={variant} className={`p-3 rounded-lg border ${stock > 0 ? 'bg-white/5 border-white/10' : 'bg-red-500/5 border-red-500/20 opacity-60'}`}>
+                      <p className="text-[10px] text-gray-400 font-bold mb-1 truncate" title={variant}>{variant}</p>
+                      <p className={`text-lg font-black ${stock > 0 ? 'text-white' : 'text-red-400'}`}>{stock}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-black/20 rounded-xl border border-white/5">
+                  <i className="fa-solid fa-box-open text-2xl text-gray-600 mb-2"></i>
+                  <p className="text-sm text-gray-500">এই আইটেমে কোনো নির্দিষ্ট ভ্যারিয়েশন সেট করা নেই।</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Cropper Modal */}
       {cropModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm">
-          <div className="bg-[#0a1c13] rounded-3xl w-full max-w-2xl overflow-hidden border border-white/10 shadow-2xl flex flex-col h-[80vh] max-h-[600px]">
+          <div className="bg-[#0a1c13] rounded-3xl w-full max-w-2xl overflow-hidden border border-white/10 shadow-2xl flex flex-col h-[80vh] max-h-[600px] relative z-10">
             <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40">
               <h3 className="text-white font-bold"><i className="fa-solid fa-crop-simple mr-2"></i> ছবি ক্রপ করুন</h3>
               <button onClick={() => {setCropModalOpen(false); setCurrentImageSrc(null)}} className="text-gray-400 hover:text-white transition-colors">
