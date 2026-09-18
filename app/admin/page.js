@@ -23,9 +23,6 @@ export default function AdminDashboard() {
     
     const fetchAdminStats = async () => {
       try {
-        // 🔴 আজকের তারিখ বের করা হচ্ছে (ISO ফরম্যাটে)
-        const today = new Date().toISOString();
-
         // ১. পেন্ডিং বুকিং কাউন্ট (Payment)
         const { count: bookingCount } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending')
         
@@ -35,12 +32,12 @@ export default function AdminDashboard() {
         // ৩. ট্র্যাশ ইভেন্ট কাউন্ট
         const { count: trashCount } = await supabase.from('events').select('*', { count: 'exact', head: true }).not('deleted_at', 'is', null)
 
-        // 🔴 ৪. অ্যাক্টিভ ইভেন্ট কাউন্ট (সংশোধিত লজিক: end_date আজকের সমান বা বড়)
+        // 🔴 ৪. অ্যাক্টিভ ইভেন্ট কাউন্ট (সংশোধিত লজিক: ট্র্যাশে নেই এবং 'completed' মার্ক করা হয়নি)
         const { count: activeEventCount } = await supabase
           .from('events')
           .select('*', { count: 'exact', head: true })
-          .is('deleted_at', null)
-          .gte('end_date', today);
+          .is('deleted_at', null)         // ট্র্যাশ বিনে থাকা ইভেন্ট বাদ
+          .neq('status', 'completed');    // যেগুলোর স্ট্যাটাস 'completed' সেগুলো বাদ
 
         // ৫. পেন্ডিং স্টোরি কাউন্ট 
         const { count: pendingStoryCount } = await supabase.from('stories').select('*', { count: 'exact', head: true }).eq('status', 'pending')
@@ -53,7 +50,7 @@ export default function AdminDashboard() {
           pendingBookings: bookingCount || 0,
           pendingClaims: claimCount || 0,
           pendingStories: pendingStoryCount || 0, 
-          activeEvents: activeEventCount || 0, // 🔴 এখন শুধু অ্যাক্টিভ ইভেন্টগুলোই দেখাবে
+          activeEvents: activeEventCount || 0, // 🔴 এখন অ্যাডমিনের কন্ট্রোলে থাকবে
           trashedEvents: trashCount || 0,
           pendingStoreOrders: storeOrderCount || 0 
         })
