@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import html2canvas from 'html2canvas' // 🔴 Added for Receipt Download
 
 export default function AdminInboxPage() {
   const router = useRouter()
@@ -13,7 +14,7 @@ export default function AdminInboxPage() {
   // Contacts & Chat States
   const [contacts, setContacts] = useState([])
   const [selectedContact, setSelectedContact] = useState(null)
-  const selectedContactRef = useRef(null) // 🔴 Active Contact track করার জন্য Ref
+  const selectedContactRef = useRef(null)
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
@@ -47,19 +48,18 @@ export default function AdminInboxPage() {
 
       if (isMounted) setAdmin(profileData)
 
-      // ২. কন্টাক্ট লিস্ট লোড করা (যাঁদের সাথে চ্যাট হয়েছে)
+      // ২. কন্টাক্ট লিস্ট লোড করা
       await fetchContacts(profileData.id)
 
-      // ৩. রিয়েল-টাইম চ্যাট লিসেনার (🔴 Updated to fix State Updater Anti-pattern)
+      // ৩. রিয়েল-টাইম চ্যাট লিসেনার
       const channel = supabase
         .channel('admin_realtime_chat')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cas_messages' }, (payload) => {
           const newMsg = payload.new
           
           if (newMsg.receiver_id === profileData.id || newMsg.sender_id === profileData.id) {
-            fetchContacts(profileData.id) // কন্টাক্ট লিস্ট আপডেট
+            fetchContacts(profileData.id)
             
-            // Ref ব্যবহার করে বর্তমান অ্যাক্টিভ কন্টাক্ট চেক করা
             const currentContact = selectedContactRef.current
             if (currentContact && (newMsg.sender_id === currentContact.id || newMsg.receiver_id === currentContact.id)) {
               fetchMessages(profileData.id, currentContact.id)
@@ -79,7 +79,6 @@ export default function AdminInboxPage() {
     return () => { isMounted = false }
   }, [router])
 
-  // ইউজারদের তালিকা নিয়ে আসার ফাংশন
   const fetchContacts = async (adminId) => {
     try {
       const { data, error } = await supabase
@@ -94,7 +93,6 @@ export default function AdminInboxPage() {
 
       if (error) throw error
 
-      // ইউনিক ইউজার ফিল্টার করা
       const contactsMap = new Map()
       if (data) {
         data.forEach(msg => {
@@ -108,10 +106,9 @@ export default function AdminInboxPage() {
               ...contactProfile,
               lastMessage: msg.message_type === 'receipt' ? '🧾 Payment Receipt' : msg.content,
               lastMessageTime: msg.created_at,
-              unread: (!isAdminSender && !msg.is_read) ? 1 : 0 // প্রথম আনরিড মেসেজ কাউন্ট
+              unread: (!isAdminSender && !msg.is_read) ? 1 : 0
             })
           } else if (!isAdminSender && !msg.is_read) {
-             // পরবর্তী আনরিড মেসেজগুলো যোগ করা
              const existing = contactsMap.get(contactId)
              if(existing) existing.unread += 1
           }
@@ -123,7 +120,6 @@ export default function AdminInboxPage() {
     }
   }
 
-  // নির্দিষ্ট ইউজারের মেসেজ নিয়ে আসার ফাংশন
   const fetchMessages = async (adminId, contactId) => {
     try {
       const { data, error } = await supabase
@@ -142,15 +138,13 @@ export default function AdminInboxPage() {
     }
   }
 
-  // 🔴 Updated: Contact Select and Mark as Read logic
   const handleContactSelect = async (contact) => {
     setSelectedContact(contact)
-    selectedContactRef.current = contact // 🔴 Ref আপডেট
+    selectedContactRef.current = contact
     setMobileView('chat')
     
     await fetchMessages(admin.id, contact.id)
 
-    // 🔴 আনরিড মেসেজগুলো Seen (is_read: true) করা
     if (contact.unread > 0) {
       await supabase
         .from('cas_messages')
@@ -159,7 +153,6 @@ export default function AdminInboxPage() {
         .eq('receiver_id', admin.id)
         .eq('is_read', false)
       
-      // কন্টাক্ট লিস্ট আপডেট করে আনরিড ব্যাজ সরানো
       fetchContacts(admin.id)
     }
   }
@@ -170,7 +163,6 @@ export default function AdminInboxPage() {
     }, 100)
   }
 
-  // মেসেজ পাঠানোর ফাংশন
   const handleSendMessage = async (e) => {
     e.preventDefault()
     if (!newMessage.trim() || !selectedContact || !admin) return
@@ -193,6 +185,31 @@ export default function AdminInboxPage() {
     }
   }
 
+  // 🔴 জিরো-স্টোরেজ রিসিট ডাউনলোড ফাংশন
+  const downloadReceipt = async (receiptId, receiptNo) => {
+    const element = document.getElementById(`receipt-${receiptId}`)
+    if (!element) return
+
+    try {
+      element.classList.add('download-mode')
+      
+      const canvas = await html2canvas(element, { 
+        backgroundColor: '#0a1c13',
+        scale: 2 
+      })
+      
+      element.classList.remove('download-mode')
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
+      const link = document.createElement('a')
+      link.href = dataUrl
+      link.download = `CAS-Receipt-${receiptNo}.jpg`
+      link.click()
+    } catch (error) {
+      alert("রিসিট ডাউনলোড করতে সমস্যা হয়েছে।")
+    }
+  }
+
   if (loading) {
     return <div className="min-h-screen bg-[#050b08] flex items-center justify-center"><i className="fa-solid fa-circle-notch fa-spin text-4xl text-[#e76f51]"></i></div>
   }
@@ -205,7 +222,6 @@ export default function AdminInboxPage() {
         {/* ================= LEFT PANE: CONTACTS LIST ================= */}
         <div className={`w-full md:w-1/3 md:min-w-[320px] bg-[#0a1c13] flex flex-col border-r border-white/10 ${mobileView === 'list' ? 'block' : 'hidden md:flex'}`}>
           
-          {/* Header */}
           <div className="p-4 sm:p-5 border-b border-white/10 bg-black/20 flex items-center justify-between shrink-0">
             <h2 className="text-white font-black text-lg flex items-center gap-2">
               <i className="fa-solid fa-inbox text-[#e76f51]"></i> অ্যাডমিন ইনবক্স
@@ -215,7 +231,6 @@ export default function AdminInboxPage() {
             </Link>
           </div>
 
-          {/* Contact List */}
           <div className="flex-grow overflow-y-auto custom-scrollbar p-2">
             {contacts.length === 0 ? (
               <div className="text-center py-10 opacity-50">
@@ -263,7 +278,6 @@ export default function AdminInboxPage() {
           
           {selectedContact ? (
             <>
-              {/* Chat Header */}
               <div className="p-4 border-b border-white/10 bg-black/40 flex items-center gap-3 shrink-0 shadow-md z-10">
                 <button onClick={() => setMobileView('list')} className="md:hidden text-gray-400 hover:text-white mr-2">
                   <i className="fa-solid fa-chevron-left text-lg"></i>
@@ -281,10 +295,11 @@ export default function AdminInboxPage() {
                 </div>
               </div>
 
-              {/* Chat Messages */}
               <div className="flex-grow overflow-y-auto p-4 sm:p-6 custom-scrollbar space-y-4">
                 {messages.map((msg) => {
                   const isAdmin = msg.sender_id === admin.id
+                  const isReceipt = msg.message_type === 'receipt'
+
                   return (
                     <div key={msg.id} className={`flex w-full ${isAdmin ? 'justify-end' : 'justify-start'}`}>
                       <div className={`flex flex-col max-w-[85%] sm:max-w-[70%] ${isAdmin ? 'items-end' : 'items-start'}`}>
@@ -292,16 +307,80 @@ export default function AdminInboxPage() {
                           {new Date(msg.created_at).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'})}
                         </span>
                         
-                        <div className={`p-3 rounded-2xl text-sm shadow-md ${isAdmin ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white/10 text-gray-200 border border-white/5 rounded-tl-sm'}`}>
-                          {msg.message_type === 'receipt' ? (
-                            <div className="flex flex-col gap-1.5 text-emerald-400 font-bold bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/20">
-                              <span className="flex items-center gap-2"><i className="fa-solid fa-receipt text-lg"></i> Payment Receipt Sent</span>
-                              <span className="text-[10px] font-normal text-emerald-500/80 bg-emerald-500/10 px-2 py-1 rounded">No: {msg.metadata?.receipt_no}</span>
+                        {!isReceipt ? (
+                          <div className={`p-3 rounded-2xl text-sm shadow-md ${isAdmin ? 'bg-[#e76f51] text-white rounded-tr-sm' : 'bg-white/10 text-gray-200 border border-white/5 rounded-tl-sm'}`}>
+                            {msg.content}
+                          </div>
+                        ) : (
+                          // 🔴 Updated: Full Receipt Card integrated into Admin Panel
+                          <div className="flex flex-col gap-2 w-full max-w-sm">
+                            {msg.content && (
+                              <div className={`p-3.5 rounded-2xl text-sm ${isAdmin ? 'bg-[#e76f51] text-white rounded-tr-sm' : 'bg-white/10 text-gray-200 border border-white/5 rounded-tl-sm'}`}>
+                                {msg.content}
+                              </div>
+                            )}
+                            
+                            <div 
+                              id={`receipt-${msg.id}`} 
+                              className="bg-white text-black p-5 sm:p-6 rounded-2xl shadow-xl relative overflow-hidden border-t-8 border-[#0a1c13] mt-2"
+                            >
+                              <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
+                                <i className="fa-solid fa-mountain-sun text-[100px]"></i>
+                              </div>
+                              
+                              <div className="relative z-10">
+                                <div className="flex justify-between items-start border-b-2 border-gray-200 pb-3 mb-3">
+                                  <div>
+                                    <h3 className="text-xl font-black text-[#0a1c13] leading-none">C.A.S.</h3>
+                                    <p className="text-[8px] font-bold tracking-widest text-gray-500 mt-1">CUET ADVENTURE SOCIETY</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black text-[9px] uppercase tracking-wider">Confirmed</span>
+                                    <p className="text-[9px] text-gray-500 mt-1.5 font-mono">No: {msg.metadata?.receipt_no}</p>
+                                  </div>
+                                </div>
+
+                                <div className="mb-4">
+                                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">Event Name</p>
+                                  <p className="font-black text-base text-gray-800 leading-tight">{msg.metadata?.event_name}</p>
+                                </div>
+
+                                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 mb-4 space-y-2 text-xs">
+                                  <div className="flex justify-between border-b border-gray-200 pb-1">
+                                    <span className="text-gray-500 font-medium">Explorer:</span>
+                                    <span className="font-bold text-gray-800">{msg.metadata?.explorer_name}</span>
+                                  </div>
+                                  <div className="flex justify-between border-b border-gray-200 pb-1">
+                                    <span className="text-gray-500 font-medium">Method:</span>
+                                    <span className="font-bold text-gray-800">{msg.metadata?.payment_method?.split('-')[0]}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-500 font-medium">TrxID:</span>
+                                    <span className="font-mono font-bold text-gray-800">{msg.metadata?.trx_id}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex justify-between items-end bg-[#0a1c13] text-white p-3 rounded-xl">
+                                  <div>
+                                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">Amount Paid</p>
+                                    <p className="text-2xl font-black">৳ {msg.metadata?.amount_paid}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <i className="fa-solid fa-barcode text-3xl opacity-50"></i>
+                                    <p className="text-[7px] text-gray-400 mt-1">{new Date(msg.metadata?.payment_date).toLocaleDateString('en-GB')}</p>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                          ) : (
-                            msg.content
-                          )}
-                        </div>
+
+                            <button 
+                              onClick={() => downloadReceipt(msg.id, msg.metadata?.receipt_no)}
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 mt-1 shadow-md"
+                            >
+                              <i className="fa-solid fa-download"></i> রিসিটটি ডাউনলোড করুন (JPEG)
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -309,7 +388,6 @@ export default function AdminInboxPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Chat Input */}
               <div className="p-4 bg-[#0a1c13] border-t border-white/10 shrink-0">
                 <form onSubmit={handleSendMessage} className="flex gap-3 relative max-w-4xl mx-auto">
                   <input 
@@ -330,7 +408,6 @@ export default function AdminInboxPage() {
               </div>
             </>
           ) : (
-            // No User Selected State
             <div className="flex-grow flex flex-col items-center justify-center text-center p-6 opacity-50">
               <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-4">
                 <i className="fa-solid fa-comments text-4xl text-gray-400"></i>
