@@ -218,7 +218,6 @@ function EventDetailsContent() {
     }
   }
 
-  // 🔴 Updated dynamic submit logic
   const submitPaidBooking = async (e) => {
     e.preventDefault()
     if (selectedPaymentIdx === '') return alert("দয়া করে পেমেন্ট মাধ্যম নির্বাচন করুন!")
@@ -290,33 +289,32 @@ function EventDetailsContent() {
   const isPastEvent = event.status === 'completed'
   const isCycling = event.category === 'Cycling'
   const isSwimming = event.category === 'Swimming' || event.category === 'Houseboat/Cruise'
-  const isRunning = event.category === 'Running' // 🔴 New Running logic
+  const isRunning = event.category === 'Running' 
   const isDayEvent = event.category === 'Day Tour' || event.category === 'Workshop'
 
   const getDistanceIcon = () => {
     if (isCycling) return 'fa-solid fa-bicycle'
     if (isSwimming) return 'fa-solid fa-person-swimming'
-    if (isRunning) return 'fa-solid fa-person-running' // 🔴 Running Icon
+    if (isRunning) return 'fa-solid fa-person-running' 
     return 'fa-solid fa-shoe-prints'
   }
 
   const getDistanceLabel = () => {
     if (isCycling) return 'রাইডিং দূরত্ব'
     if (isSwimming) return 'সাঁতারের দূরত্ব'
-    if (isRunning) return 'দৌড়ের দূরত্ব' // 🔴 Running Label
+    if (isRunning) return 'দৌড়ের দূরত্ব' 
     return 'দূরত্ব অতিক্রম'
   }
 
   const getRewardLabel = () => {
     if (isCycling) return 'Rides'
     if (isSwimming) return 'Swims'
-    if (isRunning) return 'Runs' // 🔴 Running Reward Label
+    if (isRunning) return 'Runs' 
     return 'Treks'
   }
 
   const isUserApproved = user && approvedExplorers.some(exp => exp.id === user.id)
   
-  // Safe parsing of payment methods
   const eventPaymentMethods = Array.isArray(event.payment_methods) ? event.payment_methods : []
 
   return (
@@ -399,7 +397,6 @@ function EventDetailsContent() {
                 <p className="text-gray-400 leading-relaxed whitespace-pre-line">{event.description}</p>
             </div>
 
-            {/* Horizontal Scroll Participant List */}
             {isPastEvent && (
               <div className="space-y-8">
                 <div>
@@ -610,7 +607,6 @@ function EventDetailsContent() {
                     <div className="space-y-3 text-sm text-gray-300">
                       <p className="flex justify-between border-b border-white/5 pb-2">
                         <span className="text-gray-500">রিওয়ার্ড পয়েন্ট:</span> 
-                        {/* 🔴 Dynamic Reward rendering */}
                         <span className="font-bold text-yellow-500">+{event.stats_meta?.treks || 0} {getRewardLabel()}</span>
                       </p>
                       {!isDayEvent && event.stay_type && event.stay_type !== 'None' && (
@@ -702,7 +698,7 @@ function EventDetailsContent() {
         </div>
       )}
 
-      {/* 🔴 Dynamic Payment Info Modal */}
+      {/* 🔴 Dynamic Payment Info Modal (Updated with full details) */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowPaymentModal(false)}></div>
@@ -730,31 +726,53 @@ function EventDetailsContent() {
                         <div 
                           key={i} 
                           onClick={() => setSelectedPaymentIdx(i)}
-                          className={`cursor-pointer border p-4 rounded-xl flex items-center justify-between transition-all ${selectedPaymentIdx === i ? 'border-[#e76f51] bg-[#e76f51]/10 shadow-[0_0_15px_rgba(231,111,81,0.2)]' : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10'}`}
+                          className={`cursor-pointer border p-4 rounded-xl transition-all ${selectedPaymentIdx === i ? 'border-[#e76f51] bg-[#e76f51]/10 shadow-[0_0_15px_rgba(231,111,81,0.2)]' : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10'}`}
                         >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedPaymentIdx === i ? 'border-[#e76f51]' : 'border-gray-500'}`}>
+                          <div className="flex items-start gap-3">
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors mt-0.5 shrink-0 ${selectedPaymentIdx === i ? 'border-[#e76f51]' : 'border-gray-500'}`}>
                               {selectedPaymentIdx === i && <div className="w-2.5 h-2.5 rounded-full bg-[#e76f51]"></div>}
                             </div>
-                            <div className="flex flex-col">
-                              <span className="text-white font-bold text-sm">
-                                {pm.provider.toUpperCase()} {pm.bankName ? `(${pm.bankName})` : ''} {pm.provider === 'cash' ? 'হ্যান্ড ক্যাশ' : ''}
-                              </span>
-                              <span className="text-gray-400 text-xs tracking-widest mt-0.5">{pm.accNo || pm.contactPerson}</span>
+                            
+                            <div className="flex flex-col w-full">
+                              {/* 🔴 মেথডের মূল হেডার */}
+                              <div className="flex justify-between items-start mb-1">
+                                <span className="text-white font-bold text-sm">
+                                  {pm.provider.toUpperCase()} {pm.bankName ? `(${pm.bankName})` : ''} {pm.provider === 'cash' ? 'হ্যান্ড ক্যাশ' : ''}
+                                </span>
+                                {pm.type && (
+                                  <span className={`text-[9px] px-2 py-1 rounded font-bold uppercase tracking-wider ${pm.type === 'send_money' ? 'bg-pink-500/20 text-pink-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                    {pm.type.replace('_', ' ')}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* 🔴 মেথড অনুযায়ী বিস্তারিত তথ্য (Dynamic Details) */}
+                              <div className="text-xs text-gray-400 space-y-1 mt-1 bg-black/20 p-2 rounded-lg border border-white/5">
+                                {pm.provider === 'bank' ? (
+                                  <>
+                                    <p><strong className="text-gray-300">A/C Name:</strong> {pm.accName}</p>
+                                    <p><strong className="text-gray-300">A/C No:</strong> <span className="font-mono text-emerald-400 select-all">{pm.accNo}</span></p>
+                                    <p><strong className="text-gray-300">Branch:</strong> {pm.branch}</p>
+                                    {pm.routing && <p><strong className="text-gray-300">Routing No:</strong> {pm.routing}</p>}
+                                  </>
+                                ) : pm.provider === 'cash' ? (
+                                  <>
+                                    <p><strong className="text-gray-300">Contact:</strong> {pm.contactPerson}</p>
+                                    <p><strong className="text-gray-300">Location:</strong> {pm.location}</p>
+                                  </>
+                                ) : (
+                                  <p><strong className="text-gray-300">A/C No:</strong> <span className="font-mono text-emerald-400 text-sm tracking-widest select-all">{pm.accNo}</span></p>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          {pm.type && (
-                            <span className={`text-[10px] px-2 py-1.5 rounded font-bold uppercase tracking-wider ${pm.type === 'send_money' ? 'bg-pink-500/20 text-pink-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                              {pm.type.replace('_', ' ')}
-                            </span>
-                          )}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* 🔴 Dynamic Form Fields Based on Selected Payment Method */}
+                {/* Dynamic Form Fields Based on Selected Payment Method */}
                 {selectedPaymentIdx !== '' && eventPaymentMethods[selectedPaymentIdx] && (
                   <form onSubmit={submitPaidBooking} className="space-y-4 pt-4 border-t border-white/10 animate-[zoomIn_0.2s_ease-out]">
                     
