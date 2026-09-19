@@ -651,5 +651,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-বন্ধু এবার লিডারবোর্ড পেইজের কোডিং আপডেট করে দাও ।
