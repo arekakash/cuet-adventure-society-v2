@@ -8,22 +8,22 @@ export default function LeaderboardPage() {
   const [leaders, setLeaders] = useState([])
   const [loading, setLoading] = useState(true)
   
-  // 🔴 অ্যাক্টিভ ট্যাব এবং ড্রপডাউন স্টেট
+  // অ্যাক্টিভ ট্যাব এবং ড্রপডাউন স্টেট
   const [activeTab, setActiveTab] = useState("survival_iq") 
   const [isActivityDropdownOpen, setIsActivityDropdownOpen] = useState(false)
   
-  // 🔴 নতুন: ফিল্টার স্টেট এবং ড্রপডাউন Ref
+  // ফিল্টার স্টেট এবং ড্রপডাউন Ref
   const [filterBatch, setFilterBatch] = useState("All")
   const [filterDept, setFilterDept] = useState("All")
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false)
   
   // ড্রপডাউনের বাইরে ক্লিক করলে বন্ধ করার জন্য Ref
   const dropdownRef = useRef(null)
-  const filterDropdownRef = useRef(null) // নতুন ফিল্টার ড্রপডাউনের জন্য
+  const filterDropdownRef = useRef(null) 
 
   useEffect(() => {
     fetchLeaderboard()
-  }, [activeTab, filterBatch, filterDept]) // 🔴 নতুন ডিপেন্ডেন্সি যুক্ত করা হয়েছে
+  }, [activeTab, filterBatch, filterDept]) 
 
   // ড্রপডাউনের বাইরে ক্লিক হ্যান্ডলার
   useEffect(() => {
@@ -31,7 +31,6 @@ export default function LeaderboardPage() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsActivityDropdownOpen(false)
       }
-      // 🔴 ফিল্টার ড্রপডাউন বন্ধ করার লজিক
       if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target)) {
         setIsFilterDropdownOpen(false)
       }
@@ -43,17 +42,18 @@ export default function LeaderboardPage() {
   const fetchLeaderboard = async () => {
     setLoading(true)
     
-    // 🔴 ডায়নামিক সর্টিং কলাম নির্ধারণ
+    // ডায়নামিক সর্টিং কলাম নির্ধারণ (🔴 Added Running)
     let orderByColumn = 'survival_iq'
     if (activeTab === 'total_events') orderByColumn = 'total_events' 
     if (activeTab === 'trekking') orderByColumn = 'total_distance'
     if (activeTab === 'cycling') orderByColumn = 'cycling_distance'
     if (activeTab === 'swimming') orderByColumn = 'swimming_distance'
+    if (activeTab === 'running') orderByColumn = 'running_distance'
 
-    // 🔴 সুপাবেজ কোয়েরি বিল্ডার (ডায়নামিক ফিল্টারিংয়ের জন্য)
+    // সুপাবেজ কোয়েরি বিল্ডার (🔴 Added Running Fields)
     let query = supabase
       .from('profiles')
-      .select('id, full_name, photo_url, survival_iq, total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, role, student_id, batch')
+      .select('id, full_name, photo_url, survival_iq, total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, total_runs, running_distance, role, student_id, batch')
       .order(orderByColumn, { ascending: false, nullsFirst: false })
 
     // ব্যাচ ফিল্টার লজিক
@@ -61,9 +61,8 @@ export default function LeaderboardPage() {
       query = query.eq('batch', filterBatch)
     }
 
-    // ডিপার্টমেন্ট ফিল্টার লজিক (আইডির ৩য় ও ৪র্থ ডিজিট চেক করার জন্য like কোয়েরি)
+    // ডিপার্টমেন্ট ফিল্টার লজিক
     if (filterDept !== "All") {
-      // '__' মানে প্রথম ২ ডিজিট (বছর) যাই হোক না কেন, তারপরের ২ ডিজিট হবে ডিপার্টমেন্ট কোড, এরপর '%' মানে বাকি রোল
       query = query.like('student_id', `__${filterDept}%`)
     }
 
@@ -98,12 +97,16 @@ export default function LeaderboardPage() {
     if (activeTab === "swimming") return { 
         mainValue: user.swimming_distance || 0, mainLabel: "Meters Swam", subValue: user.total_swims || 0, subLabel: "Sessions", unit: "m"
     }
+    // 🔴 Added Running Display Data
+    if (activeTab === "running") return { 
+        mainValue: user.running_distance || 0, mainLabel: "KM Run", subValue: user.total_runs || 0, subLabel: "Runs", unit: "km"
+    }
     return { mainValue: 0, mainLabel: "Points", subValue: null, unit: "" }
   }
 
-  const isActivityActive = ["trekking", "cycling", "swimming"].includes(activeTab)
+  // 🔴 Added Running to active check
+  const isActivityActive = ["trekking", "cycling", "swimming", "running"].includes(activeTab)
 
-  // ড্রপডাউন অপশন সিলেক্ট করার ফাংশন
   const handleActivitySelect = (activity) => {
     setActiveTab(activity)
     setIsActivityDropdownOpen(false) 
@@ -124,7 +127,7 @@ export default function LeaderboardPage() {
           </p>
         </div>
 
-        {/* 🔴 Compact Filter Tabs (Mobile Friendly - One Line) */}
+        {/* Compact Filter Tabs (Mobile Friendly - One Line) */}
         <div className="flex justify-center items-center gap-1.5 sm:gap-4 mb-8 sm:mb-10 relative z-20 w-full overflow-visible">
           
           <button 
@@ -170,11 +173,18 @@ export default function LeaderboardPage() {
                 >
                   <i className="fa-solid fa-person-swimming w-4 sm:w-5 text-center"></i> Swimming
                 </button>
+                {/* 🔴 Added Running Menu Item */}
+                <button 
+                  onClick={() => handleActivitySelect("running")}
+                  className={`w-full text-left px-4 sm:px-5 py-2.5 sm:py-3 text-[11px] sm:text-sm font-bold flex items-center gap-2 sm:gap-3 transition-colors ${activeTab === "running" ? "bg-white/10 text-orange-400" : "text-gray-300 hover:bg-white/5 hover:text-white"}`}
+                >
+                  <i className="fa-solid fa-person-running w-4 sm:w-5 text-center"></i> Running
+                </button>
               </div>
             )}
           </div>
 
-          {/* 🔴 নতুন: Filter Dropdown Button */}
+          {/* Filter Dropdown Button */}
           <div className="relative" ref={filterDropdownRef}>
             <button 
               onClick={() => { setIsFilterDropdownOpen(!isFilterDropdownOpen); setIsActivityDropdownOpen(false); }}
@@ -223,7 +233,6 @@ export default function LeaderboardPage() {
                       className="w-full bg-white/5 border border-white/10 text-gray-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-[#e76f51] transition-colors appearance-none max-h-48"
                     >
                       <option value="All">সকল ব্যাচ</option>
-                      {/* ১৯৬৮ থেকে ২০৫০ পর্যন্ত ব্যাচ লুপ */}
                       {Array.from({length: 2050 - 1968 + 1}, (_, i) => 2050 - i).map(year => (
                         <option key={year} value={year}>{year}</option>
                       ))}
