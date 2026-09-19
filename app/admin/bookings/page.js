@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function AdminBookings() {
-  const router = useRouter() // 🔴 রাউটার যুক্ত করা হয়েছে রিডাইরেক্টের জন্য
+  const router = useRouter()
   const [paymentRequests, setPaymentRequests] = useState([])
   const [claimRequests, setClaimRequests] = useState([]) 
   const [loading, setLoading] = useState(true)
@@ -44,7 +44,7 @@ export default function AdminBookings() {
     fetchRequests()
   }, [])
 
-  // 🔴 স্মার্ট অ্যাপ্রুভাল লজিক (Running এবং Receipt Redirect সহ)
+  // 🔴 সংশোধিত স্মার্ট অ্যাপ্রুভাল লজিক (পয়েন্ট যোগ করার কোড এখান থেকে সরিয়ে নেওয়া হয়েছে)
   const handleApprove = async (booking, isClaim = false) => {
     const event = booking.events
     const profile = booking.profiles
@@ -56,8 +56,8 @@ export default function AdminBookings() {
     }
 
     const confirmMsg = isClaim 
-        ? "এই ইউজারের অ্যাটেনডেন্স ক্লেইম অ্যাপ্রুভ করবেন? ইউজারের প্রোফাইলে পয়েন্ট যোগ হবে।" 
-        : "পেমেন্ট সঠিক হলে অ্যাপ্রুভ করুন। ইউজারের প্রোফাইলে রিওয়ার্ড যোগ হবে এবং রিসিট তৈরি হবে। নিশ্চিত?"
+        ? "এই ইউজারের অ্যাটেনডেন্স ক্লেইম অ্যাপ্রুভ করবেন?" 
+        : "পেমেন্ট সঠিক হলে বুকিং অ্যাপ্রুভ করুন। ইউজারের সিট কনফার্ম হবে এবং রিসিট তৈরি হবে। নিশ্চিত?"
         
     if (!window.confirm(confirmMsg)) return
     
@@ -82,47 +82,15 @@ export default function AdminBookings() {
         if (eventError) throw eventError
       }
 
-      // ৩. ইউজারের প্রোফাইলে ডায়নামিক রিওয়ার্ড যোগ করা (Running সহ)
-      let profileUpdateData = {}
-      const rewardCount = event.stats_meta?.treks || 0
-      const rewardDistance = event.stats_meta?.distance || 0
+      // 🔴 বিঃদ্রঃ প্রোফাইলে পয়েন্ট বা দূরত্ব যোগ করার কোড এখান থেকে মুছে ফেলা হয়েছে।
+      // কারণ ইভেন্ট কমপ্লিট হওয়ার আগে কাউকে পয়েন্ট দেওয়া যাবে না। ইভেন্ট শেষ হলে 'Mark Completed' বাটন অটো পয়েন্ট দিয়ে দেবে।
 
-      if (event.category === 'Cycling') {
-        profileUpdateData = {
-          total_rides: (profile.total_rides || 0) + rewardCount,
-          cycling_distance: (profile.cycling_distance || 0) + rewardDistance
-        }
-      } else if (event.category === 'Swimming' || event.category === 'Houseboat/Cruise') {
-        profileUpdateData = {
-          total_swims: (profile.total_swims || 0) + rewardCount,
-          swimming_distance: (profile.swimming_distance || 0) + rewardDistance
-        }
-      } else if (event.category === 'Running') {
-        profileUpdateData = {
-          total_runs: (profile.total_runs || 0) + rewardCount,
-          running_distance: (profile.running_distance || 0) + rewardDistance
-        }
-      } else {
-        profileUpdateData = {
-          total_treks: (profile.total_treks || 0) + rewardCount,
-          total_distance: (profile.total_distance || 0) + rewardDistance
-        }
-      }
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update(profileUpdateData)
-        .eq('id', profile.id)
-
-      if (profileError) throw profileError
-
-      // ৪. সাকসেস মেসেজ এবং রিডাইরেক্ট লজিক
+      // ৩. সাকসেস মেসেজ এবং রিডাইরেক্ট লজিক
       if (isClaim) {
         alert("অ্যাটেনডেন্স ক্লেইম সফলভাবে অ্যাপ্রুভ করা হয়েছে!")
         fetchRequests()
       } else {
         alert("বুকিং কনফার্ম করা হয়েছে! রিসিট জেনারেটর পেজে রিডাইরেক্ট করা হচ্ছে...")
-        // 🔴 অ্যাডমিনকে রিসিট জেনারেটরে পাঠানো হচ্ছে
         router.push(`/admin/receipt-generator?bookingId=${booking.id}`)
       }
       
