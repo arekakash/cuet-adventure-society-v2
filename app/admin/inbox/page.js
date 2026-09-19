@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import html2canvas from 'html2canvas' // 🔴 Added for Receipt Download
+import html2canvas from 'html2canvas'
 
 export default function AdminInboxPage() {
   const router = useRouter()
@@ -25,58 +25,68 @@ export default function AdminInboxPage() {
 
   useEffect(() => {
     let isMounted = true
+    let channel = null // 🔴 চ্যানেলটি বাইরে ডিক্লেয়ার করা হলো
 
     const initializeAdminInbox = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        if (isMounted) router.push('/login')
-        return
-      }
+      try { // 🔴 পুরো লজিক try ব্লকে ঢোকানো হলো
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          if (isMounted) router.push('/login')
+          return
+        }
 
-      // ১. অ্যাডমিন ভেরিফিকেশন
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single()
+        // ১. অ্যাডমিন ভেরিফিকেশন
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
 
-      if (profileData?.role !== 'admin') {
-        alert("এই পেজে প্রবেশাধিকার নেই!")
-        if (isMounted) router.push('/dashboard')
-        return
-      }
+        if (profileData?.role !== 'admin') {
+          alert("এই পেজে প্রবেশাধিকার নেই!")
+          if (isMounted) router.push('/dashboard')
+          return
+        }
 
-      if (isMounted) setAdmin(profileData)
+        if (isMounted) setAdmin(profileData)
 
-      // ২. কন্টাক্ট লিস্ট লোড করা
-      await fetchContacts(profileData.id)
+        // ২. কন্টাক্ট লিস্ট লোড করা
+        await fetchContacts(profileData.id)
 
-      // ৩. রিয়েল-টাইম চ্যাট লিসেনার
-      const channel = supabase
-        .channel('admin_realtime_chat')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cas_messages' }, (payload) => {
-          const newMsg = payload.new
-          
-          if (newMsg.receiver_id === profileData.id || newMsg.sender_id === profileData.id) {
-            fetchContacts(profileData.id)
+        // ৩. রিয়েল-টাইম চ্যাট লিসেনার
+        channel = supabase
+          .channel('admin_realtime_chat')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cas_messages' }, (payload) => {
+            const newMsg = payload.new
             
-            const currentContact = selectedContactRef.current
-            if (currentContact && (newMsg.sender_id === currentContact.id || newMsg.receiver_id === currentContact.id)) {
-              fetchMessages(profileData.id, currentContact.id)
+            if (newMsg.receiver_id === profileData.id || newMsg.sender_id === profileData.id) {
+              fetchContacts(profileData.id)
+              
+              const currentContact = selectedContactRef.current
+              if (currentContact && (newMsg.sender_id === currentContact.id || newMsg.receiver_id === currentContact.id)) {
+                fetchMessages(profileData.id, currentContact.id)
+              }
             }
-          }
-        })
-        .subscribe()
+          })
+          .subscribe()
 
-      if (isMounted) setLoading(false)
-
-      return () => {
-        supabase.removeChannel(channel)
+      } catch (error) {
+        console.error("Admin Inbox init error:", error)
+      } finally {
+        // 🔴 finally ব্লকের কারণে লোডিং ১০০% বন্ধ হবেই!
+        if (isMounted) setLoading(false)
       }
     }
 
     initializeAdminInbox()
-    return () => { isMounted = false }
+    
+    // 🔴 আসল ক্লিনআপ ব্লক
+    return () => { 
+      isMounted = false 
+      if (channel) {
+        supabase.removeChannel(channel)
+      }
+    }
   }, [router])
 
   const fetchContacts = async (adminId) => {
@@ -185,7 +195,7 @@ export default function AdminInboxPage() {
     }
   }
 
-  // 🔴 জিরো-স্টোরেজ রিসিট ডাউনলোড ফাংশন
+  // জিরো-স্টোরেজ রিসিট ডাউনলোড ফাংশন
   const downloadReceipt = async (receiptId, receiptNo) => {
     const element = document.getElementById(`receipt-${receiptId}`)
     if (!element) return
