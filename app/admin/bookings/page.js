@@ -2,17 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function AdminBookings() {
+  const router = useRouter() // 🔴 রাউটার যুক্ত করা হয়েছে রিডাইরেক্টের জন্য
   const [paymentRequests, setPaymentRequests] = useState([])
-  const [claimRequests, setClaimRequests] = useState([]) // 🔴 ক্লেইম রিকোয়েস্ট স্টেট
+  const [claimRequests, setClaimRequests] = useState([]) 
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState(null)
   const [copiedId, setCopiedId] = useState(null)
   
-  // 🔴 ট্যাব স্টেট
-  const [activeTab, setActiveTab] = useState('payments') // 'payments' or 'claims'
+  const [activeTab, setActiveTab] = useState('payments') 
 
   const fetchRequests = async () => {
     try {
@@ -21,9 +22,9 @@ export default function AdminBookings() {
         .select(`
           *,
           events (title, id, booked_seats, total_seats, category, stats_meta),
-          profiles (id, full_name, phone, blood_group, emergency_contact, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance)
+          profiles (id, full_name, phone, blood_group, emergency_contact, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, total_runs, running_distance)
         `)
-        .in('status', ['pending', 'claim_pending']) // 🔴 দুটি স্ট্যাটাসই আনবে
+        .in('status', ['pending', 'claim_pending']) 
         .order('created_at', { ascending: true }) 
         
       if (error) throw error
@@ -43,20 +44,20 @@ export default function AdminBookings() {
     fetchRequests()
   }, [])
 
-  // 🔴 স্মার্ট অ্যাপ্রুভাল লজিক (Payment এবং Claim উভয়ের জন্য কাজ করবে)
+  // 🔴 স্মার্ট অ্যাপ্রুভাল লজিক (Running এবং Receipt Redirect সহ)
   const handleApprove = async (booking, isClaim = false) => {
     const event = booking.events
     const profile = booking.profiles
     
-    // পেমেন্টের ক্ষেত্রে সিট চেক করবে, ক্লেইমের ক্ষেত্রে নয় (কারণ ক্লেইম পাস্ট ইভেন্টের হয়)
-    if (!isClaim && event.booked_seats >= event.total_seats) {
+    // পেমেন্টের ক্ষেত্রে সিট চেক করবে
+    if (!isClaim && (event.booked_seats || 0) >= event.total_seats) {
         alert("⚠️ এই ইভেন্টের সব সিট ইতোমধ্যে বুক হয়ে গেছে! আপনি আর অ্যাপ্রুভ করতে পারবেন না।")
         return
     }
 
     const confirmMsg = isClaim 
         ? "এই ইউজারের অ্যাটেনডেন্স ক্লেইম অ্যাপ্রুভ করবেন? ইউজারের প্রোফাইলে পয়েন্ট যোগ হবে।" 
-        : "পেমেন্ট সঠিক হলে অ্যাপ্রুভ করুন। ইউজারের প্রোফাইলে রিওয়ার্ড যোগ হবে। নিশ্চিত?"
+        : "পেমেন্ট সঠিক হলে অ্যাপ্রুভ করুন। ইউজারের প্রোফাইলে রিওয়ার্ড যোগ হবে এবং রিসিট তৈরি হবে। নিশ্চিত?"
         
     if (!window.confirm(confirmMsg)) return
     
@@ -71,15 +72,17 @@ export default function AdminBookings() {
 
       if (bookingError) throw bookingError
 
-      // ২. ইভেন্টের সিট সংখ্যা আপডেট 
-      const { error: eventError } = await supabase
-        .from('events')
-        .update({ booked_seats: event.booked_seats + 1 })
-        .eq('id', event.id)
-        
-      if (eventError) throw eventError
+      // ২. ইভেন্টের সিট সংখ্যা আপডেট (শুধুমাত্র নতুন পেমেন্ট বুকিংয়ের জন্য)
+      if (!isClaim) {
+        const { error: eventError } = await supabase
+          .from('events')
+          .update({ booked_seats: (event.booked_seats || 0) + 1 })
+          .eq('id', event.id)
+          
+        if (eventError) throw eventError
+      }
 
-      // ৩. ইউজারের প্রোফাইলে ডায়নামিক রিওয়ার্ড যোগ করা
+      // ৩. ইউজারের প্রোফাইলে ডায়নামিক রিওয়ার্ড যোগ করা (Running সহ)
       let profileUpdateData = {}
       const rewardCount = event.stats_meta?.treks || 0
       const rewardDistance = event.stats_meta?.distance || 0
@@ -94,6 +97,11 @@ export default function AdminBookings() {
           total_swims: (profile.total_swims || 0) + rewardCount,
           swimming_distance: (profile.swimming_distance || 0) + rewardDistance
         }
+      } else if (event.category === 'Running') {
+        profileUpdateData = {
+          total_runs: (profile.total_runs || 0) + rewardCount,
+          running_distance: (profile.running_distance || 0) + rewardDistance
+        }
       } else {
         profileUpdateData = {
           total_treks: (profile.total_treks || 0) + rewardCount,
@@ -101,7 +109,6 @@ export default function AdminBookings() {
         }
       }
 
-      // প্রোফাইল আপডেট করা
       const { error: profileError } = await supabase
         .from('profiles')
         .update(profileUpdateData)
@@ -109,8 +116,16 @@ export default function AdminBookings() {
 
       if (profileError) throw profileError
 
-      alert(isClaim ? "অ্যাটেনডেন্স ক্লেইম অ্যাপ্রুভ করা হয়েছে!" : "বুকিং কনফার্ম করা হয়েছে!")
-      fetchRequests()
+      // ৪. সাকসেস মেসেজ এবং রিডাইরেক্ট লজিক
+      if (isClaim) {
+        alert("অ্যাটেনডেন্স ক্লেইম সফলভাবে অ্যাপ্রুভ করা হয়েছে!")
+        fetchRequests()
+      } else {
+        alert("বুকিং কনফার্ম করা হয়েছে! রিসিট জেনারেটর পেজে রিডাইরেক্ট করা হচ্ছে...")
+        // 🔴 অ্যাডমিনকে রিসিট জেনারেটরে পাঠানো হচ্ছে
+        router.push(`/admin/receipt-generator?bookingId=${booking.id}`)
+      }
+      
     } catch (error) {
       alert("অ্যাপ্রুভ করতে সমস্যা হয়েছে: " + error.message)
     } finally {
@@ -153,12 +168,11 @@ export default function AdminBookings() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#050b08] flex items-center justify-center">
-        <i className="fa-solid fa-circle-notch fa-spin text-4xl text-blue-400"></i>
+        <i className="fa-solid fa-circle-notch fa-spin text-4xl text-[#e76f51]"></i>
       </div>
     )
   }
 
-  // 🔴 Active Data Array based on Tab
   const activeData = activeTab === 'payments' ? paymentRequests : claimRequests
 
   return (
@@ -181,7 +195,6 @@ export default function AdminBookings() {
               </div>
           </div>
 
-          {/* 🔴 Tabs */}
           <div className="flex flex-wrap gap-3">
               <button 
                 onClick={() => setActiveTab('payments')}
@@ -214,7 +227,6 @@ export default function AdminBookings() {
               return (
                 <div key={booking.id} className="bg-[#0a1c13] border border-white/5 hover:border-[#e76f51]/30 p-5 rounded-2xl flex flex-col md:flex-row gap-5 items-start md:items-center transition-all shadow-md">
                     
-                    {/* ইউজার ও ইভেন্ট ইনফো */}
                     <div className="flex-grow w-full md:w-auto">
                         <div className="flex items-center justify-between mb-2">
                             <h3 className="text-sm font-bold text-white line-clamp-1"><i className="fa-solid fa-map-location-dot text-[#e76f51] mr-2"></i> {booking.events?.title || 'Unknown Event'}</h3>
@@ -232,7 +244,6 @@ export default function AdminBookings() {
                             </div>
                         </div>
 
-                        {/* পেমেন্ট/ক্লেইম ইনফো */}
                         <div className="flex items-center gap-3">
                             {activeTab === 'payments' ? (
                                 <>
@@ -268,9 +279,7 @@ export default function AdminBookings() {
                         </div>
                     </div>
 
-                    {/* অ্যাকশন বাটন */}
                     <div className="flex flex-row md:flex-col gap-2 w-full md:w-36 shrink-0 mt-2 md:mt-0 border-t border-white/5 md:border-none pt-4 md:pt-0">
-                        {/* 🔴 আপডেট: অ্যাপ্রুভ/রিজেক্ট লজিক */}
                         <button 
                           onClick={() => handleApprove(booking, activeTab === 'claims')} 
                           disabled={processingId === booking.id || (activeTab === 'payments' && isFull)}
