@@ -60,7 +60,7 @@ export default function EditEvent() {
     "ক্যামেরা, ডিএসএলআর বা ড্রোন ওড়ানোর স্পেশাল ফি",
     "প্যারাসেইলিং, স্কুটার বা ওয়াটার স্পোর্টস ফি",
     "আলাদা বা কাপল রুম নিলে অতিরিক্ত রুম চার্জ",
-    "মোবাইল চার্জিং বা পাহাড়ি এলাকায় হট ওয়াটার ফি",
+    "মোবাইল চার্জিং বা পাহাড়ি এলাকায় হট ওয়াটার ফি",
     "হঠাৎ প্রাকৃতিক দুর্যোগে আটকে গেলে অতিরিক্ত খরচ",
     "বাসের নির্দিষ্ট স্টপ ছাড়া অন্য কোথাও নামা বা ওঠার খরচ"
   ]
@@ -297,12 +297,12 @@ export default function EditEvent() {
     try {
       setLoading(true);
 
-      // ১. প্রথমে এই ইভেন্টের সকল অ্যাপ্রুভড বুকিং বা ইউজারদের খুঁজে বের করো
+      // ১. প্রথমে এই ইভেন্টের সকল অ্যাপ্রুভড এবং ফ্রি বুকিং ইউজারদের খুঁজে বের করো
       const { data: bookings, error: bookingError } = await supabase
         .from('bookings')
         .select('user_id')
         .eq('event_id', eventId)
-        .eq('status', 'approved');
+        .in('status', ['approved', 'free_booking']); // 🔴 free_booking যুক্ত করা হয়েছে
 
       if (bookingError) throw bookingError;
 
