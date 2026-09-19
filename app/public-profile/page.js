@@ -34,7 +34,7 @@ export default function PublicProfilePage() {
         .select(`
           id, full_name, department, batch, photo_url, role, 
           survival_iq, total_events, total_treks, total_distance, total_rides, 
-          cycling_distance, total_swims, swimming_distance, fb_link, insta_link
+          cycling_distance, total_swims, swimming_distance, total_runs, running_distance, fb_link, insta_link
         `)
         .eq('id', userId)
         .single();
@@ -44,8 +44,8 @@ export default function PublicProfilePage() {
       }
       setProfile(profileData);
 
-      // Rank Calculation (ড্যাশবোর্ডের মতো)
-      const totalActivities = (profileData.total_treks || 0) + (profileData.total_rides || 0) + (profileData.total_swims || 0);
+      // 🔴 Rank Calculation (ড্যাশবোর্ডের মতো Running সহ)
+      const totalActivities = (profileData.total_treks || 0) + (profileData.total_rides || 0) + (profileData.total_swims || 0) + (profileData.total_runs || 0);
       if (totalActivities > 0 || (profileData.survival_iq && profileData.survival_iq > 0)) {
         const { count, error: rankError } = await supabase
           .from('profiles')
@@ -118,7 +118,7 @@ export default function PublicProfilePage() {
           <i className="fa-solid fa-arrow-left"></i> ফিরে যান
         </button>
 
-        {/* 🔴 Top Section: 4-Column Profile Info + 8-Column 6-Card Grid */}
+        {/* 🔴 Top Section: 4-Column Profile Info + 8-Column Stats Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5" data-aos="fade-up">
           
           {/* Profile Card - Compact */}
@@ -152,8 +152,8 @@ export default function PublicProfilePage() {
             </div>
           </div>
 
-          {/* 6 Stats Grid - Compact */}
-          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {/* 🔴 Stats Grid - (7 Cards: Added Running) */}
+          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
             
             {/* Global Rank */}
             <div className="bg-[#0a1c13]/80 backdrop-blur-md p-3.5 rounded-2xl border border-yellow-500/20 text-center hover:border-yellow-500/40 transition-all flex flex-col justify-center items-center shadow-md">
@@ -170,7 +170,7 @@ export default function PublicProfilePage() {
             </div>
 
             {/* Total Events */}
-            <div className="bg-[#0a1c13]/80 backdrop-blur-md p-3.5 rounded-2xl border border-[#e76f51]/20 text-center hover:border-[#e76f51]/40 transition-all flex flex-col justify-center items-center shadow-md">
+            <div className="bg-[#0a1c13]/80 backdrop-blur-md p-3.5 rounded-2xl border border-[#e76f51]/20 text-center hover:border-[#e76f51]/40 transition-all flex flex-col justify-center items-center shadow-md sm:col-span-2">
               <div className="w-7 h-7 rounded-full bg-[#e76f51]/20 text-[#e76f51] flex items-center justify-center text-sm mb-1.5"><i className="fa-solid fa-tent"></i></div>
               <h3 className="text-xl font-black text-white mb-0.5">{profile.total_events || 0}</h3>
               <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Total Events</p>
@@ -195,6 +195,13 @@ export default function PublicProfilePage() {
               <i className="fa-solid fa-person-swimming text-cyan-400 text-base mb-1.5 opacity-80"></i>
               <h3 className="text-xl font-black text-white mb-0.5">{profile.swimming_distance || 0}<span className="text-[9px] text-gray-500 ml-0.5 font-normal">m</span></h3>
               <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">{profile.total_swims || 0} Swims</p>
+            </div>
+
+            {/* 🔴 Running (New) */}
+            <div className="bg-[#0a1c13]/80 backdrop-blur-md p-3.5 rounded-2xl border border-orange-500/20 text-center hover:border-orange-500/40 transition-all flex flex-col justify-center shadow-md">
+              <i className="fa-solid fa-person-running text-orange-400 text-base mb-1.5 opacity-80"></i>
+              <h3 className="text-xl font-black text-white mb-0.5">{profile.running_distance || 0}<span className="text-[9px] text-gray-500 ml-0.5 font-normal">km</span></h3>
+              <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">{profile.total_runs || 0} Runs</p>
             </div>
 
           </div>
