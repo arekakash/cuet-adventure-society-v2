@@ -19,15 +19,22 @@ function EventDetailsContent() {
   const [bookingStatus, setBookingStatus] = useState(null)
   const [processing, setProcessing] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [trxId, setTrxId] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('')
+
+  // 🔴 Dynamic Payment Form States
+  const [selectedPaymentIdx, setSelectedPaymentIdx] = useState('')
+  const [senderNo, setSenderNo] = useState('')
+  const [mfsTrxId, setMfsTrxId] = useState('')
+  const [bankAccName, setBankAccName] = useState('')
+  const [bankRef, setBankRef] = useState('')
+  const [payDate, setPayDate] = useState('')
+  const [receiverName, setReceiverName] = useState('')
+  const [cashLocation, setCashLocation] = useState('')
 
   const [approvedExplorers, setApprovedExplorers] = useState([])
   const [interestedExplorers, setInterestedExplorers] = useState([])
 
-  // 🔴 অ্যাডমিন মডাল এবং ফর্ম স্টেট
   const [showAdminAddModal, setShowAdminAddModal] = useState(false)
-  const [adminAddTab, setAdminAddTab] = useState('search') // 'search' or 'create'
+  const [adminAddTab, setAdminAddTab] = useState('search') 
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [newMemberForm, setNewMemberForm] = useState({ full_name: '', department: '', batch: '' })
@@ -46,7 +53,6 @@ function EventDetailsContent() {
         if (eventError) throw eventError
         if (isMounted) setEvent(eventData)
 
-        // Fetch Participants
         if (eventData.status === 'completed') {
           const { data: bookingData } = await supabase
             .from('bookings')
@@ -73,7 +79,6 @@ function EventDetailsContent() {
           }
         }
 
-        // Fetch User Auth & Profile
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
           if (isMounted) setUser(session.user)
@@ -89,7 +94,6 @@ function EventDetailsContent() {
             if (profile?.role === 'admin') setIsAdmin(true)
           }
 
-          // Check if user already has a booking/claim
           const { data: existingBooking } = await supabase
             .from('bookings')
             .select('status, trx_id')
@@ -128,7 +132,6 @@ function EventDetailsContent() {
     return true
   }
 
-  // Attendance Claim লজিক
   const handleAttendanceClaim = async () => {
     if (!checkProfileCompletion()) return
     if (!window.confirm("আপনি কি এই ইভেন্টে অংশগ্রহণ করেছিলেন? আপনার ক্লেইম অ্যাডমিন প্যানেলে ভেরিফিকেশনের জন্য পাঠানো হবে।")) return
@@ -149,7 +152,6 @@ function EventDetailsContent() {
     }
   }
 
-  // Admin Search Members
   const handleSearchMembers = async (e) => {
     e.preventDefault()
     if (!searchQuery.trim()) return
@@ -169,7 +171,6 @@ function EventDetailsContent() {
     }
   }
 
-  // Admin Add Existing Member to Event
   const adminAddExistingMember = async (memberId) => {
     if (!window.confirm("এই মেম্বারকে ইভেন্টে যুক্ত করতে চান?")) return
     setProcessing(true)
@@ -187,7 +188,6 @@ function EventDetailsContent() {
     }
   }
 
-  // 🔴 Admin Create Offline Member & Add (Updated Logic)
   const handleCreateOfflineMember = async (e) => {
     e.preventDefault()
     setProcessing(true)
@@ -197,8 +197,8 @@ function EventDetailsContent() {
       const { error: profileError } = await supabase.from('profiles').insert([{
         id: fakeId,
         full_name: newMemberForm.full_name,
-        department: newMemberForm.department ? newMemberForm.department.toUpperCase() : null, // 🔴 Optional
-        batch: newMemberForm.batch ? newMemberForm.batch : null, // 🔴 Optional
+        department: newMemberForm.department ? newMemberForm.department.toUpperCase() : null, 
+        batch: newMemberForm.batch ? newMemberForm.batch : null, 
         role: 'explorer',
         is_offline: true 
       }])
@@ -218,18 +218,42 @@ function EventDetailsContent() {
     }
   }
 
+  // 🔴 Updated dynamic submit logic
   const submitPaidBooking = async (e) => {
     e.preventDefault()
+    if (selectedPaymentIdx === '') return alert("দয়া করে পেমেন্ট মাধ্যম নির্বাচন করুন!")
+
     setProcessing(true)
     try {
+      const selectedMethod = event.payment_methods[selectedPaymentIdx]
+      let finalTrxId = ''
+      let finalPaymentMethodStr = ''
+
+      if (selectedMethod.provider === 'bank') {
+        finalTrxId = `Acc: ${bankAccName} | Ref: ${bankRef} | Date: ${payDate}`
+        finalPaymentMethodStr = `Bank (${selectedMethod.bankName}) - ${selectedMethod.accNo}`
+      } else if (selectedMethod.provider === 'cash') {
+        finalTrxId = `To: ${receiverName} | Loc: ${cashLocation} | Date: ${payDate}`
+        finalPaymentMethodStr = `Cash - ${selectedMethod.contactPerson}`
+      } else {
+        finalTrxId = `Sender: ${senderNo} | TrxID: ${mfsTrxId.toUpperCase()}`
+        finalPaymentMethodStr = `${selectedMethod.provider.toUpperCase()} (${selectedMethod.type.replace('_', ' ')}) - ${selectedMethod.accNo}`
+      }
+
       const { error } = await supabase.from('bookings').upsert({
-        user_id: user.id, event_id: eventId, status: 'pending', payment_method: paymentMethod, trx_id: trxId
+        user_id: user.id, event_id: eventId, status: 'pending', payment_method: finalPaymentMethodStr, trx_id: finalTrxId
       }, { onConflict: 'user_id, event_id' })
+      
       if (error) throw error
+      
       setBookingStatus('pending')
       setShowPaymentModal(false)
-      alert("বুকিং রিকোয়েস্ট পাঠানো হয়েছে!")
-    } catch (err) { alert(err.message) } finally { setProcessing(false) }
+      alert("বুকিং রিকোয়েস্ট সফলভাবে পাঠানো হয়েছে!")
+    } catch (err) { 
+      alert(err.message) 
+    } finally { 
+      setProcessing(false) 
+    }
   }
 
   const handleInterested = async () => {
@@ -266,27 +290,34 @@ function EventDetailsContent() {
   const isPastEvent = event.status === 'completed'
   const isCycling = event.category === 'Cycling'
   const isSwimming = event.category === 'Swimming' || event.category === 'Houseboat/Cruise'
+  const isRunning = event.category === 'Running' // 🔴 New Running logic
   const isDayEvent = event.category === 'Day Tour' || event.category === 'Workshop'
 
   const getDistanceIcon = () => {
     if (isCycling) return 'fa-solid fa-bicycle'
     if (isSwimming) return 'fa-solid fa-person-swimming'
+    if (isRunning) return 'fa-solid fa-person-running' // 🔴 Running Icon
     return 'fa-solid fa-shoe-prints'
   }
 
   const getDistanceLabel = () => {
     if (isCycling) return 'রাইডিং দূরত্ব'
     if (isSwimming) return 'সাঁতারের দূরত্ব'
+    if (isRunning) return 'দৌড়ের দূরত্ব' // 🔴 Running Label
     return 'দূরত্ব অতিক্রম'
   }
 
   const getRewardLabel = () => {
     if (isCycling) return 'Rides'
     if (isSwimming) return 'Swims'
+    if (isRunning) return 'Runs' // 🔴 Running Reward Label
     return 'Treks'
   }
 
   const isUserApproved = user && approvedExplorers.some(exp => exp.id === user.id)
+  
+  // Safe parsing of payment methods
+  const eventPaymentMethods = Array.isArray(event.payment_methods) ? event.payment_methods : []
 
   return (
     <div className="min-h-screen bg-[#050b08] pt-20 pb-20 relative text-gray-300">
@@ -305,7 +336,7 @@ function EventDetailsContent() {
         <div className="absolute bottom-0 left-0 w-full z-20 px-4 sm:px-6 pb-8">
             <div className="max-w-5xl mx-auto">
                 <span className="bg-[#e76f51] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-3 inline-block flex items-center gap-2 w-max">
-                  <i className={isCycling ? "fa-solid fa-bicycle" : isSwimming ? "fa-solid fa-person-swimming" : "fa-solid fa-mountain"}></i>
+                  <i className={getDistanceIcon()}></i>
                   {event.category}
                 </span>
                 <h1 className="text-3xl md:text-5xl font-black text-white leading-tight mb-2">{event.title}</h1>
@@ -397,7 +428,6 @@ function EventDetailsContent() {
                     </div>
                   )}
 
-                  {/* Attendance Claim & Admin Add Panel */}
                   <div className="mt-6 flex flex-col sm:flex-row gap-4 items-center justify-center p-4 bg-white/5 rounded-2xl border border-white/10">
                     {!isUserApproved && bookingStatus !== 'claim_pending' && (
                       <button 
@@ -425,7 +455,6 @@ function EventDetailsContent() {
                   </div>
                 </div>
 
-                {/* Interested Souls (Horizontal Scroll) */}
                 {interestedExplorers.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
@@ -581,6 +610,7 @@ function EventDetailsContent() {
                     <div className="space-y-3 text-sm text-gray-300">
                       <p className="flex justify-between border-b border-white/5 pb-2">
                         <span className="text-gray-500">রিওয়ার্ড পয়েন্ট:</span> 
+                        {/* 🔴 Dynamic Reward rendering */}
                         <span className="font-bold text-yellow-500">+{event.stats_meta?.treks || 0} {getRewardLabel()}</span>
                       </p>
                       {!isDayEvent && event.stay_type && event.stay_type !== 'None' && (
@@ -605,7 +635,7 @@ function EventDetailsContent() {
         </div>
       </div>
 
-      {/* 🔴 Admin Add Member Modal (Updated UI) */}
+      {/* Admin Add Member Modal */}
       {showAdminAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowAdminAddModal(false)}></div>
@@ -652,12 +682,10 @@ function EventDetailsContent() {
                       <input type="text" required value={newMemberForm.full_name} onChange={(e) => setNewMemberForm({...newMemberForm, full_name: e.target.value})} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-blue-400 text-sm" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      {/* 🔴 Department is Optional */}
                       <div>
                         <label className="block text-xs font-bold text-gray-400 mb-1.5">ডিপার্টমেন্ট (ঐচ্ছিক)</label>
                         <input type="text" placeholder="e.g. CSE" value={newMemberForm.department} onChange={(e) => setNewMemberForm({...newMemberForm, department: e.target.value})} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-blue-400 text-sm uppercase" />
                       </div>
-                      {/* 🔴 Batch is Optional */}
                       <div>
                         <label className="block text-xs font-bold text-gray-400 mb-1.5">ব্যাচ (ঐচ্ছিক)</label>
                         <input type="number" placeholder="e.g. 2021" value={newMemberForm.batch} onChange={(e) => setNewMemberForm({...newMemberForm, batch: e.target.value})} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-blue-400 text-sm" />
@@ -674,41 +702,115 @@ function EventDetailsContent() {
         </div>
       )}
 
-      {/* পেমেন্ট ইনফো মডেল */}
+      {/* 🔴 Dynamic Payment Info Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowPaymentModal(false)}></div>
-            <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-6 md:p-8 w-full max-w-md relative z-10 shadow-2xl">
+            <div className="bg-[#0a1c13] border border-[#e76f51]/30 rounded-3xl p-6 md:p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto relative z-10 shadow-[0_0_50px_rgba(231,111,81,0.15)]">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-black text-white"><i className="fa-solid fa-wallet text-[#e76f51] mr-2"></i> পেমেন্ট কনফার্মেশন</h3>
                     <button onClick={() => setShowPaymentModal(false)} className="text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
                 </div>
                 
-                <div className="bg-black/30 border border-white/5 p-4 rounded-xl mb-6 text-sm text-gray-300 leading-relaxed">
-                    অনুগ্রহ করে নিচের নাম্বারে <b>৳ {event.booking_fee}</b> সেন্ড মানি করুন এবং তারপর TrxID টি সাবমিট করুন। <br/><br/>
-                    <span className="text-[#e76f51] font-bold">নাম্বার ও মেথড:</span> <br/>{event.payment_methods}
+                <div className="bg-black/40 border border-white/5 p-4 rounded-xl mb-6 text-center">
+                    <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">আপনাকে পে করতে হবে (অ্যাডভান্স)</p>
+                    <p className="text-4xl font-black text-[#e76f51] mt-2">৳ {event.booking_fee}</p>
                 </div>
 
-                <form onSubmit={submitPaidBooking} className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">কোন মেথডে টাকা পাঠিয়েছেন? *</label>
-                        <select required value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#e76f51]">
-                            <option value="" disabled>নির্বাচন করুন</option>
-                            <option value="bkash">bKash</option>
-                            <option value="nagad">Nagad</option>
-                            <option value="rocket">Rocket</option>
-                            <option value="cash">হাতে ক্যাশ দিয়েছি</option>
-                        </select>
+                <div className="mb-6">
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-3">পেমেন্ট করার মাধ্যম নির্বাচন করুন *</p>
+                  
+                  {eventPaymentMethods.length === 0 ? (
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 rounded-xl text-yellow-400 text-xs">
+                      অ্যাডমিন এখনো কোনো পেমেন্ট মেথড যুক্ত করেননি।
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ট্রানজেকশন আইডি (TrxID) *</label>
-                        <input type="text" required value={trxId} onChange={(e) => setTrxId(e.target.value)} placeholder="e.g. 9J2H8KX6P" className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#e76f51] uppercase" />
+                  ) : (
+                    <div className="space-y-3">
+                      {eventPaymentMethods.map((pm, i) => (
+                        <div 
+                          key={i} 
+                          onClick={() => setSelectedPaymentIdx(i)}
+                          className={`cursor-pointer border p-4 rounded-xl flex items-center justify-between transition-all ${selectedPaymentIdx === i ? 'border-[#e76f51] bg-[#e76f51]/10 shadow-[0_0_15px_rgba(231,111,81,0.2)]' : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedPaymentIdx === i ? 'border-[#e76f51]' : 'border-gray-500'}`}>
+                              {selectedPaymentIdx === i && <div className="w-2.5 h-2.5 rounded-full bg-[#e76f51]"></div>}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-white font-bold text-sm">
+                                {pm.provider.toUpperCase()} {pm.bankName ? `(${pm.bankName})` : ''} {pm.provider === 'cash' ? 'হ্যান্ড ক্যাশ' : ''}
+                              </span>
+                              <span className="text-gray-400 text-xs tracking-widest mt-0.5">{pm.accNo || pm.contactPerson}</span>
+                            </div>
+                          </div>
+                          {pm.type && (
+                            <span className={`text-[10px] px-2 py-1.5 rounded font-bold uppercase tracking-wider ${pm.type === 'send_money' ? 'bg-pink-500/20 text-pink-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                              {pm.type.replace('_', ' ')}
+                            </span>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    <button type="submit" disabled={processing} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold mt-2 transition-all flex justify-center items-center gap-2">
-                        {processing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-check"></i>}
-                        সাবমিট বুকিং
+                  )}
+                </div>
+
+                {/* 🔴 Dynamic Form Fields Based on Selected Payment Method */}
+                {selectedPaymentIdx !== '' && eventPaymentMethods[selectedPaymentIdx] && (
+                  <form onSubmit={submitPaidBooking} className="space-y-4 pt-4 border-t border-white/10 animate-[zoomIn_0.2s_ease-out]">
+                    
+                    {eventPaymentMethods[selectedPaymentIdx].provider === 'bank' && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2">যে অ্যাকাউন্ট থেকে টাকা পাঠিয়েছেন (Sender Name/No) *</label>
+                          <input type="text" required value={bankAccName} onChange={(e) => setBankAccName(e.target.value)} placeholder="e.g. MD. FAHIM / 123456789" className="w-full bg-white/5 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51]" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2">রেফারেন্স / ডিপোজিট স্লিপ নম্বর *</label>
+                          <input type="text" required value={bankRef} onChange={(e) => setBankRef(e.target.value)} placeholder="e.g. SLIP-12345 বা পেমেন্টের কারণ" className="w-full bg-white/5 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51]" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2">পেমেন্টের তারিখ *</label>
+                          <input type="date" required value={payDate} onChange={(e) => setPayDate(e.target.value)} className="w-full bg-white/5 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51] [color-scheme:dark]" />
+                        </div>
+                      </>
+                    )}
+
+                    {eventPaymentMethods[selectedPaymentIdx].provider === 'cash' && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2">কার কাছে টাকা জমা দিয়েছেন? (রিসিভারের নাম) *</label>
+                          <input type="text" required value={receiverName} onChange={(e) => setReceiverName(e.target.value)} placeholder="e.g. Fahim Bhuiyan" className="w-full bg-white/5 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51]" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2">কোথায় টাকা দিয়েছেন? (লোকেশন) *</label>
+                          <input type="text" required value={cashLocation} onChange={(e) => setCashLocation(e.target.value)} placeholder="e.g. CUET Campus" className="w-full bg-white/5 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51]" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2">জমার তারিখ *</label>
+                          <input type="date" required value={payDate} onChange={(e) => setPayDate(e.target.value)} className="w-full bg-white/5 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51] [color-scheme:dark]" />
+                        </div>
+                      </>
+                    )}
+
+                    {['bkash', 'nagad', 'rocket'].includes(eventPaymentMethods[selectedPaymentIdx].provider) && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2">যে নম্বর থেকে টাকা পাঠিয়েছেন (Sender No.) *</label>
+                          <input type="tel" required value={senderNo} onChange={(e) => setSenderNo(e.target.value)} placeholder="017XXXXXXXX" className="w-full bg-white/5 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51] tracking-widest font-mono" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2">ট্রানজেকশন আইডি (TrxID) *</label>
+                          <input type="text" required value={mfsTrxId} onChange={(e) => setMfsTrxId(e.target.value)} placeholder="e.g. 9J2H8KX6P" className="w-full bg-white/5 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51] uppercase font-mono" />
+                        </div>
+                      </>
+                    )}
+
+                    <button type="submit" disabled={processing} className="w-full bg-[#e76f51] hover:bg-orange-600 text-white py-4 rounded-xl font-black mt-4 transition-all shadow-glow flex justify-center items-center gap-2">
+                        {processing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-check-double"></i>}
+                        বুকিং কনফার্ম করুন
                     </button>
-                </form>
+                  </form>
+                )}
             </div>
         </div>
       )}
