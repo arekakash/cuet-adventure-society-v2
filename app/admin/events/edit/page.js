@@ -22,7 +22,7 @@ export default function EditEvent() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
   const [showCropper, setShowCropper] = useState(false)
 
-  // 🔴 ফর্মের সাধারণ ডেটা (Subtitle রিমুভ করা হয়েছে)
+  // 🔴 ফর্মের সাধারণ ডেটা
   const [formData, setFormData] = useState({
     title: '', category: 'Trekking', destination: '',
     startDate: '', endDate: '', reportingPlace: '', deadline: '',
@@ -33,7 +33,7 @@ export default function EditEvent() {
     metaTreks: 1, metaDistance: '', metaNights: 0
   })
 
-  // 🔴 প্রি-ডিফাইনড চেকলিস্ট (বাংলাদেশের রিয়েল কনটেক্সট)
+  // 🔴 প্রি-ডিফাইনড চেকলিস্ট 
   const presetIncluded = [
     "ঢাকা-গন্তব্য আপ-ডাউন বাস টিকেট (নন-এসি/এসি)",
     "প্রতিদিন ৩ বেলা মূল খাবার (ভারী খাবার)",
@@ -145,7 +145,7 @@ export default function EditEvent() {
     }
   }
 
-  // 🔴 Image Cropper Logic (Free-Form Support - No Fixed Aspect Ratio)
+  // 🔴 Image Cropper Logic
   const handleImageSelect = (e) => {
     const file = e.target.files[0]
     if (file) {
@@ -189,7 +189,6 @@ export default function EditEvent() {
       let quality = 0.8
       let base64Image = canvas.toDataURL('image/jpeg', quality)
       
-      // Client-side compression (<150KB guard)
       while (base64Image.length > 150000 && quality > 0.2) {
         quality -= 0.1
         base64Image = canvas.toDataURL('image/jpeg', quality)
@@ -293,15 +292,74 @@ export default function EditEvent() {
     }
   }
 
+  // 🔴 আপডেটেড ডিলিট/ট্র্যাশ ফাংশন (লিডারবোর্ড থেকে পয়েন্ট মুছে ফেলার লজিক সহ)
   const handleMoveToTrash = async () => {
     try {
-      const { error } = await supabase.from('events').update({ deleted_at: new Date().toISOString() }).eq('id', eventId);
+      setLoading(true);
+
+      // ১. প্রথমে এই ইভেন্টের সকল অ্যাপ্রুভড বুকিং বা ইউজারদের খুঁজে বের করো
+      const { data: bookings, error: bookingError } = await supabase
+        .from('bookings')
+        .select('user_id')
+        .eq('event_id', eventId)
+        .eq('status', 'approved');
+
+      if (bookingError) throw bookingError;
+
+      // ২. লিডারবোর্ড থেকে পয়েন্ট মাইনাস করার লজিক
+      if (bookings && bookings.length > 0) {
+        for (const booking of bookings) {
+          // ইউজারের বর্তমান প্রোফাইল ডেটা নিয়ে আসো
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance')
+            .eq('id', booking.user_id)
+            .single();
+
+          if (profile) {
+            let updates = { 
+              total_events: Math.max(0, (profile.total_events || 0) - 1) 
+            };
+
+            const category = formData.category.toLowerCase();
+            const distance = parseInt(formData.metaDistance) || 0;
+
+            // ক্যাটাগরি অনুযায়ী নির্দিষ্ট পয়েন্ট/দূরত্ব মাইনাস করা
+            if (category === 'trekking') {
+              updates.total_treks = Math.max(0, (profile.total_treks || 0) - 1);
+              updates.total_distance = Math.max(0, (profile.total_distance || 0) - distance);
+            } 
+            else if (category === 'cycling') {
+              updates.total_rides = Math.max(0, (profile.total_rides || 0) - 1);
+              updates.cycling_distance = Math.max(0, (profile.cycling_distance || 0) - distance);
+            } 
+            else if (category === 'swimming') {
+              updates.total_swims = Math.max(0, (profile.total_swims || 0) - 1);
+              updates.swimming_distance = Math.max(0, (profile.swimming_distance || 0) - distance);
+            }
+
+            // ইউজারের প্রোফাইল আপডেট করে দাও
+            await supabase.from('profiles').update(updates).eq('id', booking.user_id);
+          }
+        }
+      }
+
+      // ৩. সবার শেষে ইভেন্টটিকে ট্র্যাশে পাঠাও
+      const { error } = await supabase
+        .from('events')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', eventId);
+
       if (error) throw error;
-      alert('ইভেন্টটি সফলভাবে ট্র্যাশ বিনে পাঠানো হয়েছে।');
+      
+      alert('ইভেন্টটি সফলভাবে ট্র্যাশ বিনে পাঠানো হয়েছে এবং লিডারবোর্ড থেকে ইউজারদের পয়েন্ট মুছে ফেলা হয়েছে!');
       router.push('/admin/trash'); 
+
     } catch (error) {
       console.error(error);
       alert('সমস্যা হয়েছে: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -641,7 +699,7 @@ export default function EditEvent() {
 
         </form>
 
-        {/* 🔴 ফ্রি-ফর্ম ক্রপার মডাল (ইচ্ছামতো টেনে সাইজ করার স্বাধীনতা) */}
+        {/* 🔴 ফ্রি-ফর্ম ক্রপার মডাল */}
         {showCropper && (
           <div className="fixed inset-0 z-[70] flex flex-col bg-black/90 backdrop-blur-md">
             <div className="relative flex-grow">
@@ -691,7 +749,7 @@ export default function EditEvent() {
                       checked={isCheckboxChecked}
                       onChange={(e) => setIsCheckboxChecked(e.target.checked)}
                     />
-                    <span className="text-sm text-gray-300">আমি বুঝতে পারছি যে এই ইভেন্ট ডিলিট করলে এর সাথে যুক্ত সকল ইউজারের বুকিং স্ট্যাটাস প্রভাবিত হতে পারে। আমি নিজ দায়িত্বে এটি করছি।</span>
+                    <span className="text-sm text-gray-300">আমি বুঝতে পারছি যে এই ইভেন্ট ডিলিট করলে এর সাথে যুক্ত সকল ইউজারের বুকিং স্ট্যাটাস প্রভাবিত হতে পারে এবং লিডারবোর্ড থেকে তাদের পয়েন্ট মুছে যাবে। আমি নিজ দায়িত্বে এটি করছি।</span>
                   </label>
                   <div className="flex gap-4">
                     <button onClick={() => setDeleteStep(1)} className="w-1/2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all">পেছনে যান</button>
@@ -719,11 +777,12 @@ export default function EditEvent() {
                   <div className="flex gap-4">
                     <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all">পেছনে যান</button>
                     <button 
-                      disabled={deleteConfirmText !== 'DELETE'}
+                      disabled={deleteConfirmText !== 'DELETE' || loading}
                       onClick={handleMoveToTrash} 
                       className={`w-1/2 py-3 rounded-xl font-black transition-all flex items-center justify-center gap-2 ${deleteConfirmText === 'DELETE' ? 'bg-red-600 hover:bg-red-700 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)]' : 'bg-red-500/20 text-red-500/50 cursor-not-allowed'}`}
                     >
-                      <i className="fa-solid fa-trash-can"></i> ট্র্যাশে পাঠান
+                      {loading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-trash-can"></i>}
+                      {loading ? 'প্রক্রিয়াজাত হচ্ছে...' : 'ট্র্যাশে পাঠান'}
                     </button>
                   </div>
                 </div>
