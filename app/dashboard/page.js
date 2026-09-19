@@ -112,14 +112,15 @@ export default function DashboardPage() {
         if (!rankError) setRank(count + 1)
       }
 
-      // 2. Event Bookings
+      // 2. Event Bookings (🔴 Updated Logic: Filters out deleted events)
       const { data: bookingData, error: bookingError } = await supabase
         .from('bookings')
         .select(`
           id, status, trx_id, payment_method, created_at,
-          events (id, title, start_date, cover_photo, destination, category)
+          events!inner (id, title, start_date, cover_photo, destination, category, deleted_at)
         `)
         .eq('user_id', userId)
+        .is('events.deleted_at', null)
         .order('created_at', { ascending: false })
 
       if (!bookingError && bookingData) setBookings(bookingData)
