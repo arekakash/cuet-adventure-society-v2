@@ -16,7 +16,7 @@ export default function DashboardPage() {
   const [bookings, setBookings] = useState([])
   const [storeOrders, setStoreOrders] = useState([])
   const [rank, setRank] = useState('-')
-  const [unreadMessages, setUnreadMessages] = useState(0) // 🔴 Unread messages state
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0) // 🔴 ইনবক্সের আনরিড মেসেজ কাউন্টের জন্য
 
   const [showCompletionForm, setShowCompletionForm] = useState(false)
   const [updating, setUpdating] = useState(false)
@@ -54,6 +54,7 @@ export default function DashboardPage() {
       }
 
       await fetchUserData(session.user.id)
+      await fetchUnreadMessages(session.user.id) // 🔴 ফেচ আনরিড মেসেজ
     }
 
     initializeDashboard()
@@ -61,6 +62,7 @@ export default function DashboardPage() {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         fetchUserData(session.user.id)
+        fetchUnreadMessages(session.user.id)
       }
     })
 
@@ -72,9 +74,26 @@ export default function DashboardPage() {
     }
   }, [router])
 
+  // 🔴 আনরিড মেসেজ ফেচ করার ফাংশন
+  const fetchUnreadMessages = async (userId) => {
+    try {
+      const { count, error } = await supabase
+        .from('cas_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('receiver_id', userId)
+        .eq('is_read', false)
+      
+      if (!error) {
+        setUnreadMessagesCount(count || 0)
+      }
+    } catch (err) {
+      console.error("Error fetching messages count:", err)
+    }
+  }
+
   const fetchUserData = async (userId) => {
     try {
-      // 1. Profile Data (🔴 Including Running Data)
+      // 1. Profile Data (🔴 Added Running fields)
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*, survival_iq, total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, total_runs, running_distance')
@@ -102,7 +121,7 @@ export default function DashboardPage() {
         setShowCompletionForm(true)
       }
 
-      // Rank Calculation
+      // 🔴 Rank Calculation (Updated with total_runs)
       const totalActivities = (profileData.total_treks || 0) + (profileData.total_rides || 0) + (profileData.total_swims || 0) + (profileData.total_runs || 0)
       if (totalActivities > 0 || profileData.survival_iq > 0) {
         const { count, error: rankError } = await supabase
@@ -140,15 +159,6 @@ export default function DashboardPage() {
         .order('created_at', { ascending: false })
 
       if (!storeError && storeData) setStoreOrders(storeData)
-
-      // 🔴 4. Fetch Unread Messages Count
-      const { count: unreadCount, error: msgError } = await supabase
-        .from('cas_messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('receiver_id', userId)
-        .eq('is_read', false)
-      
-      if (!msgError) setUnreadMessages(unreadCount || 0)
 
     } catch (error) {
       console.error('ড্যাশবোর্ড ডেটা লোড করতে সমস্যা:', error.message)
@@ -208,7 +218,6 @@ export default function DashboardPage() {
       case 'returned': return <span className="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-rotate-left mr-1"></i> রিটার্নড</span>
       case 'free_booking': return <span className="bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-ticket mr-1"></i> ফ্রি বুকিং</span>
       case 'interested': return <span className="bg-pink-500/20 text-pink-400 border border-pink-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-heart mr-1"></i> ইন্টারেস্টেড</span>
-      case 'claim_pending': return <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest animate-pulse"><i className="fa-solid fa-hand-sparkles mr-1"></i> ক্লেইম পেন্ডিং</span>
       default: return <span className="bg-gray-500/20 text-gray-400 border border-gray-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest">Unknown</span>
     }
   }
@@ -233,7 +242,7 @@ export default function DashboardPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10 pt-24">
       
-      {/* LEFT COLUMN: Profile Info Only */}
+      {/* LEFT COLUMN: Profile Info & Inbox */}
       <div className="space-y-6">
         <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl overflow-hidden relative" data-aos="fade-right" data-aos-delay="100">
           <div className="h-24 bg-gradient-to-r from-[#0a1c13] via-[#2d6a4f]/40 to-[#0a1c13] border-b border-white/5"></div>
@@ -262,70 +271,74 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* 🔴 CAS Messenger (Inbox) Card */}
+        <Link href="/dashboard/inbox" className="block group" data-aos="fade-right" data-aos-delay="200">
+          <div className="bg-gradient-to-br from-blue-600/20 to-blue-900/20 backdrop-blur-md border border-blue-500/30 rounded-2xl p-6 shadow-xl hover:shadow-[0_0_25px_rgba(37,99,235,0.3)] transition-all flex items-center justify-between relative overflow-hidden">
+            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+              <i className="fa-brands fa-facebook-messenger text-8xl text-blue-400"></i>
+            </div>
+            
+            <div className="relative z-10 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/40 shrink-0 group-hover:bg-blue-500 transition-colors">
+                <i className="fa-solid fa-paper-plane text-blue-400 group-hover:text-white text-xl"></i>
+              </div>
+              <div>
+                <h3 className="font-black text-white text-lg leading-tight">CAS Messenger</h3>
+                <p className="text-xs text-blue-200 mt-1 font-medium">অ্যাডমিনের মেসেজ ও রিসিট</p>
+              </div>
+            </div>
+
+            <div className="relative z-10">
+              {unreadMessagesCount > 0 ? (
+                <span className="bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shadow-[0_0_15px_rgba(239,68,68,0.6)] animate-bounce">
+                  {unreadMessagesCount}
+                </span>
+              ) : (
+                <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 group-hover:text-white transition-colors">
+                  <i className="fa-solid fa-chevron-right"></i>
+                </span>
+              )}
+            </div>
+          </div>
+        </Link>
       </div>
 
       {/* RIGHT COLUMN: Stats, Tactical Data, & Bookings */}
       <div className="lg:col-span-2 space-y-6">
         
-        {/* 🔴 8 Grid Stats Cards (Including Running & Inbox) */}
+        {/* 🔴 Grid Stats Cards (Updated with Running) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4" data-aos="fade-up">
-          
-          {/* Inbox Card */}
-          <Link href="/dashboard/inbox" className="bg-gradient-to-br from-blue-600/20 to-[#0a1c13] backdrop-blur-md border border-blue-500/50 hover:border-blue-400 p-4 rounded-2xl shadow-[0_0_15px_rgba(37,99,235,0.2)] hover:shadow-[0_0_25px_rgba(37,99,235,0.4)] flex flex-col items-center justify-center text-center transition-all group relative overflow-hidden">
-            <div className="absolute inset-0 bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors"></div>
-            <div className="relative z-10 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-base mb-1.5 shadow-lg group-hover:scale-110 transition-transform">
-              <i className="fa-solid fa-paper-plane"></i>
-              {unreadMessages > 0 && (
-                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border-2 border-[#0a1c13] rounded-full animate-pulse"></span>
-              )}
-            </div>
-            <p className="text-xl font-black text-white relative z-10">Inbox</p>
-            <p className="text-[9px] font-bold text-blue-300 uppercase tracking-widest mt-1 relative z-10">
-              {unreadMessages > 0 ? `${unreadMessages} New Msgs` : 'CAS Messenger'}
-            </p>
-          </Link>
-
           <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-yellow-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center">
             <div className="w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-500 flex items-center justify-center text-base mb-1.5"><i className="fa-solid fa-crown"></i></div>
-            <p className="text-2xl font-black text-white">#{rank}</p>
-            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Current Rank</p>
+            <p className="text-xl font-black text-white">#{rank}</p>
+            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Rank</p>
           </div>
-          
           <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-[#34d399]/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center">
             <div className="w-8 h-8 rounded-full bg-[#34d399]/20 text-[#34d399] flex items-center justify-center text-base mb-1.5"><i className="fa-solid fa-brain"></i></div>
-            <p className="text-2xl font-black text-white">{user.survival_iq || 0}</p>
+            <p className="text-xl font-black text-white">{user.survival_iq || 0}</p>
             <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Survival IQ</p>
           </div>
-          
-          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-[#e76f51]/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center">
-            <div className="w-8 h-8 rounded-full bg-[#e76f51]/20 text-[#e76f51] flex items-center justify-center text-base mb-1.5"><i className="fa-solid fa-tent"></i></div>
-            <p className="text-2xl font-black text-white">{user.total_events || 0}</p>
-            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Total Events</p>
-          </div>
-          
-          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-emerald-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center">
+          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-emerald-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center sm:col-span-2">
             <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center text-base mb-1.5"><i className="fa-solid fa-mountain"></i></div>
             <p className="text-xl font-black text-white">{user.total_treks || 0} <span className="text-sm font-normal text-gray-400 ml-1">{user.total_distance || 0} km</span></p>
             <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Trekking</p>
           </div>
-
-          {/* 🔴 Running Stats Card */}
-          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-purple-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center">
-            <div className="w-8 h-8 rounded-full bg-purple-500/20 text-purple-500 flex items-center justify-center text-base mb-1.5"><i className="fa-solid fa-person-running"></i></div>
-            <p className="text-xl font-black text-white">{user.total_runs || 0} <span className="text-sm font-normal text-gray-400 ml-1">{user.running_distance || 0} km</span></p>
-            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Running</p>
-          </div>
-          
           <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-blue-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center">
             <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-500 flex items-center justify-center text-base mb-1.5"><i className="fa-solid fa-bicycle"></i></div>
-            <p className="text-xl font-black text-white">{user.total_rides || 0} <span className="text-sm font-normal text-gray-400 ml-1">{user.cycling_distance || 0} km</span></p>
+            <p className="text-lg font-black text-white">{user.total_rides || 0} <span className="text-[10px] font-normal text-gray-400 ml-0.5">{user.cycling_distance || 0} km</span></p>
             <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Cycling</p>
           </div>
-          
           <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-cyan-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center">
             <div className="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-500 flex items-center justify-center text-base mb-1.5"><i className="fa-solid fa-person-swimming"></i></div>
-            <p className="text-xl font-black text-white">{user.total_swims || 0} <span className="text-sm font-normal text-gray-400 ml-1">{user.swimming_distance || 0} m</span></p>
+            <p className="text-lg font-black text-white">{user.total_swims || 0} <span className="text-[10px] font-normal text-gray-400 ml-0.5">{user.swimming_distance || 0} m</span></p>
             <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Swimming</p>
+          </div>
+          {/* 🔴 Added Running Stats */}
+          <div className="bg-[#0a1c13]/70 backdrop-blur-md border border-orange-500/30 p-4 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center sm:col-span-2">
+            <div className="w-8 h-8 rounded-full bg-orange-500/20 text-orange-500 flex items-center justify-center text-base mb-1.5"><i className="fa-solid fa-person-running"></i></div>
+            <p className="text-xl font-black text-white">{user.total_runs || 0} <span className="text-sm font-normal text-gray-400 ml-1">{user.running_distance || 0} km</span></p>
+            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Running</p>
           </div>
         </div>
 
@@ -494,124 +507,135 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* 🔴 Profile Completion Modal */}
+      {/* Profile Completion Form Modal */}
       {showCompletionForm && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0a1c13] p-8 rounded-3xl w-full max-w-2xl border border-[#e76f51]/30 shadow-[0_0_50px_rgba(231,111,81,0.1)] max-h-[90vh] overflow-y-auto custom-scrollbar">
-            
-            <div className="text-center mb-8">
-              <i className="fa-solid fa-user-astronaut text-5xl text-[#e76f51] mb-4 drop-shadow-[0_0_15px_rgba(231,111,81,0.5)]"></i>
-              <h2 className="text-2xl font-black text-white">স্বাগতম এক্সপ্লোরার!</h2>
-              <p className="text-sm text-gray-400 mt-2">অ্যাডভেঞ্চার শুরু করার আগে আপনার বেসিক প্রোফাইলটি সেটআপ করুন।</p>
+        <div className="fixed inset-0 bg-[#050b08]/95 flex items-center justify-center z-[100] p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-3xl max-w-2xl w-full my-8 shadow-2xl relative">
+            <div className="text-center mb-6">
+                <i className="fa-solid fa-user-shield text-4xl text-[#e76f51] mb-3"></i>
+                <h2 className="text-2xl font-black text-white">প্রোফাইল সম্পূর্ণ করুন</h2>
+                <p className="text-sm text-gray-400 mt-2">অ্যাডভেঞ্চারে অংশ নিতে আপনার কিছু গুরুত্বপূর্ণ তথ্য প্রয়োজন</p>
             </div>
 
-            <form onSubmit={handleProfileComplete} className="space-y-6">
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleProfileComplete} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">CUET Student ID *</label>
-                  <input type="text" id="student_id" required value={formData.student_id} onChange={handleFormChange} placeholder="e.g. 1904001" className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51] font-mono" />
+                  <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">স্টুডেন্ট আইডি *</label>
+                  <input type="number" id="student_id" required value={formData.student_id} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#e76f51] transition-colors" placeholder="e.g. 1904001" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Department *</label>
-                  <input type="text" id="department" required value={formData.department} onChange={handleFormChange} placeholder="e.g. CSE" className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51] uppercase" />
+                  <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">ফোন নম্বর *</label>
+                  <input type="tel" id="phone" required value={formData.phone} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#e76f51] transition-colors" placeholder="01XXXXXXXXX" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Batch (Year) *</label>
-                  <select id="batch" required value={formData.batch} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51]">
-                    <option value="">সিলেক্ট করুন</option>
-                    {years.map(y => <option key={y} value={y}>{y} ('{String(y).slice(-2)})</option>)}
+                  <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">ডিপার্টমেন্ট *</label>
+                  <input type="text" id="department" required value={formData.department} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#e76f51] uppercase transition-colors" placeholder="CSE" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">ব্যাচ *</label>
+                  <select id="batch" required value={formData.batch} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#e76f51] transition-colors">
+                    <option value="">নির্বাচন করুন</option>
+                    {years.map(year => <option key={year} value={year}>{year}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Blood Group *</label>
-                  <select id="blood_group" required value={formData.blood_group} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-red-500">
-                    <option value="">সিলেক্ট করুন</option>
+                  <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">জেন্ডার *</label>
+                  <select id="gender" required value={formData.gender} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#e76f51] transition-colors">
+                    <option value="">নির্বাচন করুন</option>
+                    <option value="Male">Male (ছাত্র)</option>
+                    <option value="Female">Female (ছাত্রী)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">রক্তের গ্রুপ *</label>
+                  <select id="blood_group" required value={formData.blood_group} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#e76f51] transition-colors">
+                    <option value="">নির্বাচন করুন</option>
                     {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Gender *</label>
-                  <select id="gender" required value={formData.gender} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-blue-400">
-                    <option value="">সিলেক্ট করুন</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Residential Hall *</label>
-                  <select id="hall" required value={formData.hall} onChange={handleFormChange} disabled={!formData.gender} className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51] disabled:opacity-50">
-                    <option value="">হল নির্বাচন করুন</option>
-                    {formData.gender === 'Male' && maleHalls.map(h => <option key={h} value={h}>{h}</option>)}
-                    {formData.gender === 'Female' && femaleHalls.map(h => <option key={h} value={h}>{h}</option>)}
-                    <option value="Attached">Attached (Non-Residential)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Mobile Number *</label>
-                  <input type="tel" id="phone" required value={formData.phone} onChange={handleFormChange} placeholder="01XXXXXXXXX" className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51]" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">T-Shirt Size *</label>
-                  <select id="tshirt_size" required value={formData.tshirt_size} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#e76f51]">
-                    <option value="">সিলেক্ট করুন</option>
-                    {['S', 'M', 'L', 'XL', 'XXL'].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                
+                {formData.gender && (
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">হল (Hall) *</label>
+                    <select id="hall" required value={formData.hall} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#e76f51] transition-colors">
+                      <option value="">হল নির্বাচন করুন</option>
+                      {(formData.gender === 'Male' ? maleHalls : femaleHalls).map(hall => <option key={hall} value={hall}>{hall}</option>)}
+                      <option value="Non-Residential / Outside">Non-Residential / Outside</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-white/10 pt-5 mt-5">
+                <h3 className="text-[#e76f51] font-bold text-sm mb-4 uppercase tracking-widest"><i className="fa-solid fa-kit-medical mr-2"></i> ইমার্জেন্সি কন্টাক্ট</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1.5">ফোন নম্বর (পিতা/মাতা/অভিভাবক) *</label>
+                    <input type="tel" id="emergency_contact" required value={formData.emergency_contact} onChange={handleFormChange} className="w-full bg-black/40 border border-red-500/20 p-3 rounded-xl text-white outline-none focus:border-red-500 transition-colors" placeholder="01XXXXXXXXX" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1.5">সম্পর্ক *</label>
+                    <select id="emergency_relation" required value={formData.emergency_relation} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-red-500 transition-colors">
+                      <option value="">নির্বাচন করুন</option>
+                      <option value="Father">পিতা (Father)</option>
+                      <option value="Mother">মাতা (Mother)</option>
+                      <option value="Brother">ভাই (Brother)</option>
+                      <option value="Sister">বোন (Sister)</option>
+                      <option value="Spouse">স্বামী/স্ত্রী (Spouse)</option>
+                      <option value="Local Guardian">স্থানীয় অভিভাবক</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-red-500/5 p-5 rounded-2xl border border-red-500/20 mt-6">
-                <div className="md:col-span-2">
-                  <h4 className="text-red-400 font-bold text-sm mb-1"><i className="fa-solid fa-kit-medical mr-2"></i> ইমার্জেন্সি কন্টাক্ট ইনফো</h4>
-                  <p className="text-[10px] text-gray-500">অ্যাডভেঞ্চারের সময় যেকোনো জরুরি প্রয়োজনে যোগাযোগের জন্য।</p>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Emergency Contact No *</label>
-                  <input type="tel" id="emergency_contact" required value={formData.emergency_contact} onChange={handleFormChange} placeholder="01XXXXXXXXX" className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-red-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Relation *</label>
-                  <input type="text" id="emergency_relation" required value={formData.emergency_relation} onChange={handleFormChange} placeholder="e.g. Father / Brother" className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-red-500" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-[#2d6a4f]/10 p-5 rounded-2xl border border-[#2d6a4f]/30 mt-6">
-                <div className="md:col-span-3">
-                  <h4 className="text-[#34d399] font-bold text-sm mb-1"><i className="fa-solid fa-person-hiking mr-2"></i> স্কিল ও অভিজ্ঞতা</h4>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Swimming Skill *</label>
-                  <select id="swimming_skill" required value={formData.swimming_skill} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#34d399]">
-                    <option value="">সিলেক্ট করুন</option>
-                    {['Expert', 'Intermediate', 'Beginner', 'Do not know'].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Own a Bicycle? *</label>
-                  <select id="has_bicycle" required value={formData.has_bicycle} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#34d399]">
-                    <option value="">সিলেক্ট করুন</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Experience Level *</label>
-                  <select id="experience_level" required value={formData.experience_level} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3.5 rounded-xl text-white outline-none focus:border-[#34d399]">
-                    <option value="">সিলেক্ট করুন</option>
-                    {['Pro Explorer', 'Regular Traveler', 'Beginner', 'First Timer'].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+              <div className="border-t border-white/10 pt-5 mt-5">
+                <h3 className="text-[#34d399] font-bold text-sm mb-4 uppercase tracking-widest"><i className="fa-solid fa-person-hiking mr-2"></i> ট্যাকটিক্যাল ইনফো</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">টি-শার্ট সাইজ *</label>
+                    <select id="tshirt_size" required value={formData.tshirt_size} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#34d399] transition-colors">
+                      <option value="">নির্বাচন করুন</option>
+                      {['S', 'M', 'L', 'XL', 'XXL'].map(size => <option key={size} value={size}>{size}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">সাঁতার জানেন? *</label>
+                    <select id="swimming_skill" required value={formData.swimming_skill} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#34d399] transition-colors">
+                      <option value="">নির্বাচন করুন</option>
+                      <option value="Yes - Expert">হ্যাঁ (খুব ভালো পারি)</option>
+                      <option value="Yes - Basic">মোটামুটি (ভয় পাই না)</option>
+                      <option value="No">না (পারি না)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">নিজের সাইকেল আছে? *</label>
+                    <select id="has_bicycle" required value={formData.has_bicycle} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#34d399] transition-colors">
+                      <option value="">নির্বাচন করুন</option>
+                      <option value="Yes">হ্যাঁ, আছে</option>
+                      <option value="No">না, নেই</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">ট্রেকিং এক্সপেরিয়েন্স *</label>
+                    <select id="experience_level" required value={formData.experience_level} onChange={handleFormChange} className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-[#34d399] transition-colors">
+                      <option value="">নির্বাচন করুন</option>
+                      <option value="Beginner">Beginner (কখনো পাহাড়ে যাইনি)</option>
+                      <option value="Intermediate">Intermediate (মাঝারি মানের ট্রেকিং করেছি)</option>
+                      <option value="Pro">Pro (হার্ডকোর ট্রেইল করেছি)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <button type="submit" disabled={updating} className="w-full bg-[#e76f51] hover:bg-orange-600 text-white py-4 rounded-xl font-black mt-8 transition-all shadow-[0_0_20px_rgba(231,111,81,0.4)] flex justify-center items-center gap-2">
-                {updating ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-rocket"></i>}
-                প্রোফাইল সেভ করুন ও অ্যাডভেঞ্চার শুরু করুন
+              <button type="submit" disabled={updating} className="w-full bg-[#e76f51] hover:bg-orange-600 text-white font-black text-lg py-4 rounded-xl mt-6 transition-all shadow-[0_0_20px_rgba(231,111,81,0.3)] flex justify-center items-center gap-2">
+                {updating ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-cloud-arrow-up"></i>}
+                প্রোফাইল সেভ করুন
               </button>
-
             </form>
           </div>
         </div>
       )}
+
     </div>
   )
 }
