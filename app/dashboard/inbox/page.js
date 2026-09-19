@@ -25,10 +25,23 @@ export default function InboxPage() {
         if (isMounted) router.push('/login')
         return
       }
+
+      // 🔴 ১. गार्ड लজিক: ইউজারের রোল চেক করা
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single()
+
+      if (profile?.role === 'admin') {
+        // অ্যাডমিন হলে লাথি দিয়ে অ্যাডমিন ইনবক্সে পাঠিয়ে দেওয়া হবে
+        if (isMounted) router.push('/admin/inbox')
+        return
+      }
       
       if (isMounted) setUser(session.user)
 
-      // ১. অ্যাডমিনের আইডি খুঁজে বের করা (যাতে মেসেজ অ্যাডমিনকে পাঠানো যায়)
+      // ২. অ্যাডমিনের আইডি খুঁজে বের করা (যাতে মেসেজ অ্যাডমিনকে পাঠানো যায়)
       const { data: adminData } = await supabase
         .from('profiles')
         .select('id')
@@ -36,18 +49,30 @@ export default function InboxPage() {
         .limit(1)
         .single()
       
-      if (adminData && isMounted) setAdminId(adminData.id)
+      let fetchedAdminId = null
+      if (adminData) {
+        fetchedAdminId = adminData.id
+        if (isMounted) setAdminId(fetchedAdminId)
+      }
 
-      // ২. ইউজারের সব মেসেজ ফেচ করা
+      // ৩. ইউজারের সব মেসেজ ফেচ করা এবং Seen মার্ক করা
       await fetchMessages(session.user.id)
+      if (fetchedAdminId) {
+        await markMessagesAsRead(session.user.id, fetchedAdminId)
+      }
 
-      // ৩. রিয়েল-টাইম সাবস্ক্রিপশন (নতুন মেসেজ এলে সাথে সাথে লোড হবে)
+      // ৪. রিয়েল-টাইম সাবস্ক্রিপশন
       const channel = supabase
         .channel('cas_realtime_chat')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cas_messages' }, (payload) => {
           const newMsg = payload.new
           if (newMsg.receiver_id === session.user.id || newMsg.sender_id === session.user.id) {
             fetchMessages(session.user.id)
+            
+            // রিয়েল-টাইমে মেসেজ এলে সেটিও Seen মার্ক হবে
+            if (newMsg.receiver_id === session.user.id && fetchedAdminId) {
+              markMessagesAsRead(session.user.id, fetchedAdminId)
+            }
           }
         })
         .subscribe()
@@ -62,6 +87,20 @@ export default function InboxPage() {
     initializeInbox()
     return () => { isMounted = false }
   }, [router])
+
+  // 🔴 মেসেজ Read (Seen) মার্ক করার ফাংশন
+  const markMessagesAsRead = async (userId, adminId) => {
+    try {
+      await supabase
+        .from('cas_messages')
+        .update({ is_read: true })
+        .eq('sender_id', adminId)
+        .eq('receiver_id', userId)
+        .eq('is_read', false)
+    } catch (error) {
+      console.error("Error marking messages as read:", error)
+    }
+  }
 
   const fetchMessages = async (userId) => {
     try {
@@ -90,7 +129,7 @@ export default function InboxPage() {
     }, 100)
   }
 
-  // 🔴 মেসেজ পাঠানোর ফাংশন
+  // মেসেজ পাঠানোর ফাংশন
   const handleSendMessage = async (e) => {
     e.preventDefault()
     if (!newMessage.trim() || !adminId || !user) return
@@ -113,18 +152,17 @@ export default function InboxPage() {
     }
   }
 
-  // 🔴 জিরো-স্টোরেজ রিসিট ডাউনলোড ফাংশন (html2canvas)
+  // জিরো-স্টোরেজ রিসিট ডাউনলোড ফাংশন (html2canvas)
   const downloadReceipt = async (receiptId, receiptNo) => {
     const element = document.getElementById(`receipt-${receiptId}`)
     if (!element) return
 
     try {
-      // বাটন হাইড করার জন্য সাময়িক ক্লাস রিমুভ
       element.classList.add('download-mode')
       
       const canvas = await html2canvas(element, { 
         backgroundColor: '#0a1c13',
-        scale: 2 // High-quality image
+        scale: 2 
       })
       
       element.classList.remove('download-mode')
@@ -202,16 +240,15 @@ export default function InboxPage() {
                           {msg.content}
                         </div>
                       ) : (
-                        /* 🔴 Zero-Storage Receipt Bubble */
+                        /* Zero-Storage Receipt Bubble */
                         <div className="flex flex-col gap-2 w-full max-w-sm sm:max-w-md">
-                          {/* Text Note from Admin */}
                           {msg.content && (
                             <div className="bg-white/10 border border-white/5 text-gray-200 p-3.5 rounded-2xl rounded-tl-sm text-sm">
                               {msg.content}
                             </div>
                           )}
                           
-                          {/* Receipt Card to be Downloaded */}
+                          {/* Receipt Card */}
                           <div 
                             id={`receipt-${msg.id}`} 
                             className="bg-white text-black p-5 sm:p-6 rounded-2xl shadow-xl relative overflow-hidden border-t-8 border-[#0a1c13] mt-2"
@@ -265,7 +302,6 @@ export default function InboxPage() {
                             </div>
                           </div>
 
-                          {/* Download Button */}
                           <button 
                             onClick={() => downloadReceipt(msg.id, msg.metadata?.receipt_no)}
                             className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 mt-1 shadow-md"
