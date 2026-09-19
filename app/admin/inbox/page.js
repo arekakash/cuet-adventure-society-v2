@@ -13,6 +13,7 @@ export default function AdminInboxPage() {
   // Contacts & Chat States
   const [contacts, setContacts] = useState([])
   const [selectedContact, setSelectedContact] = useState(null)
+  const selectedContactRef = useRef(null) // 🔴 Active Contact track করার জন্য Ref
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
@@ -49,23 +50,20 @@ export default function AdminInboxPage() {
       // ২. কন্টাক্ট লিস্ট লোড করা (যাঁদের সাথে চ্যাট হয়েছে)
       await fetchContacts(profileData.id)
 
-      // ৩. রিয়েল-টাইম চ্যাট লিসেনার
+      // ৩. রিয়েল-টাইম চ্যাট লিসেনার (🔴 Updated to fix State Updater Anti-pattern)
       const channel = supabase
         .channel('admin_realtime_chat')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cas_messages' }, (payload) => {
           const newMsg = payload.new
           
-          // যদি মেসেজটি অ্যাডমিনের সাথে সম্পর্কিত হয়
           if (newMsg.receiver_id === profileData.id || newMsg.sender_id === profileData.id) {
-            fetchContacts(profileData.id) // কন্টাক্ট লিস্ট আপডেট (লেটেস্ট মেসেজ দেখানোর জন্য)
+            fetchContacts(profileData.id) // কন্টাক্ট লিস্ট আপডেট
             
-            // যদি সিলেক্ট করা ইউজারের মেসেজ হয়, তবে চ্যাট উইন্ডো আপডেট করো
-            setSelectedContact(prevContact => {
-              if (prevContact && (newMsg.sender_id === prevContact.id || newMsg.receiver_id === prevContact.id)) {
-                fetchMessages(profileData.id, prevContact.id)
-              }
-              return prevContact
-            })
+            // Ref ব্যবহার করে বর্তমান অ্যাক্টিভ কন্টাক্ট চেক করা
+            const currentContact = selectedContactRef.current
+            if (currentContact && (newMsg.sender_id === currentContact.id || newMsg.receiver_id === currentContact.id)) {
+              fetchMessages(profileData.id, currentContact.id)
+            }
           }
         })
         .subscribe()
@@ -81,13 +79,13 @@ export default function AdminInboxPage() {
     return () => { isMounted = false }
   }, [router])
 
-  // 🔴 ইউজারদের তালিকা নিয়ে আসার ফাংশন
+  // ইউজারদের তালিকা নিয়ে আসার ফাংশন
   const fetchContacts = async (adminId) => {
     try {
       const { data, error } = await supabase
         .from('cas_messages')
         .select(`
-          id, content, created_at, sender_id, receiver_id, message_type,
+          id, content, created_at, sender_id, receiver_id, message_type, is_read,
           sender:sender_id(id, full_name, photo_url, student_id),
           receiver:receiver_id(id, full_name, photo_url, student_id)
         `)
@@ -109,8 +107,13 @@ export default function AdminInboxPage() {
               id: contactId,
               ...contactProfile,
               lastMessage: msg.message_type === 'receipt' ? '🧾 Payment Receipt' : msg.content,
-              lastMessageTime: msg.created_at
+              lastMessageTime: msg.created_at,
+              unread: (!isAdminSender && !msg.is_read) ? 1 : 0 // প্রথম আনরিড মেসেজ কাউন্ট
             })
+          } else if (!isAdminSender && !msg.is_read) {
+             // পরবর্তী আনরিড মেসেজগুলো যোগ করা
+             const existing = contactsMap.get(contactId)
+             if(existing) existing.unread += 1
           }
         })
       }
@@ -120,7 +123,7 @@ export default function AdminInboxPage() {
     }
   }
 
-  // 🔴 নির্দিষ্ট ইউজারের মেসেজ নিয়ে আসার ফাংশন
+  // নির্দিষ্ট ইউজারের মেসেজ নিয়ে আসার ফাংশন
   const fetchMessages = async (adminId, contactId) => {
     try {
       const { data, error } = await supabase
@@ -139,10 +142,26 @@ export default function AdminInboxPage() {
     }
   }
 
-  const handleContactSelect = (contact) => {
+  // 🔴 Updated: Contact Select and Mark as Read logic
+  const handleContactSelect = async (contact) => {
     setSelectedContact(contact)
+    selectedContactRef.current = contact // 🔴 Ref আপডেট
     setMobileView('chat')
-    fetchMessages(admin.id, contact.id)
+    
+    await fetchMessages(admin.id, contact.id)
+
+    // 🔴 আনরিড মেসেজগুলো Seen (is_read: true) করা
+    if (contact.unread > 0) {
+      await supabase
+        .from('cas_messages')
+        .update({ is_read: true })
+        .eq('sender_id', contact.id)
+        .eq('receiver_id', admin.id)
+        .eq('is_read', false)
+      
+      // কন্টাক্ট লিস্ট আপডেট করে আনরিড ব্যাজ সরানো
+      fetchContacts(admin.id)
+    }
   }
 
   const scrollToBottom = () => {
@@ -151,7 +170,7 @@ export default function AdminInboxPage() {
     }, 100)
   }
 
-  // 🔴 মেসেজ পাঠানোর ফাংশন (dynamic receiver_id)
+  // মেসেজ পাঠানোর ফাংশন
   const handleSendMessage = async (e) => {
     e.preventDefault()
     if (!newMessage.trim() || !selectedContact || !admin) return
@@ -160,7 +179,7 @@ export default function AdminInboxPage() {
     try {
       const { error } = await supabase.from('cas_messages').insert([{
         sender_id: admin.id,
-        receiver_id: selectedContact.id, // 🔴 এখন অ্যাডমিন যাকে সিলেক্ট করবে, শুধু তার কাছেই যাবে
+        receiver_id: selectedContact.id, 
         content: newMessage.trim(),
         message_type: 'text'
       }])
@@ -210,19 +229,26 @@ export default function AdminInboxPage() {
                   onClick={() => handleContactSelect(contact)}
                   className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all mb-1 ${selectedContact?.id === contact.id ? 'bg-[#e76f51]/20 border border-[#e76f51]/30' : 'hover:bg-white/5 border border-transparent'}`}
                 >
-                  <img 
-                    src={contact.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(contact.full_name)}&background=1f2937&color=fff`} 
-                    alt="User" 
-                    className="w-10 h-10 rounded-full border border-white/10 object-cover" 
-                  />
+                  <div className="relative shrink-0">
+                    <img 
+                      src={contact.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(contact.full_name)}&background=1f2937&color=fff`} 
+                      alt="User" 
+                      className="w-10 h-10 rounded-full border border-white/10 object-cover" 
+                    />
+                    {contact.unread > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full shadow-md">
+                        {contact.unread}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex-grow min-w-0">
                     <div className="flex justify-between items-baseline mb-0.5">
-                      <h4 className="text-white font-bold text-sm truncate">{contact.full_name}</h4>
+                      <h4 className={`text-sm truncate ${contact.unread > 0 ? 'text-white font-black' : 'text-white font-bold'}`}>{contact.full_name}</h4>
                       <span className="text-[9px] text-gray-500 whitespace-nowrap ml-2">
                         {new Date(contact.lastMessageTime).toLocaleDateString('en-GB', {day:'numeric', month:'short'})}
                       </span>
                     </div>
-                    <p className={`text-xs truncate ${selectedContact?.id === contact.id ? 'text-[#e76f51]' : 'text-gray-400'}`}>
+                    <p className={`text-xs truncate ${selectedContact?.id === contact.id ? 'text-[#e76f51]' : contact.unread > 0 ? 'text-gray-300 font-bold' : 'text-gray-400'}`}>
                       {contact.lastMessage}
                     </p>
                   </div>
@@ -238,7 +264,7 @@ export default function AdminInboxPage() {
           {selectedContact ? (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b border-white/10 bg-black/40 flex items-center gap-3 shrink-0">
+              <div className="p-4 border-b border-white/10 bg-black/40 flex items-center gap-3 shrink-0 shadow-md z-10">
                 <button onClick={() => setMobileView('list')} className="md:hidden text-gray-400 hover:text-white mr-2">
                   <i className="fa-solid fa-chevron-left text-lg"></i>
                 </button>
@@ -249,7 +275,9 @@ export default function AdminInboxPage() {
                 />
                 <div>
                   <h3 className="text-white font-bold text-sm leading-none">{selectedContact.full_name}</h3>
-                  <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-mono">ID: {selectedContact.student_id || 'Unknown'}</p>
+                  <Link href={`/public-profile?id=${selectedContact.id}`} className="text-[10px] text-blue-400 hover:underline mt-1 inline-block uppercase tracking-widest font-mono">
+                    <i className="fa-solid fa-user-astronaut"></i> Profile / ID: {selectedContact.student_id || 'N/A'}
+                  </Link>
                 </div>
               </div>
 
@@ -266,8 +294,9 @@ export default function AdminInboxPage() {
                         
                         <div className={`p-3 rounded-2xl text-sm shadow-md ${isAdmin ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white/10 text-gray-200 border border-white/5 rounded-tl-sm'}`}>
                           {msg.message_type === 'receipt' ? (
-                            <div className="flex items-center gap-2 text-emerald-400 font-bold bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20">
-                              <i className="fa-solid fa-receipt text-lg"></i> Payment Receipt Sent
+                            <div className="flex flex-col gap-1.5 text-emerald-400 font-bold bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/20">
+                              <span className="flex items-center gap-2"><i className="fa-solid fa-receipt text-lg"></i> Payment Receipt Sent</span>
+                              <span className="text-[10px] font-normal text-emerald-500/80 bg-emerald-500/10 px-2 py-1 rounded">No: {msg.metadata?.receipt_no}</span>
                             </div>
                           ) : (
                             msg.content
@@ -282,7 +311,7 @@ export default function AdminInboxPage() {
 
               {/* Chat Input */}
               <div className="p-4 bg-[#0a1c13] border-t border-white/10 shrink-0">
-                <form onSubmit={handleSendMessage} className="flex gap-3 relative">
+                <form onSubmit={handleSendMessage} className="flex gap-3 relative max-w-4xl mx-auto">
                   <input 
                     type="text" 
                     value={newMessage}
@@ -293,7 +322,7 @@ export default function AdminInboxPage() {
                   <button 
                     type="submit" 
                     disabled={!newMessage.trim() || sending}
-                    className="absolute right-2 top-1.5 bottom-1.5 w-10 h-10 bg-[#e76f51] hover:bg-orange-600 disabled:bg-gray-600 text-white rounded-full flex items-center justify-center transition-colors"
+                    className="absolute right-2 top-1.5 bottom-1.5 w-10 h-10 bg-[#e76f51] hover:bg-orange-600 disabled:bg-gray-600 text-white rounded-full flex items-center justify-center transition-colors shadow-lg"
                   >
                     {sending ? <i className="fa-solid fa-circle-notch fa-spin text-sm"></i> : <i className="fa-solid fa-paper-plane text-sm ml-[-2px]"></i>}
                   </button>
