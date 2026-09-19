@@ -18,74 +18,84 @@ export default function InboxPage() {
 
   useEffect(() => {
     let isMounted = true
+    let channel = null // 🔴 চ্যানেলটি বাইরে ডিক্লেয়ার করা হলো
 
     const initializeInbox = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        if (isMounted) router.push('/login')
-        return
-      }
+      try { // 🔴 পুরো লজিক try ব্লকে ঢোকানো হলো
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          if (isMounted) router.push('/login')
+          return
+        }
 
-      // 🔴 ১. गार्ड लজিক: ইউজারের রোল চেক করা
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single()
+        // 🔴 ১. गार्ड लজিক: ইউজারের রোল চেক করা
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single()
 
-      if (profile?.role === 'admin') {
-        // অ্যাডমিন হলে লাথি দিয়ে অ্যাডমিন ইনবক্সে পাঠিয়ে দেওয়া হবে
-        if (isMounted) router.push('/admin/inbox')
-        return
-      }
-      
-      if (isMounted) setUser(session.user)
+        if (profile?.role === 'admin') {
+          // অ্যাডমিন হলে লাথি দিয়ে অ্যাডমিন ইনবক্সে পাঠিয়ে দেওয়া হবে
+          if (isMounted) router.push('/admin/inbox')
+          return
+        }
+        
+        if (isMounted) setUser(session.user)
 
-      // ২. অ্যাডমিনের আইডি খুঁজে বের করা (যাতে মেসেজ অ্যাডমিনকে পাঠানো যায়)
-      const { data: adminData } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('role', 'admin')
-        .limit(1)
-        .single()
-      
-      let fetchedAdminId = null
-      if (adminData) {
-        fetchedAdminId = adminData.id
-        if (isMounted) setAdminId(fetchedAdminId)
-      }
+        // ২. অ্যাডমিনের আইডি খুঁজে বের করা (যাতে মেসেজ অ্যাডমিনকে পাঠানো যায়)
+        const { data: adminData } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('role', 'admin')
+          .limit(1)
+          .single()
+        
+        let fetchedAdminId = null
+        if (adminData) {
+          fetchedAdminId = adminData.id
+          if (isMounted) setAdminId(fetchedAdminId)
+        }
 
-      // ৩. ইউজারের সব মেসেজ ফেচ করা এবং Seen মার্ক করা
-      await fetchMessages(session.user.id)
-      if (fetchedAdminId) {
-        await markMessagesAsRead(session.user.id, fetchedAdminId)
-      }
+        // ৩. ইউজারের সব মেসেজ ফেচ করা এবং Seen মার্ক করা
+        await fetchMessages(session.user.id)
+        if (fetchedAdminId) {
+          await markMessagesAsRead(session.user.id, fetchedAdminId)
+        }
 
-      // ৪. রিয়েল-টাইম সাবস্ক্রিপশন
-      const channel = supabase
-        .channel('cas_realtime_chat')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cas_messages' }, (payload) => {
-          const newMsg = payload.new
-          if (newMsg.receiver_id === session.user.id || newMsg.sender_id === session.user.id) {
-            fetchMessages(session.user.id)
-            
-            // রিয়েল-টাইমে মেসেজ এলে সেটিও Seen মার্ক হবে
-            if (newMsg.receiver_id === session.user.id && fetchedAdminId) {
-              markMessagesAsRead(session.user.id, fetchedAdminId)
+        // ৪. রিয়েল-টাইম সাবস্ক্রিপশন
+        channel = supabase
+          .channel('cas_realtime_chat')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cas_messages' }, (payload) => {
+            const newMsg = payload.new
+            if (newMsg.receiver_id === session.user.id || newMsg.sender_id === session.user.id) {
+              fetchMessages(session.user.id)
+              
+              // রিয়েল-টাইমে মেসেজ এলে সেটিও Seen মার্ক হবে
+              if (newMsg.receiver_id === session.user.id && fetchedAdminId) {
+                markMessagesAsRead(session.user.id, fetchedAdminId)
+              }
             }
-          }
-        })
-        .subscribe()
+          })
+          .subscribe()
 
-      if (isMounted) setLoading(false)
-
-      return () => {
-        supabase.removeChannel(channel)
+      } catch (error) {
+        console.error("Inbox initialization error:", error)
+      } finally {
+        // 🔴 finally ব্লকের কারণে লোডিং ১০০% বন্ধ হবেই!
+        if (isMounted) setLoading(false)
       }
     }
 
     initializeInbox()
-    return () => { isMounted = false }
+    
+    // 🔴 আসল ক্লিনআপ ব্লক
+    return () => { 
+      isMounted = false 
+      if (channel) {
+        supabase.removeChannel(channel)
+      }
+    }
   }, [router])
 
   // 🔴 মেসেজ Read (Seen) মার্ক করার ফাংশন
