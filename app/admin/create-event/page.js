@@ -6,6 +6,17 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Cropper from 'react-easy-crop'
 
+// 🔴 Bank List for Payment Options
+const BD_BANKS = [
+  "DBBL (Dutch-Bangla Bank)", "BRAC Bank", "City Bank", "Islami Bank", 
+  "EBL (Eastern Bank)", "Prime Bank", "Pubali Bank", "Mutual Trust Bank (MTB)", 
+  "Southeast Bank", "Trust Bank", "NCC Bank", "UCBL", "Bank Asia", 
+  "AB Bank", "National Bank", "Mercantile Bank", "IFIC Bank", "Jamuna Bank", 
+  "Shahjalal Islami Bank", "Exim Bank", "Al-Arafah Islami Bank", "Premier Bank", 
+  "Dhaka Bank", "Standard Chartered", "HSBC", "Sonali Bank", "Janata Bank", 
+  "Agrani Bank", "Rupali Bank"
+]
+
 export default function CreateOrEditEvent() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -19,18 +30,21 @@ export default function CreateOrEditEvent() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
   const [showCropper, setShowCropper] = useState(false)
 
-  // ফর্মের সাধারণ ডেটা (ট্যাগলাইন রিমুভড)
+  // 🔴 Payment Methods State
+  const [paymentMethods, setPaymentMethods] = useState([])
+
+  // ফর্মের সাধারণ ডেটা
   const [formData, setFormData] = useState({
     title: '', category: 'Trekking', destination: '',
     startDate: '', endDate: '', reportingPlace: '', deadline: '',
-    bookingFee: '', totalFee: '', totalSeats: '', refundPolicy: 'Non-Refundable', paymentMethods: '',
+    bookingFee: '', totalFee: '', totalSeats: '', refundPolicy: 'Non-Refundable',
     stayType: 'Resort/Hotel Shared', washroom: 'Attached & Shared', foodPlan: '',
     difficulty: 'Moderate', tourVibe: 'Hardcore Trekking', fitnessLevel: '', teamLeader: '', leaderPhone: '', leaderWhatsapp: '',
     description: '', albumLink: '', totalDays: 1,
     metaTreks: 1, metaDistance: '', metaNights: 0
   })
 
-  // 🔴 প্রি-ডিফাইনড চেকলিস্ট (বাংলাদেশের রিয়েল কনটেক্সট)
+  // প্রি-ডিফাইনড চেকলিস্ট
   const presetIncluded = [
     "ঢাকা-গন্তব্য আপ-ডাউন বাস টিকেট (নন-এসি/এসি)",
     "প্রতিদিন ৩ বেলা মূল খাবার (ভারী খাবার)",
@@ -62,7 +76,7 @@ export default function CreateOrEditEvent() {
     "বাসের নির্দিষ্ট স্টপ ছাড়া অন্য কোথাও নামা বা ওঠার খরচ"
   ]
 
-  // ডায়নামিক ট্যাগস (চেকলিস্ট)
+  // ডায়নামিক ট্যাগস
   const [tags, setTags] = useState({ included: [], gear: [], excluded: [], warnings: [] })
   const [tagInputs, setTagInputs] = useState({ included: '', gear: '', excluded: '', warnings: '' })
 
@@ -88,7 +102,22 @@ export default function CreateOrEditEvent() {
     }
   }
 
-  // 🔴 Image Cropper Logic (Free-Form Support)
+  // 🔴 Dynamic Payment Methods Handlers
+  const addPaymentMethod = () => {
+    setPaymentMethods([...paymentMethods, { 
+      id: Date.now(), provider: 'bkash', bankName: '', accName: '', accNo: '', branch: '', routing: '', type: 'send_money', contactPerson: '', location: '' 
+    }])
+  }
+
+  const updatePaymentMethod = (id, field, value) => {
+    setPaymentMethods(paymentMethods.map(p => p.id === id ? { ...p, [field]: value } : p))
+  }
+
+  const removePaymentMethod = (id) => {
+    setPaymentMethods(paymentMethods.filter(p => p.id !== id))
+  }
+
+  // Image Cropper Logic
   const handleImageSelect = (e) => {
     const file = e.target.files[0]
     if (file) {
@@ -118,21 +147,13 @@ export default function CreateOrEditEvent() {
       canvas.height = croppedAreaPixels.height
 
       ctx.drawImage(
-        image,
-        croppedAreaPixels.x,
-        croppedAreaPixels.y,
-        croppedAreaPixels.width,
-        croppedAreaPixels.height,
-        0,
-        0,
-        croppedAreaPixels.width,
-        croppedAreaPixels.height
+        image, croppedAreaPixels.x, croppedAreaPixels.y, croppedAreaPixels.width, croppedAreaPixels.height,
+        0, 0, croppedAreaPixels.width, croppedAreaPixels.height
       )
 
       let quality = 0.8
       let base64Image = canvas.toDataURL('image/jpeg', quality)
       
-      // Client-side compression (<100KB guard)
       while (base64Image.length > 130000 && quality > 0.2) {
         quality -= 0.1
         base64Image = canvas.toDataURL('image/jpeg', quality)
@@ -152,7 +173,7 @@ export default function CreateOrEditEvent() {
     }
   }
 
-  // 🔴 Smart Checklist Logic
+  // Smart Checklist Logic
   const handleTagAdd = (category, presetValue = null) => {
     const value = presetValue || tagInputs[category].trim()
     if (value && !tags[category].includes(value)) {
@@ -169,6 +190,10 @@ export default function CreateOrEditEvent() {
     e.preventDefault()
     if (!imageFile && !imagePreview) {
       alert("অনুগ্রহ করে একটি কভার ছবি আপলোড করুন!")
+      return
+    }
+    if (paymentMethods.length === 0) {
+      alert("অনুগ্রহ করে অন্তত একটি পেমেন্ট মেথড যুক্ত করুন!")
       return
     }
 
@@ -205,7 +230,7 @@ export default function CreateOrEditEvent() {
         tour_fee: parseInt(formData.totalFee),
         booking_fee: parseInt(formData.bookingFee),
         refund_policy: formData.refundPolicy,
-        payment_methods: formData.paymentMethods,
+        payment_methods: paymentMethods, // 🔴 JSON Array Saved
         stay_type: isDayEvent ? 'None' : formData.stayType,
         washroom: formData.washroom,
         food_plan: formData.foodPlan,
@@ -248,6 +273,7 @@ export default function CreateOrEditEvent() {
   const isDayEvent = formData.category === 'Day Tour' || formData.category === 'Workshop'
   const isCycling = formData.category === 'Cycling'
   const isSwimming = formData.category === 'Swimming'
+  const isRunning = formData.category === 'Running' // 🔴 New Running Category
 
   return (
     <div className="min-h-screen bg-[#050b08] pb-12 px-4 sm:px-6 relative text-gray-300 pt-24">
@@ -259,7 +285,7 @@ export default function CreateOrEditEvent() {
             </Link>
             <div>
                 <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">স্মার্ট ইভেন্ট লঞ্চিং ইঞ্জিন</h1>
-                <p className="text-sm text-gray-400">ট্রেকিং, সাইক্লিং বা ক্যাম্পিং কাস্টমাইজ করুন</p>
+                <p className="text-sm text-gray-400">ট্রেকিং, সাইক্লিং, রানিং বা ক্যাম্পিং কাস্টমাইজ করুন</p>
             </div>
         </div>
 
@@ -276,7 +302,6 @@ export default function CreateOrEditEvent() {
                         <input type="text" id="title" required value={formData.title} onChange={handleInputChange} placeholder="e.g. কেওক্রাডং ক্লাউড ক্যাম্পিং ও ট্রেইল এক্সপ্লোর" className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-[#e76f51] text-white font-bold" />
                     </div>
                     
-                    {/* কভার ছবি আপলোড ও ক্রপার ট্রিগার */}
                     <div className="md:col-span-2">
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">কভার ছবি (স্বেচ্ছাধীন সাইজ ক্রপ)</label>
                         <div className="relative w-full h-48 sm:h-64 rounded-2xl border-2 border-dashed border-gray-600 overflow-hidden bg-black/20 flex items-center justify-center hover:border-[#e76f51] transition-colors">
@@ -303,6 +328,7 @@ export default function CreateOrEditEvent() {
                             <option value="Trekking">Trekking (ট্রেকিং)</option>
                             <option value="Camping">Camping (ক্যাম্পিং)</option>
                             <option value="Cycling">Cycling (সাইক্লিং)</option>
+                            <option value="Running">Running (রানিং)</option> {/* 🔴 New Category */}
                             <option value="Swimming">Swimming (সাঁতার)</option>
                             <option value="Houseboat/Cruise">Houseboat/Cruise</option>
                             <option value="Expedition">Expedition (অভিযান)</option>
@@ -342,32 +368,138 @@ export default function CreateOrEditEvent() {
                 </div>
             </div>
 
-            {/* সেকশন ৩: ফিন্যান্সিয়াল */}
+            {/* 🔴 সেকশন ৩: ফিন্যান্সিয়াল ইঞ্জিন (Advanced Payment Integration) */}
             <div>
                 <h3 className="font-bold text-emerald-400 mb-6 text-lg flex items-center gap-2 border-b border-emerald-400/20 pb-2">
-                    <i className="fa-solid fa-wallet"></i> ৩. ফিন্যান্সিয়াল ইঞ্জিন
+                    <i className="fa-solid fa-wallet"></i> ৩. ফিন্যান্সিয়াল ইঞ্জিন ও পেমেন্ট
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                         <label className="block text-xs font-bold text-emerald-400 mb-2 uppercase">বুকিং ফি (Advance) *</label>
                         <input type="number" id="bookingFee" required value={formData.bookingFee} onChange={handleInputChange} placeholder="1020" className="w-full bg-black/40 border border-emerald-500/30 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">টোটাল ফি *</label>
+                          <input type="number" id="totalFee" required value={formData.totalFee} onChange={handleInputChange} placeholder="4500" className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">মোট সিট *</label>
+                          <input type="number" id="totalSeats" required value={formData.totalSeats} onChange={handleInputChange} placeholder="25" className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
+                      </div>
+                    </div>
+                </div>
+
+                {/* 🔴 Dynamic Payment Methods Builder */}
+                <div className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-white/5 to-transparent">
+                  <div className="flex justify-between items-center mb-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">টোটাল প্যাকেজ ফি *</label>
-                        <input type="number" id="totalFee" required value={formData.totalFee} onChange={handleInputChange} placeholder="4500" className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">গ্রহণযোগ্য পেমেন্ট মাধ্যমসমূহ</h4>
+                      <p className="text-[10px] text-gray-400 mt-1">ইউজাররা কোন কোন নাম্বারে বা ব্যাংকে পেমেন্ট করতে পারবে তা যুক্ত করুন</p>
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">মোট সিট সংখ্যা *</label>
-                        <input type="number" id="totalSeats" required value={formData.totalSeats} onChange={handleInputChange} placeholder="25" className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
+                    <button type="button" onClick={addPaymentMethod} className="bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-emerald-500/30">
+                      <i className="fa-solid fa-plus mr-1"></i> মেথড যোগ করুন
+                    </button>
+                  </div>
+
+                  {paymentMethods.length > 0 ? (
+                    <div className="space-y-4">
+                      {paymentMethods.map((pm, index) => (
+                        <div key={pm.id} className="bg-black/40 border border-white/10 rounded-xl p-4 relative flex flex-col gap-3">
+                          <button type="button" onClick={() => removePaymentMethod(pm.id)} className="absolute top-3 right-3 text-red-400 hover:text-red-300 transition-colors">
+                            <i className="fa-solid fa-trash-can"></i>
+                          </button>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pr-6">
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-1">প্লাটফর্ম</label>
+                              <select value={pm.provider} onChange={(e) => updatePaymentMethod(pm.id, 'provider', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none focus:border-emerald-500">
+                                <option value="bkash">বিকাশ (bKash)</option>
+                                <option value="nagad">নগদ (Nagad)</option>
+                                <option value="rocket">রকেট (Rocket)</option>
+                                <option value="bank">ব্যাংক ট্রান্সফার (Bank)</option>
+                                <option value="cash">হ্যান্ড ক্যাশ (Cash)</option>
+                              </select>
+                            </div>
+                            
+                            {pm.provider === 'bank' && (
+                              <>
+                                <div>
+                                  <label className="block text-[10px] text-gray-400 mb-1">ব্যাংক সিলেক্ট করুন</label>
+                                  <select value={pm.bankName} onChange={(e) => updatePaymentMethod(pm.id, 'bankName', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none">
+                                    <option value="">ব্যাংক নির্বাচন করুন...</option>
+                                    {BD_BANKS.map((b, i) => <option key={i} value={b}>{b}</option>)}
+                                  </select>
+                                </div>
+                                <div className="sm:col-span-2 grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-[10px] text-gray-400 mb-1">অ্যাকাউন্ট নেম</label>
+                                    <input type="text" value={pm.accName} onChange={(e) => updatePaymentMethod(pm.id, 'accName', e.target.value)} placeholder="Account Name" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-400 mb-1">অ্যাকাউন্ট নম্বর</label>
+                                    <input type="text" value={pm.accNo} onChange={(e) => updatePaymentMethod(pm.id, 'accNo', e.target.value)} placeholder="Account Number" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-400 mb-1">ব্রাঞ্চ (Branch)</label>
+                                    <input type="text" value={pm.branch} onChange={(e) => updatePaymentMethod(pm.id, 'branch', e.target.value)} placeholder="Branch Name" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-400 mb-1">রাউটিং নম্বর (ঐচ্ছিক)</label>
+                                    <input type="text" value={pm.routing} onChange={(e) => updatePaymentMethod(pm.id, 'routing', e.target.value)} placeholder="Routing Number" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
+                            {pm.provider === 'cash' && (
+                              <>
+                                <div className="sm:col-span-2 grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-[10px] text-gray-400 mb-1">কন্টাক্ট পার্সন (নাম ও নাম্বার)</label>
+                                    <input type="text" value={pm.contactPerson} onChange={(e) => updatePaymentMethod(pm.id, 'contactPerson', e.target.value)} placeholder="Name - 017XXXXXXX" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-400 mb-1">লোকেশন / স্থান</label>
+                                    <input type="text" value={pm.location} onChange={(e) => updatePaymentMethod(pm.id, 'location', e.target.value)} placeholder="e.g. CUET Campus" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
+                            {(pm.provider === 'bkash' || pm.provider === 'nagad' || pm.provider === 'rocket') && (
+                              <>
+                                <div>
+                                  <label className="block text-[10px] text-gray-400 mb-1">অ্যাকাউন্ট নম্বর</label>
+                                  <input type="text" value={pm.accNo} onChange={(e) => updatePaymentMethod(pm.id, 'accNo', e.target.value)} placeholder="017XXXXXXX" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="block text-[10px] text-gray-400 mb-1">ট্রানজেকশন টাইপ</label>
+                                  <div className="flex gap-4">
+                                    <label className="text-xs text-gray-300 flex items-center gap-1.5 cursor-pointer">
+                                      <input type="radio" checked={pm.type === 'send_money'} onChange={() => updatePaymentMethod(pm.id, 'type', 'send_money')} className="accent-emerald-500" /> Send Money (পার্সোনাল)
+                                    </label>
+                                    <label className="text-xs text-gray-300 flex items-center gap-1.5 cursor-pointer">
+                                      <input type="radio" checked={pm.type === 'payment'} onChange={() => updatePaymentMethod(pm.id, 'type', 'payment')} className="accent-emerald-500" /> Payment (মার্চেন্ট)
+                                    </label>
+                                    <label className="text-xs text-gray-300 flex items-center gap-1.5 cursor-pointer">
+                                      <input type="radio" checked={pm.type === 'cash_in'} onChange={() => updatePaymentMethod(pm.id, 'type', 'cash_in')} className="accent-emerald-500" /> Cash In (এজেন্ট)
+                                    </label>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="md:col-span-3">
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">পেমেন্ট মেথড ও নাম্বার (বিকাশ/নগদ/রকেট) *</label>
-                        <input type="text" id="paymentMethods" required value={formData.paymentMethods} onChange={handleInputChange} placeholder="e.g. bKash (Personal): 01XXXXXXXXX, Nagad: 01XXXXXXXXX" className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
-                    </div>
+                  ) : (
+                    <p className="text-xs text-red-400 italic py-2">বুকিং কনফার্ম করার জন্য অন্তত একটি পেমেন্ট মেথড যুক্ত করা বাধ্যতামূলক।</p>
+                  )}
                 </div>
             </div>
 
-            {/* সেকশন ৪: স্মার্ট লজিস্টিকস */}
+            {/* সেকশন ৪: লজিস্টিকস */}
             <div>
                 <h3 className="font-bold text-purple-400 mb-6 text-lg flex items-center gap-2 border-b border-purple-400/20 pb-2">
                     <i className="fa-solid fa-campground"></i> ৪. লজিস্টিকস ও টিম পরিচালনা
@@ -410,7 +542,7 @@ export default function CreateOrEditEvent() {
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-blue-400 mb-2 uppercase">ইভেন্ট অ্যালবাম লিংক (গুগল ড্রাইভ ফোল্ডার) - ঐচ্ছিক</label>
+                        <label className="block text-xs font-bold text-blue-400 mb-2 uppercase">ইভেন্ট অ্যালবাম লিংক (ঐচ্ছিক)</label>
                         <div className="flex items-center gap-3 bg-black/40 border border-white/10 p-2 rounded-xl focus-within:border-blue-400 transition-colors">
                             <i className="fa-brands fa-google-drive text-blue-400 pl-3 text-lg"></i>
                             <input type="url" id="albumLink" value={formData.albumLink} onChange={handleInputChange} placeholder="https://drive.google.com/drive/folders/..." className="w-full bg-transparent text-white outline-none p-2 text-sm" />
@@ -430,29 +562,17 @@ export default function CreateOrEditEvent() {
                     <i className="fa-solid fa-list-check"></i> ৫. রুলস ও চেকলিস্ট (প্রিসেট ও কাস্টম)
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    
                     {/* Included */}
                     <div className="bg-black/20 p-5 rounded-2xl border border-emerald-500/20">
                         <label className="block text-xs font-bold text-emerald-400 mb-3 uppercase">যা যা ইনক্লুডেড (Included)</label>
-                        
-                        <select 
-                          onChange={(e) => {
-                            if(e.target.value) {
-                              handleTagAdd('included', e.target.value)
-                              e.target.value = ""
-                            }
-                          }} 
-                          className="w-full bg-black/40 border border-emerald-500/30 p-3 rounded-lg text-sm text-gray-300 mb-3 outline-none cursor-pointer"
-                        >
+                        <select onChange={(e) => { if(e.target.value) { handleTagAdd('included', e.target.value); e.target.value = "" } }} className="w-full bg-black/40 border border-emerald-500/30 p-3 rounded-lg text-sm text-gray-300 mb-3 outline-none cursor-pointer">
                           <option value="">-- সাজেশন থেকে নির্বাচন করুন --</option>
                           {presetIncluded.map(item => <option key={item} value={item}>{item}</option>)}
                         </select>
-
                         <div className="flex gap-2 mb-3">
                             <input type="text" placeholder="অথবা নিজে টাইপ করে যোগ করুন..." value={tagInputs.included} onChange={(e) => setTagInputs({...tagInputs, included: e.target.value})} className="bg-black/40 border border-white/10 flex-grow p-2.5 rounded-lg text-sm text-white" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd('included'))} />
                             <button type="button" onClick={() => handleTagAdd('included')} className="bg-emerald-500 text-white px-4 rounded-lg font-bold">Add</button>
                         </div>
-                        
                         <div className="flex flex-wrap gap-2">
                             {tags.included.map((tag, idx) => (
                                 <span key={idx} className="bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full text-xs flex items-center gap-2 text-emerald-400">
@@ -465,25 +585,14 @@ export default function CreateOrEditEvent() {
                     {/* Excluded */}
                     <div className="bg-black/20 p-5 rounded-2xl border border-gray-500/30">
                         <label className="block text-xs font-bold text-gray-400 mb-3 uppercase">যা ইনক্লুডেড নয় (Excluded)</label>
-                        
-                        <select 
-                          onChange={(e) => {
-                            if(e.target.value) {
-                              handleTagAdd('excluded', e.target.value)
-                              e.target.value = ""
-                            }
-                          }} 
-                          className="w-full bg-black/40 border border-gray-500/30 p-3 rounded-lg text-sm text-gray-300 mb-3 outline-none cursor-pointer"
-                        >
+                        <select onChange={(e) => { if(e.target.value) { handleTagAdd('excluded', e.target.value); e.target.value = "" } }} className="w-full bg-black/40 border border-gray-500/30 p-3 rounded-lg text-sm text-gray-300 mb-3 outline-none cursor-pointer">
                           <option value="">-- সাজেশন থেকে নির্বাচন করুন --</option>
                           {presetExcluded.map(item => <option key={item} value={item}>{item}</option>)}
                         </select>
-
                         <div className="flex gap-2 mb-3">
                             <input type="text" placeholder="অথবা নিজে টাইপ করে যোগ করুন..." value={tagInputs.excluded} onChange={(e) => setTagInputs({...tagInputs, excluded: e.target.value})} className="bg-black/40 border border-white/10 flex-grow p-2.5 rounded-lg text-sm text-white" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd('excluded'))} />
                             <button type="button" onClick={() => handleTagAdd('excluded')} className="bg-gray-600 text-white px-4 rounded-lg font-bold">Add</button>
                         </div>
-                        
                         <div className="flex flex-wrap gap-2">
                             {tags.excluded.map((tag, idx) => (
                                 <span key={idx} className="bg-white/10 px-3 py-1 rounded-full text-xs flex items-center gap-2 text-gray-300">
@@ -492,7 +601,6 @@ export default function CreateOrEditEvent() {
                             ))}
                         </div>
                     </div>
-
                 </div>
             </div>
 
@@ -524,7 +632,7 @@ export default function CreateOrEditEvent() {
                 </div>
             </div>
 
-            {/* সেকশন ৭: ডায়নামিক ইউজার রিওয়ার্ড পয়েন্ট */}
+            {/* 🔴 সেকশন ৭: ডায়নামিক ইউজার রিওয়ার্ড পয়েন্ট (Running Support) */}
             <div>
                 <h3 className="font-bold text-amber-500 mb-2 text-lg flex items-center gap-2 border-b border-amber-500/20 pb-2">
                     <i className="fa-solid fa-medal"></i> ৭. ইউজার প্রোফাইল পয়েন্ট ও রিওয়ার্ড
@@ -534,18 +642,18 @@ export default function CreateOrEditEvent() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
-                          {isCycling ? 'মোট রাইডের সংখ্যা' : isSwimming ? 'সাঁতার সেশন সংখ্যা' : 'ট্রেকের সংখ্যা (কাউন্ট)'}
+                          {isCycling ? 'মোট রাইডের সংখ্যা' : isSwimming ? 'সাঁতার সেশন সংখ্যা' : isRunning ? 'মোট দৌড়ের সংখ্যা' : 'ট্রেকের সংখ্যা (কাউন্ট)'}
                         </label>
                         <input type="number" id="metaTreks" required value={formData.metaTreks} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
-                          {isCycling ? 'মোট রাইডিং দূরত্ব (কি.মি.)' : isSwimming ? 'মোট সাঁতারের দূরত্ব (মিটার)' : 'মোট হাঁটার দূরত্ব (কি.মি.)'}
+                          {isCycling ? 'মোট রাইডিং দূরত্ব (কি.মি.)' : isSwimming ? 'মোট সাঁতারের দূরত্ব (মিটার)' : isRunning ? 'মোট দৌড়ের দূরত্ব (কি.মি.)' : 'মোট হাঁটার দূরত্ব (কি.মি.)'}
                         </label>
                         <input type="number" id="metaDistance" required value={formData.metaDistance} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
                     </div>
                     
-                    {!isDayEvent && (
+                    {!isDayEvent && !isRunning && (
                       <div>
                           <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ক্যাম্পিং রাত সংখ্যা</label>
                           <input type="number" id="metaNights" required value={formData.metaNights} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
@@ -561,10 +669,9 @@ export default function CreateOrEditEvent() {
                     <span>{loading ? 'লঞ্চ হচ্ছে...' : 'ইভেন্ট সফলভাবে প্রকাশ করুন'}</span>
                 </button>
             </div>
-
         </form>
 
-        {/* 🔴 ফ্রি-ফর্ম ক্রপার মডাল (ইচ্ছামতো টেনে সাইজ করার স্বাধীনতা) */}
+        {/* ফ্রি-ফর্ম ক্রপার মডাল */}
         {showCropper && (
           <div className="fixed inset-0 z-[70] flex flex-col bg-black/90 backdrop-blur-md">
             <div className="relative flex-grow">
