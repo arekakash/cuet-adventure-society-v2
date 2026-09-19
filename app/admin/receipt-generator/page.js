@@ -14,12 +14,18 @@ function ReceiptGeneratorContent() {
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [customMessage, setCustomMessage] = useState('আপনার পেমেন্ট সফলভাবে গ্রহণ করা হয়েছে এবং ইভেন্টের সিট কনফার্ম করা হয়েছে। অ্যাডভেঞ্চারের জন্য প্রস্তুত হোন!')
+  const [adminId, setAdminId] = useState(null)
 
   useEffect(() => {
     if (!bookingId) return
 
-    const fetchBooking = async () => {
+    const fetchBookingAndAuth = async () => {
       try {
+        // Get current admin user ID
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) setAdminId(session.user.id)
+
+        // Fetch Booking details
         const { data, error } = await supabase
           .from('bookings')
           .select(`
@@ -33,17 +39,17 @@ function ReceiptGeneratorContent() {
         if (error) throw error
         setBooking(data)
       } catch (error) {
-        console.error("Error fetching booking:", error.message)
+        console.error("Error fetching data:", error.message)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchBooking()
+    fetchBookingAndAuth()
   }, [bookingId])
 
   const handleSendReceipt = async () => {
-    if (!booking) return
+    if (!booking || !adminId) return
     setProcessing(true)
 
     try {
@@ -62,12 +68,14 @@ function ReceiptGeneratorContent() {
         phone: booking.profiles.phone
       }
 
-      const { error } = await supabase.from('inbox_messages').insert([{
-        user_id: booking.profiles.id,
+      // 🔴 Updated to use 'cas_messages' and 'metadata'
+      const { error } = await supabase.from('cas_messages').insert([{
+        sender_id: adminId,
+        receiver_id: booking.profiles.id,
         title: `Payment Receipt: ${booking.events.title}`,
         message_type: 'receipt',
         content: customMessage,
-        receipt_data: receiptData,
+        metadata: receiptData,
         is_read: false
       }])
 
@@ -112,7 +120,7 @@ function ReceiptGeneratorContent() {
           </h2>
           <p className="text-xs text-gray-500 mb-6">ইউজার তার ইনবক্সে ঠিক এইরকম একটি ডিজিটাল রিসিট দেখতে পাবে যা সে ছবি হিসেবে ডাউনলোড করতে পারবে।</p>
           
-          {/* 🔴 HTML/CSS Receipt Template (Rendered on UI, No Image Needed) */}
+          {/* HTML/CSS Receipt Template (Rendered on UI, No Image Needed) */}
           <div className="bg-white text-black p-6 sm:p-8 rounded-xl shadow-2xl relative overflow-hidden border-t-8 border-[#0a1c13]">
             {/* Watermark */}
             <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
