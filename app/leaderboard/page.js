@@ -126,6 +126,18 @@ export default function LeaderboardPage() {
             আমাদের ক্লাবের সেরা এক্সপ্লোরারদের রিয়েল-টাইম র‍্যাংকিং। ক্যাটাগরি বেছে নিন এবং সেরাদের তালিকা দেখুন!
           </p>
         </div>
+  {/* 🔴 Certificate Banner Section */}
+        <div className="flex justify-center mb-10 relative z-20 px-4">
+          <Link href="/certificate" className="w-full sm:w-auto bg-gradient-to-r from-yellow-500/10 via-amber-500/10 to-yellow-500/10 hover:from-yellow-500/20 hover:via-amber-500/20 hover:to-yellow-500/20 border border-yellow-500/30 hover:border-yellow-400 px-6 py-4 rounded-2xl flex items-center justify-center gap-4 transition-all duration-300 shadow-[0_0_20px_rgba(234,179,8,0.1)] hover:shadow-[0_0_25px_rgba(234,179,8,0.25)] hover:-translate-y-1 group">
+            <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-500 group-hover:scale-110 group-hover:bg-yellow-500 group-hover:text-[#0a1c13] transition-all duration-300 shrink-0">
+              <i className="fa-solid fa-award text-2xl"></i>
+            </div>
+            <div className="text-left">
+              <p className="text-[10px] font-black tracking-widest uppercase text-yellow-500 mb-0.5">অফিসিয়াল রিকগনিশন</p>
+              <p className="text-sm sm:text-base font-bold text-white flex items-center gap-2">আপনার অ্যাচিভমেন্ট ও সার্টিফিকেট দেখুন <i className="fa-solid fa-arrow-right opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all"></i></p>
+            </div>
+          </Link>
+        </div>
 
         {/* Compact Filter Tabs (Mobile Friendly - One Line) */}
         <div className="flex justify-center items-center gap-1.5 sm:gap-4 mb-8 sm:mb-10 relative z-20 w-full overflow-visible">
