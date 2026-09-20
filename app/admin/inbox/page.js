@@ -23,6 +23,65 @@ export default function AdminInboxPage() {
   const [mobileView, setMobileView] = useState('list') 
   const messagesEndRef = useRef(null)
 
+    // 🟢 New States for Search Feature
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
+
+  // 🟢 Search Function
+  const handleSearchUsers = async (query) => {
+    setSearchQuery(query)
+    if (!query.trim()) {
+      setSearchResults([])
+      return
+    }
+    
+    setIsSearching(true)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, photo_url, student_id, role')
+        .ilike('full_name', `%${query}%`) // নামের সাথে মিলিয়ে সার্চ
+        .neq('id', admin.id) // নিজেকে বাদে সার্চ
+        .limit(10)
+
+      if (error) throw error
+      setSearchResults(data || [])
+    } catch (err) {
+      console.error("Search error:", err)
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  // 🟢 Start New Chat from Search Result
+  const handleStartNewChat = async (user) => {
+    // আগে চেক করবো এই ইউজারের সাথে আগে চ্যাট হয়েছে কিনা
+    const existingContact = contacts.find(c => c.id === user.id)
+    
+    let contactToSelect;
+    if (existingContact) {
+      contactToSelect = existingContact
+    } else {
+      // নতুন কন্টাক্ট হলে টেম্পোরারি কন্টাক্ট লিস্টে অ্যাড করা
+      contactToSelect = {
+        id: user.id,
+        full_name: user.full_name,
+        photo_url: user.photo_url,
+        student_id: user.student_id,
+        lastMessage: 'New Chat started',
+        lastMessageTime: new Date().toISOString(),
+        unread: 0
+      }
+      setContacts(prev => [contactToSelect, ...prev])
+    }
+
+    setSearchQuery('')
+    setSearchResults([])
+    handleContactSelect(contactToSelect)
+  }
+
+
   useEffect(() => {
     let isMounted = true
     let channel = null // 🔴 চ্যানেলটি বাইরে ডিক্লেয়ার করা হলো
@@ -229,20 +288,64 @@ export default function AdminInboxPage() {
       
       <div className="w-full max-w-6xl bg-[#0a1c13] border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl flex overflow-hidden h-full">
         
-        {/* ================= LEFT PANE: CONTACTS LIST ================= */}
+                {/* ================= LEFT PANE: CONTACTS LIST & SEARCH ================= */}
         <div className={`w-full md:w-1/3 md:min-w-[320px] bg-[#0a1c13] flex flex-col border-r border-white/10 ${mobileView === 'list' ? 'block' : 'hidden md:flex'}`}>
           
-          <div className="p-4 sm:p-5 border-b border-white/10 bg-black/20 flex items-center justify-between shrink-0">
-            <h2 className="text-white font-black text-lg flex items-center gap-2">
-              <i className="fa-solid fa-inbox text-[#e76f51]"></i> অ্যাডমিন ইনবক্স
-            </h2>
-            <Link href="/admin" className="text-gray-400 hover:text-white bg-white/5 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
-              <i className="fa-solid fa-arrow-left text-sm"></i>
-            </Link>
+          <div className="p-4 sm:p-5 border-b border-white/10 bg-black/20 shrink-0">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white font-black text-lg flex items-center gap-2">
+                <i className="fa-solid fa-inbox text-[#e76f51]"></i> অ্যাডমিন ইনবক্স
+              </h2>
+              <Link href="/admin" className="text-gray-400 hover:text-white bg-white/5 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+                <i className="fa-solid fa-arrow-left text-sm"></i>
+              </Link>
+            </div>
+
+            {/* 🟢 Search Input Box */}
+            <div className="relative">
+              <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm"></i>
+              <input 
+                type="text" 
+                placeholder="ইউজারের নাম দিয়ে খুঁজুন..." 
+                value={searchQuery}
+                onChange={(e) => handleSearchUsers(e.target.value)}
+                className="w-full bg-black/40 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white outline-none focus:border-[#e76f51] transition-colors"
+              />
+              {isSearching && <i className="fa-solid fa-circle-notch fa-spin absolute right-3 top-1/2 transform -translate-y-1/2 text-[#e76f51] text-xs"></i>}
+            </div>
           </div>
 
-          <div className="flex-grow overflow-y-auto custom-scrollbar p-2">
+          <div className="flex-grow overflow-y-auto custom-scrollbar p-2 relative">
+            
+            {/* 🟢 Search Results Dropdown Overlay */}
+            {searchQuery.trim() !== '' && (
+              <div className="absolute inset-0 bg-[#0a1c13] z-20 p-2 overflow-y-auto custom-scrollbar">
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-3 ml-2 border-b border-white/10 pb-1">Search Results</p>
+                
+                {searchResults.length === 0 && !isSearching ? (
+                  <p className="text-center text-gray-500 text-xs py-5">কাউকে পাওয়া যায়নি!</p>
+                ) : (
+                  searchResults.map(user => (
+                    <div 
+                      key={user.id} 
+                      onClick={() => handleStartNewChat(user)}
+                      className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white/5 transition-all mb-1 border border-transparent"
+                    >
+                      <img src={user.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=1f2937&color=fff`} className="w-10 h-10 rounded-full border border-white/10 object-cover shrink-0" alt="User" />
+                      <div>
+                        <h4 className="text-sm text-white font-bold">{user.full_name}</h4>
+                        <p className="text-[10px] text-gray-400 font-mono">ID: {user.student_id || 'N/A'}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Default Contact List */}
             {contacts.length === 0 ? (
+
+            
               <div className="text-center py-10 opacity-50">
                 <i className="fa-solid fa-ghost text-3xl text-gray-500 mb-2"></i>
                 <p className="text-xs font-bold text-gray-400">কোনো চ্যাট হিস্ট্রি নেই</p>
