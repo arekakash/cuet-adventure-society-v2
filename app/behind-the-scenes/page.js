@@ -167,7 +167,7 @@ export default function BehindTheScenes() {
                 <p className="text-xs text-emerald-400 font-bold tracking-widest uppercase mb-2">The Catalyst (CE '13)</p>
                 <p className="text-[9px] text-gray-500 tracking-wider mb-4"><i className="fa-solid fa-camera mr-1"></i> ২০১৫ সালে তৎকালীন তোলা ছবি</p>
                 <div className="border-t border-white/5 my-4"></div>
-                <p className="text-sm text-gray-400 italic">"এই বয়সের জন্য চাই পিওর অ্যাডভেঞ্চার!" - এই একটি লাইনই বদলে দিয়েছিল ক্লাবের ডিএনএ।</p>
+                <p className="text-sm text-gray-400 italic">"ট্যুরিস্ট থেকে অ্যাডভেঞ্চার - যার ভিশনে বদলে গিয়েছিলো ক্লাবের ডিএনএ - জন্ম নিয়েছিলো চুয়েট অ্যাডভেঞ্চার সোসাইটি</p>
               </div>
             </div>
           </div>
