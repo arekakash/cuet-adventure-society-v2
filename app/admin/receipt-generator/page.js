@@ -153,14 +153,15 @@ function ReceiptGeneratorContent() {
                   <span className="text-gray-500 font-medium">Student ID:</span>
                   <span className="font-mono font-bold text-gray-800">{booking.profiles.student_id || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between border-b border-gray-200 pb-2">
-                  <span className="text-gray-500 font-medium">Payment Method:</span>
-                  <span className="font-bold text-gray-800 text-right max-w-[200px] truncate">{booking.payment_method}</span>
+                                <div className="flex justify-between items-start border-b border-gray-200 pb-2 gap-4">
+                  <span className="text-gray-500 font-medium whitespace-nowrap mt-0.5">Payment Method:</span>
+                  <span className="font-bold text-gray-800 text-right break-words leading-snug">{booking.payment_method}</span>
                 </div>
-                <div className="flex justify-between pb-1">
-                  <span className="text-gray-500 font-medium">TrxID / Ref:</span>
-                  <span className="font-mono font-bold text-gray-800 text-right max-w-[200px] truncate">{booking.trx_id}</span>
+                <div className="flex justify-between items-start pb-1 gap-4 mt-2">
+                  <span className="text-gray-500 font-medium whitespace-nowrap mt-0.5">TrxID / Ref:</span>
+                  <span className="font-mono font-bold text-gray-800 text-right break-all leading-snug">{booking.trx_id}</span>
                 </div>
+
               </div>
 
               <div className="flex justify-between items-end bg-[#0a1c13] text-white p-4 rounded-xl">
