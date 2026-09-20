@@ -51,18 +51,28 @@ export default function TrashBin() {
     }
   }
 
-  // চিরতরে ডিলিট করার ফাংশন
+  // চিরতরে ডিলিট করার ফাংশন (🔴 Updated Logic)
   const handlePermanentDelete = async (id) => {
-    const confirmDelete = window.confirm("চরম সতর্কতা! এটি ডেটাবেস থেকে চিরতরে মুছে যাবে এবং আর কখনোই উদ্ধার করা সম্ভব হবে না। আপনি কি নিশ্চিত?")
+    const confirmDelete = window.confirm("চরম সতর্কতা! এটি ডেটাবেস থেকে চিরতরে মুছে যাবে এবং আর কখনোই উদ্ধার করা সম্ভব হবেবিধা নেই। আপনি কি নিশ্চিত?")
     if (!confirmDelete) return
 
     try {
-      const { error } = await supabase
+      // ১. প্রথমে এই ইভেন্টের সাথে যুক্ত সকল বুকিং রেকর্ড ডিলিট করতে হবে (Foreign Key Error এড়াতে)
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('event_id', id)
+
+      if (bookingError) throw bookingError
+
+      // ২. এরপর মূল ইভেন্টটি ডেটাবেস থেকে ডিলিট করতে হবে
+      const { error: eventError } = await supabase
         .from('events')
         .delete()
         .eq('id', id)
 
-      if (error) throw error
+      if (eventError) throw eventError
+
       alert("ইভেন্টটি চিরতরে মুছে ফেলা হয়েছে!")
       fetchTrashedEvents()
     } catch (error) {
