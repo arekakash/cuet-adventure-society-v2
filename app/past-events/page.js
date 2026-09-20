@@ -41,6 +41,7 @@ export default function PastEventsPage() {
   const [isCheckboxChecked, setIsCheckboxChecked] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deletingEventId, setDeletingEventId] = useState(null)
+  const [eventToDelete, setEventToDelete] = useState(null) // 🔴 ডিলিট করার সময় ইভেন্টের ডেটা ধরে রাখার জন্য
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 })
@@ -120,8 +121,61 @@ export default function PastEventsPage() {
     setFilteredEvents(result)
   }, [filters, events])
 
+  // 🔴 সংশোধিত ડিলিট লজিক (Rollback সহ)
   const handleMoveToTrash = async () => {
     try {
+      // ১. প্রথমে এই ইভেন্টের বুকিংগুলো খুঁজে বের করো
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select('user_id')
+        .eq('event_id', deletingEventId)
+        .in('status', ['approved', 'free_booking'])
+
+      // ২. যদি বুকিং থাকে, তবে তাদের পয়েন্ট মাইনাস করো (Rollback)
+      if (bookings && bookings.length > 0 && eventToDelete) {
+        const statsMeta = eventToDelete.stats_meta || {}
+        const category = (eventToDelete.category || "").toLowerCase().trim()
+        const distanceToSubtract = Number(statsMeta.distance) || 0
+        const iqToSubtract = Number(statsMeta.survival_iq) || 0
+        const treksCount = Number(statsMeta.treks) || 1
+
+        const rollbackPromises = bookings.map(async (b) => {
+          const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('survival_iq, total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, total_runs, running_distance')
+            .eq('id', b.user_id)
+            .single()
+          
+          if (userProfile) {
+            const updates = {
+              survival_iq: Math.max(0, (Number(userProfile.survival_iq) || 0) - iqToSubtract),
+              total_events: Math.max(0, (Number(userProfile.total_events) || 0) - 1)
+            }
+
+            if (category.includes('trekking') || category.includes('camping') || category.includes('day tour')) {
+              updates.total_treks = Math.max(0, (Number(userProfile.total_treks) || 0) - treksCount)
+              updates.total_distance = Math.max(0, (Number(userProfile.total_distance) || 0) - distanceToSubtract)
+            } else if (category.includes('cycling')) {
+              updates.total_rides = Math.max(0, (Number(userProfile.total_rides) || 0) - treksCount)
+              updates.cycling_distance = Math.max(0, (Number(userProfile.cycling_distance) || 0) - distanceToSubtract)
+            } else if (category.includes('swimming') || category.includes('houseboat') || category.includes('cruise')) {
+              updates.total_swims = Math.max(0, (Number(userProfile.total_swims) || 0) - treksCount)
+              updates.swimming_distance = Math.max(0, (Number(userProfile.swimming_distance) || 0) - distanceToSubtract)
+            } else if (category.includes('running')) {
+              updates.total_runs = Math.max(0, (Number(userProfile.total_runs) || 0) - treksCount)
+              updates.running_distance = Math.max(0, (Number(userProfile.running_distance) || 0) - distanceToSubtract)
+            } else {
+              updates.total_treks = Math.max(0, (Number(userProfile.total_treks) || 0) - treksCount)
+            }
+
+            await supabase.from('profiles').update(updates).eq('id', b.user_id)
+          }
+        })
+        
+        await Promise.all(rollbackPromises)
+      }
+
+      // ৩. এরপর ইভেন্টটিকে ট্র্যাশ বিনে পাঠাও
       const { error } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
@@ -129,7 +183,7 @@ export default function PastEventsPage() {
 
       if (error) throw error
 
-      alert('অতীতের ইভেন্টটি সফলভাবে ট্র্যাশ বিনে পাঠানো হয়েছে।')
+      alert('অতীতের ইভেন্টটি সফলভাবে ট্র্যাশ বিনে পাঠানো হয়েছে এবং ইউজারদের পয়েন্ট রিভার্স করা হয়েছে!')
       
       setEvents(events.filter(ev => ev.id !== deletingEventId))
       setFilteredEvents(filteredEvents.filter(ev => ev.id !== deletingEventId))
@@ -284,6 +338,7 @@ export default function PastEventsPage() {
                       onClick={(e) => {
                         e.preventDefault()
                         setDeletingEventId(ev.id)
+                        setEventToDelete(ev) // 🔴 ডিলিট করার সময় ইভেন্টের ডেটা স্টেট-এ সেট করা হলো
                         setIsDeleteModalOpen(true)
                         setDeleteStep(1)
                       }}
@@ -333,7 +388,7 @@ export default function PastEventsPage() {
                 <i className="fa-solid fa-triangle-exclamation text-4xl text-red-500 mb-3 animate-pulse"></i>
                 <h3 className="text-xl font-black text-white mb-2">চরম সতর্কতা!</h3>
                 <p className="text-gray-400 text-xs mb-5">
-                  ইভেন্টটি ট্র্যাশ বিনে জমা হবে এবং <span className="text-red-400 font-bold">৩০ দিন পর মুছে যাবে</span>। নিশ্চিত?
+                  ইভেন্টটি ট্র্যাশ বিনে জমা হবে এবং <span className="text-red-400 font-bold">সকল ইউজারের পয়েন্ট মাইনাস হয়ে যাবে</span>। নিশ্চিত?
                 </p>
                 <div className="flex gap-3">
                   <button onClick={() => setIsDeleteModalOpen(false)} className="w-1/2 bg-white/5 text-white py-2.5 rounded-lg text-xs font-bold transition-all">বাতিল</button>
