@@ -21,8 +21,8 @@ export default function AdminBookings() {
         .from('bookings')
         .select(`
           *,
-          events (title, id, booked_seats, total_seats, category, stats_meta),
-          profiles (id, full_name, phone, blood_group, emergency_contact, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, total_runs, running_distance)
+          events (title, id, booked_seats, total_seats, category, stats_meta, status), 
+          profiles (id, full_name, phone, blood_group, emergency_contact, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, total_runs, running_distance, survival_iq, total_events)
         `)
         .in('status', ['pending', 'claim_pending']) 
         .order('created_at', { ascending: true }) 
@@ -44,20 +44,20 @@ export default function AdminBookings() {
     fetchRequests()
   }, [])
 
-  // 🔴 সংশোধিত স্মার্ট অ্যাপ্রুভাল লজিক (পয়েন্ট যোগ করার কোড এখান থেকে সরিয়ে নেওয়া হয়েছে)
+  // 🔴 স্মার্ট অ্যাপ্রুভাল লজিক (Claim এবং Post-event manual add এর জন্য পয়েন্ট যোগ করার লজিক ফিরিয়ে আনা হলো)
   const handleApprove = async (booking, isClaim = false) => {
     const event = booking.events
     const profile = booking.profiles
     
     // পেমেন্টের ক্ষেত্রে সিট চেক করবে
     if (!isClaim && (event.booked_seats || 0) >= event.total_seats) {
-        alert("⚠️ এই ইভেন্টের সব সিট ইতোমধ্যে বুক হয়ে গেছে! আপনি আর অ্যাপ্রুভ করতে পারবেন না।")
+        alert("⚠️ এই ইভেন্টের সব সিট ইতোমধ্যে বুক হয়ে গেছে! আপনি আর অ্যাপ্রুভ করতে পারবেনলগ্ন।")
         return
     }
 
     const confirmMsg = isClaim 
-        ? "এই ইউজারের অ্যাটেনডেন্স ক্লেইম অ্যাপ্রুভ করবেন?" 
-        : "পেমেন্ট সঠিক হলে বুকিং অ্যাপ্রুভ করুন। ইউজারের সিট কনফার্ম হবে এবং রিসিট তৈরি হবে। নিশ্চিত?"
+        ? "এই ইউজারের অ্যাটেনডেন্স ক্লেইম অ্যাপ্রুভ করবেন? ইউজারের প্রোফাইলে পয়েন্ট যোগ হবে।" 
+        : "পেমেন্ট সঠিক হলে বুকিং অ্যাপ্রুভ করুন। নিশ্চিত?"
         
     if (!window.confirm(confirmMsg)) return
     
@@ -82,12 +82,46 @@ export default function AdminBookings() {
         if (eventError) throw eventError
       }
 
-      // 🔴 বিঃদ্রঃ প্রোফাইলে পয়েন্ট বা দূরত্ব যোগ করার কোড এখান থেকে মুছে ফেলা হয়েছে।
-      // কারণ ইভেন্ট কমপ্লিট হওয়ার আগে কাউকে পয়েন্ট দেওয়া যাবে না। ইভেন্ট শেষ হলে 'Mark Completed' বাটন অটো পয়েন্ট দিয়ে দেবে।
+      // 🔴 ৩. পয়েন্ট যোগ করার লজিক: শুধুমাত্র Attendance Claim অথবা ইভেন্ট আগে থেকেই Completed হলে
+      if (isClaim || event.status === 'completed') {
+        const statsMeta = event.stats_meta || {}
+        const category = (event.category || "").toLowerCase().trim()
+        const distanceToAdd = Number(statsMeta.distance) || 0
+        const iqToAdd = Number(statsMeta.survival_iq) || 0
+        const treksCount = Number(statsMeta.treks) || 1
 
-      // ৩. সাকসেস মেসেজ এবং রিডাইরেক্ট লজিক
+        const updates = {
+          survival_iq: (Number(profile.survival_iq) || 0) + iqToAdd,
+          total_events: (Number(profile.total_events) || 0) + 1
+        }
+
+        if (category.includes('trekking') || category.includes('camping') || category.includes('day tour')) {
+          updates.total_treks = (Number(profile.total_treks) || 0) + treksCount
+          updates.total_distance = (Number(profile.total_distance) || 0) + distanceToAdd
+        } else if (category.includes('cycling')) {
+          updates.total_rides = (Number(profile.total_rides) || 0) + treksCount
+          updates.cycling_distance = (Number(profile.cycling_distance) || 0) + distanceToAdd
+        } else if (category.includes('swimming') || category.includes('houseboat') || category.includes('cruise')) {
+          updates.total_swims = (Number(profile.total_swims) || 0) + treksCount
+          updates.swimming_distance = (Number(profile.swimming_distance) || 0) + distanceToAdd
+        } else if (category.includes('running')) {
+          updates.total_runs = (Number(profile.total_runs) || 0) + treksCount
+          updates.running_distance = (Number(profile.running_distance) || 0) + distanceToAdd
+        } else {
+          updates.total_treks = (Number(profile.total_treks) || 0) + treksCount
+        }
+
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', profile.id)
+
+        if (profileError) throw profileError
+      }
+
+      // ৪. সাকসেস মেসেজ এবং রিডাইরেক্ট লজিক
       if (isClaim) {
-        alert("অ্যাটেনডেন্স ক্লেইম সফলভাবে অ্যাপ্রুভ করা হয়েছে!")
+        alert("অ্যাটেনডেন্স ক্লেইম সফলভাবে অ্যাপ্রুভ করা হয়েছে এবং পয়েন্ট যোগ হয়েছে!")
         fetchRequests()
       } else {
         alert("বুকিং কনফার্ম করা হয়েছে! রিসিট জেনারেটর পেজে রিডাইরেক্ট করা হচ্ছে...")
