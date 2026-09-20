@@ -306,21 +306,6 @@ function EventDetailsContent() {
     return 'দূরত্ব অতিক্রম'
   }
 
-  // 🟢 Memory Lane (Multiple Links) Parsing Logic
-  let memoryLinks = []
-  if (typeof event.album_link === 'string') {
-    if (event.album_link.trim().startsWith('[')) {
-      try { memoryLinks = JSON.parse(event.album_link) } catch(e) {}
-    } else if (event.album_link.trim() !== '') {
-      memoryLinks = [{ id: 1, title: 'ইভেন্ট অ্যালবাম', url: event.album_link }] // Legacy support
-    }
-  } else if (Array.isArray(event.album_link)) {
-    memoryLinks = event.album_link
-  }
-  const validMemoryLinks = memoryLinks.filter(m => m.url && m.url.trim() !== '')
-
-  return (
-
   const getRewardLabel = () => {
     if (isCycling) return 'Rides'
     if (isSwimming) return 'Swims'
@@ -331,6 +316,21 @@ function EventDetailsContent() {
   const isUserApproved = user && approvedExplorers.some(exp => exp.id === user.id)
   
   const eventPaymentMethods = Array.isArray(event.payment_methods) ? event.payment_methods : []
+
+  // 🟢 Memory Lane (Multiple Links) Parsing Logic
+  let memoryLinks = []
+  if (event.album_link) {
+    if (typeof event.album_link === 'string') {
+      if (event.album_link.trim().startsWith('[')) {
+        try { memoryLinks = JSON.parse(event.album_link) } catch(e) {}
+      } else if (event.album_link.trim() !== '') {
+        memoryLinks = [{ id: 1, title: 'ইভেন্ট মেমোরি', url: event.album_link }] // Legacy support
+      }
+    } else if (Array.isArray(event.album_link)) {
+      memoryLinks = event.album_link
+    }
+  }
+  const validMemoryLinks = memoryLinks.filter(m => m.url && m.url.trim() !== '')
 
   return (
     <div className="min-h-screen bg-[#050b08] pt-20 pb-20 relative text-gray-300">
@@ -630,7 +630,7 @@ function EventDetailsContent() {
                       <p className="flex justify-between"><span className="text-gray-500">টোটাল প্যাকেজ ফি:</span> <span>৳ {event.tour_fee}</span></p>
                     </div>
 
-                                        {/* 🟢 Updated Memory Lane Section */}
+                    {/* 🟢 Updated Memory Lane Section */}
                     {validMemoryLinks.length > 0 && (
                       <div className="pt-4 border-t border-white/10">
                         <div className="flex items-center justify-center gap-2 mb-3">
