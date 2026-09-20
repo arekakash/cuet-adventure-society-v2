@@ -20,7 +20,6 @@ function EventDetailsContent() {
   const [processing, setProcessing] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
 
-  // 🔴 Dynamic Payment Form States
   const [selectedPaymentIdx, setSelectedPaymentIdx] = useState('')
   const [senderNo, setSenderNo] = useState('')
   const [mfsTrxId, setMfsTrxId] = useState('')
@@ -171,6 +170,7 @@ function EventDetailsContent() {
     }
   }
 
+  // 🔴 সংশোধিত অ্যাডমিন ইনসার্ট লজিক (বিদ্যমান মেম্বারের জন্য)
   const adminAddExistingMember = async (memberId) => {
     if (!window.confirm("এই মেম্বারকে ইভেন্টে যুক্ত করতে চান?")) return
     setProcessing(true)
@@ -178,8 +178,46 @@ function EventDetailsContent() {
       const { error } = await supabase.from('bookings').upsert({
         user_id: memberId, event_id: eventId, status: 'approved', payment_method: 'admin_added', trx_id: 'ADMIN'
       }, { onConflict: 'user_id, event_id' })
+      
       if (error) throw error
-      alert("মেম্বার সফলভাবে যুক্ত হয়েছে! পেজটি রিলোড করুন।")
+
+      // 🔴 যদি ইভেন্টটি কমপ্লিট হয়ে থাকে, তবে ইউজারের প্রোফাইলে পয়েন্ট যোগ করে দাও
+      if (event.status === 'completed') {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', memberId).single()
+        
+        if (profile) {
+          const statsMeta = event.stats_meta || {}
+          const category = (event.category || "").toLowerCase().trim()
+          const distanceToAdd = Number(statsMeta.distance) || 0
+          const iqToAdd = Number(statsMeta.survival_iq) || 0
+          const treksCount = Number(statsMeta.treks) || 1
+
+          const updates = {
+            survival_iq: (Number(profile.survival_iq) || 0) + iqToAdd,
+            total_events: (Number(profile.total_events) || 0) + 1
+          }
+
+          if (category.includes('trekking') || category.includes('camping') || category.includes('day tour')) {
+            updates.total_treks = (Number(profile.total_treks) || 0) + treksCount
+            updates.total_distance = (Number(profile.total_distance) || 0) + distanceToAdd
+          } else if (category.includes('cycling')) {
+            updates.total_rides = (Number(profile.total_rides) || 0) + treksCount
+            updates.cycling_distance = (Number(profile.cycling_distance) || 0) + distanceToAdd
+          } else if (category.includes('swimming') || category.includes('houseboat') || category.includes('cruise')) {
+            updates.total_swims = (Number(profile.total_swims) || 0) + treksCount
+            updates.swimming_distance = (Number(profile.swimming_distance) || 0) + distanceToAdd
+          } else if (category.includes('running')) {
+            updates.total_runs = (Number(profile.total_runs) || 0) + treksCount
+            updates.running_distance = (Number(profile.running_distance) || 0) + distanceToAdd
+          } else {
+            updates.total_treks = (Number(profile.total_treks) || 0) + treksCount
+          }
+
+          await supabase.from('profiles').update(updates).eq('id', memberId)
+        }
+      }
+
+      alert("মেম্বার সফলভাবে যুক্ত হয়েছে এবং পয়েন্ট সিঙ্ক হয়েছে! পেজটি রিলোড করুন।")
       window.location.reload()
     } catch (err) {
       alert(err.message)
@@ -188,28 +226,63 @@ function EventDetailsContent() {
     }
   }
 
+  // 🔴 সংশোধিত অ্যাডমিন ইনসার্ট লজিক (নতুন অফলাইন মেম্বারের জন্য)
   const handleCreateOfflineMember = async (e) => {
     e.preventDefault()
     setProcessing(true)
     try {
       const fakeId = `offline-${Date.now()}`
       
+      // 🔴 যদি ইভেন্ট কমপ্লিট হয়, তবে পয়েন্ট হিসেব করে রাখো
+      let initialStats = {
+        survival_iq: 0, total_events: 0, total_treks: 0, total_distance: 0,
+        total_rides: 0, cycling_distance: 0, total_swims: 0, swimming_distance: 0,
+        total_runs: 0, running_distance: 0
+      }
+
+      if (event.status === 'completed') {
+        const statsMeta = event.stats_meta || {}
+        const category = (event.category || "").toLowerCase().trim()
+        const distanceToAdd = Number(statsMeta.distance) || 0
+        const iqToAdd = Number(statsMeta.survival_iq) || 0
+        const treksCount = Number(statsMeta.treks) || 1
+
+        initialStats.survival_iq = iqToAdd
+        initialStats.total_events = 1
+
+        if (category.includes('trekking') || category.includes('camping') || category.includes('day tour')) {
+          initialStats.total_treks = treksCount; initialStats.total_distance = distanceToAdd
+        } else if (category.includes('cycling')) {
+          initialStats.total_rides = treksCount; initialStats.cycling_distance = distanceToAdd
+        } else if (category.includes('swimming') || category.includes('houseboat') || category.includes('cruise')) {
+          initialStats.total_swims = treksCount; initialStats.swimming_distance = distanceToAdd
+        } else if (category.includes('running')) {
+          initialStats.total_runs = treksCount; initialStats.running_distance = distanceToAdd
+        } else {
+          initialStats.total_treks = treksCount
+        }
+      }
+
+      // 🔴 প্রোফাইল তৈরির সময় পয়েন্টগুলো একবারে সেভ করে দেওয়া হলো
       const { error: profileError } = await supabase.from('profiles').insert([{
         id: fakeId,
         full_name: newMemberForm.full_name,
         department: newMemberForm.department ? newMemberForm.department.toUpperCase() : null, 
         batch: newMemberForm.batch ? newMemberForm.batch : null, 
         role: 'explorer',
-        is_offline: true 
+        is_offline: true,
+        ...initialStats 
       }])
+      
       if (profileError) throw profileError
 
       const { error: bookingError } = await supabase.from('bookings').insert([{
         user_id: fakeId, event_id: eventId, status: 'approved', payment_method: 'admin_created', trx_id: 'ADMIN_OFFLINE'
       }])
+      
       if (bookingError) throw bookingError
 
-      alert("নতুন অ্যাকাউন্ট খোলা হয়েছে এবং ইভেন্টে যুক্ত করা হয়েছে! পেজটি রিলোড করুন।")
+      alert("নতুন অ্যাকাউন্ট খোলা হয়েছে এবং পয়েন্ট যুক্ত করে ইভেন্টে অ্যাড করা হয়েছে! পেজটি রিলোড করুন।")
       window.location.reload()
     } catch (err) {
       alert("অ্যাকাউন্ট খুলতে সমস্যা হয়েছে: " + err.message)
@@ -436,7 +509,7 @@ function EventDetailsContent() {
                     </div>
                   ) : (
                     <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center">
-                      <p className="text-gray-400 text-sm">দুঃখিত, এই ইভেন্টের অংশগ্রহণকারীদের কোনো ডেটা পাওয়া যায়নি।</p>
+                      <p className="text-gray-400 text-sm">দুঃখিত, এই ইভেন্টের অংশগ্রহণকারীদের কোনো ডেটা পাওয়া যায়নি.</p>
                     </div>
                   )}
 
