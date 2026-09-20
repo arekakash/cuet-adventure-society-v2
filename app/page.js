@@ -1,52 +1,193 @@
 "use client";
-import { useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import AOS from "aos";
 import "aos/dist/aos.css";
+import { supabase } from "@/lib/supabase";
+import Cropper from "react-easy-crop";
 
 export default function HomePage() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [sliders, setSliders] = useState([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  
+  // Admin Edit States
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [imageSrc, setImageSrc] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // জিরো স্টোরেজ পলিসি: ImgBB API Key
+  const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23'; 
+
   useEffect(() => {
     AOS.init({ once: true, offset: 100 });
+    checkAdminStatus();
+    fetchSliders();
   }, []);
 
-  return (
-    <main className="bg-darkForest text-gray-300 font-sans antialiased selection:bg-campfire selection:text-white overflow-x-hidden relative min-h-screen">
+  // ৩.৫ সেকেন্ড পরপর স্লাইডার অ্যানিমেশন
+  useEffect(() => {
+    if (sliders.length === 0) return;
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % sliders.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [sliders]);
+
+  const checkAdminStatus = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+      if (data?.role === 'admin') setIsAdmin(true);
+    }
+  };
+
+  const fetchSliders = async () => {
+    const { data } = await supabase.from('hero_sliders').select('*').order('id', { ascending: true });
+    if (data && data.length > 0) setSliders(data);
+  };
+
+  const handleImageSelect = (e, id) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImageSrc(reader.result);
+        setEditingId(id);
+        setIsEditModalOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  // ক্রপিং, অটো-কম্প্রেশন এবং ImgBB আপলোড লজিক
+  const handleCropAndUpload = async () => {
+    setIsUploading(true);
+    try {
+      const image = new Image();
+      image.src = imageSrc;
+      await new Promise(resolve => image.onload = resolve);
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = croppedAreaPixels.width;
+      canvas.height = croppedAreaPixels.height;
+      ctx.drawImage(image, croppedAreaPixels.x, croppedAreaPixels.y, croppedAreaPixels.width, croppedAreaPixels.height, 0, 0, croppedAreaPixels.width, croppedAreaPixels.height);
+
+      let quality = 0.9;
+      let base64Image = canvas.toDataURL('image/jpeg', quality);
       
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <img src="https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80&w=1920" alt="Dark Forest" className="absolute w-full h-full object-cover opacity-50 scale-105 filter brightness-75 contrast-125" />
-        <div className="absolute inset-0 bg-gradient-to-b from-darkForest/40 via-darkForest/80 to-[#030705]/95"></div>
-      </div>
+      // Auto compress loop until size is approx under 200KB
+      while (base64Image.length > 270000 && quality > 0.2) {
+        quality -= 0.1;
+        base64Image = canvas.toDataURL('image/jpeg', quality);
+      }
 
-      <section className="relative min-h-screen flex items-center justify-center text-white overflow-hidden pt-20">
-        <div className="relative z-10 text-center px-6 max-w-5xl mx-auto" data-aos="zoom-out" data-aos-duration="1500">
-          <div className="inline-block px-5 py-2 rounded-full border border-campfire/30 text-campfire font-bold text-xs sm:text-sm mb-8 tracking-widest backdrop-blur-md shadow-glow animate-pulse bg-black/20">
-            <i className="fa-solid fa-fire mr-2"></i> <span>২০১৫ সাল থেকে পথচলা</span>
+      // Convert Base64 to Blob
+      const blob = await fetch(base64Image).then(res => res.blob());
+      const file = new File([blob], "hero-slider.jpg", { type: "image/jpeg" });
+
+      // Upload to ImgBB
+      const formData = new FormData();
+      formData.append('image', file);
+      const imgbbRes = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: formData });
+      const imgbbData = await imgbbRes.json();
+
+      if (!imgbbData.success) throw new Error("Upload Failed");
+
+      // Update Supabase with just the URL
+      const newUrl = imgbbData.data.url;
+      await supabase.from('hero_sliders').update({ image_url: newUrl }).eq('id', editingId);
+
+      alert("ছবি সফলভাবে আপডেট এবং কম্প্রেস করা হয়েছে!");
+      setIsEditModalOpen(false);
+      fetchSliders(); 
+    } catch (error) {
+      console.error(error);
+      alert("ছবি আপডেটে সমস্যা হয়েছে!");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <main className="bg-[#030705] text-gray-300 font-sans antialiased selection:bg-campfire selection:text-white overflow-x-hidden min-h-screen">
+      
+      {/* 🔴 Eye-catching Framed Hero Section with Slider */}
+      <section className="relative min-h-[90vh] pt-20 px-4 sm:px-6 flex items-center justify-center">
+        
+        {/* The Majestic Border Container */}
+        <div className="relative w-full max-w-7xl h-[85vh] rounded-[2.5rem] p-2 bg-white/5 border border-white/10 shadow-[0_0_80px_rgba(231,111,81,0.15)] overflow-hidden group z-10">
+          
+          {/* Inner Glowing Frame */}
+          <div className="absolute inset-0 border-[2px] border-campfire/40 rounded-[2.5rem] pointer-events-none z-30 shadow-[inset_0_0_50px_rgba(231,111,81,0.2)]"></div>
+          <div className="absolute inset-2 border border-white/20 rounded-[2rem] pointer-events-none z-30"></div>
+
+          {/* 🔴 Slider Images Engine */}
+          <div className="absolute inset-2 rounded-[2rem] overflow-hidden bg-[#0a1c13]">
+            {sliders.map((slide, index) => (
+              <img 
+                key={slide.id}
+                src={slide.image_url} 
+                alt={`Slider ${index + 1}`} 
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1500 ease-in-out transform ${index === currentSlide ? 'opacity-100 scale-105' : 'opacity-0 scale-100'}`} 
+              />
+            ))}
+            {/* Dark Overlay for Text Readability */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[#030705]/60 via-[#0a1c13]/70 to-[#030705]/90 z-10"></div>
           </div>
-          
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black leading-tight tracking-tighter mb-8 text-glow-futuristic">
-            চুয়েট অ্যাডভেঞ্চার <br />সোসাইটি
-          </h1>
-          
-          <p className="text-lg sm:text-2xl text-gray-300 font-medium mb-12 max-w-2xl mx-auto leading-relaxed drop-shadow-md">
-            পাহাড়ের গহীনে, মেঘের চূড়ায় কিংবা অরণ্যের গভীরে—চুয়েটিয়ানদের পদচারণায় জেগে উঠুক নতুন ট্রেইল।
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link href="/signup" className="w-full sm:w-auto bg-campfire hover:bg-orange-600 px-8 py-4 sm:py-5 rounded-2xl font-black transition-all shadow-glow flex items-center justify-center gap-3 text-lg sm:text-xl text-white hover:-translate-y-1">
-              <i className="fa-solid fa-shoe-prints"></i> <span>এক্সপ্লোর শুরু করুন</span>
-            </Link>
+
+          {/* Hero Content Overlay */}
+          <div className="relative z-20 h-full flex flex-col items-center justify-center text-center px-6" data-aos="zoom-out" data-aos-duration="1500">
+            <div className="inline-block px-5 py-2 rounded-full border border-campfire/30 text-campfire font-bold text-xs sm:text-sm mb-6 tracking-widest backdrop-blur-md shadow-glow animate-pulse bg-black/40">
+              <i className="fa-solid fa-fire mr-2"></i> <span>২০১৫ সাল থেকে পথচলা</span>
+            </div>
             
-            <Link href="/login" className="w-full sm:w-auto bg-white/5 hover:bg-white/10 border border-white/10 text-white px-8 py-4 sm:py-5 rounded-2xl font-bold transition-all flex items-center justify-center gap-3 text-lg sm:text-xl backdrop-blur-sm hover:-translate-y-1 shadow-lg">
-              <i className="fa-solid fa-right-to-bracket text-gray-400"></i> <span>লগইন</span>
-            </Link>
+            <h1 className="text-5xl sm:text-6xl md:text-8xl font-black leading-tight tracking-tighter mb-6 text-glow-futuristic text-white drop-shadow-[0_5px_15px_rgba(0,0,0,0.8)]">
+              চুয়েট অ্যাডভেঞ্চার <br />সোসাইটি
+            </h1>
+            
+            <p className="text-lg sm:text-2xl text-gray-200 font-medium mb-10 max-w-2xl mx-auto leading-relaxed drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              পাহাড়ের গহীনে, মেঘের চূড়ায় কিংবা অরণ্যের গভীরে—চুয়েটিয়ানদের পদচারণায় জেগে উঠুক নতুন ট্রেইল।
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Link href="/signup" className="w-full sm:w-auto bg-campfire hover:bg-orange-600 px-8 py-4 sm:py-4 rounded-2xl font-black transition-all shadow-glow flex items-center justify-center gap-3 text-lg text-white hover:-translate-y-1">
+                <i className="fa-solid fa-shoe-prints"></i> <span>এক্সপ্লোর শুরু করুন</span>
+              </Link>
+              <Link href="/login" className="w-full sm:w-auto bg-black/40 hover:bg-white/10 border border-white/20 text-white px-8 py-4 sm:py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-3 text-lg backdrop-blur-md hover:-translate-y-1 shadow-lg">
+                <i className="fa-solid fa-right-to-bracket text-gray-400"></i> <span>লগইন</span>
+              </Link>
+            </div>
           </div>
-        </div>
 
-        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce opacity-50 z-10 text-white">
-          <i className="fa-solid fa-angles-down text-2xl"></i>
+          {/* Admin Edit Panel Overlay (Only visible to Admin) */}
+          {isAdmin && (
+            <div className="absolute top-6 right-6 z-40 bg-black/60 backdrop-blur-md border border-campfire/50 p-4 rounded-2xl shadow-xl transition-opacity opacity-0 group-hover:opacity-100 flex flex-col gap-2">
+              <p className="text-[10px] text-campfire font-bold uppercase tracking-widest text-center mb-1 border-b border-campfire/30 pb-1">অ্যাডমিন স্লাইডার প্যানেল</p>
+              <div className="flex gap-2">
+                {sliders.map((slide, i) => (
+                  <label key={slide.id} className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-colors ${currentSlide === i ? 'bg-campfire text-white border-campfire' : 'bg-black/50 text-gray-400 border-white/10 hover:border-campfire/50'}`}>
+                    <span className="text-xs font-black">{i + 1}</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageSelect(e, slide.id)} />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       </section>
 
+      {/* Other Original Sections */}
       <section className="py-24 sm:py-32 max-w-4xl mx-auto px-6 relative z-10">
         <div className="absolute top-40 left-0 w-72 h-72 bg-trail/20 rounded-full blur-[100px] pointer-events-none"></div>
         <div className="absolute bottom-40 right-0 w-96 h-96 bg-campfire/10 rounded-full blur-[120px] pointer-events-none"></div>
@@ -56,7 +197,7 @@ export default function HomePage() {
           <div data-aos="fade-up" data-aos-duration="1000" className="text-center drop-shadow-md">
             <i className="fa-solid fa-quote-left text-4xl text-white/20 mb-6"></i>
             <p className="font-bold text-white text-2xl sm:text-4xl leading-tight">পাহাড় আর সমুদ্রের সীমানায় আমরা—<span className="text-campfire">চুয়েটিয়ান!</span></p>
-            <p className="mt-4 font-medium">দেশের সবচেয়ে সুন্দর রুটগুলো যাদের ক্যাম্পাসের ঠিক দোরগোড়ায়।</p>
+            <p className="mt-4 font-medium">দেশের সবচেয়ে সুন্দর রুটগুলো যাদের ক্যাম্পাসের ঠিক দোরগোড়ায়.</p>
           </div>
 
           <div data-aos="fade-up" data-aos-duration="1000" className="border-l-4 border-trail pl-6 sm:pl-8 py-2 drop-shadow-md">
@@ -111,6 +252,31 @@ export default function HomePage() {
 
         </div>
       </section>
+
+      {/* Admin Image Cropper Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 backdrop-blur-md">
+          <div className="relative flex-grow">
+            <Cropper
+              image={imageSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={16 / 9} // Strict 16:9 Ratio
+              onCropChange={setCrop}
+              onCropComplete={onCropComplete}
+              onZoomChange={setZoom}
+            />
+          </div>
+          <div className="h-24 bg-[#0a1c13] flex items-center justify-between px-6 border-t border-white/10">
+            <button onClick={() => setIsEditModalOpen(false)} className="text-red-400 font-bold hover:bg-red-500/20 px-5 py-2.5 rounded-xl transition-colors">বাতিল</button>
+            <button onClick={handleCropAndUpload} disabled={isUploading} className="bg-campfire hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-glow flex items-center gap-2">
+              {isUploading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-crop-simple"></i>}
+              {isUploading ? 'কম্প্রেস ও সেভ হচ্ছে...' : 'ক্রপ ও সেভ করুন'}
+            </button>
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }
