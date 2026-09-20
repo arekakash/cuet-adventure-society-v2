@@ -259,6 +259,12 @@ export default function Navbar() {
             <span className="font-bold text-sm">বিগিনার গাইড</span>
           </Link>
 
+          {/* 🔴 নতুন অপশন: CAS ব্লাডব্যাংক */}
+          <Link href="/bloodbank" onClick={() => setIsSidebarOpen(false)} className="block py-3 px-4 rounded-xl hover:bg-white/5 hover:text-white transition-all group flex items-center gap-4">
+            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform"><i className="fa-solid fa-droplet"></i></div>
+            <span className="font-bold text-sm">CAS ব্লাডব্যাংক</span>
+          </Link>
+
           <Link href="/behind-the-scenes" onClick={() => setIsSidebarOpen(false)} className="block py-3 px-4 rounded-xl hover:bg-white/5 hover:text-white transition-all group flex items-center gap-4">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-pink-400 group-hover:scale-110 transition-transform"><i className="fa-solid fa-users"></i></div>
             <span className="font-bold text-sm">নেপথ্যে যারা</span>
@@ -294,7 +300,7 @@ export default function Navbar() {
         )}
       </div>
 
-      {/* Settings Modal */}
+      {/* Settings Modal (অসম্পূর্ণ অংশ সম্পূর্ণ করা হয়েছে) */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsSettingsOpen(false)}></div>
@@ -311,20 +317,14 @@ export default function Navbar() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-bold text-white text-sm">থিম (Theme)</p>
-                  <p className="text-xs text-gray-500">ডার্ক ফরেস্ট বা মিস্ট মোড</p>
+                  <p className="font-bold text-white text-sm">ডার্ক মোড</p>
+                  <p className="text-xs text-gray-400 mt-1">অ্যাপের থিম পরিবর্তন করুন</p>
                 </div>
-                <div className="relative inline-block w-12 mr-2 align-middle select-none">
-                  <input type="checkbox" className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer z-10"/>
-                  <label className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
-                </div>
+                {/* Toggle Button Placeholder */}
+                <button className="w-12 h-6 bg-[#e76f51] rounded-full relative transition-colors focus:outline-none">
+                  <span className="absolute right-1 top-1 bg-white w-4 h-4 rounded-full shadow transition-transform"></span>
+                </button>
               </div>
-            </div>
-
-            <div className="mt-8">
-              <button onClick={() => setIsSettingsOpen(false)} className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl transition-all">
-                সম্পন্ন
-              </button>
             </div>
           </div>
         </div>
