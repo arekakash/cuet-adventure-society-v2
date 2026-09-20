@@ -169,9 +169,9 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Admin Edit Panel Overlay (Only visible to Admin) */}
+          {/* 🔴 Admin Edit Panel Overlay (Mobile Friendly Fixed Visibility) */}
           {isAdmin && (
-            <div className="absolute top-6 right-6 z-40 bg-black/60 backdrop-blur-md border border-campfire/50 p-4 rounded-2xl shadow-xl transition-opacity opacity-0 group-hover:opacity-100 flex flex-col gap-2">
+            <div className="absolute top-6 right-6 sm:top-6 sm:right-6 z-40 bg-black/70 backdrop-blur-md border border-campfire/50 p-3 sm:p-4 rounded-2xl shadow-xl transition-opacity opacity-100 sm:opacity-0 group-hover:opacity-100 flex flex-col gap-2">
               <p className="text-[10px] text-campfire font-bold uppercase tracking-widest text-center mb-1 border-b border-campfire/30 pb-1">অ্যাডমিন স্লাইডার প্যানেল</p>
               <div className="flex gap-2">
                 {sliders.map((slide, i) => (
@@ -253,9 +253,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Admin Image Cropper Modal */}
+      {/* 🔴 Mobile Friendly Admin Image Cropper Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 backdrop-blur-md">
+        <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-md">
           <div className="relative flex-grow">
             <Cropper
               image={imageSrc}
@@ -267,11 +267,27 @@ export default function HomePage() {
               onZoomChange={setZoom}
             />
           </div>
-          <div className="h-24 bg-[#0a1c13] flex items-center justify-between px-6 border-t border-white/10">
-            <button onClick={() => setIsEditModalOpen(false)} className="text-red-400 font-bold hover:bg-red-500/20 px-5 py-2.5 rounded-xl transition-colors">বাতিল</button>
-            <button onClick={handleCropAndUpload} disabled={isUploading} className="bg-campfire hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-glow flex items-center gap-2">
+          
+          {/* Mobile Zoom Control Slider */}
+          <div className="bg-[#0a1c13] px-6 py-4 border-t border-white/10 flex items-center gap-4">
+            <i className="fa-solid fa-magnifying-glass-minus text-gray-400"></i>
+            <input 
+              type="range" 
+              value={zoom} 
+              min={1} 
+              max={3} 
+              step={0.1} 
+              onChange={(e) => setZoom(Number(e.target.value))} 
+              className="w-full accent-campfire"
+            />
+            <i className="fa-solid fa-magnifying-glass-plus text-gray-400"></i>
+          </div>
+
+          <div className="pb-8 pt-4 bg-[#0a1c13] flex items-center justify-between px-6 border-t border-black">
+            <button onClick={() => setIsEditModalOpen(false)} className="text-red-400 font-bold hover:bg-red-500/20 px-5 py-3 rounded-xl transition-colors">বাতিল</button>
+            <button onClick={handleCropAndUpload} disabled={isUploading} className="bg-campfire hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-glow flex items-center gap-2">
               {isUploading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-crop-simple"></i>}
-              {isUploading ? 'কম্প্রেস ও সেভ হচ্ছে...' : 'ক্রপ ও সেভ করুন'}
+              {isUploading ? 'সেভ হচ্ছে...' : 'ক্রপ ও সেভ করুন'}
             </button>
           </div>
         </div>
