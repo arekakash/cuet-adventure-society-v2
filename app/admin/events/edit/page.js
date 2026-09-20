@@ -6,6 +6,17 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Cropper from 'react-easy-crop'
 
+// Bank List for Payment Options
+const BD_BANKS = [
+  "DBBL (Dutch-Bangla Bank)", "BRAC Bank", "City Bank", "Islami Bank", 
+  "EBL (Eastern Bank)", "Prime Bank", "Pubali Bank", "Mutual Trust Bank (MTB)", 
+  "Southeast Bank", "Trust Bank", "NCC Bank", "UCBL", "Bank Asia", 
+  "AB Bank", "National Bank", "Mercantile Bank", "IFIC Bank", "Jamuna Bank", 
+  "Shahjalal Islami Bank", "Exim Bank", "Al-Arafah Islami Bank", "Premier Bank", 
+  "Dhaka Bank", "Standard Chartered", "HSBC", "Sonali Bank", "Janata Bank", 
+  "Agrani Bank", "Rupali Bank"
+]
+
 export default function EditEvent() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -22,47 +33,39 @@ export default function EditEvent() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
   const [showCropper, setShowCropper] = useState(false)
 
-  // 🔴 ফর্মের সাধারণ ডেটা
+  // 🔴 Dynamic States
+  const [paymentMethods, setPaymentMethods] = useState([])
+  const [memoryLinks, setMemoryLinks] = useState([{ id: Date.now(), title: '', url: '' }]) // Memory Lane State
+
+  // ফর্মের সাধারণ ডেটা
   const [formData, setFormData] = useState({
     title: '', category: 'Trekking', destination: '',
     startDate: '', endDate: '', reportingPlace: '', deadline: '',
-    bookingFee: '', totalFee: '', totalSeats: '', refundPolicy: 'Non-Refundable', paymentMethods: '',
+    bookingFee: '', totalFee: '', totalSeats: '', refundPolicy: 'Non-Refundable',
     stayType: 'Resort/Hotel Shared', washroom: 'Attached & Shared', foodPlan: '',
     difficulty: 'Moderate', tourVibe: 'Hardcore Trekking', fitnessLevel: '', teamLeader: '', leaderPhone: '', leaderWhatsapp: '',
-    description: '', albumLink: '', totalDays: 1,
+    description: '', totalDays: 1,
     metaTreks: 1, metaDistance: '', metaNights: 0
   })
 
-  // 🔴 প্রি-ডিফাইনড চেকলিস্ট 
+  // প্রি-ডিফাইনড চেকলিস্ট 
   const presetIncluded = [
-    "ঢাকা-গন্তব্য আপ-ডাউন বাস টিকেট (নন-এসি/এসি)",
-    "প্রতিদিন ৩ বেলা মূল খাবার (ভারী খাবার)",
-    "রিসোর্ট/হোটেল/কটেজ শেয়ারিং রুম",
-    "ক্যাম্পিং টেন্ট ও স্লিপিং গিয়ার সাপোর্ট",
-    "লোকাল জিপ/চাঁদের গাড়ি/মহিন্দ্রা রিজার্ভ",
-    "ট্রলার বা বোট ভাড়া (লাইফ জ্যাকেটসহ)",
-    "অভিজ্ঞ লোকাল ও ক্লাবের ট্রেইল গাইড",
-    "বন বিভাগ ও স্থানীয় প্রশাসনের অনুমতি ফি",
-    "পার্ক, ট্রেইল ও দর্শনীয় স্থানের এন্ট্রি ফি",
-    "স্পেশাল বারবিকিউ ডিনার",
-    "বিকেলের হালকা স্ন্যাঙ্কস ও পাহাড়ি চা",
-    "ক্লাবের প্রাথমিক চিকিৎসা ও ফার্স্ট এইড কিট",
-    "গ্রুপ মেম্বারদের জন্য অফিসিয়াল রিস্টব্যান্ড/ব্যাজ",
-    "নিরাপত্তা ও রুট কো-অর্ডিনেশন",
+    "ঢাকা-গন্তব্য আপ-ডাউন বাস টিকেট (নন-এসি/এসি)", "প্রতিদিন ৩ বেলা মূল খাবার (ভারী খাবার)",
+    "রিসোর্ট/হোটেল/কটেজ শেয়ারিং রুম", "ক্যাম্পিং টেন্ট ও স্লিপিং গিয়ার সাপোর্ট",
+    "লোকাল জিপ/চাঁদের গাড়ি/মহিন্দ্রা রিজার্ভ", "ট্রলার বা বোট ভাড়া (লাইফ জ্যাকেটসহ)",
+    "অভিজ্ঞ লোকাল ও ক্লাবের ট্রেইল গাইড", "বন বিভাগ ও স্থানীয় প্রশাসনের অনুমতি ফি",
+    "পার্ক, ট্রেইল ও দর্শনীয় স্থানের এন্ট্রি ফি", "স্পেশাল বারবিকিউ ডিনার",
+    "বিকেলের হালকা স্ন্যাঙ্কস ও পাহাড়ি চা", "ক্লাবের প্রাথমিক চিকিৎসা ও ফার্স্ট এইড কিট",
+    "গ্রুপ মেম্বারদের জন্য অফিসিয়াল রিস্টব্যান্ড/ব্যাজ", "নিরাপত্তা ও রুট কো-অর্ডিনেশন",
     "জরুরি স্যাটেলাইট/টুল ব্যাকআপ সাপোর্ট"
   ]
 
   const presetExcluded = [
-    "বাসযাত্রার বিরতির ব্যক্তিগত খাবার ও নাস্তা",
-    "কোনো প্রকার ব্যক্তিগত কেনাকাটা ও স্যুভেনিয়ার",
-    "ব্যক্তিগত ওষুধপত্র ও বিশেষ চিকিৎসা খরচ",
-    "পোর্টার বা ব্যক্তিগত ব্যাগ টানার কুলি খরচ",
-    "ক্যামেরা, ডিএসএলআর বা ড্রোন ওড়ানোর স্পেশাল ফি",
-    "প্যারাসেইলিং, স্কুটার বা ওয়াটার স্পোর্টস ফি",
-    "আলাদা বা কাপল রুম নিলে অতিরিক্ত রুম চার্জ",
-    "মোবাইল চার্জিং বা পাহাড়ি এলাকায় হট ওয়াটার ফি",
-    "হঠাৎ প্রাকৃতিক দুর্যোগে আটকে গেলে অতিরিক্ত খরচ",
-    "বাসের নির্দিষ্ট স্টপ ছাড়া অন্য কোথাও নামা বা ওঠার খরচ"
+    "বাসযাত্রার বিরতির ব্যক্তিগত খাবার ও নাস্তা", "কোনো প্রকার ব্যক্তিগত কেনাকাটা ও স্যুভেনিয়ার",
+    "ব্যক্তিগত ওষুধপত্র ও বিশেষ চিকিৎসা খরচ", "পোর্টার বা ব্যক্তিগত ব্যাগ টানার কুলি খরচ",
+    "ক্যামেরা, ডিএসএলআর বা ড্রোন ওড়ানোর স্পেশাল ফি", "প্যারাসেইলিং, স্কুটার বা ওয়াটার স্পোর্টস ফি",
+    "আলাদা বা কাপল রুম নিলে অতিরিক্ত রুম চার্জ", "মোবাইল চার্জিং বা পাহাড়ি এলাকায় হট ওয়াটার ফি",
+    "হঠাৎ প্রাকৃতিক দুর্যোগে আটকে গেলে অতিরিক্ত খরচ", "বাসের নির্দিষ্ট স্টপ ছাড়া অন্য কোথাও নামা বা ওঠার খরচ"
   ]
 
   const [tags, setTags] = useState({ included: [], gear: [], excluded: [], warnings: [] })
@@ -77,22 +80,22 @@ export default function EditEvent() {
   const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23' 
 
   useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const id = searchParams.get("id");
+    const searchParams = new URLSearchParams(window.location.search)
+    const id = searchParams.get("id")
     
     if (id) {
-      setEventId(id);
-      fetchEventData(id);
+      setEventId(id)
+      fetchEventData(id)
     } else {
-      alert("কোনো ইভেন্ট আইডি পাওয়া যায়নি!");
-      router.push('/admin/events');
+      alert("কোনো ইভেন্ট আইডি পাওয়া যায়নি!")
+      router.push('/admin/events')
     }
-  }, []);
+  }, [])
 
   const fetchEventData = async (id) => {
     try {
-      const { data, error } = await supabase.from('events').select('*').eq('id', id).single();
-      if (error) throw error;
+      const { data, error } = await supabase.from('events').select('*').eq('id', id).single()
+      if (error) throw error
       if (data) {
         setFormData({
           title: data.title || '', category: data.category || 'Trekking', destination: data.destination || '',
@@ -101,32 +104,54 @@ export default function EditEvent() {
           reportingPlace: data.reporting_place || '', 
           deadline: data.deadline ? new Date(data.deadline).toISOString().slice(0, 16) : '',
           bookingFee: data.booking_fee || '', totalFee: data.tour_fee || '', totalSeats: data.total_seats || '', 
-          refundPolicy: data.refund_policy || 'Non-Refundable', paymentMethods: data.payment_methods || '',
+          refundPolicy: data.refund_policy || 'Non-Refundable',
           stayType: data.stay_type || 'Resort/Hotel Shared', washroom: data.washroom || 'Attached & Shared', foodPlan: data.food_plan || '',
           difficulty: data.difficulty || 'Moderate', tourVibe: data.tour_vibe || 'Hardcore Trekking', 
           fitnessLevel: data.fitness_level || '', teamLeader: data.team_leader || '', 
           leaderPhone: data.leader_phone || '', leaderWhatsapp: data.leader_whatsapp || '',
-          description: data.description || '', albumLink: data.album_link || '',
+          description: data.description || '',
           totalDays: data.itinerary ? data.itinerary.length : 1,
           metaTreks: data.stats_meta?.treks || 0, metaDistance: data.stats_meta?.distance || 0, metaNights: data.stats_meta?.nights || 0
-        });
+        })
+
+        // 🔴 Payment Methods Parsing (Text to JSON Array Fallback)
+        let parsedPayments = []
+        if (typeof data.payment_methods === 'string') {
+          try { parsedPayments = JSON.parse(data.payment_methods) } catch(e) {}
+        } else if (Array.isArray(data.payment_methods)) {
+          parsedPayments = data.payment_methods
+        }
+        setPaymentMethods(parsedPayments)
+
+        // 🔴 Memory Lane Parsing (Legacy string to Array Fallback)
+        let parsedMemory = []
+        if (typeof data.album_link === 'string') {
+          if (data.album_link.trim().startsWith('[')) {
+            try { parsedMemory = JSON.parse(data.album_link) } catch(e) {}
+          } else if (data.album_link.trim() !== '') {
+            parsedMemory = [{ id: Date.now(), title: 'Main Album', url: data.album_link }]
+          }
+        } else if (Array.isArray(data.album_link)) {
+          parsedMemory = data.album_link
+        }
+        setMemoryLinks(parsedMemory.length > 0 ? parsedMemory : [{ id: Date.now(), title: '', url: '' }])
 
         setTags({
           included: data.included || [], gear: data.required_gear || [], 
           excluded: data.excluded || [], warnings: data.warnings || []
-        });
+        })
 
-        setItinerary(data.itinerary || [{ day: 1, title: '', desc: '' }]);
-        setExistingImage(data.cover_photo || '');
-        setImagePreview(data.cover_photo || '');
+        setItinerary(data.itinerary || [{ day: 1, title: '', desc: '' }])
+        setExistingImage(data.cover_photo || '')
+        setImagePreview(data.cover_photo || '')
       }
     } catch (error) {
-      console.error(error);
-      alert("ইভেন্ট ফেচ করতে সমস্যা হয়েছে!");
+      console.error(error)
+      alert("ইভেন্ট ফেচ করতে সমস্যা হয়েছে!")
     } finally {
-      setFetching(false);
+      setFetching(false)
     }
-  };
+  }
 
   const handleInputChange = (e) => {
     const { id, value } = e.target
@@ -145,7 +170,17 @@ export default function EditEvent() {
     }
   }
 
-  // 🔴 Image Cropper Logic
+  // 🔴 Payment Method Handlers
+  const addPaymentMethod = () => setPaymentMethods([...paymentMethods, { id: Date.now(), provider: 'bkash', bankName: '', accName: '', accNo: '', branch: '', routing: '', type: 'send_money', contactPerson: '', location: '' }])
+  const updatePaymentMethod = (id, field, value) => setPaymentMethods(paymentMethods.map(p => p.id === id ? { ...p, [field]: value } : p))
+  const removePaymentMethod = (id) => setPaymentMethods(paymentMethods.filter(p => p.id !== id))
+
+  // 🔴 Memory Lane Handlers
+  const addMemoryLink = () => setMemoryLinks([...memoryLinks, { id: Date.now(), title: '', url: '' }])
+  const updateMemoryLink = (id, field, value) => setMemoryLinks(memoryLinks.map(m => m.id === id ? { ...m, [field]: value } : m))
+  const removeMemoryLink = (id) => setMemoryLinks(memoryLinks.filter(m => m.id !== id))
+
+  // Image Cropper Logic
   const handleImageSelect = (e) => {
     const file = e.target.files[0]
     if (file) {
@@ -174,17 +209,7 @@ export default function EditEvent() {
       canvas.width = croppedAreaPixels.width
       canvas.height = croppedAreaPixels.height
 
-      ctx.drawImage(
-        image,
-        croppedAreaPixels.x,
-        croppedAreaPixels.y,
-        croppedAreaPixels.width,
-        croppedAreaPixels.height,
-        0,
-        0,
-        croppedAreaPixels.width,
-        croppedAreaPixels.height
-      )
+      ctx.drawImage(image, croppedAreaPixels.x, croppedAreaPixels.y, croppedAreaPixels.width, croppedAreaPixels.height, 0, 0, croppedAreaPixels.width, croppedAreaPixels.height)
 
       let quality = 0.8
       let base64Image = canvas.toDataURL('image/jpeg', quality)
@@ -222,10 +247,15 @@ export default function EditEvent() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (paymentMethods.length === 0) {
+      alert("অনুগ্রহ করে অন্তত একটি পেমেন্ট মেথড যুক্ত করুন!")
+      return
+    }
+
     setLoading(true)
 
     try {
-      let finalCoverPhotoUrl = existingImage;
+      let finalCoverPhotoUrl = existingImage
 
       if (imageFile) {
         const imgFormData = new FormData()
@@ -241,6 +271,9 @@ export default function EditEvent() {
         finalCoverPhotoUrl = imgbbData.data.url
       }
 
+      // 🔴 Clean up Memory Links (remove empty ones)
+      const validMemoryLinks = memoryLinks.filter(m => m.url.trim() !== '')
+
       const updateData = {
         title: formData.title,
         category: formData.category,
@@ -254,7 +287,7 @@ export default function EditEvent() {
         tour_fee: parseInt(formData.totalFee),
         booking_fee: parseInt(formData.bookingFee),
         refund_policy: formData.refundPolicy,
-        payment_methods: formData.paymentMethods,
+        payment_methods: paymentMethods, // 🔴 Saving as JSON Array
         stay_type: isDayEvent ? 'None' : formData.stayType,
         washroom: formData.washroom,
         food_plan: formData.foodPlan,
@@ -265,7 +298,7 @@ export default function EditEvent() {
         leader_phone: formData.leaderPhone,
         leader_whatsapp: formData.leaderWhatsapp,
         description: formData.description,
-        album_link: formData.albumLink, 
+        album_link: validMemoryLinks, // 🔴 Memory Lane saved as JSON Array
         included: tags.included,
         required_gear: tags.gear,
         excluded: tags.excluded,
@@ -292,89 +325,84 @@ export default function EditEvent() {
     }
   }
 
-  // 🔴 আপডেটেড ডিলিট/ট্র্যাশ ফাংশন (লিডারবোর্ড থেকে পয়েন্ট মুছে ফেলার লজিক সহ)
   const handleMoveToTrash = async () => {
     try {
-      setLoading(true);
+      setLoading(true)
 
-      // ১. প্রথমে এই ইভেন্টের সকল অ্যাপ্রুভড এবং ফ্রি বুকিং ইউজারদের খুঁজে বের করো
       const { data: bookings, error: bookingError } = await supabase
         .from('bookings')
         .select('user_id')
         .eq('event_id', eventId)
-        .in('status', ['approved', 'free_booking']); // 🔴 free_booking যুক্ত করা হয়েছে
+        .in('status', ['approved', 'free_booking'])
 
-      if (bookingError) throw bookingError;
+      if (bookingError) throw bookingError
 
-      // ২. লিডারবোর্ড থেকে পয়েন্ট মাইনাস করার লজিক
       if (bookings && bookings.length > 0) {
         for (const booking of bookings) {
-          // ইউজারের বর্তমান প্রোফাইল ডেটা নিয়ে আসো
           const { data: profile } = await supabase
             .from('profiles')
-            .select('total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance')
+            .select('total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, total_runs, running_distance')
             .eq('id', booking.user_id)
-            .single();
+            .single()
 
           if (profile) {
             let updates = { 
               total_events: Math.max(0, (profile.total_events || 0) - 1) 
-            };
-
-            const category = formData.category.toLowerCase();
-            const distance = parseInt(formData.metaDistance) || 0;
-
-            // ক্যাটাগরি অনুযায়ী নির্দিষ্ট পয়েন্ট/দূরত্ব মাইনাস করা
-            if (category === 'trekking') {
-              updates.total_treks = Math.max(0, (profile.total_treks || 0) - 1);
-              updates.total_distance = Math.max(0, (profile.total_distance || 0) - distance);
-            } 
-            else if (category === 'cycling') {
-              updates.total_rides = Math.max(0, (profile.total_rides || 0) - 1);
-              updates.cycling_distance = Math.max(0, (profile.cycling_distance || 0) - distance);
-            } 
-            else if (category === 'swimming') {
-              updates.total_swims = Math.max(0, (profile.total_swims || 0) - 1);
-              updates.swimming_distance = Math.max(0, (profile.swimming_distance || 0) - distance);
             }
 
-            // ইউজারের প্রোফাইল আপডেট করে দাও
-            await supabase.from('profiles').update(updates).eq('id', booking.user_id);
+            const category = formData.category.toLowerCase()
+            const distance = parseInt(formData.metaDistance) || 0
+
+            if (category === 'trekking') {
+              updates.total_treks = Math.max(0, (profile.total_treks || 0) - 1)
+              updates.total_distance = Math.max(0, (profile.total_distance || 0) - distance)
+            } else if (category === 'cycling') {
+              updates.total_rides = Math.max(0, (profile.total_rides || 0) - 1)
+              updates.cycling_distance = Math.max(0, (profile.cycling_distance || 0) - distance)
+            } else if (category === 'swimming') {
+              updates.total_swims = Math.max(0, (profile.total_swims || 0) - 1)
+              updates.swimming_distance = Math.max(0, (profile.swimming_distance || 0) - distance)
+            } else if (category === 'running') {
+              updates.total_runs = Math.max(0, (profile.total_runs || 0) - 1)
+              updates.running_distance = Math.max(0, (profile.running_distance || 0) - distance)
+            }
+
+            await supabase.from('profiles').update(updates).eq('id', booking.user_id)
           }
         }
       }
 
-      // ৩. সবার শেষে ইভেন্টটিকে ট্র্যাশে পাঠাও
       const { error } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', eventId);
+        .eq('id', eventId)
 
-      if (error) throw error;
+      if (error) throw error
       
-      alert('ইভেন্টটি সফলভাবে ট্র্যাশ বিনে পাঠানো হয়েছে এবং লিডারবোর্ড থেকে ইউজারদের পয়েন্ট মুছে ফেলা হয়েছে!');
-      router.push('/admin/trash'); 
+      alert('ইভেন্টটি সফলভাবে ট্র্যাশ বিনে পাঠানো হয়েছে এবং লিডারবোর্ড থেকে ইউজারদের পয়েন্ট মুছে ফেলা হয়েছে!')
+      router.push('/admin/trash') 
 
     } catch (error) {
-      console.error(error);
-      alert('সমস্যা হয়েছে: ' + error.message);
+      console.error(error)
+      alert('সমস্যা হয়েছে: ' + error.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   if (fetching) {
     return (
       <div className="min-h-screen bg-[#050b08] flex items-center justify-center">
         <i className="fa-solid fa-circle-notch fa-spin text-4xl text-[#e76f51]"></i>
       </div>
-    );
+    )
   }
 
-  // 🔴 Smart Category Variables
+  // Smart Category Variables
   const isDayEvent = formData.category === 'Day Tour' || formData.category === 'Workshop'
   const isCycling = formData.category === 'Cycling'
   const isSwimming = formData.category === 'Swimming' || formData.category === 'Houseboat/Cruise'
+  const isRunning = formData.category === 'Running'
 
   return (
     <div className="min-h-screen bg-[#050b08] pb-12 px-4 sm:px-6 relative text-gray-300 pt-24">
@@ -403,7 +431,6 @@ export default function EditEvent() {
                         <input type="text" id="title" required value={formData.title} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-[#e76f51] text-white font-bold" />
                     </div>
                     
-                    {/* 🔴 Image Upload & Crop Trigger */}
                     <div className="md:col-span-2">
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">কভার ছবি (স্বেচ্ছাধীন সাইজ ক্রপ)</label>
                         <div className="relative w-full h-48 sm:h-64 rounded-2xl border-2 border-dashed border-gray-600 overflow-hidden bg-black/20 flex items-center justify-center hover:border-[#e76f51] transition-colors">
@@ -430,6 +457,7 @@ export default function EditEvent() {
                             <option value="Trekking">Trekking (ট্রেকিং)</option>
                             <option value="Camping">Camping (ক্যাম্পিং)</option>
                             <option value="Cycling">Cycling (সাইক্লিং)</option>
+                            <option value="Running">Running (রানিং)</option> {/* 🔴 Added Running */}
                             <option value="Swimming">Swimming (সাঁতার)</option>
                             <option value="Houseboat/Cruise">Houseboat/Cruise</option>
                             <option value="Expedition">Expedition (অভিযান)</option>
@@ -469,35 +497,141 @@ export default function EditEvent() {
                 </div>
             </div>
 
-            {/* সেকশন ৩: ফিন্যান্সিয়াল */}
+            {/* 🔴 সেকশন ৩: ফিন্যান্সিয়াল ইঞ্জিন (Restored Dynamic Payment Builder) */}
             <div>
                 <h3 className="font-bold text-emerald-400 mb-6 text-lg flex items-center gap-2 border-b border-emerald-400/20 pb-2">
-                    <i className="fa-solid fa-wallet"></i> ৩. ফিন্যান্সিয়াল ইঞ্জিন
+                    <i className="fa-solid fa-wallet"></i> ৩. ফিন্যান্সিয়াল ইঞ্জিন ও পেমেন্ট
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                         <label className="block text-xs font-bold text-emerald-400 mb-2 uppercase">বুকিং ফি (Advance) *</label>
                         <input type="number" id="bookingFee" required value={formData.bookingFee} onChange={handleInputChange} className="w-full bg-black/40 border border-emerald-500/30 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">টোটাল প্যাকেজ ফি *</label>
+                          <input type="number" id="totalFee" required value={formData.totalFee} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">মোট সিট সংখ্যা *</label>
+                          <input type="number" id="totalSeats" required value={formData.totalSeats} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
+                      </div>
+                    </div>
+                </div>
+
+                {/* Dynamic Payment Methods Builder */}
+                <div className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-white/5 to-transparent">
+                  <div className="flex justify-between items-center mb-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">টোটাল প্যাকেজ ফি *</label>
-                        <input type="number" id="totalFee" required value={formData.totalFee} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">গ্রহণযোগ্য পেমেন্ট মাধ্যমসমূহ</h4>
+                      <p className="text-[10px] text-gray-400 mt-1">ইউজাররা কোন কোন নাম্বারে বা ব্যাংকে পেমেন্ট করতে পারবে তা যুক্ত করুন</p>
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">মোট সিট সংখ্যা *</label>
-                        <input type="number" id="totalSeats" required value={formData.totalSeats} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
+                    <button type="button" onClick={addPaymentMethod} className="bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-emerald-500/30">
+                      <i className="fa-solid fa-plus mr-1"></i> মেথড যোগ করুন
+                    </button>
+                  </div>
+
+                  {paymentMethods.length > 0 ? (
+                    <div className="space-y-4">
+                      {paymentMethods.map((pm) => (
+                        <div key={pm.id} className="bg-black/40 border border-white/10 rounded-xl p-4 relative flex flex-col gap-3">
+                          <button type="button" onClick={() => removePaymentMethod(pm.id)} className="absolute top-3 right-3 text-red-400 hover:text-red-300 transition-colors">
+                            <i className="fa-solid fa-trash-can"></i>
+                          </button>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pr-6">
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-1">প্লাটফর্ম</label>
+                              <select value={pm.provider} onChange={(e) => updatePaymentMethod(pm.id, 'provider', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none focus:border-emerald-500">
+                                <option value="bkash">বিকাশ (bKash)</option>
+                                <option value="nagad">নগদ (Nagad)</option>
+                                <option value="rocket">রকেট (Rocket)</option>
+                                <option value="bank">ব্যাংক ট্রান্সফার (Bank)</option>
+                                <option value="cash">হ্যান্ড ক্যাশ (Cash)</option>
+                              </select>
+                            </div>
+                            
+                            {pm.provider === 'bank' && (
+                              <>
+                                <div>
+                                  <label className="block text-[10px] text-gray-400 mb-1">ব্যাংক সিলেক্ট করুন</label>
+                                  <select value={pm.bankName} onChange={(e) => updatePaymentMethod(pm.id, 'bankName', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none">
+                                    <option value="">ব্যাংক নির্বাচন করুন...</option>
+                                    {BD_BANKS.map((b, i) => <option key={i} value={b}>{b}</option>)}
+                                  </select>
+                                </div>
+                                <div className="sm:col-span-2 grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-[10px] text-gray-400 mb-1">অ্যাকাউন্ট নেম</label>
+                                    <input type="text" value={pm.accName} onChange={(e) => updatePaymentMethod(pm.id, 'accName', e.target.value)} placeholder="Account Name" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-400 mb-1">অ্যাকাউন্ট নম্বর</label>
+                                    <input type="text" value={pm.accNo} onChange={(e) => updatePaymentMethod(pm.id, 'accNo', e.target.value)} placeholder="Account Number" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-400 mb-1">ব্রাঞ্চ (Branch)</label>
+                                    <input type="text" value={pm.branch} onChange={(e) => updatePaymentMethod(pm.id, 'branch', e.target.value)} placeholder="Branch Name" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-400 mb-1">রাউটিং নম্বর (ঐচ্ছিক)</label>
+                                    <input type="text" value={pm.routing} onChange={(e) => updatePaymentMethod(pm.id, 'routing', e.target.value)} placeholder="Routing Number" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
+                            {pm.provider === 'cash' && (
+                              <>
+                                <div className="sm:col-span-2 grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-[10px] text-gray-400 mb-1">কন্টাক্ট পার্সন (নাম ও নাম্বার)</label>
+                                    <input type="text" value={pm.contactPerson} onChange={(e) => updatePaymentMethod(pm.id, 'contactPerson', e.target.value)} placeholder="Name - 017XXXXXXX" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-400 mb-1">লোকেশন / স্থান</label>
+                                    <input type="text" value={pm.location} onChange={(e) => updatePaymentMethod(pm.id, 'location', e.target.value)} placeholder="e.g. CUET Campus" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
+                            {(pm.provider === 'bkash' || pm.provider === 'nagad' || pm.provider === 'rocket') && (
+                              <>
+                                <div>
+                                  <label className="block text-[10px] text-gray-400 mb-1">অ্যাকাউন্ট নম্বর</label>
+                                  <input type="text" value={pm.accNo} onChange={(e) => updatePaymentMethod(pm.id, 'accNo', e.target.value)} placeholder="017XXXXXXX" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="block text-[10px] text-gray-400 mb-1">ট্রানজেকশন টাইপ</label>
+                                  <div className="flex gap-4">
+                                    <label className="text-xs text-gray-300 flex items-center gap-1.5 cursor-pointer">
+                                      <input type="radio" checked={pm.type === 'send_money'} onChange={() => updatePaymentMethod(pm.id, 'type', 'send_money')} className="accent-emerald-500" /> Send Money
+                                    </label>
+                                    <label className="text-xs text-gray-300 flex items-center gap-1.5 cursor-pointer">
+                                      <input type="radio" checked={pm.type === 'payment'} onChange={() => updatePaymentMethod(pm.id, 'type', 'payment')} className="accent-emerald-500" /> Payment
+                                    </label>
+                                    <label className="text-xs text-gray-300 flex items-center gap-1.5 cursor-pointer">
+                                      <input type="radio" checked={pm.type === 'cash_in'} onChange={() => updatePaymentMethod(pm.id, 'type', 'cash_in')} className="accent-emerald-500" /> Cash In
+                                    </label>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="md:col-span-3">
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">পেমেন্ট মেথড ও নাম্বার (বিকাশ/নগদ/রকেট) *</label>
-                        <input type="text" id="paymentMethods" required value={formData.paymentMethods} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
-                    </div>
+                  ) : (
+                    <p className="text-xs text-red-400 italic py-2">বুকিং কনফার্ম করার জন্য অন্তত একটি পেমেন্ট মেথড যুক্ত করা বাধ্যতামূলক।</p>
+                  )}
                 </div>
             </div>
 
-            {/* সেকশন ৪: স্মার্ট লজিস্টিকস */}
+            {/* সেকশন ৪: স্মার্ট লজিস্টিকস & 🔴 Memory Lane */}
             <div>
                 <h3 className="font-bold text-purple-400 mb-6 text-lg flex items-center gap-2 border-b border-purple-400/20 pb-2">
-                    <i className="fa-solid fa-campground"></i> ৪. লজিস্টিকস ও টিম পরিচালনা
+                    <i className="fa-solid fa-campground"></i> ৪. লজিস্টিকস ও মেমোরি লেন
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     
@@ -536,50 +670,73 @@ export default function EditEvent() {
                         <input type="tel" id="leaderPhone" required value={formData.leaderPhone} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
                     </div>
 
-                    <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-blue-400 mb-2 uppercase">ইভেন্ট অ্যালবাম লিংক (গুগল ড্রাইভ ফোল্ডার) - ঐচ্ছিক</label>
-                        <div className="flex items-center gap-3 bg-black/40 border border-white/10 p-2 rounded-xl focus-within:border-blue-400 transition-colors">
-                            <i className="fa-brands fa-google-drive text-blue-400 pl-3 text-lg"></i>
-                            <input type="url" id="albumLink" value={formData.albumLink} onChange={handleInputChange} placeholder="https://drive.google.com/drive/folders/..." className="w-full bg-transparent text-white outline-none p-2 text-sm" />
-                        </div>
-                    </div>
-
                     <div className="md:col-span-3">
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">সংক্ষিপ্ত বিবরণ *</label>
                         <textarea id="description" required rows="3" value={formData.description} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white resize-none"></textarea>
                     </div>
+
+                    {/* 🔴 Dynamic Memory Lane Builder */}
+                    <div className="md:col-span-3 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-5 rounded-2xl border border-indigo-500/20">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+                        <div>
+                          <label className="block text-sm font-bold text-indigo-400 flex items-center gap-2 uppercase tracking-widest"><i className="fa-solid fa-film"></i> মেমোরি লেন (ফটো/ভিডিও ফোল্ডার)</label>
+                          <p className="text-[10px] text-gray-400 mt-1">ইভেন্ট সম্পন্ন হওয়ার পর ইউজারদের ছবি ও ভিডিও দেখার জন্য একাধিক লিংক যোগ করতে পারবেন।</p>
+                        </div>
+                        <button type="button" onClick={addMemoryLink} className="bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-indigo-500/30 whitespace-nowrap">
+                          <i className="fa-solid fa-plus mr-1"></i> নতুন লিংক যোগ করুন
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {memoryLinks.map((link) => (
+                          <div key={link.id} className="flex flex-col sm:flex-row gap-3 bg-black/40 p-3 rounded-xl border border-white/5">
+                            <input 
+                              type="text" 
+                              placeholder="লিংকের টাইটেল (e.g. Day 1 Photos, Aftermovie)" 
+                              value={link.title} 
+                              onChange={(e) => updateMemoryLink(link.id, 'title', e.target.value)} 
+                              className="flex-1 bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-xs outline-none focus:border-indigo-400" 
+                            />
+                            <input 
+                              type="url" 
+                              placeholder="URL Link (https://...)" 
+                              value={link.url} 
+                              onChange={(e) => updateMemoryLink(link.id, 'url', e.target.value)} 
+                              className="flex-[2] bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-xs outline-none focus:border-indigo-400" 
+                            />
+                            {memoryLinks.length > 1 && (
+                              <button 
+                                type="button" 
+                                onClick={() => removeMemoryLink(link.id)} 
+                                className="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white w-full sm:w-10 h-10 rounded-lg flex items-center justify-center transition-colors shrink-0"
+                              >
+                                <i className="fa-solid fa-trash-can"></i>
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                 </div>
             </div>
 
-            {/* 🔴 সেকশন ৫: স্মার্ট ডায়নামিক চেকলিস্ট */}
+            {/* সেকশন ৫: স্মার্ট ডায়নামিক চেকলিস্ট */}
             <div>
                 <h3 className="font-bold text-yellow-500 mb-6 text-lg flex items-center gap-2 border-b border-yellow-500/20 pb-2">
-                    <i className="fa-solid fa-list-check"></i> ৫. রুলস ও চেকলিস্ট (প্রিসেট ও কাস্টম)
+                    <i className="fa-solid fa-list-check"></i> ৫. রুলস ও চেকলিস্ট
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     
-                    {/* Included */}
                     <div className="bg-black/20 p-5 rounded-2xl border border-emerald-500/20">
                         <label className="block text-xs font-bold text-emerald-400 mb-3 uppercase">যা যা ইনক্লুডেড (Included)</label>
-                        
-                        <select 
-                          onChange={(e) => {
-                            if(e.target.value) {
-                              handleTagAdd('included', e.target.value)
-                              e.target.value = ""
-                            }
-                          }} 
-                          className="w-full bg-black/40 border border-emerald-500/30 p-3 rounded-lg text-sm text-gray-300 mb-3 outline-none cursor-pointer"
-                        >
+                        <select onChange={(e) => { if(e.target.value) { handleTagAdd('included', e.target.value); e.target.value = "" } }} className="w-full bg-black/40 border border-emerald-500/30 p-3 rounded-lg text-sm text-gray-300 mb-3 outline-none cursor-pointer">
                           <option value="">-- সাজেশন থেকে নির্বাচন করুন --</option>
                           {presetIncluded.map(item => <option key={item} value={item}>{item}</option>)}
                         </select>
-
                         <div className="flex gap-2 mb-3">
                             <input type="text" placeholder="অথবা নিজে টাইপ করে যোগ করুন..." value={tagInputs.included} onChange={(e) => setTagInputs({...tagInputs, included: e.target.value})} className="bg-black/40 border border-white/10 flex-grow p-2.5 rounded-lg text-sm text-white" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd('included'))} />
                             <button type="button" onClick={() => handleTagAdd('included')} className="bg-emerald-500 text-white px-4 rounded-lg font-bold">Add</button>
                         </div>
-                        
                         <div className="flex flex-wrap gap-2">
                             {tags.included.map((tag, idx) => (
                                 <span key={idx} className="bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full text-xs flex items-center gap-2 text-emerald-400">
@@ -589,28 +746,16 @@ export default function EditEvent() {
                         </div>
                     </div>
 
-                    {/* Excluded */}
                     <div className="bg-black/20 p-5 rounded-2xl border border-gray-500/30">
                         <label className="block text-xs font-bold text-gray-400 mb-3 uppercase">যা ইনক্লুডেড নয় (Excluded)</label>
-                        
-                        <select 
-                          onChange={(e) => {
-                            if(e.target.value) {
-                              handleTagAdd('excluded', e.target.value)
-                              e.target.value = ""
-                            }
-                          }} 
-                          className="w-full bg-black/40 border border-gray-500/30 p-3 rounded-lg text-sm text-gray-300 mb-3 outline-none cursor-pointer"
-                        >
+                        <select onChange={(e) => { if(e.target.value) { handleTagAdd('excluded', e.target.value); e.target.value = "" } }} className="w-full bg-black/40 border border-gray-500/30 p-3 rounded-lg text-sm text-gray-300 mb-3 outline-none cursor-pointer">
                           <option value="">-- সাজেশন থেকে নির্বাচন করুন --</option>
                           {presetExcluded.map(item => <option key={item} value={item}>{item}</option>)}
                         </select>
-
                         <div className="flex gap-2 mb-3">
                             <input type="text" placeholder="অথবা নিজে টাইপ করে যোগ করুন..." value={tagInputs.excluded} onChange={(e) => setTagInputs({...tagInputs, excluded: e.target.value})} className="bg-black/40 border border-white/10 flex-grow p-2.5 rounded-lg text-sm text-white" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd('excluded'))} />
                             <button type="button" onClick={() => handleTagAdd('excluded')} className="bg-gray-600 text-white px-4 rounded-lg font-bold">Add</button>
                         </div>
-                        
                         <div className="flex flex-wrap gap-2">
                             {tags.excluded.map((tag, idx) => (
                                 <span key={idx} className="bg-white/10 px-3 py-1 rounded-full text-xs flex items-center gap-2 text-gray-300">
@@ -651,7 +796,7 @@ export default function EditEvent() {
                 </div>
             </div>
 
-            {/* 🔴 সেকশন ৭: ডায়নামিক ইউজার রিওয়ার্ড পয়েন্ট */}
+            {/* 🔴 সেকশন ৭: ডায়নামিক ইউজার রিওয়ার্ড পয়েন্ট (Running Support) */}
             <div>
                 <h3 className="font-bold text-amber-500 mb-2 text-lg flex items-center gap-2 border-b border-amber-500/20 pb-2">
                     <i className="fa-solid fa-medal"></i> ৭. ইউজার প্রোফাইল পয়েন্ট ও রিওয়ার্ড
@@ -661,18 +806,18 @@ export default function EditEvent() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
-                          {isCycling ? 'মোট রাইডের সংখ্যা' : isSwimming ? 'সাঁতার সেশন সংখ্যা' : 'ট্রেকের সংখ্যা (কাউন্ট)'}
+                          {isCycling ? 'মোট রাইডের সংখ্যা' : isSwimming ? 'সাঁতার সেশন সংখ্যা' : isRunning ? 'মোট দৌড়ের সংখ্যা' : 'ট্রেকের সংখ্যা (কাউন্ট)'}
                         </label>
                         <input type="number" id="metaTreks" required value={formData.metaTreks} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
-                          {isCycling ? 'মোট রাইডিং দূরত্ব (কি.মি.)' : isSwimming ? 'মোট সাঁতারের দূরত্ব (মিটার)' : 'মোট হাঁটার দূরত্ব (কি.মি.)'}
+                          {isCycling ? 'মোট রাইডিং দূরত্ব (কি.মি.)' : isSwimming ? 'মোট সাঁতারের দূরত্ব (মিটার)' : isRunning ? 'মোট দৌড়ের দূরত্ব (কি.মি.)' : 'মোট হাঁটার দূরত্ব (কি.মি.)'}
                         </label>
                         <input type="number" id="metaDistance" required value={formData.metaDistance} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
                     </div>
                     
-                    {!isDayEvent && (
+                    {!isDayEvent && !isRunning && (
                       <div>
                           <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ক্যাম্পিং রাত সংখ্যা</label>
                           <input type="number" id="metaNights" required value={formData.metaNights} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
@@ -699,7 +844,7 @@ export default function EditEvent() {
 
         </form>
 
-        {/* 🔴 ফ্রি-ফর্ম ক্রপার মডাল */}
+        {/* ফ্রি-ফর্ম ক্রপার মডাল */}
         {showCropper && (
           <div className="fixed inset-0 z-[70] flex flex-col bg-black/90 backdrop-blur-md">
             <div className="relative flex-grow">
