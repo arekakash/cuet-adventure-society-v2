@@ -325,53 +325,66 @@ export default function EditEvent() {
     }
   }
 
-  const handleMoveToTrash = async () => {
+    const handleMoveToTrash = async () => {
     try {
       setLoading(true)
 
-      const { data: bookings, error: bookingError } = await supabase
-        .from('bookings')
-        .select('user_id')
-        .eq('event_id', eventId)
-        .in('status', ['approved', 'free_booking'])
+      // 🔴 ১. প্রথমে চেক করতে হবে ইভেন্টটি 'completed' কিনা এবং survival_iq যোগ হয়েছিল কিনা
+      const { data: currentEvent, error: fetchError } = await supabase
+        .from('events')
+        .select('status')
+        .eq('id', eventId)
+        .single()
 
-      if (bookingError) throw bookingError
+      if (fetchError) throw fetchError
 
-      if (bookings && bookings.length > 0) {
-        for (const booking of bookings) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, total_runs, running_distance')
-            .eq('id', booking.user_id)
-            .single()
+      // 🔴 ২. যদি ইভেন্টটি 'completed' হয়ে থাকে, তবেই রোলব্যাক লজিক কাজ করবে
+      if (currentEvent.status === 'completed') {
+        const { data: bookings, error: bookingError } = await supabase
+          .from('bookings')
+          .select('user_id')
+          .eq('event_id', eventId)
+          .eq('status', 'approved') // 🔴 শুধুমাত্র approved ইউজারদের পয়েন্ট মাইনাস হবে
 
-          if (profile) {
-            let updates = { 
-              total_events: Math.max(0, (profile.total_events || 0) - 1) 
+        if (bookingError) throw bookingError
+
+        if (bookings && bookings.length > 0) {
+          for (const booking of bookings) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, total_runs, running_distance')
+              .eq('id', booking.user_id)
+              .single()
+
+            if (profile) {
+              let updates = { 
+                total_events: Math.max(0, (profile.total_events || 0) - 1) 
+              }
+
+              const category = formData.category.toLowerCase()
+              const distance = parseInt(formData.metaDistance) || 0
+
+              if (category === 'trekking') {
+                updates.total_treks = Math.max(0, (profile.total_treks || 0) - 1)
+                updates.total_distance = Math.max(0, (profile.total_distance || 0) - distance)
+              } else if (category === 'cycling') {
+                updates.total_rides = Math.max(0, (profile.total_rides || 0) - 1)
+                updates.cycling_distance = Math.max(0, (profile.cycling_distance || 0) - distance)
+              } else if (category === 'swimming') {
+                updates.total_swims = Math.max(0, (profile.total_swims || 0) - 1)
+                updates.swimming_distance = Math.max(0, (profile.swimming_distance || 0) - distance)
+              } else if (category === 'running') {
+                updates.total_runs = Math.max(0, (profile.total_runs || 0) - 1)
+                updates.running_distance = Math.max(0, (profile.running_distance || 0) - distance)
+              }
+
+              await supabase.from('profiles').update(updates).eq('id', booking.user_id)
             }
-
-            const category = formData.category.toLowerCase()
-            const distance = parseInt(formData.metaDistance) || 0
-
-            if (category === 'trekking') {
-              updates.total_treks = Math.max(0, (profile.total_treks || 0) - 1)
-              updates.total_distance = Math.max(0, (profile.total_distance || 0) - distance)
-            } else if (category === 'cycling') {
-              updates.total_rides = Math.max(0, (profile.total_rides || 0) - 1)
-              updates.cycling_distance = Math.max(0, (profile.cycling_distance || 0) - distance)
-            } else if (category === 'swimming') {
-              updates.total_swims = Math.max(0, (profile.total_swims || 0) - 1)
-              updates.swimming_distance = Math.max(0, (profile.swimming_distance || 0) - distance)
-            } else if (category === 'running') {
-              updates.total_runs = Math.max(0, (profile.total_runs || 0) - 1)
-              updates.running_distance = Math.max(0, (profile.running_distance || 0) - distance)
-            }
-
-            await supabase.from('profiles').update(updates).eq('id', booking.user_id)
           }
         }
       }
 
+      // 🔴 ৩. এরপর ইভেন্টটিকে ট্র্যাশ বিনে পাঠানো হবে (সকল ইভেন্টের ক্ষেত্রে প্রযোজ্য)
       const { error } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
@@ -379,7 +392,7 @@ export default function EditEvent() {
 
       if (error) throw error
       
-      alert('ইভেন্টটি সফলভাবে ট্র্যাশ বিনে পাঠানো হয়েছে এবং লিডারবোর্ড থেকে ইউজারদের পয়েন্ট মুছে ফেলা হয়েছে!')
+      alert('ইভেন্টটি সফলভাবে ট্র্যাশ বিনে পাঠানো হয়েছে!')
       router.push('/admin/trash') 
 
     } catch (error) {
@@ -389,6 +402,7 @@ export default function EditEvent() {
       setLoading(false)
     }
   }
+
 
   if (fetching) {
     return (
