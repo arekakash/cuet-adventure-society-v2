@@ -31,7 +31,7 @@ export default function AdminEventsPage() {
     fetchEvents()
   }, [])
 
-  // 1. "Mark as Completed" লজিক
+  // 1. "Mark as Completed" লজিক (🔴 Updated Logic for accurate point addition)
   const handleCompleteEvent = async (eventId, ev) => {
     if (!window.confirm("সতর্কতা! এটি মার্ক করলে ট্যুরে অংশ নেওয়া সবার ড্যাশবোর্ডে স্ট্যাটস যোগ হয়ে যাবে। আপনি কি নিশ্চিত?")) return
     
@@ -49,15 +49,16 @@ export default function AdminEventsPage() {
         .from('bookings')
         .select('user_id')
         .eq('event_id', eventId)
-        .eq('status', 'approved')
+        .in('status', ['approved', 'free_booking']) // 🔴 free_booking যুক্ত করা হলো
 
       if (bookingError) throw bookingError
 
       if (bookings && bookings.length > 0) {
         const statsMeta = ev.stats_meta || {}
-        const category = (ev.category || "").toLowerCase()
-        const distanceToAdd = Number(statsMeta.distance || 0)
-        const iqToAdd = Number(statsMeta.survival_iq || 0)
+        const category = (ev.category || "").toLowerCase().trim() // 🔴 Category text clean up
+        const distanceToAdd = Number(statsMeta.distance) || 0
+        const iqToAdd = Number(statsMeta.survival_iq) || 0
+        const treksCount = Number(statsMeta.treks) || 1
 
         const updatePromises = bookings.map(async (b) => {
           const { data: userProfile } = await supabase
@@ -68,24 +69,25 @@ export default function AdminEventsPage() {
           
           if (userProfile) {
             const updates = {
-              survival_iq: (userProfile.survival_iq || 0) + iqToAdd,
-              total_events: (userProfile.total_events || 0) + 1
+              survival_iq: (Number(userProfile.survival_iq) || 0) + iqToAdd,
+              total_events: (Number(userProfile.total_events) || 0) + 1
             }
 
-            if (category === 'trekking') {
-              updates.total_treks = (userProfile.total_treks || 0) + 1
-              updates.total_distance = (userProfile.total_distance || 0) + distanceToAdd
-            } else if (category === 'cycling') {
-              updates.total_rides = (userProfile.total_rides || 0) + 1
-              updates.cycling_distance = (userProfile.cycling_distance || 0) + distanceToAdd
-            } else if (category === 'swimming') {
-              updates.total_swims = (userProfile.total_swims || 0) + 1
-              updates.swimming_distance = (userProfile.swimming_distance || 0) + distanceToAdd
-            } else if (category === 'running') {
-              updates.total_runs = (userProfile.total_runs || 0) + 1
-              updates.running_distance = (userProfile.running_distance || 0) + distanceToAdd
+            // 🔴 .includes() ব্যবহার করা হলো যাতে নামের আগেপিছে কিছু থাকলেও ম্যাচ করে
+            if (category.includes('trekking') || category.includes('camping') || category.includes('day tour')) {
+              updates.total_treks = (Number(userProfile.total_treks) || 0) + treksCount
+              updates.total_distance = (Number(userProfile.total_distance) || 0) + distanceToAdd
+            } else if (category.includes('cycling')) {
+              updates.total_rides = (Number(userProfile.total_rides) || 0) + treksCount
+              updates.cycling_distance = (Number(userProfile.cycling_distance) || 0) + distanceToAdd
+            } else if (category.includes('swimming') || category.includes('houseboat') || category.includes('cruise')) {
+              updates.total_swims = (Number(userProfile.total_swims) || 0) + treksCount
+              updates.swimming_distance = (Number(userProfile.swimming_distance) || 0) + distanceToAdd
+            } else if (category.includes('running')) {
+              updates.total_runs = (Number(userProfile.total_runs) || 0) + treksCount
+              updates.running_distance = (Number(userProfile.running_distance) || 0) + distanceToAdd
             } else {
-              updates.total_treks = (userProfile.total_treks || 0) + (statsMeta.treks || 0)
+              updates.total_treks = (Number(userProfile.total_treks) || 0) + treksCount
             }
 
             await supabase.from('profiles').update(updates).eq('id', b.user_id)
@@ -104,7 +106,7 @@ export default function AdminEventsPage() {
     }
   }
 
-  // 2. "Delete & Rollback" লজিক
+  // 2. "Delete & Rollback" লজিক (🔴 Updated Logic for accurate point rollback)
   const handleDeleteEvent = async (eventId, ev) => {
     if (!window.confirm("ভয়ংকর সতর্কতা! এই ইভেন্টটি ডিলিট করলে সকল অংশগ্রহণকারীর ড্যাশবোর্ড থেকে এই ইভেন্টের পয়েন্ট মাইনাস হয়ে যাবে এবং ইভেন্টটি ট্র্যাশে চলে যাবে। নিশ্চিত?")) return
     
@@ -116,13 +118,14 @@ export default function AdminEventsPage() {
           .from('bookings')
           .select('user_id')
           .eq('event_id', eventId)
-          .eq('status', 'approved')
+          .in('status', ['approved', 'free_booking']) // 🔴 free_booking যুক্ত করা হলো
 
         if (bookings && bookings.length > 0) {
           const statsMeta = ev.stats_meta || {}
-          const category = (ev.category || "").toLowerCase()
-          const distanceToSubtract = Number(statsMeta.distance || 0)
-          const iqToSubtract = Number(statsMeta.survival_iq || 0)
+          const category = (ev.category || "").toLowerCase().trim()
+          const distanceToSubtract = Number(statsMeta.distance) || 0
+          const iqToSubtract = Number(statsMeta.survival_iq) || 0
+          const treksCount = Number(statsMeta.treks) || 1
 
           const rollbackPromises = bookings.map(async (b) => {
             const { data: userProfile } = await supabase
@@ -133,22 +136,24 @@ export default function AdminEventsPage() {
             
             if (userProfile) {
               const updates = {
-                survival_iq: Math.max(0, (userProfile.survival_iq || 0) - iqToSubtract),
-                total_events: Math.max(0, (userProfile.total_events || 0) - 1)
+                survival_iq: Math.max(0, (Number(userProfile.survival_iq) || 0) - iqToSubtract),
+                total_events: Math.max(0, (Number(userProfile.total_events) || 0) - 1)
               }
 
-              if (category === 'trekking') {
-                updates.total_treks = Math.max(0, (userProfile.total_treks || 0) - 1)
-                updates.total_distance = Math.max(0, (userProfile.total_distance || 0) - distanceToSubtract)
-              } else if (category === 'cycling') {
-                updates.total_rides = Math.max(0, (userProfile.total_rides || 0) - 1)
-                updates.cycling_distance = Math.max(0, (userProfile.cycling_distance || 0) - distanceToSubtract)
-              } else if (category === 'swimming') {
-                updates.total_swims = Math.max(0, (userProfile.total_swims || 0) - 1)
-                updates.swimming_distance = Math.max(0, (userProfile.swimming_distance || 0) - distanceToSubtract)
-              } else if (category === 'running') {
-                updates.total_runs = Math.max(0, (userProfile.total_runs || 0) - 1)
-                updates.running_distance = Math.max(0, (userProfile.running_distance || 0) - distanceToSubtract)
+              if (category.includes('trekking') || category.includes('camping') || category.includes('day tour')) {
+                updates.total_treks = Math.max(0, (Number(userProfile.total_treks) || 0) - treksCount)
+                updates.total_distance = Math.max(0, (Number(userProfile.total_distance) || 0) - distanceToSubtract)
+              } else if (category.includes('cycling')) {
+                updates.total_rides = Math.max(0, (Number(userProfile.total_rides) || 0) - treksCount)
+                updates.cycling_distance = Math.max(0, (Number(userProfile.cycling_distance) || 0) - distanceToSubtract)
+              } else if (category.includes('swimming') || category.includes('houseboat') || category.includes('cruise')) {
+                updates.total_swims = Math.max(0, (Number(userProfile.total_swims) || 0) - treksCount)
+                updates.swimming_distance = Math.max(0, (Number(userProfile.swimming_distance) || 0) - distanceToSubtract)
+              } else if (category.includes('running')) {
+                updates.total_runs = Math.max(0, (Number(userProfile.total_runs) || 0) - treksCount)
+                updates.running_distance = Math.max(0, (Number(userProfile.running_distance) || 0) - distanceToSubtract)
+              } else {
+                updates.total_treks = Math.max(0, (Number(userProfile.total_treks) || 0) - treksCount)
               }
 
               await supabase.from('profiles').update(updates).eq('id', b.user_id)
