@@ -70,7 +70,7 @@ export default function BehindTheScenes() {
               <div className="glass-dark p-6 rounded-2xl border border-white/10 hover:border-yellow-500/50 transition-colors shadow-2xl relative group overflow-hidden">
                 <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <p className="text-sm sm:text-base leading-relaxed text-gray-300">
-                  আইডিয়াটা সে শেয়ার করে তার সহপাঠী ওসমান গনির সাথে। নাপিত্তাছড়া ট্রেইল জয় করে আসা ওসমান তখন খৈয়াছড়া ট্যুরের মাস্টারমাইন্ড। সেসময় অনলাইনে বা অফলাইনে চুয়েটে ট্রাভেলিংয়ের কোনো অ্যাক্টিভ প্ল্যাটফর্ম ছিল না। নোমানের আইডিয়া আর ওসমানের এক্সিকিউশনে ফেসবুকে জন্ম নিল <span className="font-bold text-white">"চুয়েট টুরিস্ট সোসাইটি"</span>।
+                  আইডিয়াটা সে শেয়ার করে তার সহপাঠী ওসমান গনির সাথে। নাপিত্তাছড়া ট্রেইল জয় করে আসা ওসমান তখন খৈয়াছড়া ট্যুরের মাস্টারমাইন্ড। সেসময় অনলাইনে বা অফলাইনে চুয়েটে ট্রাভেলিংয়ের কোনো অ্যাক্টিভ প্ল্যাটফর্ম ছিল না। নোমানের আইডিয়া আর ওসমানের এক্সিকিউশনে ফেসবুকে জন্ম নিল <span className="font-bold text-white">"চুয়েট টুরিস্ট ক্লাব"</span>।
                 </p>
               </div>
             </div>
@@ -86,7 +86,7 @@ export default function BehindTheScenes() {
               <div className="glass-dark p-6 rounded-2xl border border-white/10 hover:border-emerald-500/50 transition-colors shadow-2xl relative group overflow-hidden">
                 <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <p className="text-sm sm:text-base leading-relaxed text-gray-300">
-                  কিন্তু প্রথম এক মাস সোসাইটির কার্যক্রম যেন ঠিক গতি পাচ্ছিল না। ঠিক তখনই দৃশ্যপটে এন্ট্রি হয় সিভিল ১৩ ব্যাচের তানভীর হক তুহিনের। বান্দরবানের দুর্গম পাহাড় চষে বেড়ানো তুহিন এসে ধরিয়ে দিল আসল স্পার্ক। সে বলল, <br/><br/>
+                  কিন্তু প্রথম এক মাস ক্লাবের কার্যক্রম যেন ঠিক গতি পাচ্ছিল না। ঠিক তখনই দৃশ্যপটে এন্ট্রি হয় সিভিল ১৩ ব্যাচের তানভীর হক তুহিনের। বান্দরবানের দুর্গম পাহাড় চষে বেড়ানো তুহিন এসে ধরিয়ে দিল আসল স্পার্ক। সে বলল, <br/><br/>
                   <i className="text-emerald-400 font-bold">"চুয়েট জীবনের এই বিপুল তারুণ্যে সাধারণ ঘোরাঘুরি তো আর মানায় না! এই বয়সের জন্য চাই পিওর অ্যাডভেঞ্চার!"</i>
                 </p>
               </div>
