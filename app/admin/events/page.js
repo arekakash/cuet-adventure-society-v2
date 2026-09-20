@@ -4,18 +4,17 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
-export default function ActiveEvents() {
+export default function AdminEventsPage() {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState(null)
-  const [deletingId, setDeletingId] = useState(null) // 🔴 ডিলিট স্টেট
+  const [deletingId, setDeletingId] = useState(null)
 
   const fetchEvents = async () => {
     try {
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        // .eq('status', 'upcoming') // 🔴 (অ্যাডমিনের সুবিধার জন্য সব অ্যাক্টিভ ও কমপ্লিটেড ইভেন্ট আনা হলো যাতে ডিলিট করা যায়)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
@@ -32,7 +31,7 @@ export default function ActiveEvents() {
     fetchEvents()
   }, [])
 
-  // 🔴 ১. সুপার "Mark as Completed" লজিক
+  // 1. "Mark as Completed" লজিক
   const handleCompleteEvent = async (eventId, ev) => {
     if (!window.confirm("সতর্কতা! এটি মার্ক করলে ট্যুরে অংশ নেওয়া সবার ড্যাশবোর্ডে স্ট্যাটস যোগ হয়ে যাবে। আপনি কি নিশ্চিত?")) return
     
@@ -68,7 +67,6 @@ export default function ActiveEvents() {
             .single()
           
           if (userProfile) {
-            // ডায়নামিক ক্যাটাগরি আপডেট
             const updates = {
               survival_iq: (userProfile.survival_iq || 0) + iqToAdd,
               total_events: (userProfile.total_events || 0) + 1
@@ -87,7 +85,6 @@ export default function ActiveEvents() {
               updates.total_runs = (userProfile.total_runs || 0) + 1
               updates.running_distance = (userProfile.running_distance || 0) + distanceToAdd
             } else {
-              // সাধারণ ট্যুর হলে শুধু ইভেন্ট কাউন্ট বাড়বে, ক্যাটাগরি বাড়বে না।
               updates.total_treks = (userProfile.total_treks || 0) + (statsMeta.treks || 0)
             }
 
@@ -107,14 +104,13 @@ export default function ActiveEvents() {
     }
   }
 
-  // 🔴 ২. নতুন "Delete & Rollback" লজিক
+  // 2. "Delete & Rollback" লজিক
   const handleDeleteEvent = async (eventId, ev) => {
     if (!window.confirm("ভয়ংকর সতর্কতা! এই ইভেন্টটি ডিলিট করলে সকল অংশগ্রহণকারীর ড্যাশবোর্ড থেকে এই ইভেন্টের পয়েন্ট মাইনাস হয়ে যাবে এবং ইভেন্টটি ট্র্যাশে চলে যাবে। নিশ্চিত?")) return
     
     setDeletingId(eventId)
 
     try {
-      // যদি ইভেন্টটি আগে 'completed' হয়ে থাকে, তবে ইউজারদের পয়েন্ট রোলব্যাক (মাইনাস) করতে হবে
       if (ev.status === 'completed') {
         const { data: bookings } = await supabase
           .from('bookings')
@@ -163,7 +159,6 @@ export default function ActiveEvents() {
         }
       }
 
-      // এবার ইভেন্টটিকে সফট ডিলিট (ট্র্যাশ) করা হচ্ছে
       const { error: deleteError } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
@@ -191,15 +186,23 @@ export default function ActiveEvents() {
   return (
     <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 relative text-gray-300">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-4 mb-8 border-b border-white/10 pb-6">
-          <Link href="/admin" className="text-gray-400 hover:text-white bg-white/5 p-3 rounded-xl transition-colors">
-              <i className="fa-solid fa-arrow-left"></i>
-          </Link>
-          <div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
-                  <i className="fa-solid fa-bolt text-yellow-500"></i> ইভেন্ট ম্যানেজমেন্ট
-              </h1>
+        <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-6">
+          <div className="flex items-center gap-4">
+            <Link href="/admin" className="text-gray-400 hover:text-white bg-white/5 p-3 rounded-xl transition-colors">
+                <i className="fa-solid fa-arrow-left"></i>
+            </Link>
+            <div>
+                <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
+                    <i className="fa-solid fa-bolt text-yellow-500"></i> ইভেন্ট ম্যানেজমেন্ট
+                </h1>
+            </div>
           </div>
+          <Link 
+            href="/admin/events/create" 
+            className="bg-[#e76f51] hover:bg-orange-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md flex items-center gap-2"
+          >
+            <i className="fa-solid fa-plus"></i> নতুন ইভেন্ট
+          </Link>
         </div>
 
         <p className="text-xs text-gray-400 mb-6 border-l-2 border-yellow-500 pl-3">
@@ -214,9 +217,21 @@ export default function ActiveEvents() {
         ) : (
           <div className="space-y-4">
             {events.map((ev) => (
-              <div key={ev.id} className="bg-[#0a1c13] border border-yellow-500/20 p-5 sm:p-6 rounded-2xl flex flex-col md:flex-row gap-5 justify-between items-start md:items-center transition-all hover:bg-black/40">
-                  <div className="flex-grow">
-                      <div className="flex items-center gap-3 mb-2">
+              <div key={ev.id} className="bg-[#0a1c13] border border-yellow-500/20 p-5 sm:p-6 rounded-2xl relative transition-all hover:bg-black/40">
+                  
+                  {/* 🔴 Top Right Corner Edit Button */}
+                  <div className="absolute top-5 right-5">
+                    <Link 
+                      href={`/admin/events/edit?id=${ev.id}`} 
+                      className="bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500 hover:text-white w-9 h-9 rounded-xl flex items-center justify-center transition-all shadow-sm"
+                      title="ইভেন্ট এডিট করুন"
+                    >
+                      <i className="fa-solid fa-pen-to-square text-xs"></i>
+                    </Link>
+                  </div>
+
+                  <div className="pr-12">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h3 className="text-lg font-bold text-white">{ev.title}</h3>
                         {ev.status === 'completed' && (
                           <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest"><i className="fa-solid fa-check-circle"></i> Completed</span>
@@ -235,11 +250,11 @@ export default function ActiveEvents() {
                       </p>
                   </div>
                   
-                  <div className="flex flex-col sm:flex-row md:flex-col lg:flex-row gap-3 w-full md:w-auto shrink-0 mt-2 md:mt-0">
+                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-5 pt-4 border-t border-white/5">
                       
                       <Link 
                         href={`/admin/events/details?id=${ev.id}`} 
-                        className="w-full sm:w-auto bg-[#e76f51]/20 text-[#e76f51] border border-[#e76f51]/30 hover:bg-[#e76f51] hover:text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2"
+                        className="bg-[#e76f51]/20 text-[#e76f51] border border-[#e76f51]/30 hover:bg-[#e76f51] hover:text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2"
                       >
                           <i className="fa-solid fa-chart-pie"></i> ড্যাশবোর্ড
                       </Link>
@@ -248,18 +263,18 @@ export default function ActiveEvents() {
                         <button 
                           onClick={() => handleCompleteEvent(ev.id, ev)}
                           disabled={processingId === ev.id}
-                          className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-600 text-black px-5 py-2.5 rounded-xl text-sm font-black shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                          className="bg-yellow-500 hover:bg-yellow-600 text-black px-5 py-2.5 rounded-xl text-sm font-black shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                         >
                             {processingId === ev.id ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-flag-checkered"></i>}
                             Mark Completed
                         </button>
                       )}
 
-                      {/* 🔴 Delete Button with Rollback Logic */}
+                      {/* Delete Button with Rollback Logic */}
                       <button 
                         onClick={() => handleDeleteEvent(ev.id, ev)}
                         disabled={deletingId === ev.id}
-                        className="w-full sm:w-auto bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        className="bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                           {deletingId === ev.id ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-trash-can"></i>}
                           Delete
