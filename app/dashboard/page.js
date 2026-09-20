@@ -519,10 +519,10 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* Profile Completion Form Modal */}
+            {/* Profile Completion Form Modal */}
       {showCompletionForm && (
-        <div className="fixed inset-0 bg-[#050b08]/95 flex items-center justify-center z-[100] p-4 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-3xl max-w-2xl w-full my-8 shadow-2xl relative">
+        <div className="fixed inset-0 bg-[#050b08]/95 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
+          <div className="bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-3xl max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="text-center mb-6">
                 <i className="fa-solid fa-user-shield text-4xl text-[#e76f51] mb-3"></i>
                 <h2 className="text-2xl font-black text-white">প্রোফাইল সম্পূর্ণ করুন</h2>
