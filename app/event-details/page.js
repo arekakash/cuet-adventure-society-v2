@@ -306,6 +306,21 @@ function EventDetailsContent() {
     return 'দূরত্ব অতিক্রম'
   }
 
+  // 🟢 Memory Lane (Multiple Links) Parsing Logic
+  let memoryLinks = []
+  if (typeof event.album_link === 'string') {
+    if (event.album_link.trim().startsWith('[')) {
+      try { memoryLinks = JSON.parse(event.album_link) } catch(e) {}
+    } else if (event.album_link.trim() !== '') {
+      memoryLinks = [{ id: 1, title: 'ইভেন্ট অ্যালবাম', url: event.album_link }] // Legacy support
+    }
+  } else if (Array.isArray(event.album_link)) {
+    memoryLinks = event.album_link
+  }
+  const validMemoryLinks = memoryLinks.filter(m => m.url && m.url.trim() !== '')
+
+  return (
+
   const getRewardLabel = () => {
     if (isCycling) return 'Rides'
     if (isSwimming) return 'Swims'
@@ -615,15 +630,32 @@ function EventDetailsContent() {
                       <p className="flex justify-between"><span className="text-gray-500">টোটাল প্যাকেজ ফি:</span> <span>৳ {event.tour_fee}</span></p>
                     </div>
 
-                    {event.album_link && (
+                                        {/* 🟢 Updated Memory Lane Section */}
+                    {validMemoryLinks.length > 0 && (
                       <div className="pt-4 border-t border-white/10">
-                        <a href={event.album_link} target="_blank" rel="noopener noreferrer" className="w-full bg-[#3b82f6] hover:bg-blue-600 text-white py-3.5 rounded-xl font-black transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)] flex items-center justify-center gap-3 group">
-                          <i className="fa-brands fa-google-drive text-xl group-hover:scale-110 transition-transform"></i> 
-                          ইভেন্ট অ্যালবাম দেখুন
-                        </a>
-                        <p className="text-[10px] text-gray-500 text-center mt-2">অংশগ্রহণকারীদের তোলা ছবি ও স্মৃতি</p>
+                        <div className="flex items-center justify-center gap-2 mb-3">
+                          <i className="fa-solid fa-film text-indigo-400"></i>
+                          <h4 className="text-sm font-bold text-indigo-400 uppercase tracking-widest">মেমোরি লেন</h4>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {validMemoryLinks.map((link) => (
+                            <a 
+                              key={link.id} 
+                              href={link.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="w-full bg-indigo-500/10 hover:bg-indigo-500 border border-indigo-500/30 hover:border-indigo-400 text-indigo-300 hover:text-white py-3 rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(99,102,241,0.1)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] flex items-center justify-center gap-3 group"
+                            >
+                              <i className="fa-solid fa-link group-hover:rotate-12 transition-transform"></i> 
+                              {link.title || 'ইভেন্ট মেমোরি দেখুন'}
+                            </a>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-gray-500 text-center mt-3">অংশগ্রহণকারীদের স্মৃতি, ছবি ও ভিডিও</p>
                       </div>
                     )}
+
                   </div>
                 )}
 
