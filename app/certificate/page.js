@@ -242,72 +242,87 @@ export default function CertificateGeneratorPage() {
 
       </div>
 
-      {/* 🔴 Hidden Vintage Certificate Template (FIXED LAYOUT) */}
+            {/* 🔴 Hidden Vintage Certificate Template (FIXED LAYOUT & PNG SIGNATURES) */}
       <div className="fixed top-[-9999px] left-[-9999px] pointer-events-none">
         {activeCert && (
           <div id="cas-certificate-template" className="cert-bg w-[1123px] h-[794px] relative flex items-center justify-center p-12 text-[#1a1a1a]" style={{ display: 'none' }}>
             
             <div className="w-full h-full border-[3px] border-[#c5a059] p-2 relative">
-              <div className="w-full h-full border-[8px] border-double border-[#c5a059] p-10 flex flex-col items-center text-center relative overflow-hidden">
+              <div className="w-full h-full border-[8px] border-double border-[#c5a059] p-8 flex flex-col items-center text-center relative overflow-hidden">
                 
                 <i className="fa-solid fa-mountain-sun absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[350px] text-[#c5a059] opacity-[0.04]"></i>
 
-                <div className="flex-grow flex flex-col items-center justify-center relative z-10 w-full">
-                  <p className="text-[#c5a059] font-black tracking-[0.4em] uppercase text-sm mb-8 mt-4">
+                {/* 🔴 Content Area (Spacing Reduced) */}
+                <div className="flex-grow flex flex-col items-center justify-center relative z-10 w-full mt-2">
+                  <p className="text-[#c5a059] font-black tracking-[0.4em] uppercase text-xs mb-4">
                     Cuet Adventure Society (CAS)
                   </p>
 
-                  <h1 className="font-playfair font-black text-[64px] text-[#2c3e50] mb-6">
+                  <h1 className="font-playfair font-black text-[56px] text-[#2c3e50] mb-4">
                     Certificate of Achievement
                   </h1>
 
-                  <p className="font-playfair text-2xl text-gray-600 italic mb-8">
+                  <p className="font-playfair text-xl text-gray-600 italic mb-4">
                     This is proudly presented to
                   </p>
 
-                  <h2 className="font-vibes text-[80px] leading-none text-[#1a1a1a] mb-8 border-b-[3px] border-[#c5a059]/40 px-16 pb-4">
+                  <h2 className="font-vibes text-[72px] leading-none text-[#1a1a1a] mb-6 border-b-[3px] border-[#c5a059]/40 px-16 pb-2">
                     {profile?.full_name || 'Valiant Explorer'}
                   </h2>
 
-                  <p className="font-playfair text-xl text-gray-700 max-w-4xl mx-auto leading-relaxed mb-8 px-4">
+                  <p className="font-playfair text-lg text-gray-700 max-w-4xl mx-auto leading-relaxed mb-6 px-4">
                     For demonstrating outstanding resilience, unyielding endurance, and conquering the hardcore standards of the society by {activeCert.achievementStr} to earn the prestigious title of
                   </p>
 
-                  <h3 className="text-3xl text-[#c5a059] font-black tracking-[0.2em] uppercase mb-10">
+                  <h3 className="text-2xl text-[#c5a059] font-black tracking-[0.2em] uppercase mb-8">
                     {activeCert.name}
                   </h3>
 
-                  <div className="flex items-center justify-center gap-4 mb-8">
+                  <div className="flex items-center justify-center gap-4 mb-2">
                     <div className="h-[2px] w-12 bg-[#c5a059]"></div>
-                    <p className="text-sm font-bold tracking-widest text-gray-500 uppercase">{new Date().toLocaleDateString('en-GB')}</p>
+                    <p className="text-xs font-bold tracking-widest text-gray-500 uppercase">{new Date().toLocaleDateString('en-GB')}</p>
                     <div className="h-[2px] w-12 bg-[#c5a059]"></div>
                   </div>
                 </div>
 
-                {/* 🔴 Fixed Signature Area: Placed perfectly at the bottom without cutting off */}
-                <div className="w-full flex justify-between items-end px-12 pb-6 relative z-10 mt-auto">
+                {/* 🔴 Signature Area with PNG Support */}
+                <div className="w-full flex justify-between items-end px-16 pb-2 relative z-10 h-28 shrink-0">
                   
-                  <div className="flex flex-col items-center w-64">
-                    <div className="h-16 flex flex-col justify-end">
-                      <span className="font-vibes text-4xl text-gray-800 opacity-80 -mb-2">Signature</span>
+                  {/* Left Signature */}
+                  <div className="flex flex-col items-center w-56">
+                    <div className="h-16 flex items-end justify-center mb-1 w-full">
+                      {/* PNG Signature - mix-blend-multiply added to make white backgrounds transparent */}
+                      <img 
+                        src="/signatures/leader-1.png" 
+                        alt="Signature" 
+                        className="max-h-14 w-auto object-contain mix-blend-multiply opacity-90" 
+                        onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<span class="font-vibes text-4xl text-gray-800 opacity-40">Signature</span>'; }} 
+                      />
                     </div>
-                    <div className="w-full border-t-[1.5px] border-gray-400 mt-2 pt-2">
-                      <p className="text-xs font-black uppercase tracking-widest text-gray-600">Founder Team Leader</p>
+                    <div className="w-full border-t-[1.5px] border-gray-400 pt-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-600">Founder Team Leader</p>
                     </div>
                   </div>
                   
-                  <div className="flex flex-col items-center relative pb-2">
-                    <div className="w-24 h-24 rounded-full border-4 border-[#c5a059] flex items-center justify-center bg-[#f4ebd8] shadow-md text-[#c5a059] relative z-20">
-                      <i className={`fa-solid ${activeCert.icon} text-4xl`}></i>
+                  {/* Center Badge */}
+                  <div className="flex flex-col items-center relative -top-2">
+                    <div className="w-20 h-20 rounded-full border-[3px] border-[#c5a059] flex items-center justify-center bg-[#f4ebd8] shadow-md text-[#c5a059] relative z-20">
+                      <i className={`fa-solid ${activeCert.icon} text-3xl`}></i>
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-center w-64">
-                    <div className="h-16 flex flex-col justify-end">
-                      <span className="font-vibes text-4xl text-gray-800 opacity-80 -mb-2">Signature</span>
+                  {/* Right Signature */}
+                  <div className="flex flex-col items-center w-56">
+                    <div className="h-16 flex items-end justify-center mb-1 w-full">
+                      <img 
+                        src="/signatures/leader-2.png" 
+                        alt="Signature" 
+                        className="max-h-14 w-auto object-contain mix-blend-multiply opacity-90" 
+                        onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<span class="font-vibes text-4xl text-gray-800 opacity-40">Signature</span>'; }} 
+                      />
                     </div>
-                    <div className="w-full border-t-[1.5px] border-gray-400 mt-2 pt-2">
-                      <p className="text-xs font-black uppercase tracking-widest text-gray-600">Founder Team Leader</p>
+                    <div className="w-full border-t-[1.5px] border-gray-400 pt-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-600">Founder Team Leader</p>
                     </div>
                   </div>
 
