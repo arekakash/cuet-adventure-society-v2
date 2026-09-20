@@ -131,19 +131,20 @@ export default function HomePage() {
           <div className="absolute inset-0 border-[2px] border-campfire/40 rounded-[2.5rem] pointer-events-none z-30 shadow-[inset_0_0_50px_rgba(231,111,81,0.2)]"></div>
           <div className="absolute inset-2 border border-white/20 rounded-[2rem] pointer-events-none z-30"></div>
 
-          {/* 🔴 Slider Images Engine */}
+                    {/* 🔴 Slider Images Engine */}
           <div className="absolute inset-2 rounded-[2rem] overflow-hidden bg-[#0a1c13]">
             {sliders.map((slide, index) => (
               <img 
                 key={slide.id}
                 src={slide.image_url} 
                 alt={`Slider ${index + 1}`} 
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1500 ease-in-out transform ${index === currentSlide ? 'opacity-100 scale-105' : 'opacity-0 scale-100'}`} 
+                className={`absolute inset-0 w-full h-full object-cover transition-all duration-[1500ms] ease-in-out will-change-transform ${index === currentSlide ? 'opacity-100 scale-105 z-10' : 'opacity-0 scale-100 z-0'}`} 
               />
             ))}
             {/* Dark Overlay for Text Readability */}
-            <div className="absolute inset-0 bg-gradient-to-b from-[#030705]/60 via-[#0a1c13]/70 to-[#030705]/90 z-10"></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-[#030705]/60 via-[#0a1c13]/70 to-[#030705]/90 z-20 pointer-events-none"></div>
           </div>
+
 
           {/* Hero Content Overlay */}
           <div className="relative z-20 h-full flex flex-col items-center justify-center text-center px-6" data-aos="zoom-out" data-aos-duration="1500">
