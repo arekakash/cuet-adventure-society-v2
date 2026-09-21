@@ -87,9 +87,11 @@ export default function SignupPage() {
     }
   }
 
-  // Manual Signup Logic
+  // Manual Signup Logic (🔴 Updated with CUET ID Validation & Server Check)
   const handleSignup = async (e) => {
     e.preventDefault()
+    
+    // ১. পাসওয়ার্ড ভ্যালিডেশন
     if (formData.password !== formData.confirmPassword) {
       alert('পাসওয়ার্ড দুটি মিলছে না! দয়া করে আবার চেক করুন।')
       return
@@ -99,12 +101,42 @@ export default function SignupPage() {
       return
     }
 
+    // ২. চুয়েট আইডি ফরম্যাট এবং ডিপার্টমেন্ট কোড ভ্যালিডেশন
+    const studentId = formData.studentId.trim()
+    const validDeptCodes = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
+    
+    if (studentId.length !== 7 || isNaN(studentId)) {
+      alert('⚠️ ইনভ্যালিড চুয়েট আইডি! স্টুডেন্ট আইডি অবশ্যই ৭ ডিজিটের নাম্বার হতে হবে (যেমন: 2101001)।')
+      return
+    }
+
+    const deptCode = studentId.substring(2, 4) // মাঝের ২ ডিজিট
+    if (!validDeptCodes.includes(deptCode)) {
+      alert(`⚠️ ইনভ্যালিড আইডি! '${deptCode}' নামে চুয়েটে কোনো ডিপার্টমেন্ট কোড নেই। দয়া করে সঠিক স্টুডেন্ট আইডি দিন।`)
+      return
+    }
+
     setLoading(true)
     try {
+      // ৩. সার্ভারে চেক করা আইডিটি আগে ব্যবহৃত হয়েছে কিনা
+      const { data: existingUser, error: checkError } = await supabase
+        .from('profiles')
+        .select('student_id')
+        .eq('student_id', studentId)
+        .single()
+
+      if (existingUser) {
+        alert('❌ এই স্টুডেন্ট আইডি দিয়ে ইতোমধ্যে একটি অ্যাকাউন্ট খোলা হয়েছে! দয়া করে লগইন করুন।')
+        setLoading(false)
+        return
+      }
+
+      // ৪. নতুন অ্যাকাউন্ট তৈরি
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       })
+      
       if (authError) throw authError
 
       const user = authData.user
@@ -113,7 +145,7 @@ export default function SignupPage() {
           {
             id: user.id,
             full_name: formData.fullName,
-            student_id: formData.studentId,
+            student_id: studentId,
             email: formData.email,
             phone: formData.phone,
             department: formData.department.toUpperCase(),
@@ -132,16 +164,17 @@ export default function SignupPage() {
             role: 'explorer'
           }
         ])
+        
         if (profileError) throw profileError
 
-        alert('অ্যাডভেঞ্চার অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে!')
+        alert('✅ অ্যাডভেঞ্চার অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে!')
         router.push('/dashboard')
       }
     } catch (error) {
       if (error.message.includes('JWT') || error.message.includes('future') || error.message.includes('expired')) {
         alert(
           '⚠️ আপনার ডিভাইসের ঘড়ির সময় সঠিক নেই!\n\n' +
-          'দয়া করে আপনার মোবাইলের বা কম্পিউটারের সেটিংসে গিয়ে "Automatic Date & Time" (Network Time) চালু করুন এবং পেজটি রিলোড দিয়ে আবার চেষ্টা করুন। ঘড়ির সময় ঠিক না থাকলে নিরাপত্তার কারণে অ্যাকাউন্ট তৈরি করা যায় না।'
+          'দয়া করে আপনার মোবাইলের বা কম্পিউটারের সেটিংসে গিয়ে "Automatic Date & Time" (Network Time) চালু করুন এবং পেজটি রিলোড দিয়ে আবার চেষ্টা করুন।'
         );
       } else {
         alert('সমস্যা হয়েছে: ' + error.message)
@@ -150,6 +183,7 @@ export default function SignupPage() {
       setLoading(false)
     }
   }
+
 
   return (
     <div className="max-w-6xl w-full mx-auto mt-12 mb-12 glass-panel rounded-[2rem] shadow-[0_0_20px_rgba(231,111,81,0.1)] overflow-hidden flex flex-col md:flex-row relative z-10 border border-white/10" data-aos="zoom-in">
