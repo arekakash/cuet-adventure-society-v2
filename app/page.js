@@ -114,7 +114,7 @@ export default function HomePage() {
     }
   };
 
-  return (
+    return (
     <main className="bg-[#030705] text-gray-300 font-sans antialiased overflow-x-hidden min-h-screen flex flex-col">
       
       {/* CSS for Marquee Scrolling Text */}
@@ -131,23 +131,32 @@ export default function HomePage() {
       `}} />
 
       {/* 🔴 1. 16:9 Slider Banner Section (Ultra-Lightweight, Horizontal Slide) */}
-      <section className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-black overflow-hidden mt-16 shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
+      <section className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-[#0a1c13] overflow-hidden mt-16 shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
         
         {/* Sliding Flex Container */}
         <div 
           className="flex w-full h-full transition-transform duration-[1200ms] ease-in-out will-change-transform"
           style={{ transform: `translateX(-${currentSlide * 100}%)` }}
         >
-          {sliders.map((slide) => (
-            <div key={slide.id} className="min-w-full h-full relative shrink-0">
-              <img 
-                src={slide.image_url} 
-                alt={`Slide ${slide.id}`} 
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
+          {/* Skeleton Loader (When sliders are fetching from Supabase) */}
+          {sliders.length === 0 ? (
+            <div className="min-w-full h-full flex items-center justify-center bg-[#050b08] animate-pulse">
+               <i className="fa-solid fa-mountain-sun text-6xl text-gray-700/50"></i>
             </div>
-          ))}
+          ) : (
+            sliders.map((slide, index) => (
+              <div key={slide.id} className="min-w-full h-full relative shrink-0">
+                <img 
+                  src={slide.image_url} 
+                  alt={`Slide ${slide.id}`} 
+                  className="w-full h-full object-cover bg-[#050b08]"
+                  /* 🔴 Magic Fix: First image loads instantly, others wait */
+                  loading={index === 0 ? "eager" : "lazy"}
+                  fetchPriority={index === 0 ? "high" : "auto"}
+                />
+              </div>
+            ))
+          )}
         </div>
 
         {/* 🔴 2. Minimal Admin Panel Trigger */}
@@ -162,6 +171,7 @@ export default function HomePage() {
           </div>
         )}
       </section>
+
 
       {/* 🔴 4. Scrolling Ticker (Marquee) */}
       <div className="bg-[#e76f51] text-[#030705] py-2 overflow-hidden flex items-center border-y border-yellow-500/30 shadow-md relative z-20">
