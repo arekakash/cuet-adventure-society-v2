@@ -12,6 +12,7 @@ export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   
   // Admin Edit States
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
@@ -23,18 +24,17 @@ export default function HomePage() {
   const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23'; 
 
   useEffect(() => {
-    // AOS ইনিশিয়ালাইজেশন
     AOS.init({ once: true, offset: 50 });
     checkAdminStatus();
     fetchSliders();
   }, []);
 
-  // ৩.৫ সেকেন্ড পরপর সিম্পল স্লাইডার (কোনো জুম/স্কেল নেই, শুধু ফেড ইন/আউট)
+  // ৩ সেকেন্ড পরপর স্লাইড (Horizontal Translation)
   useEffect(() => {
     if (sliders.length === 0) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % sliders.length);
-    }, 3500);
+    }, 3000);
     return () => clearInterval(timer);
   }, [sliders]);
 
@@ -59,6 +59,7 @@ export default function HomePage() {
         setImageSrc(reader.result);
         setEditingId(id);
         setIsEditModalOpen(true);
+        setIsAdminPanelOpen(false); // Close thumbnail panel when cropping starts
       };
       reader.readAsDataURL(file);
     }
@@ -102,7 +103,7 @@ export default function HomePage() {
       const newUrl = imgbbData.data.url;
       await supabase.from('hero_sliders').update({ image_url: newUrl }).eq('id', editingId);
 
-      alert("ছবি সফলভাবে আপডেট এবং কম্প্রেস করা হয়েছে!");
+      alert("ছবি সফলভাবে আপডেট করা হয়েছে!");
       setIsEditModalOpen(false);
       fetchSliders(); 
     } catch (error) {
@@ -114,130 +115,218 @@ export default function HomePage() {
   };
 
   return (
-    <main className="bg-[#030705] text-gray-300 font-sans antialiased selection:bg-campfire selection:text-white min-h-screen">
+    <main className="bg-[#030705] text-gray-300 font-sans antialiased overflow-x-hidden min-h-screen flex flex-col">
       
-      {/* 🔴 Clean, Fast & Lightweight Top Banner Section */}
-      <section className="relative w-full h-[70vh] sm:h-[85vh] bg-black overflow-hidden flex items-center justify-center pt-16">
+      {/* CSS for Marquee Scrolling Text */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes scroll-text {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+          display: inline-block;
+          white-space: nowrap;
+          animation: scroll-text 20s linear infinite;
+        }
+      `}} />
+
+      {/* 🔴 1. 16:9 Slider Banner Section (Ultra-Lightweight, Horizontal Slide) */}
+      <section className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-black overflow-hidden mt-16 shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
         
-        {/* Simple Slider Logic (Hardware Accelerated, No Scale/Zoom) */}
-        {sliders.map((slide, index) => (
-          <img 
-            key={slide.id}
-            src={slide.image_url} 
-            alt={`Banner ${index + 1}`} 
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-linear ${index === currentSlide ? 'opacity-100 z-0' : 'opacity-0 z-[-1]'}`} 
-          />
-        ))}
+        {/* Sliding Flex Container */}
+        <div 
+          className="flex w-full h-full transition-transform duration-[1200ms] ease-in-out will-change-transform"
+          style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+        >
+          {sliders.map((slide) => (
+            <div key={slide.id} className="min-w-full h-full relative shrink-0">
+              <img 
+                src={slide.image_url} 
+                alt={`Slide ${slide.id}`} 
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          ))}
+        </div>
 
-        {/* Lightweight Dark Tint just for Text Readability (No heavy blur) */}
-        <div className="absolute inset-0 bg-black/50 z-10"></div>
+        {/* 🔴 2. Minimal Admin Panel Trigger */}
+        {isAdmin && (
+          <div className="absolute top-4 right-4 z-30">
+            <button 
+              onClick={() => setIsAdminPanelOpen(true)}
+              className="bg-black/60 hover:bg-[#e76f51] backdrop-blur-md text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-lg border border-white/20"
+            >
+              <i className="fa-solid fa-gear"></i>
+            </button>
+          </div>
+        )}
+      </section>
 
-        {/* Hero Content */}
-        <div className="relative z-20 text-center px-4 max-w-4xl mx-auto" data-aos="fade-up" data-aos-duration="1000">
-          <div className="inline-block px-5 py-2 rounded-full border border-campfire/30 text-campfire font-bold text-xs sm:text-sm mb-6 tracking-widest bg-black/60">
-            <i className="fa-solid fa-fire mr-2"></i> <span>২০১৫ সাল থেকে পথচলা</span>
+      {/* 🔴 4. Scrolling Ticker (Marquee) */}
+      <div className="bg-[#e76f51] text-[#030705] py-2 overflow-hidden flex items-center border-y border-yellow-500/30 shadow-md relative z-20">
+        <div className="whitespace-nowrap w-full">
+          <span className="animate-marquee font-bold text-xs sm:text-sm tracking-wide">
+            <i className="fa-solid fa-bolt mr-2"></i> চুয়েট এডভেঞ্চার সোসাইটি একটি সম্পূর্ণ অলাভজনক এবং অরাজনৈতিক প্রতিষ্ঠান, শুধুমাত্র ভ্রমণের মাধ্যমে নিখাদ আনন্দ লাভ আমাদের একমাত্র উদ্দেশ্য। <i className="fa-solid fa-bolt ml-2"></i>
+          </span>
+        </div>
+      </div>
+
+      {/* 🔴 3. Text & Content Section (Separated from Images) */}
+      <section className="py-16 sm:py-24 px-6 relative z-10">
+        <div className="max-w-4xl mx-auto text-center" data-aos="fade-up">
+          <div className="inline-block px-4 py-1.5 rounded-full border border-gray-700 text-gray-400 font-bold text-xs sm:text-sm mb-8 bg-white/5">
+            <i className="fa-solid fa-fire text-[#e76f51] mr-2"></i> ২০১৫ সাল থেকে পথচলা
           </div>
           
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black leading-tight tracking-tighter mb-6 text-white drop-shadow-lg">
-            চুয়েট অ্যাডভেঞ্চার <br />সোসাইটি
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black leading-tight tracking-tighter mb-8 text-white">
+            চুয়েট অ্যাডভেঞ্চার <span className="text-[#e76f51]">সোসাইটি</span>
           </h1>
           
-          <p className="text-lg sm:text-xl text-gray-200 font-medium mb-10 max-w-2xl mx-auto leading-relaxed drop-shadow-md">
+          <p className="text-base sm:text-xl text-gray-400 font-medium mb-12 max-w-2xl mx-auto leading-relaxed">
             পাহাড়ের গহীনে, মেঘের চূড়ায় কিংবা অরণ্যের গভীরে—চুয়েটিয়ানদের পদচারণায় জেগে উঠুক নতুন ট্রেইল।
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link href="/signup" className="w-full sm:w-auto bg-campfire hover:bg-orange-600 px-8 py-4 rounded-xl font-black transition-colors flex items-center justify-center gap-3 text-lg text-white">
-              <i className="fa-solid fa-shoe-prints"></i> <span>এক্সপ্লোর শুরু করুন</span>
+            <Link href="/signup" className="w-full sm:w-auto bg-[#e76f51] hover:bg-orange-600 px-8 py-3.5 rounded-xl font-black transition-colors flex items-center justify-center gap-3 text-white shadow-lg">
+              <i className="fa-solid fa-shoe-prints"></i> এক্সপ্লোর শুরু করুন
             </Link>
-            <Link href="/login" className="w-full sm:w-auto bg-black/60 hover:bg-black/80 border border-white/20 text-white px-8 py-4 rounded-xl font-bold transition-colors flex items-center justify-center gap-3 text-lg">
-              <i className="fa-solid fa-right-to-bracket text-gray-400"></i> <span>লগইন</span>
+            <Link href="/login" className="w-full sm:w-auto bg-[#0a1c13] hover:bg-[#0d261a] border border-emerald-900/50 text-white px-8 py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-3 shadow-lg">
+              <i className="fa-solid fa-right-to-bracket text-emerald-500"></i> লগইন
             </Link>
           </div>
         </div>
+      </section>
 
-        {/* Admin Edit Panel Overlay (Always visible on mobile for Admins) */}
-        {isAdmin && (
-          <div className="absolute top-20 right-4 sm:right-6 z-30 bg-black/80 border border-campfire p-3 rounded-xl shadow-xl flex flex-col gap-2">
-            <p className="text-[10px] text-campfire font-bold uppercase tracking-widest text-center mb-1 border-b border-campfire/30 pb-1">ব্যানার এডিট</p>
-            <div className="flex gap-2">
+      {/* Original Features Section */}
+      <section className="py-12 sm:py-20 max-w-5xl mx-auto px-6 relative z-10 border-t border-white/5">
+        <div className="space-y-16 sm:space-y-24">
+          
+          <div data-aos="fade-up" className="text-center">
+            <i className="fa-solid fa-quote-left text-3xl text-gray-700 mb-4"></i>
+            <p className="font-bold text-white text-xl sm:text-3xl leading-tight">পাহাড় আর সমুদ্রের সীমানায় আমরা—<span className="text-[#e76f51]">চুয়েটিয়ান!</span></p>
+            <p className="mt-3 text-sm sm:text-base font-medium text-gray-500">দেশের সবচেয়ে সুন্দর রুটগুলো যাদের ক্যাম্পাসের ঠিক দোরগোড়ায়.</p>
+          </div>
+
+          <div data-aos="fade-up" className="grid sm:grid-cols-3 gap-6">
+            <div className="bg-[#0a1c13] p-6 rounded-2xl border border-white/5 hover:border-emerald-500/30 transition-colors">
+              <i className="fa-solid fa-calendar-check text-3xl text-emerald-500 mb-4"></i>
+              <h4 className="font-bold text-white mb-2">নিয়মিত ট্যুর</h4>
+              <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">প্রতি মাসেই আয়োজন করা হয় দারুণ সব রোমাঞ্চকর ট্যুর।</p>
+            </div>
+            <div className="bg-[#0a1c13] p-6 rounded-2xl border border-white/5 hover:border-[#e76f51]/30 transition-colors">
+              <i className="fa-solid fa-map-location-dot text-3xl text-[#e76f51] mb-4"></i>
+              <h4 className="font-bold text-white mb-2">হিডেন স্পট শেয়ারিং</h4>
+              <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">ক্যাম্পাসের আশপাশের অজানা ঝিরি বা পাহাড় খুঁজে পেলে শেয়ার করুন।</p>
+            </div>
+            <div className="bg-[#0a1c13] p-6 rounded-2xl border border-white/5 hover:border-blue-400/30 transition-colors">
+              <i className="fa-solid fa-people-group text-3xl text-blue-400 mb-4"></i>
+              <h4 className="font-bold text-white mb-2">কমিউনিটি পাওয়ার</h4>
+              <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">একাকী ভ্রমণ নয়, দল বেঁধে ঘুরে বেড়ানোর নিখাদ আনন্দ।</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 🔴 6. 3D Floating Social Links Section */}
+      <section className="py-16 sm:py-24 bg-[#050b08] border-t border-white/5 relative z-10 px-6">
+        <div className="max-w-5xl mx-auto text-center">
+          <h3 className="text-2xl sm:text-4xl font-black text-white mb-4">আমাদের সাথে <span className="text-[#e76f51]">যুক্ত হোন</span></h3>
+          <p className="text-gray-400 text-sm mb-12">কমিউনিটির সব আপডেট পেতে সোশ্যাল মিডিয়ায় ফলো করুন</p>
+          
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+            
+            {/* FB Page */}
+            <a href="https://www.facebook.com/share/1PoWHdyPeV/" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(24,119,242,0.2)] hover:border-[#1877F2]/50">
+              <i className="fa-brands fa-facebook text-3xl text-gray-500 group-hover:text-[#1877F2] transition-colors mb-2"></i>
+              <span className="text-xs font-bold text-gray-300 group-hover:text-white">FB Page</span>
+            </a>
+
+            {/* FB Group */}
+            <a href="https://NzNlfacebook.com/share/g/1JGXYcNPhC/" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(24,119,242,0.2)] hover:border-[#1877F2]/50">
+              <i className="fa-solid fa-users text-3xl text-gray-500 group-hover:text-[#1877F2] transition-colors mb-2"></i>
+              <span className="text-xs font-bold text-gray-300 group-hover:text-white">FB Group</span>
+            </a>
+
+            {/* Instagram */}
+            <a href="https://www.instagram.com/cuet_adventure_society?stkn=bnlxbnA3aG4zOTg3" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(225,48,108,0.2)] hover:border-[#E1306C]/50">
+              <i className="fa-brands fa-instagram text-3xl text-gray-500 group-hover:text-[#E1306C] transition-colors mb-2"></i>
+              <span className="text-xs font-bold text-gray-300 group-hover:text-white">Instagram</span>
+            </a>
+
+            {/* Insta Chat */}
+            <a href="https://ig.me/j/neGUu-76jpsZK6Pv/" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(131,58,180,0.2)] hover:border-[#833AB4]/50">
+              <i className="fa-regular fa-comment-dots text-3xl text-gray-500 group-hover:text-[#833AB4] transition-colors mb-2"></i>
+              <span className="text-xs font-bold text-gray-300 group-hover:text-white">Insta Chat</span>
+            </a>
+
+            {/* WhatsApp */}
+            <a href="https://chat.whatsapp.com/ETpX1KFvtqeL6bHqzEvmxy" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(37,211,102,0.2)] hover:border-[#25D366]/50">
+              <i className="fa-brands fa-whatsapp text-3xl text-gray-500 group-hover:text-[#25D366] transition-colors mb-2"></i>
+              <span className="text-xs font-bold text-gray-300 group-hover:text-white">WhatsApp</span>
+            </a>
+
+            {/* Telegram */}
+            <a href="https://t.me/+-CZ_HsryVLA1NzNl" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(0,136,204,0.2)] hover:border-[#0088cc]/50">
+              <i className="fa-brands fa-telegram text-3xl text-gray-500 group-hover:text-[#0088cc] transition-colors mb-2"></i>
+              <span className="text-xs font-bold text-gray-300 group-hover:text-white">Telegram</span>
+            </a>
+
+            {/* Messenger */}
+            <a href="https://m.me/j/wU6N1jDd8iNDP_ea/?send_source=gc%3Acopy_invite_link_t" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(0,106,255,0.2)] hover:border-[#006AFF]/50">
+              <i className="fa-brands fa-facebook-messenger text-3xl text-gray-500 group-hover:text-[#006AFF] transition-colors mb-2"></i>
+              <span className="text-xs font-bold text-gray-300 group-hover:text-white">Messenger</span>
+            </a>
+
+          </div>
+        </div>
+      </section>
+
+      {/* 🔴 5. Formal Copyright Footer */}
+      <footer className="mt-auto bg-[#020504] border-t border-white/10 py-8 px-6 text-center">
+        <div className="max-w-4xl mx-auto flex flex-col items-center">
+          <div className="text-2xl font-black tracking-widest text-white mb-2">
+            <span className="text-[#e76f51]">C</span>UET <span className="text-[#e76f51]">A</span>S
+          </div>
+          <p className="text-xs text-gray-500 mb-1">
+            © {new Date().getFullYear()} CUET Adventure Society. সর্বস্বত্ব সংরক্ষিত।
+          </p>
+          <p className="text-[10px] text-gray-600">
+            Design & Developed for the explorers, by the explorers.
+          </p>
+        </div>
+      </footer>
+
+      {/* 🔴 Admin Thumbnail Selection Modal */}
+      {isAdminPanelOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={(e) => {if(e.target === e.currentTarget) setIsAdminPanelOpen(false)}}>
+          <div className="bg-[#0a1c13] border border-white/10 rounded-2xl p-6 w-full max-w-2xl shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-white font-bold"><i className="fa-solid fa-images text-[#e76f51] mr-2"></i> ব্যানার স্লাইডার এডিট</h3>
+              <button onClick={() => setIsAdminPanelOpen(false)} className="text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <p className="text-xs text-gray-400 mb-4">যেকোনো একটি ছবিতে ক্লিক করে নতুন ছবি সিলেক্ট করুন (১৬:৯ রেশিও):</p>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {sliders.map((slide, i) => (
-                <label key={slide.id} className={`w-8 h-8 rounded-lg border flex items-center justify-center cursor-pointer transition-colors ${currentSlide === i ? 'bg-campfire text-white border-campfire' : 'bg-[#0a1c13] text-gray-400 border-white/20'}`}>
-                  <span className="text-xs font-black">{i + 1}</span>
+                <label key={slide.id} className="relative aspect-video rounded-lg overflow-hidden border-2 border-white/10 hover:border-[#e76f51] cursor-pointer group">
+                  <img src={slide.image_url} alt="Thumb" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-transparent transition-colors">
+                    <span className="bg-black/80 text-white text-xs font-bold px-2 py-1 rounded">Slide {i + 1}</span>
+                  </div>
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageSelect(e, slide.id)} />
                 </label>
               ))}
             </div>
           </div>
-        )}
-      </section>
-
-      {/* 🔴 Cleaned Up Content Sections (Removed lag-inducing blurs) */}
-      <section className="py-20 sm:py-28 max-w-4xl mx-auto px-6 relative z-10 bg-[#030705]">
-        <div className="space-y-16 sm:space-y-24 text-lg sm:text-xl md:text-2xl leading-relaxed text-gray-200 font-light">
-          
-          <div data-aos="fade-up" className="text-center">
-            <i className="fa-solid fa-quote-left text-4xl text-gray-700 mb-6"></i>
-            <p className="font-bold text-white text-2xl sm:text-4xl leading-tight">পাহাড় আর সমুদ্রের সীমানায় আমরা—<span className="text-campfire">চুয়েটিয়ান!</span></p>
-            <p className="mt-4 font-medium text-gray-400">দেশের সবচেয়ে সুন্দর রুটগুলো যাদের ক্যাম্পাসের ঠিক দোরগোড়ায়.</p>
-          </div>
-
-          <div data-aos="fade-up" className="border-l-4 border-trail pl-6 sm:pl-8 py-2 bg-white/5 rounded-r-2xl p-4">
-            <p className="font-medium text-white">কখনো ভেবে দেখেছেন, ক্যাম্পাস লোকেশনের দিক থেকে আমরা চুয়েটিয়ানরা কতটা ভাগ্যবান?</p>
-            <p className="mt-4 text-gray-400 text-base sm:text-lg">রাউজানের পাশেই রাঙ্গুনিয়া, আর তার পরই রাঙামাটির নীল জল ও পাহাড়। লিচুবাগান থেকে অল্প দূরত্বেই মেঘের দেশ বান্দরবান, কাছেই খাগড়াছড়ির সবুজ উপত্যকা আর একদিকে বঙ্গোপসাগরের উত্তাল ঢেউ।</p>
-          </div>
-
-          <div data-aos="fade-up" className="bg-[#0a1c13] p-8 sm:p-12 rounded-2xl border border-white/5">
-            <p className="font-bold text-campfire mb-6 text-xl sm:text-2xl">ঘুরতে যাওয়ার ইচ্ছে সবারই থাকে, কিন্তু...</p>
-            <ul className="space-y-4 text-base sm:text-lg font-medium list-none text-gray-300">
-              <li className="flex items-start gap-4"><i className="fa-solid fa-circle-xmark text-red-500 mt-1.5 opacity-70"></i> <span>পর্যাপ্ত যোগাযোগ বা সঠিক প্ল্যানিংয়ের অভাব?</span></li>
-              <li className="flex items-start gap-4"><i className="fa-solid fa-circle-xmark text-red-500 mt-1.5 opacity-70"></i> <span>একা একা ঘুরতে ভালো লাগে ঘন জঙ্গলে?</span></li>
-              <li className="flex items-start gap-4"><i className="fa-solid fa-circle-xmark text-red-500 mt-1.5 opacity-70"></i> <span>ছুটির দিনে ট্রাভেল পার্টনার খুঁজে পান না?</span></li>
-            </ul>
-            <div className="mt-10 pt-8 border-t border-white/10">
-              <p className="font-bold text-white text-xl sm:text-2xl">আর কোনো অজুহাত নয়!</p>
-              <p className="mt-2 text-base sm:text-lg font-medium text-gray-400">ভ্রমণপিপাসু চুয়েটিয়ানদের এক ছাদের নিচে আনতেই আমাদের এই প্ল্যাটফর্ম। একা নন, এবার পুরো ক্যাম্পাসের ট্রাভেলাররা আপনার সাথে।</p>
-            </div>
-          </div>
-
-          <div data-aos="fade-up">
-            <h3 className="text-2xl sm:text-3xl font-black text-white mb-10 text-center uppercase tracking-widest"><span className="text-trail">আমাদের</span> বিশেষত্ব</h3>
-            <div className="grid sm:grid-cols-3 gap-6 sm:gap-8 text-base">
-              <div className="bg-[#0a1c13] p-8 rounded-2xl border border-white/5 transition-colors hover:border-trail/50">
-                <i className="fa-solid fa-calendar-check text-4xl text-trail mb-6"></i>
-                <h4 className="font-bold text-white mb-3 text-lg">নিয়মিত ট্যুর</h4>
-                <p className="text-sm text-gray-400 font-medium leading-relaxed">প্রতি মাসেই আয়োজন করা হয় দারুণ সব রোমাঞ্চকর ট্যুর।</p>
-              </div>
-              <div className="bg-[#0a1c13] p-8 rounded-2xl border border-white/5 transition-colors hover:border-campfire/50">
-                <i className="fa-solid fa-map-location-dot text-4xl text-campfire mb-6"></i>
-                <h4 className="font-bold text-white mb-3 text-lg">হিডেন স্পট শেয়ারিং</h4>
-                <p className="text-sm text-gray-400 font-medium leading-relaxed">ক্যাম্পাসের আশপাশের অজানা ঝিরি বা পাহাড় খুঁজে পেলে শেয়ার করুন।</p>
-              </div>
-              <div className="bg-[#0a1c13] p-8 rounded-2xl border border-white/5 transition-colors hover:border-blue-400/50">
-                <i className="fa-solid fa-people-group text-4xl text-blue-400 mb-6"></i>
-                <h4 className="font-bold text-white mb-3 text-lg">কমিউনিটি পাওয়ার</h4>
-                <p className="text-sm text-gray-400 font-medium leading-relaxed">একাকী ভ্রমণ নয়, দল বেঁধে ঘুরে বেড়ানোর নিখাদ আনন্দ।</p>
-              </div>
-            </div>
-          </div>
-
-          <div data-aos="fade-up" className="text-center pt-16">
-            <p className="font-black text-3xl sm:text-4xl text-white mb-6">প্রস্তুত তো পরবর্তী রোমাঞ্চের জন্য?</p>
-            <p className="text-base sm:text-lg font-medium mb-10 max-w-2xl mx-auto text-gray-400">যুক্ত হোন আমাদের কমিউনিটিতে, অংশ নিন আগামী ট্যুরে এবং উপভোগ করুন বাংলার সেরা প্রাকৃতিক সৌন্দর্য।</p>
-            
-            <div className="flex justify-center items-center">
-              <Link href="/signup" className="inline-flex items-center justify-center gap-3 bg-campfire hover:bg-orange-600 text-white px-10 py-4 rounded-xl font-black text-lg transition-colors">
-                <i className="fa-solid fa-compass"></i> <span>জয়েন করুন</span>
-              </Link>
-            </div>
-          </div>
-
         </div>
-      </section>
+      )}
 
-      {/* 🔴 Admin Image Cropper Modal (Unchanged & Fast) */}
+      {/* 🔴 Admin Image Cropper Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-[#030705]">
+        <div className="fixed inset-0 z-[110] flex flex-col bg-[#030705]">
           <div className="relative flex-grow">
             <Cropper
               image={imageSrc}
@@ -259,14 +348,14 @@ export default function HomePage() {
               max={3} 
               step={0.1} 
               onChange={(e) => setZoom(Number(e.target.value))} 
-              className="w-full accent-campfire"
+              className="w-full accent-[#e76f51]"
             />
             <i className="fa-solid fa-magnifying-glass-plus text-gray-400"></i>
           </div>
 
           <div className="pb-8 pt-4 bg-[#0a1c13] flex items-center justify-between px-6 border-t border-black">
-            <button onClick={() => setIsEditModalOpen(false)} className="text-red-400 font-bold hover:bg-red-500/20 px-5 py-3 rounded-xl transition-colors">বাতিল</button>
-            <button onClick={handleCropAndUpload} disabled={isUploading} className="bg-campfire hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold transition-colors flex items-center gap-2">
+            <button onClick={() => {setIsEditModalOpen(false); setIsAdminPanelOpen(true);}} className="text-red-400 font-bold hover:bg-red-500/20 px-5 py-3 rounded-xl transition-colors">বাতিল</button>
+            <button onClick={handleCropAndUpload} disabled={isUploading} className="bg-[#e76f51] hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold transition-colors flex items-center gap-2">
               {isUploading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-crop-simple"></i>}
               {isUploading ? 'সেভ হচ্ছে...' : 'ক্রপ ও সেভ করুন'}
             </button>
