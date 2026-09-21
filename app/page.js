@@ -55,12 +55,12 @@ export default function HomePage() {
     if (data && data.length > 0) setSliders(data);
   };
 
-  // 🔴 নতুন: সুপাবেজ থেকে টপ ৩ লিডার ফেচ করার ফাংশন
+  // 🔴 আপডেট: মোট ইভেন্টের ওপর ভিত্তি করে টপ ৩ জনকে আনা
   const fetchTopLeaders = async () => {
     const { data } = await supabase
       .from('profiles')
-      .select('id, full_name, photo_url, survival_iq')
-      .order('survival_iq', { ascending: false, nullsFirst: false })
+      .select('id, full_name, photo_url, total_events')
+      .order('total_events', { ascending: false, nullsFirst: false })
       .limit(3);
     if (data) setTopLeaders(data);
   };
