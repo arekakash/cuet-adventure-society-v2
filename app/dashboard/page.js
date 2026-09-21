@@ -175,16 +175,47 @@ export default function DashboardPage() {
     }
   }
 
+  // 🔴 Updated handleProfileComplete with CUET ID Validation & Server Check
   const handleProfileComplete = async (e) => {
     e.preventDefault()
+    
+    // ১. চুয়েট আইডি ফরম্যাট এবং ডিপার্টমেন্ট কোড ভ্যালিডেশন
+    const studentIdStr = formData.student_id.toString().trim()
+    const validDeptCodes = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
+    
+    if (studentIdStr.length !== 7 || isNaN(studentIdStr)) {
+      alert('⚠️ ইনভ্যালিড চুয়েট আইডি! স্টুডেন্ট আইডি অবশ্যই ৭ ডিজিটের নাম্বার হতে হবে (যেমন: 2101001)।')
+      return
+    }
+
+    const deptCode = studentIdStr.substring(2, 4) // মাঝের ২ ডিজিট
+    if (!validDeptCodes.includes(deptCode)) {
+      alert(`⚠️ ইনভ্যালিড আইডি! '${deptCode}' নামে চুয়েটে কোনো ডিপার্টমেন্ট কোড নেই। দয়া করে সঠিক স্টুডেন্ট আইডি দিন।`)
+      return
+    }
+
     setUpdating(true)
     try {
+      // ২. সার্ভারে চেক করা আইডিটি আগে ব্যবহৃত হয়েছে কিনা (নিজের আইডি বাদে)
+      const { data: existingUser, error: checkError } = await supabase
+        .from('profiles')
+        .select('id, student_id')
+        .eq('student_id', studentIdStr)
+        .single()
+
+      if (existingUser && existingUser.id !== user.id) {
+        alert('❌ এই স্টুডেন্ট আইডি দিয়ে ইতোমধ্যে অন্য একটি অ্যাকাউন্ট তৈরি করা হয়েছে! দয়া করে আপনার নিজের আইডি দিন।')
+        setUpdating(false)
+        return
+      }
+
+      // ৩. প্রোফাইল আপডেট
       const { error } = await supabase.from('profiles').upsert({
         id: user.id,
         full_name: user.full_name,
         photo_url: user.photo_url,
         role: user.role || 'explorer',
-        student_id: formData.student_id,
+        student_id: studentIdStr,
         phone: formData.phone,
         department: formData.department.toUpperCase(),
         batch: formData.batch,
@@ -199,15 +230,17 @@ export default function DashboardPage() {
         experience_level: formData.experience_level
       })
       if (error) throw error
-      setUser({ ...user, ...formData })
+
+      setUser({ ...user, ...formData, student_id: studentIdStr })
       setShowCompletionForm(false)
-      alert('অ্যাডভেঞ্চার প্রোফাইল সফলভাবে আপডেট হয়েছে!')
+      alert('✅ অ্যাডভেঞ্চার প্রোফাইল সফলভাবে আপডেট হয়েছে!')
     } catch (err) {
       alert('প্রোফাইল আপডেট ফেইল করেছে: ' + err.message)
     } finally {
       setUpdating(false)
     }
   }
+
 
   const getStatusBadge = (status) => {
     switch(status) {
