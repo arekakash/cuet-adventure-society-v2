@@ -12,6 +12,8 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [facebookLoading, setFacebookLoading] = useState(false) // 🔴 ফেসবুকের লোডিং স্টেট
+    const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   
   const [formData, setFormData] = useState({
     fullName: '', studentId: '', email: '', phone: '',
@@ -406,16 +408,51 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-4" data-aos="fade-up" data-aos-delay="950">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-4" data-aos="fade-up" data-aos-delay="950">
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">পাসওয়ার্ড *</label>
-              <input type="password" id="password" required value={formData.password} onChange={handleChange} placeholder="••••••••" className="glass-input w-full text-sm rounded-xl block p-3.5 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  id="password" 
+                  required 
+                  value={formData.password} 
+                  onChange={handleChange} 
+                  placeholder="••••••••" 
+                  className="glass-input w-full text-sm rounded-xl block p-3.5 pr-12 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#e76f51] transition-colors focus:outline-none"
+                >
+                  <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">পুনরায় পাসওয়ার্ড দিন *</label>
-              <input type="password" id="confirmPassword" required value={formData.confirmPassword} onChange={handleChange} placeholder="••••••••" className="glass-input w-full text-sm rounded-xl block p-3.5 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" />
+              <div className="relative">
+                <input 
+                  type={showConfirmPassword ? "text" : "password"} 
+                  id="confirmPassword" 
+                  required 
+                  value={formData.confirmPassword} 
+                  onChange={handleChange} 
+                  placeholder="••••••••" 
+                  className="glass-input w-full text-sm rounded-xl block p-3.5 pr-12 bg-black/40 border border-white/10 text-[#f3f4f6] focus:border-[#e76f51] outline-none" 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#e76f51] transition-colors focus:outline-none"
+                >
+                  <i className={`fa-solid ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                </button>
+              </div>
             </div>
           </div>
+
 
           <div className="pt-6" data-aos="zoom-in" data-aos-delay="1000">
             <button type="submit" disabled={loading} className="w-full bg-[#e76f51] hover:bg-orange-600 text-white font-black text-lg py-4 px-4 rounded-xl transition-all shadow-[0_0_20px_rgba(231,111,81,0.4)] hover:-translate-y-1 flex justify-center items-center gap-2">
