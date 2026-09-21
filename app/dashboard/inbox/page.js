@@ -349,7 +349,7 @@ export default function InboxPage() {
               {sending ? <i className="fa-solid fa-circle-notch fa-spin text-sm"></i> : <i className="fa-solid fa-paper-plane text-sm ml-[-2px]"></i>}
             </button>
           </form>
-          <p className="text-center text-[10px] text-gray-500 mt-2">ছবি বা ফাইল পাঠাতে চাইলে ImgBB তে আপলোড করে লিংক দিন।</p>
+          <p className="text-center text-[10px] text-gray-500 mt-2">ছবি বা ফাইল পাঠানো আপাতত বন্ধ আছে</p>
         </div>
       </div>
     </div>
