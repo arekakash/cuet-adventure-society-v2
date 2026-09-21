@@ -11,6 +11,9 @@ export default function HomePage() {
   const [sliders, setSliders] = useState([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   
+  // 🔴 নতুন: টপ লিডারদের স্টেট
+  const [topLeaders, setTopLeaders] = useState([]);
+  
   // Admin Edit States
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -27,6 +30,7 @@ export default function HomePage() {
     AOS.init({ once: true, offset: 50 });
     checkAdminStatus();
     fetchSliders();
+    fetchTopLeaders(); // 🔴 নতুন: পেজ লোড হলেই টপ ৩ জনকে আনবে
   }, []);
 
   // ৩ সেকেন্ড পরপর স্লাইড (Horizontal Translation)
@@ -49,6 +53,16 @@ export default function HomePage() {
   const fetchSliders = async () => {
     const { data } = await supabase.from('hero_sliders').select('*').order('id', { ascending: true });
     if (data && data.length > 0) setSliders(data);
+  };
+
+  // 🔴 নতুন: সুপাবেজ থেকে টপ ৩ লিডার ফেচ করার ফাংশন
+  const fetchTopLeaders = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, photo_url, survival_iq')
+      .order('survival_iq', { ascending: false, nullsFirst: false })
+      .limit(3);
+    if (data) setTopLeaders(data);
   };
 
   const handleImageSelect = (e, id) => {
@@ -150,7 +164,7 @@ export default function HomePage() {
                   src={slide.image_url} 
                   alt={`Slide ${slide.id}`} 
                   className="w-full h-full object-cover bg-[#050b08]"
-                  /* 🔴 Magic Fix: First image loads instantly, others wait */
+                  /* Magic Fix: First image loads instantly, others wait */
                   loading={index === 0 ? "eager" : "lazy"}
                   fetchPriority={index === 0 ? "high" : "auto"}
                 />
@@ -159,7 +173,7 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* 🔴 2. Minimal Admin Panel Trigger */}
+        {/* Minimal Admin Panel Trigger */}
         {isAdmin && (
           <div className="absolute top-4 right-4 z-30">
             <button 
@@ -171,7 +185,6 @@ export default function HomePage() {
           </div>
         )}
       </section>
-
 
       {/* 🔴 4. Scrolling Ticker (Marquee) */}
       <div className="bg-[#e76f51] text-[#030705] py-2 overflow-hidden flex items-center border-y border-yellow-500/30 shadow-md relative z-20">
@@ -235,7 +248,73 @@ export default function HomePage() {
               <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">একাকী ভ্রমণ নয়, দল বেঁধে ঘুরে বেড়ানোর নিখাদ আনন্দ।</p>
             </div>
           </div>
+        </div>
+      </section>
 
+      {/* 🔴 Highlighted Top 3 Leaderboard Section (New Added Here) */}
+      <section className="py-16 sm:py-24 max-w-4xl mx-auto px-6 relative z-10 border-t border-white/5">
+        <div className="text-center mb-10" data-aos="fade-up">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-500/10 mb-4 shadow-[0_0_30px_rgba(234,179,8,0.2)]">
+            <i className="fa-solid fa-trophy text-3xl text-yellow-500"></i>
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">ক্যাম্পাস <span className="text-[#e76f51]">লিডারবোর্ড</span></h2>
+          <p className="text-gray-400 text-sm sm:text-base">Survival IQ পয়েন্টের ভিত্তিতে আমাদের ক্লাবের বর্তমান সেরা ৩ জন এক্সপ্লোরার</p>
+        </div>
+
+        {/* Top 3 List */}
+        <div className="space-y-4" data-aos="fade-up" data-aos-delay="100">
+          {topLeaders.map((user, index) => {
+            const isChampion = index === 0;
+            const rankColors = [
+              "text-yellow-400 border-yellow-400/50 bg-yellow-400/10 shadow-[0_0_15px_rgba(250,204,21,0.2)]", // 1st
+              "text-gray-300 border-gray-300/30 bg-gray-300/10", // 2nd
+              "text-amber-600 border-amber-600/30 bg-amber-600/10" // 3rd
+            ];
+
+            return (
+              <div key={user.id} className={`flex items-center justify-between p-4 sm:p-5 rounded-2xl border transition-transform hover:-translate-y-1 ${isChampion ? rankColors[0] : 'bg-[#0a1c13] border-white/5 hover:border-white/10'}`}>
+                
+                <div className="flex items-center gap-4 sm:gap-6">
+                  {/* Rank Badge */}
+                  <div className="w-8 sm:w-10 text-center shrink-0">
+                    <span className={`text-2xl sm:text-3xl font-black ${isChampion ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : 'text-amber-600'}`}>
+                      #{index + 1}
+                    </span>
+                  </div>
+
+                  {/* Profile Picture */}
+                  <div className="relative shrink-0">
+                    <img src={user.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0a1c13&color=fff`} alt={user.full_name} className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 object-cover ${isChampion ? 'border-yellow-400' : 'border-white/10'}`} />
+                    {isChampion && (
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#050b08] border border-yellow-400 flex items-center justify-center text-[10px] text-yellow-400">
+                        <i className="fa-solid fa-crown"></i>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Name & Title */}
+                  <div>
+                    <h4 className="text-white font-bold text-base sm:text-lg line-clamp-1">{user.full_name || 'Unknown Explorer'}</h4>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">{isChampion ? 'Grand Champion' : 'Top Explorer'}</p>
+                  </div>
+                </div>
+
+                {/* Score */}
+                <div className="text-right shrink-0">
+                  <p className="text-xl sm:text-3xl font-black text-white">{user.survival_iq || 0}</p>
+                  <p className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">IQ Pts</p>
+                </div>
+
+              </div>
+            )
+          })}
+        </div>
+
+        {/* View Full Leaderboard CTA Button */}
+        <div className="text-center mt-10" data-aos="fade-up">
+          <Link href="/leaderboard" className="inline-flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white px-8 py-3.5 rounded-xl font-bold transition-all hover:border-white/30 hover:-translate-y-1">
+            সম্পূর্ণ লিডারবোর্ড দেখুন <i className="fa-solid fa-arrow-right"></i>
+          </Link>
         </div>
       </section>
 
