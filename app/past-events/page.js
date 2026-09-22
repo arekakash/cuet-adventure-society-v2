@@ -351,39 +351,28 @@ export default function PastEventsPage() {
                 )}
 
                 <Link href={`/event-details?id=${ev.id}`} className="block h-full bg-[#0a1c13] rounded-xl sm:rounded-3xl border border-white/10 hover:border-[#e76f51]/50 overflow-hidden shadow-md">
-                                    <Link href={`/event-details?id=${ev.id}`} className="flex flex-col h-full bg-[#0a1c13] rounded-2xl sm:rounded-3xl border border-white/10 hover:border-[#e76f51]/50 overflow-hidden shadow-lg transition-all duration-300">
-                    
-                    {/* 🔴 Expanded Image (Taller on Mobile) */}
-                    <div className="relative h-36 sm:h-56 w-full overflow-hidden shrink-0">
+                    {/* 🔴 Super Compact Mobile Image */}
+                    <div className="relative h-24 sm:h-48 w-full overflow-hidden">
                       <img src={ev.cover_photo} alt={ev.title} className="w-full h-full object-cover transform sm:group-hover:scale-110 transition-transform duration-700" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0a1c13] via-[#0a1c13]/20 to-transparent"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0a1c13] via-transparent to-transparent"></div>
                       
-                      <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-20 bg-emerald-500/90 backdrop-blur-sm text-white text-[7px] sm:text-[10px] font-black uppercase tracking-widest px-2 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-lg border border-emerald-400/50">
-                        <i className="fa-solid fa-check-double mr-1"></i> Completed
+                      <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-20 bg-emerald-500/90 backdrop-blur-sm text-white text-[6px] sm:text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-full shadow-lg border border-emerald-400/50">
+                        <i className="fa-solid fa-check-double mr-0.5"></i> Mission Accomplished
                       </div>
 
-                      <div className="absolute bottom-2 left-2 sm:top-4 sm:right-4 sm:bottom-auto sm:left-auto z-20 bg-black/70 backdrop-blur-md text-[#e76f51] sm:text-white text-[8px] sm:text-[10px] font-bold uppercase tracking-widest px-2 py-1 sm:px-3 sm:py-1.5 rounded-full border border-white/10">
+                      <div className="absolute bottom-2 left-2 sm:top-4 sm:right-4 sm:bottom-auto sm:left-auto z-20 bg-black/70 backdrop-blur-md text-[#e76f51] sm:text-white text-[7px] sm:text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-full border border-white/10">
                         <i className={getCategoryIcon(ev.category)}></i> <span className="hidden sm:inline">{ev.category}</span>
                       </div>
                     </div>
 
-                    {/* 🔴 Content Area (More Padding & 2 Lines for Title) */}
-                    <div className="p-3 sm:p-5 relative flex flex-col flex-grow justify-between">
-                      <div>
-                        <p className="text-[9px] sm:text-[11px] font-bold text-gray-500 mb-1 sm:mb-2 uppercase tracking-widest">
-                          {new Date(ev.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </p>
-                        {/* 🔴 line-clamp-2 allows title to span two lines */}
-                        <h3 className="text-sm sm:text-xl font-black text-white mb-2 line-clamp-2 group-hover:text-[#e76f51] transition-colors leading-snug">
-                          {ev.title}
-                        </h3>
-                      </div>
-                      <p className="text-[10px] sm:text-sm text-gray-400 line-clamp-2 mt-auto pt-1">
-                        <i className="fa-solid fa-location-dot text-gray-500 mr-1.5"></i>{ev.destination}
+                    <div className="p-2 sm:p-5 relative">
+                      <p className="text-[7px] sm:text-[11px] font-bold text-gray-500 mb-0.5 sm:mb-1 uppercase tracking-widest">
+                        {new Date(ev.start_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
                       </p>
+                      <h3 className="text-xs sm:text-lg font-black text-white mb-0.5 sm:mb-2 line-clamp-1 group-hover:text-[#e76f51] transition-colors leading-tight">{ev.title}</h3>
+                      <p className="text-[8px] sm:text-sm text-gray-400 line-clamp-1"><i className="fa-solid fa-location-dot mr-1"></i>{ev.destination}</p>
                     </div>
                 </Link>
-
               </div>
             ))}
           </div>
