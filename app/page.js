@@ -10,9 +10,13 @@ export default function HomePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [sliders, setSliders] = useState([]);
   const [currentSlide, setCurrentSlide] = useState(0);
-  
-  // 🔴 নতুন: টপ লিডারদের স্টেট
   const [topLeaders, setTopLeaders] = useState([]);
+  
+  // 🔴 নতুন: নাম পরিবর্তনের স্টেট
+  const [userId, setUserId] = useState(null);
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [isUpdatingName, setIsUpdatingName] = useState(false);
   
   // Admin Edit States
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -28,12 +32,11 @@ export default function HomePage() {
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50 });
-    checkAdminStatus();
+    checkUserStatus(); // 🔴 অ্যাডমিন এবং "New Explorer" চেক করার ফাংশন
     fetchSliders();
-    fetchTopLeaders(); // 🔴 নতুন: পেজ লোড হলেই টপ ৩ জনকে আনবে
+    fetchTopLeaders();
   }, []);
 
-  // ৩ সেকেন্ড পরপর স্লাইড (Horizontal Translation)
   useEffect(() => {
     if (sliders.length === 0) return;
     const timer = setInterval(() => {
@@ -42,11 +45,24 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, [sliders]);
 
-  const checkAdminStatus = async () => {
+  // 🔴 আপডেট: ইউজারের প্রোফাইল চেক (অ্যাডমিন কিনা + নাম New Explorer কিনা)
+  const checkUserStatus = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-      if (data?.role === 'admin') setIsAdmin(true);
+      setUserId(session.user.id);
+      const { data } = await supabase
+        .from('profiles')
+        .select('role, full_name')
+        .eq('id', session.user.id)
+        .single();
+        
+      if (data) {
+        if (data.role === 'admin') setIsAdmin(true);
+        // যদি নাম New Explorer থাকে, তবে পপ-আপ ওপেন করবে
+        if (data.full_name === 'New Explorer') {
+          setShowNameModal(true);
+        }
+      }
     }
   };
 
@@ -55,7 +71,6 @@ export default function HomePage() {
     if (data && data.length > 0) setSliders(data);
   };
 
-  // 🔴 আপডেট: মোট ইভেন্টের ওপর ভিত্তি করে টপ ৩ জনকে আনা
   const fetchTopLeaders = async () => {
     const { data } = await supabase
       .from('profiles')
@@ -63,6 +78,29 @@ export default function HomePage() {
       .order('total_events', { ascending: false, nullsFirst: false })
       .limit(3);
     if (data) setTopLeaders(data);
+  };
+
+  // 🔴 নতুন: নাম সেভ করার ফাংশন
+  const handleNameUpdate = async (e) => {
+    e.preventDefault();
+    if (!newName.trim() || !userId) return;
+    
+    setIsUpdatingName(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: newName })
+        .eq('id', userId);
+        
+      if (error) throw error;
+      alert("✅ নাম সফলভাবে আপডেট হয়েছে!");
+      setShowNameModal(false); // নাম সেভ হলে পপ-আপ বন্ধ হয়ে যাবে
+      fetchTopLeaders(); // লিডারবোর্ডে যদি সে থাকে তবে নাম রিফ্রেশ হবে
+    } catch (error) {
+      alert("❌ নাম আপডেটে সমস্যা হয়েছে!");
+    } finally {
+      setIsUpdatingName(false);
+    }
   };
 
   const handleImageSelect = (e, id) => {
@@ -73,7 +111,7 @@ export default function HomePage() {
         setImageSrc(reader.result);
         setEditingId(id);
         setIsEditModalOpen(true);
-        setIsAdminPanelOpen(false); // Close thumbnail panel when cropping starts
+        setIsAdminPanelOpen(false); 
       };
       reader.readAsDataURL(file);
     }
@@ -128,10 +166,9 @@ export default function HomePage() {
     }
   };
 
-    return (
+  return (
     <main className="bg-[#030705] text-gray-300 font-sans antialiased overflow-x-hidden min-h-screen flex flex-col">
       
-      {/* CSS for Marquee Scrolling Text */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scroll-text {
           0% { transform: translateX(100%); }
@@ -144,15 +181,13 @@ export default function HomePage() {
         }
       `}} />
 
-      {/* 🔴 1. 16:9 Slider Banner Section (Ultra-Lightweight, Horizontal Slide) */}
+      {/* 1. 16:9 Slider Banner Section */}
       <section className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-[#0a1c13] overflow-hidden mt-16 shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
         
-        {/* Sliding Flex Container */}
         <div 
           className="flex w-full h-full transition-transform duration-[1200ms] ease-in-out will-change-transform"
           style={{ transform: `translateX(-${currentSlide * 100}%)` }}
         >
-          {/* Skeleton Loader (When sliders are fetching from Supabase) */}
           {sliders.length === 0 ? (
             <div className="min-w-full h-full flex items-center justify-center bg-[#050b08] animate-pulse">
                <i className="fa-solid fa-mountain-sun text-6xl text-gray-700/50"></i>
@@ -164,7 +199,6 @@ export default function HomePage() {
                   src={slide.image_url} 
                   alt={`Slide ${slide.id}`} 
                   className="w-full h-full object-cover bg-[#050b08]"
-                  /* Magic Fix: First image loads instantly, others wait */
                   loading={index === 0 ? "eager" : "lazy"}
                   fetchPriority={index === 0 ? "high" : "auto"}
                 />
@@ -173,7 +207,6 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Minimal Admin Panel Trigger */}
         {isAdmin && (
           <div className="absolute top-4 right-4 z-30">
             <button 
@@ -186,7 +219,7 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* 🔴 4. Scrolling Ticker (Marquee) */}
+      {/* 2. Scrolling Ticker (Marquee) */}
       <div className="bg-[#e76f51] text-[#030705] py-2 overflow-hidden flex items-center border-y border-yellow-500/30 shadow-md relative z-20">
         <div className="whitespace-nowrap w-full">
           <span className="animate-marquee font-bold text-xs sm:text-sm tracking-wide">
@@ -195,7 +228,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 🔴 3. Text & Content Section (Separated from Images) */}
+      {/* 3. Main Hero Text Section */}
       <section className="py-16 sm:py-24 px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center" data-aos="fade-up">
           <div className="inline-block px-4 py-1.5 rounded-full border border-gray-700 text-gray-400 font-bold text-xs sm:text-sm mb-8 bg-white/5">
@@ -221,10 +254,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Original Features Section */}
+      {/* 4. Features Grid Section */}
       <section className="py-12 sm:py-20 max-w-5xl mx-auto px-6 relative z-10 border-t border-white/5">
         <div className="space-y-16 sm:space-y-24">
-          
           <div data-aos="fade-up" className="text-center">
             <i className="fa-solid fa-quote-left text-3xl text-gray-700 mb-4"></i>
             <p className="font-bold text-white text-xl sm:text-3xl leading-tight">পাহাড় আর সমুদ্রের সীমানায় আমরা—<span className="text-[#e76f51]">চুয়েটিয়ান!</span></p>
@@ -251,17 +283,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 🔴 Highlighted Top 3 Leaderboard Section (New Added Here) */}
+      {/* 5. Highlighted Top 3 Leaderboard Section */}
       <section className="py-16 sm:py-24 max-w-4xl mx-auto px-6 relative z-10 border-t border-white/5">
         <div className="text-center mb-10" data-aos="fade-up">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-500/10 mb-4 shadow-[0_0_30px_rgba(234,179,8,0.2)]">
             <i className="fa-solid fa-trophy text-3xl text-yellow-500"></i>
           </div>
           <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">ক্যাম্পাস <span className="text-[#e76f51]">লিডারবোর্ড</span></h2>
-          <p className="text-gray-400 text-sm sm:text-base">Survival IQ পয়েন্টের ভিত্তিতে আমাদের ক্লাবের বর্তমান সেরা ৩ জন এক্সপ্লোরার</p>
+          <p className="text-gray-400 text-sm sm:text-base">সবচেয়ে বেশি ইভেন্ট সম্পন্ন করার ভিত্তিতে আমাদের ক্লাবের বর্তমান সেরা ৩ জন এক্সপ্লোরার</p>
         </div>
 
-        {/* Top 3 List */}
         <div className="space-y-4" data-aos="fade-up" data-aos-delay="100">
           {topLeaders.map((user, index) => {
             const isChampion = index === 0;
@@ -275,14 +306,12 @@ export default function HomePage() {
               <div key={user.id} className={`flex items-center justify-between p-4 sm:p-5 rounded-2xl border transition-transform hover:-translate-y-1 ${isChampion ? rankColors[0] : 'bg-[#0a1c13] border-white/5 hover:border-white/10'}`}>
                 
                 <div className="flex items-center gap-4 sm:gap-6">
-                  {/* Rank Badge */}
                   <div className="w-8 sm:w-10 text-center shrink-0">
                     <span className={`text-2xl sm:text-3xl font-black ${isChampion ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : 'text-amber-600'}`}>
                       #{index + 1}
                     </span>
                   </div>
 
-                  {/* Profile Picture */}
                   <div className="relative shrink-0">
                     <img src={user.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0a1c13&color=fff`} alt={user.full_name} className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 object-cover ${isChampion ? 'border-yellow-400' : 'border-white/10'}`} />
                     {isChampion && (
@@ -292,25 +321,21 @@ export default function HomePage() {
                     )}
                   </div>
 
-                  {/* Name & Title */}
                   <div>
                     <h4 className="text-white font-bold text-base sm:text-lg line-clamp-1">{user.full_name || 'Unknown Explorer'}</h4>
                     <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">{isChampion ? 'Grand Champion' : 'Top Explorer'}</p>
                   </div>
                 </div>
 
-                {/* Score */}
                 <div className="text-right shrink-0">
-                  <p className="text-xl sm:text-3xl font-black text-white">{user.survival_iq || 0}</p>
-                  <p className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">IQ Pts</p>
+                  <p className="text-xl sm:text-3xl font-black text-white">{user.total_events || 0}</p>
+                  <p className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">Events</p>
                 </div>
-
               </div>
             )
           })}
         </div>
 
-        {/* View Full Leaderboard CTA Button */}
         <div className="text-center mt-10" data-aos="fade-up">
           <Link href="/leaderboard" className="inline-flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white px-8 py-3.5 rounded-xl font-bold transition-all hover:border-white/30 hover:-translate-y-1">
             সম্পূর্ণ লিডারবোর্ড দেখুন <i className="fa-solid fa-arrow-right"></i>
@@ -318,61 +343,46 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 🔴 6. 3D Floating Social Links Section */}
+      {/* 6. 3D Floating Social Links Section */}
       <section className="py-16 sm:py-24 bg-[#050b08] border-t border-white/5 relative z-10 px-6">
         <div className="max-w-5xl mx-auto text-center">
           <h3 className="text-2xl sm:text-4xl font-black text-white mb-4">আমাদের সাথে <span className="text-[#e76f51]">যুক্ত হোন</span></h3>
           <p className="text-gray-400 text-sm mb-12">কমিউনিটির সব আপডেট পেতে সোশ্যাল মিডিয়ায় ফলো করুন</p>
           
           <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
-            
-            {/* FB Page */}
             <a href="https://www.facebook.com/share/1PoWHdyPeV/" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(24,119,242,0.2)] hover:border-[#1877F2]/50">
               <i className="fa-brands fa-facebook text-3xl text-gray-500 group-hover:text-[#1877F2] transition-colors mb-2"></i>
               <span className="text-xs font-bold text-gray-300 group-hover:text-white">FB Page</span>
             </a>
-
-            {/* FB Group */}
             <a href="https://NzNlfacebook.com/share/g/1JGXYcNPhC/" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(24,119,242,0.2)] hover:border-[#1877F2]/50">
               <i className="fa-solid fa-users text-3xl text-gray-500 group-hover:text-[#1877F2] transition-colors mb-2"></i>
               <span className="text-xs font-bold text-gray-300 group-hover:text-white">FB Group</span>
             </a>
-
-            {/* Instagram */}
             <a href="https://www.instagram.com/cuet_adventure_society?stkn=bnlxbnA3aG4zOTg3" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(225,48,108,0.2)] hover:border-[#E1306C]/50">
               <i className="fa-brands fa-instagram text-3xl text-gray-500 group-hover:text-[#E1306C] transition-colors mb-2"></i>
               <span className="text-xs font-bold text-gray-300 group-hover:text-white">Instagram</span>
             </a>
-
-            {/* Insta Chat */}
             <a href="https://ig.me/j/neGUu-76jpsZK6Pv/" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(131,58,180,0.2)] hover:border-[#833AB4]/50">
               <i className="fa-regular fa-comment-dots text-3xl text-gray-500 group-hover:text-[#833AB4] transition-colors mb-2"></i>
               <span className="text-xs font-bold text-gray-300 group-hover:text-white">Insta Chat</span>
             </a>
-
-            {/* WhatsApp */}
             <a href="https://chat.whatsapp.com/ETpX1KFvtqeL6bHqzEvmxy" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(37,211,102,0.2)] hover:border-[#25D366]/50">
               <i className="fa-brands fa-whatsapp text-3xl text-gray-500 group-hover:text-[#25D366] transition-colors mb-2"></i>
               <span className="text-xs font-bold text-gray-300 group-hover:text-white">WhatsApp</span>
             </a>
-
-            {/* Telegram */}
             <a href="https://t.me/+-CZ_HsryVLA1NzNl" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(0,136,204,0.2)] hover:border-[#0088cc]/50">
               <i className="fa-brands fa-telegram text-3xl text-gray-500 group-hover:text-[#0088cc] transition-colors mb-2"></i>
               <span className="text-xs font-bold text-gray-300 group-hover:text-white">Telegram</span>
             </a>
-
-            {/* Messenger */}
             <a href="https://m.me/j/wU6N1jDd8iNDP_ea/?send_source=gc%3Acopy_invite_link_t" target="_blank" className="group bg-[#0a1c13] border border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_20px_rgba(0,106,255,0.2)] hover:border-[#006AFF]/50">
               <i className="fa-brands fa-facebook-messenger text-3xl text-gray-500 group-hover:text-[#006AFF] transition-colors mb-2"></i>
               <span className="text-xs font-bold text-gray-300 group-hover:text-white">Messenger</span>
             </a>
-
           </div>
         </div>
       </section>
 
-      {/* 🔴 5. Formal Copyright Footer */}
+      {/* 7. Formal Copyright Footer */}
       <footer className="mt-auto bg-[#020504] border-t border-white/10 py-8 px-6 text-center">
         <div className="max-w-4xl mx-auto flex flex-col items-center">
           <div className="text-2xl font-black tracking-widest text-white mb-2">
@@ -387,7 +397,51 @@ export default function HomePage() {
         </div>
       </footer>
 
-      {/* 🔴 Admin Thumbnail Selection Modal */}
+      {/* 🔴 NEW: Name Update Modal for "New Explorer" */}
+      {showNameModal && (
+        <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0a1c13] border border-[#e76f51]/50 rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-[0_0_40px_rgba(231,111,81,0.2)] relative">
+            <button 
+              onClick={() => setShowNameModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
+            >
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+            
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-[#e76f51]/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#e76f51]/30">
+                <i className="fa-solid fa-id-card text-3xl text-[#e76f51]"></i>
+              </div>
+              <h3 className="text-2xl font-black text-white mb-2">আপনার নাম সেট করুন</h3>
+              <p className="text-sm text-gray-400">আমরা লক্ষ্য করেছি আপনার প্রোফাইলে নামের জায়গায় "New Explorer" দেওয়া আছে। অনুগ্রহ করে আপনার আসল নামটি দিন।</p>
+            </div>
+
+            <form onSubmit={handleNameUpdate}>
+              <div className="mb-5">
+                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">আপনার পুরো নাম *</label>
+                <input 
+                  type="text" 
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  required
+                  placeholder="e.g. Osman Gani"
+                  className="w-full bg-black/40 border border-white/10 px-4 py-3 rounded-xl text-white outline-none focus:border-[#e76f51] transition-colors"
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={isUpdatingName}
+                className="w-full bg-[#e76f51] hover:bg-orange-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_0_20px_rgba(231,111,81,0.3)] flex justify-center items-center gap-2"
+              >
+                {isUpdatingName ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+                {isUpdatingName ? 'সেভ হচ্ছে...' : 'নাম সেভ করুন'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Thumbnail Selection Modal */}
       {isAdminPanelOpen && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={(e) => {if(e.target === e.currentTarget) setIsAdminPanelOpen(false)}}>
           <div className="bg-[#0a1c13] border border-white/10 rounded-2xl p-6 w-full max-w-2xl shadow-2xl">
@@ -413,7 +467,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 🔴 Admin Image Cropper Modal */}
+      {/* Admin Image Cropper Modal */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-[110] flex flex-col bg-[#030705]">
           <div className="relative flex-grow">
