@@ -141,37 +141,36 @@ export default function SignupPage() {
       
       if (authError) throw authError
 
-      const user = authData.user
+            const user = authData.user
       if (user) {
-        const { error: profileError } = await supabase.from('profiles').insert([
-          {
-            id: user.id,
-            full_name: formData.fullName,
-            student_id: studentId,
-            email: formData.email,
-            phone: formData.phone,
-            department: formData.department.toUpperCase(),
-            batch: formData.batch,
-            gender: formData.gender,
-            blood_group: formData.bloodGroup,
-            hall: formData.hall,
-            tshirt_size: formData.tshirtSize,
-            emergency_contact: formData.emergencyContact,
-            emergency_relation: formData.emergencyRelation,
-            swimming_skill: formData.swimmingSkill,
-            has_bicycle: formData.hasBicycle, 
-            experience_level: formData.experienceLevel,
-            fb_link: formData.fbLink,
-            insta_link: formData.instaLink,
-            role: 'explorer'
-          }
-        ])
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          id: user.id,
+          full_name: formData.fullName,
+          student_id: studentId,
+          email: formData.email,
+          phone: formData.phone,
+          department: formData.department.toUpperCase(),
+          batch: formData.batch,
+          gender: formData.gender,
+          blood_group: formData.bloodGroup,
+          hall: formData.hall,
+          tshirt_size: formData.tshirtSize,
+          emergency_contact: formData.emergencyContact,
+          emergency_relation: formData.emergencyRelation,
+          swimming_skill: formData.swimmingSkill,
+          has_bicycle: formData.hasBicycle, 
+          experience_level: formData.experienceLevel,
+          fb_link: formData.fbLink,
+          insta_link: formData.instaLink,
+          role: 'explorer'
+        })
         
         if (profileError) throw profileError
 
         alert('✅ অ্যাডভেঞ্চার অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে!')
         router.push('/dashboard')
       }
+
     } catch (error) {
       if (error.message.includes('JWT') || error.message.includes('future') || error.message.includes('expired')) {
         alert(
