@@ -1,5 +1,6 @@
 import './globals.css';
 import Navbar from '@/components/Navbar';
+import AIChatBot from '@/components/AIChatBot'; 
 
 export const metadata = {
   title: 'CUET Adventure Society',
@@ -33,6 +34,8 @@ export default function RootLayout({ children }) {
         <main className="pt-20 relative z-10"> 
           {children}
         </main>
+
+        <AIChatBot /> 
 
       </body>
     </html>
