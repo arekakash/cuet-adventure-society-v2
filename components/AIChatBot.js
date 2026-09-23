@@ -1,0 +1,102 @@
+// components/AIChatBot.js
+"use client";
+import { useState, useRef, useEffect } from "react";
+
+export default function AIChatBot() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { role: "ai", text: "হ্যালো! আমি ক্যাম্পফায়ার এআই 🔥। ট্যুর প্ল্যানিং বা ওয়েবসাইটের কোনো ফিচার নিয়ে সাহায্য লাগবে?" }
+  ]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    const userMessage = input.trim();
+    setMessages((prev) => [...prev, { role: "user", text: userMessage }]);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage }),
+      });
+      const data = await res.json();
+      setMessages((prev) => [...prev, { role: "ai", text: data.text }]);
+    } catch (error) {
+      setMessages((prev) => [...prev, { role: "ai", text: "নেটওয়ার্কে একটু সমস্যা হচ্ছে, আবার চেষ্টা করুন!" }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-[100] font-sans">
+      {isOpen && (
+        <div className="bg-[#0a1c13]/95 backdrop-blur-xl border border-[#e76f51]/30 w-[320px] sm:w-[350px] h-[450px] mb-4 rounded-2xl shadow-[0_0_40px_rgba(231,111,81,0.15)] flex flex-col overflow-hidden animate-fade-in-up">
+          <div className="bg-gradient-to-r from-[#e76f51] to-orange-600 p-4 flex justify-between items-center text-white shadow-md">
+            <div className="flex items-center gap-2">
+              <i className="fa-solid fa-robot text-xl"></i>
+              <div>
+                <h3 className="font-black text-sm leading-tight">ক্যাম্পফায়ার এআই</h3>
+                <p className="text-[9px] font-medium opacity-80">CUET AS 24/7 Assistant</p>
+              </div>
+            </div>
+            <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 w-8 h-8 rounded-full transition-colors flex items-center justify-center">
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <div className="flex-grow overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[#050b08]/50">
+            {messages.map((msg, idx) => (
+              <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`p-3 rounded-2xl max-w-[85%] text-sm ${msg.role === "user" ? "bg-[#2d6a4f] text-white rounded-tr-sm" : "bg-white/10 text-gray-200 border border-white/5 rounded-tl-sm"}`}>
+                  <p className="whitespace-pre-wrap">{msg.text}</p>
+                </div>
+              </div>
+            ))}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-white/10 border border-white/5 p-3 rounded-2xl rounded-tl-sm flex gap-1.5 items-center">
+                  <div className="w-2 h-2 bg-[#e76f51] rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-[#e76f51] rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                  <div className="w-2 h-2 bg-[#e76f51] rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form onSubmit={sendMessage} className="p-3 bg-[#0a1c13] border-t border-white/10 flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="আপনার প্রশ্ন লিখুন..."
+              className="flex-grow bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-[#e76f51] transition-colors"
+            />
+            <button type="submit" disabled={isLoading || !input.trim()} className="bg-[#e76f51] hover:bg-orange-600 disabled:opacity-50 text-white w-11 h-11 rounded-xl flex items-center justify-center transition-colors shrink-0">
+              <i className="fa-solid fa-paper-plane"></i>
+            </button>
+          </form>
+        </div>
+      )}
+
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(231,111,81,0.4)] transition-transform duration-300 hover:scale-110 ${isOpen ? "bg-gray-800 text-gray-400" : "bg-[#e76f51] text-white animate-bounce-slow"}`}
+      >
+        <i className={`fa-solid ${isOpen ? "fa-xmark text-xl" : "fa-robot text-2xl"}`}></i>
+      </button>
+    </div>
+  );
+}
