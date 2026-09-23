@@ -39,14 +39,13 @@ export default function AIChatBot() {
       const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
       
       if (!apiKey) {
-        setMessages((prev) => [...prev, { role: "ai", text: "⚠️ এপিআই চাবি পাওয়া যায়নি! Cloudflare-এর Environment variables-এ NEXT_PUBLIC_GEMINI_API_KEY ঠিকমতো সেট করা আছে কিনা চেক করুন।" }]);
+        setMessages((prev) => [...prev, { role: "ai", text: "⚠️ এপিআই চাবি পাওয়া যায়নি!" }]);
         setIsLoading(false);
         return;
       }
 
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
-              
-        
+      // 🔴 প্রথমে আমরা gemini-1.5-flash ট্রাই করছি
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -57,16 +56,29 @@ export default function AIChatBot() {
       const data = await response.json();
 
       if (!response.ok) {
+        // 🔴 যদি মডেল খুঁজে না পায়, তাহলে গুগলের কাছ থেকে ডাইরেক্ট লিস্ট চেয়ে নেব!
+        if (data.error?.message?.includes("is not found")) {
+            const modelRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+            const modelData = await modelRes.json();
+            
+            if (modelData.models) {
+                const modelNames = modelData.models
+                    .filter(m => m.supportedGenerationMethods.includes("generateContent"))
+                    .map(m => m.name.replace('models/', ''))
+                    .join("\n👉 ");
+                throw new Error(`আপনার চাবিতে নিচের মডেলগুলোর নাম সাপোর্ট করছে:\n\n👉 ${modelNames}`);
+            }
+        }
         throw new Error(data.error?.message || "Failed to generate");
       }
 
       const responseText = data.candidates[0].content.parts[0].text;
       setMessages((prev) => [...prev, { role: "ai", text: responseText }]);
 
-        } catch (error) {
-      setMessages((prev) => [...prev, { role: "ai", text: `⚠️ গুগলের লাইভ এরর: ${error.message}` }]);
+    } catch (error) {
+      console.error(error);
+      setMessages((prev) => [...prev, { role: "ai", text: `⚠️ ডায়াগনস্টিক রিপোর্ট:\n${error.message}` }]);
     } finally {
-
       setIsLoading(false);
     }
   };
