@@ -20,6 +20,10 @@ export default function AIChatBot() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  
+  // 🔴 মডেল সিলেক্ট করার জন্য নতুন মেমোরি/স্টেট
+  const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash-lite"); 
+  
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -44,8 +48,8 @@ export default function AIChatBot() {
         return;
       }
 
-      // 🔴 প্রথমে আমরা gemini-1.5-flash ট্রাই করছি
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`, {
+      // 🔴 ডাইনামিক মডেল ইউআরএল (সিলেক্ট করা মডেল অনুযায়ী রিকোয়েস্ট যাবে)
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -56,7 +60,6 @@ export default function AIChatBot() {
       const data = await response.json();
 
       if (!response.ok) {
-        // 🔴 যদি মডেল খুঁজে না পায়, তাহলে গুগলের কাছ থেকে ডাইরেক্ট লিস্ট চেয়ে নেব!
         if (data.error?.message?.includes("is not found")) {
             const modelRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
             const modelData = await modelRes.json();
@@ -66,7 +69,7 @@ export default function AIChatBot() {
                     .filter(m => m.supportedGenerationMethods.includes("generateContent"))
                     .map(m => m.name.replace('models/', ''))
                     .join("\n👉 ");
-                throw new Error(`আপনার চাবিতে নিচের মডেলগুলোর নাম সাপোর্ট করছে:\n\n👉 ${modelNames}`);
+                throw new Error(`এই মডেলটি এখন সাপোর্টেড নয়। আপনার চাবিতে সাপোর্ট করা মডেলগুলো:\n\n👉 ${modelNames}`);
             }
         }
         throw new Error(data.error?.message || "Failed to generate");
@@ -90,9 +93,22 @@ export default function AIChatBot() {
           <div className="bg-gradient-to-r from-[#e76f51] to-orange-600 p-4 flex justify-between items-center text-white shadow-md">
             <div className="flex items-center gap-2">
               <i className="fa-solid fa-robot text-xl"></i>
-              <div>
+              <div className="flex flex-col">
                 <h3 className="font-black text-sm leading-tight">ক্যাম্পফায়ার এআই</h3>
-                <p className="text-[9px] font-medium opacity-80">CUET AS 24/7 Assistant</p>
+                
+                {/* 🔴 ওয়েবসাইট থেকে মডেল চেঞ্জ করার ড্রপডাউন */}
+                <select 
+                  value={selectedModel} 
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="text-[10px] bg-black/20 text-white border border-white/20 rounded mt-1 px-1 py-0.5 outline-none cursor-pointer hover:bg-black/30 transition-colors"
+                >
+                  <option value="gemini-3.5-flash-lite" className="text-black">Gemini 3.5 Lite (Fast)</option>
+                  <option value="gemini-flash-latest" className="text-black">Gemini Flash (Latest)</option>
+                  <option value="gemini-2.5-flash" className="text-black">Gemini 2.5 Flash</option>
+                  <option value="antigravity-preview-latest" className="text-black">Antigravity (Beta)</option>
+                  <option value="gemini-3.5-flash" className="text-black">Gemini 3.5 Flash</option>
+                </select>
+
               </div>
             </div>
             <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 w-8 h-8 rounded-full transition-colors flex items-center justify-center">
