@@ -1,6 +1,5 @@
 import './globals.css';
 import Navbar from '@/components/Navbar';
-import AIChatBot from '@/components/AIChatBot'; // 🔴 ১. এখানে এআই ইম্পোর্ট করা হলো
 
 export const metadata = {
   title: 'CUET Adventure Society',
@@ -34,8 +33,6 @@ export default function RootLayout({ children }) {
         <main className="pt-20 relative z-10"> 
           {children}
         </main>
-
-        <AIChatBot /> {/* 🔴 ২. এখানে এআই কল করা হলো, মেইন কন্টেন্টের ঠিক নিচে */}
 
       </body>
     </html>
