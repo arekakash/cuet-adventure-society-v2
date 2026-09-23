@@ -61,10 +61,10 @@ export default function AIChatBot() {
       const responseText = data.candidates[0].content.parts[0].text;
       setMessages((prev) => [...prev, { role: "ai", text: responseText }]);
 
-    } catch (error) {
-      console.error(error);
-      setMessages((prev) => [...prev, { role: "ai", text: "দুঃখিত বন্ধু, নেটওয়ার্কে একটু সমস্যা হচ্ছে। একটু পর আবার চেষ্টা করুন!" }]);
+        } catch (error) {
+      setMessages((prev) => [...prev, { role: "ai", text: `⚠️ গুগলের লাইভ এরর: ${error.message}` }]);
     } finally {
+
       setIsLoading(false);
     }
   };
