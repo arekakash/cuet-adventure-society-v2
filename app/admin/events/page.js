@@ -10,6 +10,13 @@ export default function AdminEventsPage() {
   const [processingId, setProcessingId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
 
+  // 🔴 3-Step Delete Modal States
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteStep, setDeleteStep] = useState(1)
+  const [deleteConfirmChecked, setDeleteConfirmChecked] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [eventToDelete, setEventToDelete] = useState(null)
+
   const fetchEvents = async () => {
     try {
       const { data, error } = await supabase
@@ -31,7 +38,7 @@ export default function AdminEventsPage() {
     fetchEvents()
   }, [])
 
-  // 1. "Mark as Completed" লজিক (🔴 Updated Logic for accurate point addition)
+  // 1. "Mark as Completed" লজিক
   const handleCompleteEvent = async (eventId, ev) => {
     if (!window.confirm("সতর্কতা! এটি মার্ক করলে ট্যুরে অংশ নেওয়া সবার ড্যাশবোর্ডে স্ট্যাটস যোগ হয়ে যাবে। আপনি কি নিশ্চিত?")) return
     
@@ -49,13 +56,13 @@ export default function AdminEventsPage() {
         .from('bookings')
         .select('user_id')
         .eq('event_id', eventId)
-        .in('status', ['approved', 'free_booking']) // 🔴 free_booking যুক্ত করা হলো
+        .in('status', ['approved', 'free_booking'])
 
       if (bookingError) throw bookingError
 
       if (bookings && bookings.length > 0) {
         const statsMeta = ev.stats_meta || {}
-        const category = (ev.category || "").toLowerCase().trim() // 🔴 Category text clean up
+        const category = (ev.category || "").toLowerCase().trim()
         const distanceToAdd = Number(statsMeta.distance) || 0
         const iqToAdd = Number(statsMeta.survival_iq) || 0
         const treksCount = Number(statsMeta.treks) || 1
@@ -73,7 +80,6 @@ export default function AdminEventsPage() {
               total_events: (Number(userProfile.total_events) || 0) + 1
             }
 
-            // 🔴 .includes() ব্যবহার করা হলো যাতে নামের আগেপিছে কিছু থাকলেও ম্যাচ করে
             if (category.includes('trekking') || category.includes('camping') || category.includes('day tour')) {
               updates.total_treks = (Number(userProfile.total_treks) || 0) + treksCount
               updates.total_distance = (Number(userProfile.total_distance) || 0) + distanceToAdd
@@ -106,19 +112,20 @@ export default function AdminEventsPage() {
     }
   }
 
-  // 2. "Delete & Rollback" লজিক (🔴 Updated Logic for accurate point rollback)
-  const handleDeleteEvent = async (eventId, ev) => {
-    if (!window.confirm("ভয়ংকর সতর্কতা! এই ইভেন্টটি ডিলিট করলে সকল অংশগ্রহণকারীর ড্যাশবোর্ড থেকে এই ইভেন্টের পয়েন্ট মাইনাস হয়ে যাবে এবং ইভেন্টটি ট্র্যাশে চলে যাবে। নিশ্চিত?")) return
+  // 2. "Delete & Rollback" লজিক (🔴 Updated for 3-Step Confirmation)
+  const handleAdminDeleteConfirm = async () => {
+    if (deleteStep !== 3 || deleteConfirmText !== "DELETE" || !eventToDelete) return
     
-    setDeletingId(eventId)
+    setDeletingId(eventToDelete.id)
+    const ev = eventToDelete
 
     try {
       if (ev.status === 'completed') {
         const { data: bookings } = await supabase
           .from('bookings')
           .select('user_id')
-          .eq('event_id', eventId)
-          .in('status', ['approved', 'free_booking']) // 🔴 free_booking যুক্ত করা হলো
+          .eq('event_id', ev.id)
+          .in('status', ['approved', 'free_booking'])
 
         if (bookings && bookings.length > 0) {
           const statsMeta = ev.stats_meta || {}
@@ -167,16 +174,18 @@ export default function AdminEventsPage() {
       const { error: deleteError } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', eventId)
+        .eq('id', ev.id)
 
       if (deleteError) throw deleteError
 
       alert("🗑️ ইভেন্টটি ডিলিট করা হয়েছে এবং ইউজারদের পয়েন্ট রিভার্স করা হয়েছে!")
+      setShowDeleteModal(false)
       fetchEvents()
     } catch (error) {
       alert("ডিলিট করতে সমস্যা হয়েছে: " + error.message)
     } finally {
       setDeletingId(null)
+      setEventToDelete(null)
     }
   }
 
@@ -275,9 +284,15 @@ export default function AdminEventsPage() {
                         </button>
                       )}
 
-                      {/* Delete Button with Rollback Logic */}
+                      {/* 🔴 Delete Button triggering the 3-step Modal */}
                       <button 
-                        onClick={() => handleDeleteEvent(ev.id, ev)}
+                        onClick={() => {
+                          setEventToDelete(ev)
+                          setDeleteStep(1)
+                          setDeleteConfirmChecked(false)
+                          setDeleteConfirmText('')
+                          setShowDeleteModal(true)
+                        }}
                         disabled={deletingId === ev.id}
                         className="bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                       >
@@ -291,6 +306,55 @@ export default function AdminEventsPage() {
           </div>
         )}
       </div>
+
+      {/* 🔴 Admin 3-Step Delete Warning Modal */}
+      {showDeleteModal && eventToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#0a1c13] border border-red-500/50 p-6 sm:p-8 rounded-3xl w-full max-w-sm relative z-10 text-center shadow-2xl">
+            <i className="fa-solid fa-triangle-exclamation text-6xl text-red-500 mb-6 animate-bounce"></i>
+            
+            {deleteStep === 1 && (
+              <>
+                <h3 className="text-xl font-black text-white mb-2">ইভেন্টটি ডিলিট করবেন?</h3>
+                <p className="text-sm text-gray-400 mb-6 font-bold text-red-400">{eventToDelete.title}</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-xl font-bold transition-colors">বাতিল</button>
+                  <button onClick={() => setDeleteStep(2)} className="flex-1 bg-red-600 hover:bg-red-500 text-white py-2.5 rounded-xl font-bold transition-colors">হ্যাঁ, ডিলিট করুন</button>
+                </div>
+              </>
+            )}
+
+            {deleteStep === 2 && (
+              <>
+                <h3 className="text-xl font-black text-red-400 mb-2">চরম সতর্কতা!</h3>
+                <p className="text-xs text-gray-400 mb-4">ইভেন্টটি ট্র্যাশে চলে যাবে এবং সকল অংশগ্রহণকারীর পয়েন্ট মাইনাস হয়ে যাবে!</p>
+                <label className="flex items-start gap-3 text-xs text-gray-300 cursor-pointer select-none mb-6 text-left bg-black/40 p-3 rounded-lg border border-white/5">
+                  <input type="checkbox" checked={deleteConfirmChecked} onChange={e => setDeleteConfirmChecked(e.target.checked)} className="w-5 h-5 shrink-0 mt-0.5 accent-red-500" />
+                  <span className="leading-snug">আমি বুঝতে পেরেছি যে এই সিদ্ধান্তটি অপরিবর্তনীয়।</span>
+                </label>
+                <div className="flex gap-2">
+                  <button onClick={() => setDeleteStep(1)} className="flex-1 bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-xl font-bold transition-colors">ফিরে যান</button>
+                  <button onClick={() => setDeleteStep(3)} disabled={!deleteConfirmChecked} className="flex-1 bg-red-600 disabled:bg-gray-600 text-white py-2.5 rounded-xl font-bold transition-colors">আমি নিশ্চিত</button>
+                </div>
+              </>
+            )}
+
+            {deleteStep === 3 && (
+              <>
+                <h3 className="text-lg font-black text-white mb-2">ফাইনাল কনফার্মেশন</h3>
+                <p className="text-[10px] text-gray-400 mb-4">ডিলিট করতে নিচের বক্সে <strong className="text-red-500">DELETE</strong> টাইপ করুন।</p>
+                <input type="text" value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)} placeholder="DELETE" className="w-full bg-white/5 border border-red-500/30 rounded-xl px-4 py-3 text-white mb-6 text-center font-mono tracking-widest focus:outline-none focus:border-red-500" />
+                <div className="flex gap-2">
+                  <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-xl font-bold transition-colors">বাতিল</button>
+                  <button onClick={handleAdminDeleteConfirm} disabled={deleteConfirmText !== 'DELETE' || deletingId} className="flex-1 bg-red-700 disabled:bg-gray-600 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
+                    {deletingId ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-trash-can"></i> ডিলিট করুন</>}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
