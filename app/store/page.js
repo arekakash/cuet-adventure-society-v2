@@ -5,7 +5,8 @@ import "aos/dist/aos.css";
 import { supabase } from "@/lib/supabase";
 import ProductCard from "@/components/store/ProductCard";
 import SlideCart from "@/components/store/SlideCart";
-import { useCartStore } from "@/store/useCartStore";
+import { useCartStore } from "./useCartStore";
+
 
 
 // Helper: sizes/colors input থেকে ভ্যারিয়েশন কম্বিনেশন বানিয়ে আগের স্টক ভ্যালু ধরে রাখা
