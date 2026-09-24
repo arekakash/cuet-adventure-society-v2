@@ -4,7 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { useCartStore } from "@/store/useCartStore"; // Zustand Store Import
+import { useCartStore } from "@/app/store/useCartStore";
+
 
 export default function Navbar() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
