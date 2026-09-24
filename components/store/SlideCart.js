@@ -2,7 +2,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCartStore } from "@/app/store/useCartStore";
-
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom"; // 🔴 Portal ইমপোর্ট করা হলো
 
 export default function SlideCart({
   isCartOpen,
@@ -12,8 +13,13 @@ export default function SlideCart({
   cartTotal,
   openCheckoutModal
 }) {
-  // গ্লোবাল স্টোর থেকে setCart নিয়ে আসা হলো "ক্লিয়ার কার্ট" ফিচারের জন্য
   const setCart = useCartStore((state) => state.setCart);
+  const [mounted, setMounted] = useState(false);
+
+  // 🔴 Hydration Error এড়াতে useEffect ব্যবহার
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleClearCart = () => {
     if (window.confirm("আপনি কি নিশ্চিত যে কার্টের সমস্ত আইটেম মুছে ফেলতে চান?")) {
@@ -21,13 +27,17 @@ export default function SlideCart({
     }
   };
 
-  return (
+  // সার্ভার সাইড রেন্ডারিং এর সময় পোর্টাল কাজ করে না, তাই রিটার্ন নাল
+  if (!mounted) return null;
+
+  // 🔴 createPortal ব্যবহার করে কার্টটিকে ওয়েবসাইটের একদম মেইন root-এ পাঠানো হলো
+  return createPortal(
     <>
-      {/* 🔴 Permanent Floating Cart Button */}
+      {/* Permanent Floating Cart Button */}
       {cart.length > 0 && (
         <button 
           onClick={() => setIsCartOpen(true)} 
-          className="fixed bottom-6 right-6 z-40 bg-[#e76f51] text-white p-4 rounded-full shadow-[0_0_30px_rgba(231,111,81,0.5)] hover:scale-110 transition-transform animate-bounce focus:outline-none"
+          className="fixed bottom-6 right-6 z-[9990] bg-[#e76f51] text-white p-4 rounded-full shadow-[0_0_30px_rgba(231,111,81,0.5)] hover:scale-110 transition-transform animate-bounce focus:outline-none"
         >
           <i className="fa-solid fa-cart-shopping text-xl"></i>
           <span className="absolute -top-2 -right-2 bg-white text-[#e76f51] text-xs font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#e76f51]">
@@ -36,15 +46,16 @@ export default function SlideCart({
         </button>
       )}
 
-      {/* 🔴 Slide-out Cart Panel with Backdrop Click-to-Close */}
+      {/* Slide-out Cart Panel with Backdrop Click-to-Close */}
       {isCartOpen && (
         <div 
-          className="fixed inset-0 z-[65] bg-black/60 backdrop-blur-sm transition-opacity" 
+          className="fixed inset-0 z-[9995] bg-black/60 backdrop-blur-sm transition-opacity" 
           onClick={() => setIsCartOpen(false)}
         ></div>
       )}
 
-      <div className={`fixed inset-y-0 right-0 z-[70] w-full sm:w-96 bg-[#0a1c13] border-l border-white/10 shadow-2xl transform transition-transform duration-500 ease-out flex flex-col ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      {/* 🔴 z-[9999] দেওয়া হয়েছে যাতে এটি নেভিগেশন বার (z-40) এর উপরে থাকে */}
+      <div className={`fixed inset-y-0 right-0 z-[9999] w-full sm:w-96 bg-[#0a1c13] border-l border-white/10 shadow-2xl transform transition-transform duration-500 ease-out flex flex-col ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         
         {/* Header - Item Count যুক্ত করা হয়েছে */}
         <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0">
@@ -109,7 +120,7 @@ export default function SlideCart({
                     <span className="font-bold text-white text-sm">৳{item.current_price * item.qty * (item.rentDays || 1)}</span>
                     
                     <div className="flex items-center gap-3">
-                      {/* 🔴 Dedicated Delete Button */}
+                      {/* Dedicated Delete Button */}
                       <button 
                         onClick={() => updateCartQty(item.cartItemId, -item.qty, item.stock_quantity)} 
                         className="text-gray-500 hover:text-red-400 transition-colors focus:outline-none" 
@@ -164,6 +175,7 @@ export default function SlideCart({
         </div>
 
       </div>
-    </>
+    </>,
+    document.body // 🔴 পোর্টালের মাধ্যমে বডিতে পাঠানো হলো
   );
 }
