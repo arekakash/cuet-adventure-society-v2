@@ -306,11 +306,12 @@ export default function DashboardPage() {
 
         {/* 🔴 CAS Messenger (Inbox) Card - Smart Routed */}
         <Link 
-          href={user.role === 'admin' ? '/admin/inbox' : '/dashboard/inbox'} 
-          className="block group" 
-          data-aos="fade-right" 
-          data-aos-delay="200"
-        >
+  href="/dashboard/inbox" 
+  className="block group" 
+  data-aos="fade-right" 
+  data-aos-delay="200"
+>
+
           <div className="bg-gradient-to-br from-blue-600/20 to-blue-900/20 backdrop-blur-md border border-blue-500/30 rounded-2xl p-6 shadow-xl hover:shadow-[0_0_25px_rgba(37,99,235,0.3)] transition-all flex items-center justify-between relative overflow-hidden">
             <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
               <i className="fa-brands fa-facebook-messenger text-8xl text-blue-400"></i>
