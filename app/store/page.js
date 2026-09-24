@@ -7,8 +7,6 @@ import ProductCard from "@/components/store/ProductCard";
 import SlideCart from "@/components/store/SlideCart";
 import { useCartStore } from "./useCartStore";
 
-
-
 // Helper: sizes/colors input থেকে ভ্যারিয়েশন কম্বিনেশন বানিয়ে আগের স্টক ভ্যালু ধরে রাখা
 const recomputeVariantStock = (sizesInput, colorsInput, prevStock) => {
   const sizes = (sizesInput || "").split(",").map(s => s.trim()).filter(Boolean);
@@ -69,7 +67,7 @@ export default function AdventureStore() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [intendedAction, setIntendedAction] = useState(null); 
   
-  // 🔴 User specific cart key state
+  // User specific cart key state
   const [cartStorageKey, setCartStorageKey] = useState('cas_store_cart_guest');
 
   // Selection States
@@ -87,7 +85,7 @@ export default function AdventureStore() {
   const [editFormData, setEditFormData] = useState(null);
   const [deleteConfirmChecked, setDeleteConfirmChecked] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [deleteStep, setDeleteStep] = useState(1); // 1, 2, or 3
+  const [deleteStep, setDeleteStep] = useState(1);
 
   useEffect(() => {
     AOS.init({ duration: 800, once: true });
@@ -95,7 +93,7 @@ export default function AdventureStore() {
     checkAuth();
   }, []);
 
-  // 🔴 Cart persistence effect based on specific user key
+  // Cart persistence effect based on specific user key
   useEffect(() => {
     const savedCart = localStorage.getItem(cartStorageKey);
     if (savedCart) {
@@ -106,7 +104,7 @@ export default function AdventureStore() {
         setCart([]);
       }
     } else {
-      setCart([]); // Clear cart if no saved data for this specific user
+      setCart([]); 
     }
   }, [cartStorageKey]);
 
@@ -122,7 +120,6 @@ export default function AdventureStore() {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       setUser(session.user);
-      // 🔴 Update storage key based on logged-in user ID
       setCartStorageKey(`cas_store_cart_${session.user.id}`);
       
       const { data: profileData } = await supabase
@@ -498,7 +495,7 @@ export default function AdventureStore() {
           </div>
         </div>
 
-        {/* 🔴 Product Grid / List Container - Updated Grid Columns for Mobile */}
+        {/* Product Grid / List Container */}
         {loading ? (
           <div className="flex justify-center items-center py-32"><i className="fa-solid fa-compass fa-spin text-5xl text-[#e76f51]"></i></div>
         ) : (
@@ -534,69 +531,14 @@ export default function AdventureStore() {
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setActiveModal(null)}></div>
           
-                    {/* Product Details Modal */}
-          {activeModal === 'details' && selectedProduct && (
-            // 🔴 ওভারলে ফিক্স: margin-auto (m-auto) ব্যবহার করে স্ক্রিনের মাঝখানে আনা হলো
-            <div className="bg-[#0a1c13] border border-[#e76f51]/30 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col relative z-10 shadow-2xl animate-[zoomIn_0.2s_ease-out] m-auto">
-              
-              <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 z-20 bg-black/50 hover:bg-white/20 text-white w-8 h-8 rounded-full transition-colors flex items-center justify-center">
-                <i className="fa-solid fa-xmark"></i>
-              </button>
-              
-              {/* 🔴 বডি অংশটুকু স্ক্রল করার জন্য আলাদা কন্টেইনার */}
-              <div className="overflow-y-auto custom-scrollbar flex-grow">
-                <div className="relative h-60 sm:h-80 bg-white/5 shrink-0">
-                  <ProductSlider images={selectedProduct.gallery || [selectedProduct.image_url]} altText={selectedProduct.name} />
-                  {selectedProduct.discount_price > 0 && <div className="absolute top-4 left-4 bg-red-500 text-white font-black px-4 py-1 rounded-full shadow-lg">Sale!</div>}
-                </div>
-
-                <div className="p-6 sm:p-8">
-                  <h2 className="text-2xl font-black text-white mb-2">{selectedProduct.name}</h2>
-                  <div className="flex flex-wrap gap-4 items-center mb-6">
-                    {selectedProduct.sale_price > 0 && (
-                       <div className="bg-[#e76f51]/10 px-4 py-2 rounded-xl border border-[#e76f51]/20">
-                         <p className="text-[10px] text-gray-400 uppercase tracking-widest">কেনা মূল্য</p>
-                         <p className="text-xl font-black text-[#e76f51]">
-                           ৳{selectedProduct.discount_price > 0 ? selectedProduct.discount_price : selectedProduct.sale_price}
-                           {selectedProduct.discount_price > 0 && <span className="text-sm text-gray-500 line-through ml-2 font-normal">৳{selectedProduct.sale_price}</span>}
-                         </p>
-                       </div>
-                    )}
-                    {selectedProduct.rent_price > 0 && (
-                       <div className="bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20">
-                         <p className="text-[10px] text-gray-400 uppercase tracking-widest">ভাড়া মূল্য</p>
-                         <p className="text-xl font-black text-emerald-400">৳{selectedProduct.rent_price} <span className="text-sm font-normal">/দিন</span></p>
-                       </div>
-                    )}
-                  </div>
-
-                  <p className="text-gray-300 text-sm leading-relaxed mb-6 bg-white/5 p-4 rounded-xl border border-white/5 whitespace-pre-line">
-                    {selectedProduct.description || "এই পণ্যটির কোনো বিস্তারিত বিবরণ দেওয়া নেই।"}
-                  </p>
-
-                  {selectedProduct.sizes?.length > 0 && (
-                    <div className="mb-4">
-                      <span className="text-xs text-gray-400 block mb-2 font-bold uppercase tracking-widest">এভেইলেবল সাইজ:</span>
-                      <div className="flex gap-2 flex-wrap">
-                        {selectedProduct.sizes.map(s => {
-                          const outOfStock = isVariantOutOfStock(selectedProduct, s, null);
-                          return <span key={s} className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${outOfStock ? 'bg-black/20 border-white/5 text-gray-600 line-through' : 'bg-white/10 border-white/10 text-white'}`}>{s}</span>;
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {selectedProduct.colors?.length > 0 && (
           {/* Product Details Modal */}
           {activeModal === 'details' && selectedProduct && (
-            // 🔴 ওভারলে ফিক্স: margin-auto (m-auto) ব্যবহার করে স্ক্রিনের মাঝখানে আনা হলো
             <div className="bg-[#0a1c13] border border-[#e76f51]/30 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col relative z-10 shadow-2xl animate-[zoomIn_0.2s_ease-out] m-auto">
               
               <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 z-20 bg-black/50 hover:bg-white/20 text-white w-8 h-8 rounded-full transition-colors flex items-center justify-center">
                 <i className="fa-solid fa-xmark"></i>
               </button>
               
-              {/* 🔴 বডি অংশটুকু স্ক্রল করার জন্য আলাদা কন্টেইনার */}
               <div className="overflow-y-auto custom-scrollbar flex-grow">
                 <div className="relative h-60 sm:h-80 bg-white/5 shrink-0">
                   <ProductSlider images={selectedProduct.gallery || [selectedProduct.image_url]} altText={selectedProduct.name} />
@@ -653,7 +595,6 @@ export default function AdventureStore() {
                 </div>
               </div>
 
-              {/* 🔴 ফিক্সড অ্যাকশন বাটন এরিয়া (নিচে সব সময় দৃশ্যমান থাকবে) */}
               <div className="p-4 sm:p-6 bg-black/60 border-t border-white/10 shrink-0 rounded-b-3xl">
                 <div className="flex gap-3">
                   {selectedProduct.rent_price > 0 && (
@@ -680,7 +621,6 @@ export default function AdventureStore() {
 
             </div>
           )}
-
 
           {/* Options (Size/Color) Selection Modal */}
           {activeModal === 'options' && selectedProduct && (
@@ -747,7 +687,7 @@ export default function AdventureStore() {
             <div className="bg-[#0a1c13] border border-white/10 p-6 rounded-3xl w-full max-w-md relative z-10 shadow-2xl animate-[zoomIn_0.2s_ease-out]">
               <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
               <h3 className="text-xl font-black text-white mb-2 flex items-center gap-2"><i className="fa-solid fa-calendar-days text-emerald-400"></i> ভাড়ার তারিখ নির্ধারণ</h3>
-              <p className="text-xs text-gray-400 mb-6">কয়দিনের জন্য ভাড়া নিতে চান তা সিলেক্ট করুন।</p>
+              <p className="text-xs text-gray-400 mb-6">কয়দিনের জন্য ভাড়া নিতে চান তা সিলেক্ট করুন。</p>
               
               <div className="space-y-4 mb-6">
                 <div>
