@@ -279,6 +279,57 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* 🔴 NEW: Upcoming Event Countdown Section */}
+      {upcomingEvent && (
+        <section className="relative z-20 mt-8 mb-[-2rem] flex justify-center px-4" data-aos="zoom-in" data-aos-delay="200">
+          <div className="bg-[#0a1c13]/80 backdrop-blur-xl border border-[#e76f51]/40 p-5 sm:p-8 rounded-[2rem] shadow-[0_0_40px_rgba(231,111,81,0.15)] max-w-2xl w-full flex flex-col items-center text-center transform transition-transform hover:scale-[1.02]">
+            
+            <h3 className="text-gray-400 text-xs sm:text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#e76f51] animate-pulse"></span> 
+              আমাদের পরবর্তী রোমাঞ্চ
+            </h3>
+            
+            <h2 className="text-white font-black text-2xl sm:text-3xl mb-6 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-[#e76f51] to-red-500 drop-shadow-sm">
+              {upcomingEvent.title}
+            </h2>
+            
+            <div className="flex gap-2 sm:gap-5 justify-center items-center">
+              {/* Days */}
+              <div className="flex flex-col items-center bg-black/60 border border-white/10 rounded-2xl w-16 h-16 sm:w-20 sm:h-20 justify-center shadow-inner">
+                <span className="text-2xl sm:text-4xl font-black text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">{timeLeft.days}</span>
+                <span className="text-[9px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Days</span>
+              </div>
+              
+              <div className="text-xl sm:text-3xl font-black text-gray-600 mb-4">:</div>
+              
+              {/* Hours */}
+              <div className="flex flex-col items-center bg-black/60 border border-white/10 rounded-2xl w-16 h-16 sm:w-20 sm:h-20 justify-center shadow-inner">
+                <span className="text-2xl sm:text-4xl font-black text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">{timeLeft.hours}</span>
+                <span className="text-[9px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Hours</span>
+              </div>
+              
+              <div className="text-xl sm:text-3xl font-black text-gray-600 mb-4">:</div>
+              
+              {/* Minutes */}
+              <div className="flex flex-col items-center bg-black/60 border border-white/10 rounded-2xl w-16 h-16 sm:w-20 sm:h-20 justify-center shadow-inner">
+                <span className="text-2xl sm:text-4xl font-black text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">{timeLeft.minutes}</span>
+                <span className="text-[9px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Mins</span>
+              </div>
+              
+              <div className="text-xl sm:text-3xl font-black text-[#e76f51] mb-4 animate-pulse">:</div>
+              
+              {/* Seconds (Glowing) */}
+              <div className="flex flex-col items-center bg-[#e76f51]/10 border border-[#e76f51]/40 rounded-2xl w-16 h-16 sm:w-20 sm:h-20 justify-center shadow-[0_0_20px_rgba(231,111,81,0.25)]">
+                <span className="text-2xl sm:text-4xl font-black text-[#e76f51] drop-shadow-[0_0_15px_rgba(231,111,81,0.8)]">{timeLeft.seconds}</span>
+                <span className="text-[9px] sm:text-[10px] text-[#e76f51] font-bold uppercase tracking-widest mt-0.5">Secs</span>
+              </div>
+            </div>
+
+          </div>
+        </section>
+      )}
+
+
       {/* 3. Main Hero Text Section */}
       <section className="py-16 sm:py-24 px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center" data-aos="fade-up">
