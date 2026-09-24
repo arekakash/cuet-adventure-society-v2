@@ -30,6 +30,57 @@ export default function HomePage() {
 
   const IMGBB_API_KEY = 'c8e142b508f46f59807dbb6a3a2ccb23'; 
 
+  // 🔴 NEW: Countdown Timer States
+  const [upcomingEvent, setUpcomingEvent] = useState(null);
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+  // 🔴 NEW: Fetch Nearest Event and Start Timer
+  useEffect(() => {
+    let interval;
+    
+    const fetchUpcomingEvent = async () => {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('events')
+        .select('title, start_date')
+        .is('deleted_at', null)
+        .gt('start_date', now) // শুধুমাত্র ভবিষ্যতের ইভেন্ট
+        .order('start_date', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (data) {
+        setUpcomingEvent(data);
+        startCountdown(data.start_date);
+      }
+    };
+
+    const startCountdown = (targetDate) => {
+      const target = new Date(targetDate).getTime();
+      
+      interval = setInterval(() => {
+        const now = new Date().getTime();
+        const distance = target - now;
+
+        if (distance < 0) {
+          clearInterval(interval);
+        } else {
+          setTimeLeft({
+            days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+            hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+            minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+            seconds: Math.floor((distance % (1000 * 60)) / 1000)
+          });
+        }
+      }, 1000);
+    };
+
+    fetchUpcomingEvent();
+
+    return () => clearInterval(interval);
+  }, []);
+
+  
   useEffect(() => {
     AOS.init({ once: true, offset: 50 });
     checkUserStatus(); // 🔴 অ্যাডমিন এবং "New Explorer" চেক করার ফাংশন
