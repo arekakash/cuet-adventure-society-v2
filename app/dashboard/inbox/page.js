@@ -225,19 +225,27 @@ export default function GlobalInboxPage() {
     }
   }
 
-  const handleContactSelect = async (contact) => {
+    const handleContactSelect = async (contact) => {
     setSelectedContact(contact)
     selectedContactRef.current = contact
     setMobileView('chat')
     
     await fetchMessages(currentUser.id, contact.id)
 
-    // আনরিড মেসেজ থাকলে সিন করা হবে
+    // আনরিড মেসেজ থাকলে ডেটাবেসে সিন করবো এবং লোকাল স্টেট সাথে সাথে জিরো করে দেবো
     if (contact.unread > 0) {
       await markMessagesAsRead(contact.id, currentUser.id)
-      fetchContacts(currentUser.id)
+      
+      // 🔴 The Masterstroke: ডেটাবেস থেকে আবার সব ফেচ করার জন্য বসে না থেকে 
+      // লোকাল স্টেটেই আনরিড কাউন্ট জিরো করে দিচ্ছি। 
+      setContacts(prevContacts => 
+        prevContacts.map(c => 
+          c.id === contact.id ? { ...c, unread: 0 } : c
+        )
+      )
     }
   }
+
 
   const scrollToBottom = () => {
     setTimeout(() => {
