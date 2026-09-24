@@ -5,6 +5,8 @@ import "aos/dist/aos.css";
 import { supabase } from "@/lib/supabase";
 import ProductCard from "@/components/store/ProductCard";
 import SlideCart from "@/components/store/SlideCart";
+import { useCartStore } from "@/store/useCartStore";
+
 
 // Helper: sizes/colors input থেকে ভ্যারিয়েশন কম্বিনেশন বানিয়ে আগের স্টক ভ্যালু ধরে রাখা
 const recomputeVariantStock = (sizesInput, colorsInput, prevStock) => {
@@ -60,7 +62,7 @@ export default function AdventureStore() {
   const [viewMode, setViewMode] = useState('grid'); 
 
   // Cart & UI States
-  const [cart, setCart] = useState([]);
+  const { cart, setCart } = useCartStore();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [activeModal, setActiveModal] = useState(null); 
   const [selectedProduct, setSelectedProduct] = useState(null);
