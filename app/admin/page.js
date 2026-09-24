@@ -132,11 +132,12 @@ export default function AdminDashboard() {
                 {stats.pendingStoreOrders > 0 && <div className="absolute top-0 right-0 w-2 h-full bg-orange-500 animate-pulse rounded-r-2xl"></div>}
             </Link>
 
-            {/* 🔴 নতুন যুক্ত করা অ্যাডমিন ইনবক্স লিংক */}
-            <Link href="/admin/inbox" className="bg-[#0a1c13] border border-pink-500/30 p-5 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-pink-500/10 hover:-translate-y-1 relative">
-                <i className="fa-solid fa-inbox text-2xl mb-2 text-pink-400"></i>
-                <span className="font-black text-sm text-white">ইনবক্স ও সাপোর্ট</span>
+                        {/* 🔴 ব্রডকাস্ট ও অ্যানাউন্সমেন্ট (New Feature) */}
+            <Link href="/admin/broadcast" className="bg-[#0a1c13] border border-pink-500/30 p-5 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-pink-500/10 hover:-translate-y-1 relative group">
+                <i className="fa-solid fa-bullhorn text-2xl mb-2 text-pink-400 group-hover:scale-110 transition-transform"></i>
+                <span className="font-black text-sm text-white">অ্যানাউন্সমেন্ট</span>
             </Link>
+
 
         </div>
 
