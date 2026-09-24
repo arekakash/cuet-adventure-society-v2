@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/app/store/useCartStore";
-
+import SlideCart from "@/components/store/SlideCart"; // 🔴 অ্যাডভান্সড কার্ট ইমপোর্ট করা হলো
 
 export default function Navbar() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -16,6 +16,7 @@ export default function Navbar() {
   // Zustand Global State
   const cart = useCartStore((state) => state.cart);
   const cartTotal = useCartStore((state) => state.getCartTotal());
+  const setCart = useCartStore((state) => state.setCart); // 🔴 কোয়ান্টিটি আপডেটের জন্য যুক্ত করা হলো
   
   // Dynamic State
   const [session, setSession] = useState(null);
@@ -80,6 +81,27 @@ export default function Navbar() {
     // রেস কন্ডিশন ফিক্স: আগে রিফ্রেশ, তারপর পুশ
     router.refresh(); 
     router.push('/login');
+  };
+
+  // 🔴 কার্টে প্রোডাক্ট বাড়ানো বা কমানোর লজিক (SlideCart এর জন্য)
+  const updateCartQty = (cartItemId, delta, stockLimit) => {
+    setCart((prev) =>
+      prev
+        .map((item) => {
+          if (item.cartItemId === cartItemId) {
+            const newQty = item.qty + delta;
+            if (newQty > 0 && newQty <= stockLimit) return { ...item, qty: newQty };
+          }
+          return item;
+        })
+        .filter((item) => item.qty > 0)
+    );
+  };
+
+  // 🔴 চেকআউটে যাওয়ার লজিক
+  const openCheckoutModal = () => {
+    setIsCartOpen(false);
+    router.push('/store/checkout');
   };
 
   const isLoggedIn = !!session;
@@ -168,62 +190,15 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Cart Overlay (z-60) */}
-      {isCartOpen && (
-        <div onClick={() => setIsCartOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] transition-opacity"></div>
-      )}
-
-      {/* Slide-out Cart Panel (z-70) */}
-      <div className={`fixed inset-y-0 right-0 z-[70] w-full sm:w-96 bg-[#0a1c13] border-l border-white/10 shadow-2xl transform transition-transform duration-500 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
-        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
-          <h2 className="text-xl font-black text-white flex items-center gap-2"><i className="fa-solid fa-cart-shopping text-[#e76f51]"></i> আপনার কার্ট</h2>
-          <button onClick={() => setIsCartOpen(false)} className="text-gray-400 hover:text-white transition-colors text-2xl"><i className="fa-solid fa-xmark"></i></button>
-        </div>
-        
-        <div className="flex-grow overflow-y-auto p-4 space-y-4">
-          {cart.length === 0 ? (
-            <div className="text-center py-32 text-gray-500">
-              <i className="fa-solid fa-basket-shopping text-6xl mb-4 opacity-50"></i>
-              <p className="text-sm font-bold">আপনার কার্ট ফাঁকা!</p>
-              <Link href="/store" onClick={() => setIsCartOpen(false)} className="inline-block mt-4 text-[#e76f51] hover:text-white border border-[#e76f51] hover:bg-[#e76f51] px-4 py-2 rounded-full text-xs font-bold transition-colors">স্টোর ভিজিট করুন</Link>
-            </div>
-          ) : (
-            cart.map(item => (
-              <div key={item.cartItemId} className="bg-white/5 border border-white/10 p-3 rounded-xl flex gap-3 hover:bg-white/10 transition-colors">
-                <Image src={item.gallery?.[0]?.url || item.image_url} alt={item.name} width={64} height={64} className="w-16 h-16 object-contain bg-black/40 rounded-lg p-1 border border-white/5" unoptimized />
-                <div className="flex-grow">
-                  <h4 className="text-sm font-bold text-white truncate pr-4">{item.name}</h4>
-                  <div className="text-[10px] text-gray-400 flex gap-2 my-1">
-                    {item.selectedSize && <span>Size: {item.selectedSize}</span>}
-                    {item.selectedColor && <span>Color: {item.selectedColor}</span>}
-                    {item.orderType === 'rent' && <span className="text-emerald-400 font-bold border border-emerald-500/30 px-1 rounded">Rent: {item.rentDays} Days</span>}
-                  </div>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="font-bold text-white text-sm">৳{item.current_price * item.qty * (item.rentDays || 1)}</span>
-                    <div className="flex items-center gap-3 bg-black/50 rounded-lg px-2 py-1 border border-white/5">
-                      <span className="text-xs text-gray-400 font-bold">Qty: {item.qty}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="p-6 border-t border-white/10 bg-black/50">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-gray-400 font-bold text-sm">সর্বমোট:</span>
-            <span className="text-2xl font-black text-[#e76f51]">৳{cartTotal}</span>
-          </div>
-          <button 
-            disabled={cart.length === 0} 
-            onClick={() => { setIsCartOpen(false); router.push('/store/checkout'); }}
-            className={`w-full py-4 rounded-xl font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2 ${cart.length > 0 ? 'bg-[#e76f51] hover:bg-orange-600 text-white shadow-glow' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
-          >
-            চেকআউট করুন <i className="fa-solid fa-arrow-right"></i>
-          </button>
-        </div>
-      </div>
+      {/* 🔴 অ্যাডভান্সড SlideCart কম্পোনেন্ট কল করা হলো */}
+      <SlideCart 
+        isCartOpen={isCartOpen}
+        setIsCartOpen={setIsCartOpen}
+        cart={cart}
+        updateCartQty={updateCartQty}
+        cartTotal={cartTotal}
+        openCheckoutModal={openCheckoutModal}
+      />
 
       {/* Sidebar Overlay (z-60) */}
       {isSidebarOpen && (
