@@ -531,11 +531,12 @@ export default function AdventureStore() {
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setActiveModal(null)}></div>
           
-          {/* Product Details Modal */}
+          {/* Product Details Modal (🔴 FIXED HEIGHT & CLOSE BUTTON POSITION) */}
           {activeModal === 'details' && selectedProduct && (
-            <div className="bg-[#0a1c13] border border-[#e76f51]/30 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col relative z-10 shadow-2xl animate-[zoomIn_0.2s_ease-out] m-auto">
+            <div className="bg-[#0a1c13] border border-[#e76f51]/30 rounded-3xl w-full max-w-2xl h-[85vh] sm:h-[80vh] flex flex-col relative z-10 shadow-2xl animate-[zoomIn_0.2s_ease-out] mt-10 sm:m-auto">
               
-              <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 z-20 bg-black/50 hover:bg-white/20 text-white w-8 h-8 rounded-full transition-colors flex items-center justify-center">
+              {/* 🔴 FIXED CLOSE BUTTON */}
+              <button onClick={() => setActiveModal(null)} className="absolute top-3 right-3 sm:top-4 sm:right-4 z-[60] bg-black hover:bg-red-500 text-white w-9 h-9 rounded-full transition-colors flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/20">
                 <i className="fa-solid fa-xmark"></i>
               </button>
               
@@ -687,7 +688,7 @@ export default function AdventureStore() {
             <div className="bg-[#0a1c13] border border-white/10 p-6 rounded-3xl w-full max-w-md relative z-10 shadow-2xl animate-[zoomIn_0.2s_ease-out]">
               <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
               <h3 className="text-xl font-black text-white mb-2 flex items-center gap-2"><i className="fa-solid fa-calendar-days text-emerald-400"></i> ভাড়ার তারিখ নির্ধারণ</h3>
-              <p className="text-xs text-gray-400 mb-6">কয়দিনের জন্য ভাড়া নিতে চান তা সিলেক্ট করুন。</p>
+              <p className="text-xs text-gray-400 mb-6">কয়দিনের জন্য ভাড়া নিতে চান তা সিলেক্ট করুন।</p>
               
               <div className="space-y-4 mb-6">
                 <div>
@@ -716,7 +717,7 @@ export default function AdventureStore() {
             </div>
           )}
 
-          {/* Checkout Modal (User selects Payment Method & TrxID) */}
+          {/* Checkout Modal */}
           {activeModal === 'checkout' && (
             <div className="bg-[#0a1c13] border border-[#e76f51]/30 p-6 sm:p-8 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto relative z-10 shadow-[0_0_50px_rgba(231,111,81,0.15)]">
               <button onClick={() => {setActiveModal(null); setIsCartOpen(true);}} className="absolute top-4 right-4 text-gray-400 hover:text-white"><i className="fa-solid fa-arrow-left text-xl"></i></button>
