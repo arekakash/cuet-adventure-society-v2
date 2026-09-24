@@ -252,6 +252,12 @@ export default function Navbar() {
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform ${isActive('/beginners-guide') ? 'bg-emerald-400/20 text-emerald-400' : 'bg-white/5 text-emerald-400 group-hover:scale-110'}`}><i className="fa-solid fa-map"></i></div>
             <span className="font-bold text-sm">বিগিনার গাইড</span>
           </Link>
+                        <Link href="/event-calculator" onClick={() => setIsSidebarOpen(false)} 
+            className={`block py-3 px-4 rounded-xl transition-all group flex items-center gap-4 ${isActive('/event-calculator') ? 'bg-white/10 text-white border-l-4 border-purple-500' : 'hover:bg-white/5 hover:text-white border-l-4 border-transparent'}`}>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform ${isActive('/event-calculator') ? 'bg-purple-500/20 text-purple-400' : 'bg-white/5 text-purple-400 group-hover:scale-110'}`}><i className="fa-solid fa-calculator"></i></div>
+            <span className="font-bold text-sm">ইভেন্ট ক্যালকুলেটর</span>
+          </Link>
+              
 
           <Link href="/bloodbank" onClick={() => setIsSidebarOpen(false)} 
             className={`block py-3 px-4 rounded-xl transition-all group flex items-center gap-4 ${isActive('/bloodbank') ? 'bg-white/10 text-white border-l-4 border-red-500' : 'hover:bg-white/5 hover:text-white border-l-4 border-transparent'}`}>
