@@ -534,49 +534,100 @@ export default function AdventureStore() {
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setActiveModal(null)}></div>
           
-          {/* Product Details Modal */}
+                    {/* Product Details Modal */}
           {activeModal === 'details' && selectedProduct && (
-            <div className="bg-[#0a1c13] border border-[#e76f51]/30 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative z-10 shadow-2xl animate-[zoomIn_0.2s_ease-out]">
-              <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 z-20 bg-black/50 hover:bg-white/20 text-white w-8 h-8 rounded-full transition-colors"><i className="fa-solid fa-xmark"></i></button>
+            // 🔴 ওভারলে ফিক্স: margin-auto (m-auto) ব্যবহার করে স্ক্রিনের মাঝখানে আনা হলো
+            <div className="bg-[#0a1c13] border border-[#e76f51]/30 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col relative z-10 shadow-2xl animate-[zoomIn_0.2s_ease-out] m-auto">
               
-              <div className="relative h-60 sm:h-80 bg-white/5">
-                <ProductSlider images={selectedProduct.gallery || [selectedProduct.image_url]} altText={selectedProduct.name} />
-                {selectedProduct.discount_price > 0 && <div className="absolute top-4 left-4 bg-red-500 text-white font-black px-4 py-1 rounded-full shadow-lg">Sale!</div>}
-              </div>
-
-              <div className="p-6 sm:p-8">
-                <h2 className="text-2xl font-black text-white mb-2">{selectedProduct.name}</h2>
-                <div className="flex flex-wrap gap-4 items-center mb-6">
-                  {selectedProduct.sale_price > 0 && (
-                     <div className="bg-[#e76f51]/10 px-4 py-2 rounded-xl border border-[#e76f51]/20">
-                       <p className="text-[10px] text-gray-400 uppercase tracking-widest">কেনা মূল্য</p>
-                       <p className="text-xl font-black text-[#e76f51]">
-                         ৳{selectedProduct.discount_price > 0 ? selectedProduct.discount_price : selectedProduct.sale_price}
-                         {selectedProduct.discount_price > 0 && <span className="text-sm text-gray-500 line-through ml-2 font-normal">৳{selectedProduct.sale_price}</span>}
-                       </p>
-                     </div>
-                  )}
-                  {selectedProduct.rent_price > 0 && (
-                     <div className="bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20">
-                       <p className="text-[10px] text-gray-400 uppercase tracking-widest">ভাড়া মূল্য</p>
-                       <p className="text-xl font-black text-emerald-400">৳{selectedProduct.rent_price} <span className="text-sm font-normal">/দিন</span></p>
-                     </div>
-                  )}
+              <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 z-20 bg-black/50 hover:bg-white/20 text-white w-8 h-8 rounded-full transition-colors flex items-center justify-center">
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+              
+              {/* 🔴 বডি অংশটুকু স্ক্রল করার জন্য আলাদা কন্টেইনার */}
+              <div className="overflow-y-auto custom-scrollbar flex-grow">
+                <div className="relative h-60 sm:h-80 bg-white/5 shrink-0">
+                  <ProductSlider images={selectedProduct.gallery || [selectedProduct.image_url]} altText={selectedProduct.name} />
+                  {selectedProduct.discount_price > 0 && <div className="absolute top-4 left-4 bg-red-500 text-white font-black px-4 py-1 rounded-full shadow-lg">Sale!</div>}
                 </div>
 
-                <p className="text-gray-300 text-sm leading-relaxed mb-6 bg-white/5 p-4 rounded-xl border border-white/5">{selectedProduct.description || "এই পণ্যটির কোনো বিস্তারিত বিবরণ দেওয়া নেই।"}</p>
-
-                {selectedProduct.sizes?.length > 0 && (
-                  <div className="mb-4">
-                    <span className="text-xs text-gray-400 block mb-2 font-bold uppercase tracking-widest">এভেইলেবল সাইজ:</span>
-                    <div className="flex gap-2 flex-wrap">
-                      {selectedProduct.sizes.map(s => {
-                        const outOfStock = isVariantOutOfStock(selectedProduct, s, null);
-                        return <span key={s} className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${outOfStock ? 'bg-black/20 border-white/5 text-gray-600 line-through' : 'bg-white/10 border-white/10 text-white'}`}>{s}</span>;
-                      })}
-                    </div>
+                <div className="p-6 sm:p-8">
+                  <h2 className="text-2xl font-black text-white mb-2">{selectedProduct.name}</h2>
+                  <div className="flex flex-wrap gap-4 items-center mb-6">
+                    {selectedProduct.sale_price > 0 && (
+                       <div className="bg-[#e76f51]/10 px-4 py-2 rounded-xl border border-[#e76f51]/20">
+                         <p className="text-[10px] text-gray-400 uppercase tracking-widest">কেনা মূল্য</p>
+                         <p className="text-xl font-black text-[#e76f51]">
+                           ৳{selectedProduct.discount_price > 0 ? selectedProduct.discount_price : selectedProduct.sale_price}
+                           {selectedProduct.discount_price > 0 && <span className="text-sm text-gray-500 line-through ml-2 font-normal">৳{selectedProduct.sale_price}</span>}
+                         </p>
+                       </div>
+                    )}
+                    {selectedProduct.rent_price > 0 && (
+                       <div className="bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20">
+                         <p className="text-[10px] text-gray-400 uppercase tracking-widest">ভাড়া মূল্য</p>
+                         <p className="text-xl font-black text-emerald-400">৳{selectedProduct.rent_price} <span className="text-sm font-normal">/দিন</span></p>
+                       </div>
+                    )}
                   </div>
-                )}
+
+                  <p className="text-gray-300 text-sm leading-relaxed mb-6 bg-white/5 p-4 rounded-xl border border-white/5 whitespace-pre-line">
+                    {selectedProduct.description || "এই পণ্যটির কোনো বিস্তারিত বিবরণ দেওয়া নেই।"}
+                  </p>
+
+                  {selectedProduct.sizes?.length > 0 && (
+                    <div className="mb-4">
+                      <span className="text-xs text-gray-400 block mb-2 font-bold uppercase tracking-widest">এভেইলেবল সাইজ:</span>
+                      <div className="flex gap-2 flex-wrap">
+                        {selectedProduct.sizes.map(s => {
+                          const outOfStock = isVariantOutOfStock(selectedProduct, s, null);
+                          return <span key={s} className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${outOfStock ? 'bg-black/20 border-white/5 text-gray-600 line-through' : 'bg-white/10 border-white/10 text-white'}`}>{s}</span>;
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedProduct.colors?.length > 0 && (
+                    <div className="mb-6">
+                      <span className="text-xs text-gray-400 block mb-2 font-bold uppercase tracking-widest">এভেইলেবল কালার:</span>
+                      <div className="flex gap-2 flex-wrap">
+                        {selectedProduct.colors.map(c => {
+                          const outOfStock = isVariantOutOfStock(selectedProduct, null, c);
+                          return <span key={c} className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${outOfStock ? 'bg-black/20 border-white/5 text-gray-600 line-through' : 'bg-white/10 border-white/10 text-white'}`}>{c}</span>;
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 🔴 ফিক্সড অ্যাকশন বাটন এরিয়া (নিচে সব সময় দৃশ্যমান থাকবে) */}
+              <div className="p-4 sm:p-6 bg-black/60 border-t border-white/10 shrink-0 rounded-b-3xl">
+                <div className="flex gap-3">
+                  {selectedProduct.rent_price > 0 && (
+                    <button 
+                      onClick={(e) => handleProductAction(e, selectedProduct, 'rent')}
+                      disabled={isVariantOutOfStock(selectedProduct) && !isAdmin}
+                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                    >
+                      <i className="fa-solid fa-calendar-check"></i> ভাড়া নিন
+                    </button>
+                  )}
+                  
+                  {selectedProduct.sale_price > 0 && (
+                    <button 
+                      onClick={(e) => handleProductAction(e, selectedProduct, 'buy_now')}
+                      disabled={isVariantOutOfStock(selectedProduct) && !isAdmin}
+                      className="flex-1 bg-[#e76f51] hover:bg-orange-600 text-white py-3 rounded-xl font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-glow"
+                    >
+                      <i className="fa-solid fa-bag-shopping"></i> কিনুন
+                    </button>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          )}
+
                 
                 {selectedProduct.colors?.length > 0 && (
                   <div className="mb-6">
