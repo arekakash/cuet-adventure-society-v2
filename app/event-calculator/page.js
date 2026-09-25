@@ -1,363 +1,418 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from "react";
+import AOS from "aos";
+import "aos/dist/aos.css";
+// SSR (Server Side Rendering) এরর এড়াতে html2canvas কে ডাইনামিকভাবে ইমপোর্ট করবো ফাংশনের ভেতরে
 
 export default function EventCalculator() {
-  const [activeTab, setActiveTab] = useState('ledger');
+  const [isMounted, setIsMounted] = useState(false);
+  const receiptRef = useRef(null);
+
+  // --- States ---
+  const [eventData, setEventData] = useState({ name: "", date: "" });
   const [members, setMembers] = useState([]);
   const [expenses, setExpenses] = useState([]);
-  const [newMemberName, setNewMemberName] = useState('');
   
-  // Expense Form States
-  const [expTitle, setExpTitle] = useState('');
-  const [expAmount, setExpAmount] = useState('');
-  const [expPayer, setExpPayer] = useState('fund');
-  const [expSplitAmong, setExpSplitAmong] = useState([]);
+  // UI States
+  const [activeTab, setActiveTab] = useState("setup"); // setup, members, expenses, settlement
+  const [newMemberName, setNewMemberName] = useState("");
+  const [expenseForm, setExpenseForm] = useState({ desc: "", amount: "", payer: "group", consumers: [] });
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  // Load data from Local Storage on mount
+  // --- Local Storage Sync (Offline Protection) ---
   useEffect(() => {
-    const savedMembers = localStorage.getItem('cas_members');
-    const savedExpenses = localStorage.getItem('cas_expenses');
-    if (savedMembers) setMembers(JSON.parse(savedMembers));
-    if (savedExpenses) setExpenses(JSON.parse(savedExpenses));
+    AOS.init({ duration: 600, once: true });
+    const savedData = localStorage.getItem("cas_event_calc");
+    if (savedData) {
+      const parsed = JSON.parse(savedData);
+      setEventData(parsed.eventData || { name: "", date: "" });
+      setMembers(parsed.members || []);
+      setExpenses(parsed.expenses || []);
+      if (parsed.eventData?.name) setActiveTab("members");
+    }
+    setIsMounted(true);
   }, []);
 
-  // Save data to Local Storage whenever it changes
   useEffect(() => {
-    localStorage.setItem('cas_members', JSON.stringify(members));
-    localStorage.setItem('cas_expenses', JSON.stringify(expenses));
-  }, [members, expenses]);
+    if (isMounted) {
+      localStorage.setItem("cas_event_calc", JSON.stringify({ eventData, members, expenses }));
+    }
+  }, [eventData, members, expenses, isMounted]);
 
-  // --- Member Actions ---
-  const addMember = (e) => {
+  // --- Handlers ---
+  const handleStartEvent = (e) => {
+    e.preventDefault();
+    if (!eventData.name) return alert("ইভেন্টের নাম দিন!");
+    setActiveTab("members");
+  };
+
+  const handleAddMember = (e) => {
     e.preventDefault();
     if (!newMemberName.trim()) return;
-    const newMember = { id: Date.now().toString(), name: newMemberName.trim(), deposit: 0 };
-    setMembers([...members, newMember]);
-    setNewMemberName('');
+    setMembers([...members, { id: Date.now().toString(), name: newMemberName.trim(), deposit: 0 }]);
+    setNewMemberName("");
   };
 
-  const addDeposit = (id, amount) => {
-    const val = parseFloat(amount);
-    if (isNaN(val) || val <= 0) return;
-    setMembers(members.map(m => m.id === id ? { ...m, deposit: m.deposit + val } : m));
+  const handleUpdateDeposit = (id, amount) => {
+    setMembers(members.map(m => m.id === id ? { ...m, deposit: parseFloat(amount) || 0 } : m));
   };
 
-  const deleteMember = (id) => {
-    setMembers(members.filter(m => m.id !== id));
-    // Remove member from any existing expense splits
-    setExpenses(expenses.map(e => ({
-      ...e,
-      splitAmong: e.splitAmong.filter(mId => mId !== id)
-    })));
-  };
-
-  // --- Expense Actions ---
-  const handleSelectAllSplit = () => {
-    if (expSplitAmong.length === members.length) {
-      setExpSplitAmong([]);
-    } else {
-      setExpSplitAmong(members.map(m => m.id));
+  const handleRemoveMember = (id) => {
+    if (window.confirm("এই মেম্বারকে রিমুভ করবেন?")) {
+      setMembers(members.filter(m => m.id !== id));
+      // Remove them from existing expenses too
+      setExpenses(expenses.map(exp => ({
+        ...exp,
+        consumers: exp.consumers.filter(cId => cId !== id)
+      })));
     }
   };
 
-  const toggleSplitMember = (id) => {
-    if (expSplitAmong.includes(id)) {
-      setExpSplitAmong(expSplitAmong.filter(mId => mId !== id));
-    } else {
-      setExpSplitAmong([...expSplitAmong, id]);
-    }
-  };
-
-  const addExpense = (e) => {
+  const handleAddExpense = (e) => {
     e.preventDefault();
-    if (!expTitle || !expAmount || expSplitAmong.length === 0) return;
-    const newExpense = {
-      id: Date.now().toString(),
-      title: expTitle,
-      amount: parseFloat(expAmount),
-      payer: expPayer,
-      splitAmong: expSplitAmong
-    };
-    setExpenses([...expenses, newExpense]);
-    setExpTitle('');
-    setExpAmount('');
-    setExpPayer('fund');
-    setExpSplitAmong(members.map(m => m.id)); // Reset to all
-  };
-
-  const deleteExpense = (id) => {
-    setExpenses(expenses.filter(e => e.id !== id));
-  };
-
-  // --- Calculations for Settlement ---
-  const totalFundCollected = members.reduce((sum, m) => sum + m.deposit, 0);
-  const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const fundExpenses = expenses.filter(e => e.payer === 'fund').reduce((sum, e) => sum + e.amount, 0);
-  const remainingFund = totalFundCollected - fundExpenses;
-
-  // Calculate individual balances
-  const calculatedMembers = members.map(m => {
-    let pocketPaid = 0;
-    let share = 0;
+    if (!expenseForm.desc || !expenseForm.amount) return alert("খরচের বিবরণ ও পরিমাণ দিন!");
+    if (expenseForm.consumers.length === 0) return alert("অন্তত একজনকে সিলেক্ট করুন যার জন্য খরচ হয়েছে!");
     
-    expenses.forEach(e => {
-      // If member paid out of pocket
-      if (e.payer === m.id) pocketPaid += e.amount;
-      // If member is in the split group
-      if (e.splitAmong.includes(m.id)) {
-        share += (e.amount / e.splitAmong.length);
+    setExpenses([{
+      id: Date.now().toString(),
+      desc: expenseForm.desc,
+      amount: parseFloat(expenseForm.amount),
+      payer: expenseForm.payer,
+      consumers: expenseForm.consumers
+    }, ...expenses]);
+
+    // Reset Form
+    setExpenseForm({ desc: "", amount: "", payer: "group", consumers: members.map(m => m.id) });
+  };
+
+  const handleRemoveExpense = (id) => {
+    if(window.confirm("খরচটি ডিলিট করবেন?")) setExpenses(expenses.filter(e => e.id !== id));
+  };
+
+  const resetCalculator = () => {
+    if(window.confirm("পুরো হিসাব মুছে নতুন ইভেন্ট শুরু করবেন? এটি রিস্টোর করা যাবে না!")) {
+      setEventData({ name: "", date: "" });
+      setMembers([]);
+      setExpenses([]);
+      setActiveTab("setup");
+      localStorage.removeItem("cas_event_calc");
+    }
+  };
+
+  // --- Calculations ---
+  const totalCollected = members.reduce((sum, m) => sum + (m.deposit || 0), 0);
+  const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const groupFundBalance = totalCollected - expenses.filter(e => e.payer === 'group').reduce((sum, e) => sum + e.amount, 0);
+
+  // Settlement Algorithm
+  const calculateSettlement = () => {
+    let balances = {}; // { memberId: netBalance } (+ means group owes them, - means they owe group)
+    members.forEach(m => {
+      balances[m.id] = { name: m.name, paid: m.deposit, consumed: 0, net: 0 };
+    });
+
+    expenses.forEach(exp => {
+      // 1. Calculate how much each consumer owes for this expense
+      const perHead = exp.amount / exp.consumers.length;
+      exp.consumers.forEach(cId => {
+        if (balances[cId]) balances[cId].consumed += perHead;
+      });
+
+      // 2. If a specific member paid from pocket, add to their 'paid' amount
+      if (exp.payer !== 'group' && balances[exp.payer]) {
+        balances[exp.payer].paid += exp.amount;
       }
     });
 
-    const totalPaid = m.deposit + pocketPaid;
-    const balance = totalPaid - share; // Positive means gets back, Negative means owes
+    // Calculate Net
+    Object.keys(balances).forEach(id => {
+      balances[id].net = balances[id].paid - balances[id].consumed;
+    });
 
-    return { ...m, pocketPaid, share, totalPaid, balance };
-  });
+    return balances;
+  };
+
+  const settlementData = calculateSettlement();
+
+  // --- Generate High-Res Image (Zero Storage) ---
+  const downloadReceipt = async () => {
+    setIsGenerating(true);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const element = receiptRef.current;
+      const canvas = await html2canvas(element, { 
+        scale: 3, // High Resolution
+        backgroundColor: '#0a1c13',
+        useCORS: true
+      });
+      
+      const image = canvas.toDataURL("image/png");
+      const link = document.createElement('a');
+      link.href = image;
+      link.download = `CAS-Event-Slip-${eventData.name.replace(/\s+/g, '-')}.png`;
+      link.click();
+    } catch (err) {
+      alert("স্লিপ জেনারেট করতে সমস্যা হয়েছে!");
+      console.error(err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  if (!isMounted) return null;
 
   return (
-    <div className="min-h-screen bg-darkForest text-mistPanel p-4 md:p-8 pt-24 font-sans">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="min-h-screen bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 relative text-gray-300">
+      <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-trail to-campfire">
-            <i className="fa-solid fa-calculator mr-3"></i>CAS Event Calculator
+        <div className="text-center mb-8" data-aos="fade-down">
+          <h1 className="text-3xl sm:text-5xl font-black text-white mb-2 tracking-tight">
+            ইভেন্ট <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">ক্যালকুলেটর</span>
           </h1>
-          <p className="text-sm text-gray-400">স্মার্ট ট্রিপ, জিরো হিসাবের প্যারা</p>
+          <p className="text-sm text-gray-400">ট্যুরের যাবতীয় হিসাব-নিকাশের ম্যাজিক সমাধান</p>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex justify-center gap-2 md:gap-4 border-b border-white/10 pb-4">
-          <button 
-            onClick={() => setActiveTab('ledger')}
-            className={`px-4 py-2 rounded-lg transition-all ${activeTab === 'ledger' ? 'bg-trail text-white shadow-glow' : 'bg-white/5 hover:bg-white/10 text-gray-300'}`}
-          >
-            <i className="fa-solid fa-users mr-2"></i> লেজার (জমা)
-          </button>
-          <button 
-            onClick={() => { setActiveTab('expense'); setExpSplitAmong(members.map(m => m.id)); }}
-            className={`px-4 py-2 rounded-lg transition-all ${activeTab === 'expense' ? 'bg-campfire text-white shadow-glow' : 'bg-white/5 hover:bg-white/10 text-gray-300'}`}
-          >
-            <i className="fa-solid fa-receipt mr-2"></i> খরচ (লগ)
-          </button>
-          <button 
-            onClick={() => setActiveTab('settlement')}
-            className={`px-4 py-2 rounded-lg transition-all ${activeTab === 'settlement' ? 'bg-purple-600 text-white shadow-glow' : 'bg-white/5 hover:bg-white/10 text-gray-300'}`}
-          >
-            <i className="fa-solid fa-scale-balanced mr-2"></i> সেটেলমেন্ট
-          </button>
-        </div>
-
-        {/* --- TAB 1: LEDGER --- */}
-        {activeTab === 'ledger' && (
-          <div className="glass-panel p-6 rounded-2xl space-y-6 animate-fade-in">
-            <form onSubmit={addMember} className="flex gap-4">
-              <input 
-                type="text" 
-                value={newMemberName}
-                onChange={(e) => setNewMemberName(e.target.value)}
-                placeholder="নতুন মেম্বারের নাম..." 
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-trail"
-              />
-              <button type="submit" className="bg-trail hover:bg-green-600 text-white px-6 py-2 rounded-xl transition-colors font-medium">
-                অ্যাড করুন
-              </button>
-            </form>
-
-            <div className="space-y-3">
-              {members.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">এখনো কোনো মেম্বার অ্যাড করা হয়নি।</p>
-              ) : (
-                members.map((member) => (
-                  <div key={member.id} className="flex flex-col md:flex-row md:items-center justify-between bg-white/5 p-4 rounded-xl border border-white/5 gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-moss rounded-full flex items-center justify-center text-trail font-bold text-lg">
-                        {member.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-medium">{member.name}</h3>
-                        <p className="text-sm text-gray-400">মোট জমা: <span className="text-trail font-bold">{member.deposit} ৳</span></p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input 
-                        type="number" 
-                        id={`deposit-${member.id}`}
-                        placeholder="অ্যামাউন্ট" 
-                        className="w-28 bg-darkForest border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-trail"
-                      />
-                      <button 
-                        onClick={() => {
-                          const input = document.getElementById(`deposit-${member.id}`);
-                          addDeposit(member.id, input.value);
-                          input.value = '';
-                        }}
-                        className="bg-white/10 hover:bg-trail text-white px-3 py-1.5 rounded-lg text-sm transition-colors"
-                      >
-                        জমা নিন
-                      </button>
-                      <button onClick={() => deleteMember(member.id)} className="text-red-400 hover:text-red-300 ml-2">
-                        <i className="fa-solid fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            
-            <div className="text-right text-sm text-gray-400 border-t border-white/10 pt-4">
-              মোট ফান্ড কালেকশন: <span className="text-xl text-white font-bold">{totalFundCollected} ৳</span>
-            </div>
+        {activeTab !== "setup" && (
+          <div className="flex flex-wrap justify-center gap-2 bg-white/5 p-2 rounded-2xl mb-6 border border-white/10">
+            <button onClick={() => setActiveTab("members")} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'members' ? 'bg-purple-500 text-white shadow-glow' : 'hover:bg-white/10'}`}><i className="fa-solid fa-users mr-2"></i>মেম্বার ও ফান্ড</button>
+            <button onClick={() => { setActiveTab("expenses"); setExpenseForm(p => ({...p, consumers: members.map(m=>m.id)})); }} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'expenses' ? 'bg-pink-500 text-white shadow-glow' : 'hover:bg-white/10'}`}><i className="fa-solid fa-money-bill-wave mr-2"></i>খরচের খাতা</button>
+            <button onClick={() => setActiveTab("settlement")} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'settlement' ? 'bg-emerald-500 text-white shadow-glow' : 'hover:bg-white/10'}`}><i className="fa-solid fa-check-double mr-2"></i>ফাইনাল সেটেলমেন্ট</button>
           </div>
         )}
 
-        {/* --- TAB 2: EXPENSES --- */}
-        {activeTab === 'expense' && (
-          <div className="space-y-6 animate-fade-in">
-            <form onSubmit={addExpense} className="glass-panel p-6 rounded-2xl space-y-5">
-              <h2 className="text-xl font-bold text-campfire mb-4">নতুন খরচ এন্ট্রি</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input 
-                  type="text" required value={expTitle} onChange={(e) => setExpTitle(e.target.value)}
-                  placeholder="খরচের বিবরণ (যেমন: জিপ ভাড়া)" 
-                  className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:border-campfire text-white"
-                />
-                <input 
-                  type="number" required value={expAmount} onChange={(e) => setExpAmount(e.target.value)}
-                  placeholder="অ্যামাউন্ট ৳" 
-                  className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:border-campfire text-white"
-                />
-              </div>
-
+        {/* TAB 1: SETUP */}
+        {activeTab === "setup" && (
+          <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-8 max-w-md mx-auto shadow-2xl" data-aos="zoom-in">
+            <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-purple-500/40 text-purple-400 text-2xl">
+              <i className="fa-solid fa-compass"></i>
+            </div>
+            <h2 className="text-2xl font-black text-white text-center mb-6">নতুন ইভেন্ট শুরু করুন</h2>
+            <form onSubmit={handleStartEvent} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-2">কে টাকা দিয়েছে?</label>
-                <select 
-                  value={expPayer} onChange={(e) => setExpPayer(e.target.value)}
-                  className="w-full bg-darkForest border border-white/10 rounded-xl px-4 py-2 focus:border-campfire text-white"
-                >
-                  <option value="fund">গ্রুপ ফান্ড থেকে (Group Fund)</option>
-                  {members.map(m => (
-                    <option key={m.id} value={m.id}>{m.name} এর পকেট থেকে</option>
-                  ))}
-                </select>
+                <label className="block text-xs font-bold text-gray-400 mb-1">ইভেন্টের নাম *</label>
+                <input required type="text" value={eventData.name} onChange={e => setEventData({...eventData, name: e.target.value})} placeholder="e.g. Sajek Tour 2026" className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-500 outline-none" />
               </div>
-
-              {/* Sub-Group Tagging Logic */}
-              <div className="bg-darkForest p-4 rounded-xl border border-white/5">
-                <div className="flex justify-between items-center mb-3">
-                  <label className="text-sm text-gray-400">এই খরচটি কাদের জন্য প্রযোজ্য?</label>
-                  <button type="button" onClick={handleSelectAllSplit} className="text-xs text-trail hover:text-white">
-                    {expSplitAmong.length === members.length ? 'সবাইকে আনসিলেক্ট করুন' : 'সবাইকে সিলেক্ট করুন'}
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {members.map(m => (
-                    <label key={m.id} className={`cursor-pointer px-3 py-1.5 rounded-lg border text-sm transition-all ${expSplitAmong.includes(m.id) ? 'bg-trail/20 border-trail text-white' : 'border-white/10 text-gray-500 hover:border-white/30'}`}>
-                      <input type="checkbox" className="hidden" checked={expSplitAmong.includes(m.id)} onChange={() => toggleSplitMember(m.id)} />
-                      {m.name}
-                    </label>
-                  ))}
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 mb-1">তারিখ</label>
+                <input type="date" value={eventData.date} onChange={e => setEventData({...eventData, date: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-500 outline-none [color-scheme:dark]" />
               </div>
-
-              <button type="submit" className="w-full bg-campfire hover:bg-orange-600 text-white py-3 rounded-xl font-bold transition-all">
-                খরচ যুক্ত করুন
-              </button>
+              <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 text-white py-3.5 rounded-xl font-black tracking-widest mt-4 transition-colors">হিসাব শুরু করুন <i className="fa-solid fa-arrow-right ml-2"></i></button>
             </form>
-
-            <div className="glass-panel p-6 rounded-2xl">
-              <h3 className="text-lg font-bold mb-4">খরচের লিস্ট</h3>
-              <div className="space-y-3">
-                {expenses.length === 0 ? (
-                  <p className="text-center text-gray-500 py-4">কোনো খরচের হিসাব নেই।</p>
-                ) : (
-                  expenses.map(e => {
-                    const payerName = e.payer === 'fund' ? 'গ্রুপ ফান্ড' : members.find(m=>m.id === e.payer)?.name || 'Unknown';
-                    const isForAll = e.splitAmong.length === members.length;
-                    return (
-                      <div key={e.id} className="flex justify-between items-center bg-white/5 p-4 rounded-xl border-l-4 border-campfire">
-                        <div>
-                          <h4 className="font-medium text-white">{e.title} <span className="text-xs ml-2 bg-white/10 px-2 py-0.5 rounded-full text-gray-300">{isForAll ? 'সবার জন্য' : `${e.splitAmong.length} জনের জন্য`}</span></h4>
-                          <p className="text-sm text-gray-400 mt-1">প্রদানকারী: <span className="text-orange-300">{payerName}</span></p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className="font-bold text-lg">{e.amount} ৳</span>
-                          <button onClick={() => deleteExpense(e.id)} className="text-red-400 hover:text-red-300 p-2">
-                            <i className="fa-solid fa-trash"></i>
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-            </div>
           </div>
         )}
 
-        {/* --- TAB 3: SETTLEMENT --- */}
-        {activeTab === 'settlement' && (
-          <div className="space-y-6 animate-fade-in">
-            
-            {/* Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="glass-panel p-5 rounded-2xl text-center border-t-4 border-trail">
-                <p className="text-sm text-gray-400 mb-1">মোট ফান্ড সংগ্রহ</p>
-                <p className="text-2xl font-bold text-white">{totalFundCollected} ৳</p>
+        {/* TAB 2: MEMBERS & FUND */}
+        {activeTab === "members" && (
+          <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gradient-to-br from-emerald-900/40 to-emerald-900/10 border border-emerald-500/30 p-5 rounded-2xl text-center">
+                <p className="text-xs text-emerald-400 font-bold mb-1">মোট ফান্ড কালেকশন</p>
+                <p className="text-3xl font-black text-white">৳{totalCollected}</p>
               </div>
-              <div className="glass-panel p-5 rounded-2xl text-center border-t-4 border-campfire">
-                <p className="text-sm text-gray-400 mb-1">সর্বমোট খরচ</p>
-                <p className="text-2xl font-bold text-white">{totalExpense} ৳</p>
-              </div>
-              <div className={`glass-panel p-5 rounded-2xl text-center border-t-4 ${remainingFund >= 0 ? 'border-blue-500' : 'border-red-500'}`}>
-                <p className="text-sm text-gray-400 mb-1">ফান্ডে অবশিষ্ট আছে</p>
-                <p className={`text-2xl font-bold ${remainingFund >= 0 ? 'text-blue-400' : 'text-red-400'}`}>{remainingFund} ৳</p>
-                {remainingFund < 0 && <p className="text-xs text-red-400 mt-1">ফান্ড শর্টেজ!</p>}
+              <div className="bg-gradient-to-br from-purple-900/40 to-purple-900/10 border border-purple-500/30 p-5 rounded-2xl text-center">
+                <p className="text-xs text-purple-400 font-bold mb-1">মেম্বার সংখ্যা</p>
+                <p className="text-3xl font-black text-white">{members.length} জন</p>
               </div>
             </div>
 
-            {/* Individual Statements */}
-            <div className="glass-panel p-6 rounded-2xl">
-              <h3 className="text-xl font-bold mb-6 border-b border-white/10 pb-4">ফাইনাল হিসাব (কে কত পাবে/দেবে)</h3>
-              
-              <div className="space-y-4">
-                {calculatedMembers.map(m => (
-                  <div key={m.id} className="bg-moss/50 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="w-full md:w-1/3">
-                      <h4 className="text-lg font-bold text-white">{m.name}</h4>
-                      <p className="text-xs text-gray-400 mt-1">টোটাল জমা: {m.deposit} ৳ {m.pocketPaid > 0 && `(+ পকেট থেকে ${m.pocketPaid} ৳)`}</p>
-                    </div>
-                    
-                    <div className="w-full md:w-1/3 text-center bg-darkForest py-2 rounded-lg border border-white/5">
-                      <p className="text-xs text-gray-500">তার আসল খরচ</p>
-                      <p className="font-bold text-gray-200">{m.share.toFixed(2)} ৳</p>
-                    </div>
+            <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-6 shadow-xl">
+              <h3 className="text-lg font-black text-white mb-4 border-b border-white/5 pb-3">মেম্বার যুক্ত করুন</h3>
+              <form onSubmit={handleAddMember} className="flex gap-2 mb-6">
+                <input type="text" value={newMemberName} onChange={e => setNewMemberName(e.target.value)} placeholder="মেম্বারের নাম লিখুন..." className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-500 outline-none" />
+                <button type="submit" className="bg-purple-600 hover:bg-purple-500 text-white px-6 rounded-xl font-bold transition-colors"><i className="fa-solid fa-plus"></i></button>
+              </form>
 
-                    <div className="w-full md:w-1/3 text-right">
-                      {m.balance > 0 ? (
-                         <div className="text-trail">
-                           <p className="text-xs">ফান্ড থেকে ফেরত পাবে</p>
-                           <p className="font-bold text-xl">+{m.balance.toFixed(2)} ৳</p>
-                         </div>
-                      ) : m.balance < 0 ? (
-                         <div className="text-campfire">
-                           <p className="text-xs">ফান্ডে আরও দিতে হবে</p>
-                           <p className="font-bold text-xl">{m.balance.toFixed(2)} ৳</p>
-                         </div>
-                      ) : (
-                         <div className="text-gray-400">
-                           <p className="text-xs">হিসাব ক্লিয়ার</p>
-                           <p className="font-bold text-xl">0 ৳</p>
-                         </div>
-                      )}
+              <div className="space-y-3">
+                {members.length === 0 ? <p className="text-center text-gray-500 py-4 text-sm">কোনো মেম্বার যুক্ত করা হয়নি।</p> : null}
+                {members.map(member => (
+                  <div key={member.id} className="bg-white/5 border border-white/10 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <span className="font-bold text-white pl-2">{member.name}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-gray-400">৳</span>
+                        <input type="number" value={member.deposit || ''} onChange={(e) => handleUpdateDeposit(member.id, e.target.value)} placeholder="0" className="w-32 bg-black/50 border border-white/10 rounded-lg pl-7 pr-3 py-2 text-emerald-400 font-bold focus:border-emerald-500 outline-none" />
+                      </div>
+                      <button onClick={() => handleRemoveMember(member.id)} className="bg-red-500/10 text-red-400 hover:bg-red-500/30 p-2 rounded-lg transition-colors"><i className="fa-solid fa-trash"></i></button>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* TAB 3: EXPENSES */}
+        {activeTab === "expenses" && (
+          <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+            <div className="bg-gradient-to-br from-pink-900/40 to-pink-900/10 border border-pink-500/30 p-5 rounded-2xl text-center flex justify-between items-center">
+              <div>
+                <p className="text-xs text-pink-400 font-bold mb-1">মোট খরচ</p>
+                <p className="text-3xl font-black text-white text-left">৳{totalExpense}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-400 font-bold mb-1">গ্রুপ ফান্ডের ব্যালেন্স</p>
+                <p className={`text-xl font-black ${groupFundBalance < 0 ? 'text-red-500' : 'text-emerald-400'}`}>৳{groupFundBalance}</p>
+              </div>
+            </div>
+
+            <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-6 shadow-xl">
+              <h3 className="text-lg font-black text-white mb-4 border-b border-white/5 pb-3">খরচের এন্ট্রি করুন</h3>
+              <form onSubmit={handleAddExpense} className="space-y-4 mb-8 bg-black/30 p-4 rounded-2xl border border-white/5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1">কীসে খরচ হলো? *</label>
+                    <input type="text" value={expenseForm.desc} onChange={e => setExpenseForm({...expenseForm, desc: e.target.value})} placeholder="যেমন: বাসের ভাড়া" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1">টাকার পরিমাণ (৳) *</label>
+                    <input type="number" value={expenseForm.amount} onChange={e => setExpenseForm({...expenseForm, amount: e.target.value})} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 outline-none font-bold" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 mb-1">টাকাটা কে দিয়েছে?</label>
+                  <select value={expenseForm.payer} onChange={e => setExpenseForm({...expenseForm, payer: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 outline-none">
+                    <option value="group">সবাই মিলে (গ্রুপ ফান্ড থেকে)</option>
+                    {members.map(m => <option key={m.id} value={m.id}>{m.name} নিজের পকেট থেকে দিয়েছে</option>)}
+                  </select>
+                </div>
+
+                {/* Sub-group Checkboxes */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs font-bold text-gray-400">এই খরচটি কাদের জন্য প্রযোজ্য?</label>
+                    <button type="button" onClick={() => setExpenseForm({...expenseForm, consumers: expenseForm.consumers.length === members.length ? [] : members.map(m=>m.id)})} className="text-[10px] text-pink-400 hover:text-pink-300 font-bold">
+                      {expenseForm.consumers.length === members.length ? 'সবাইকে আনসিলেক্ট করুন' : 'সবাইকে সিলেক্ট করুন'}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {members.map(m => {
+                      const isSelected = expenseForm.consumers.includes(m.id);
+                      return (
+                        <button 
+                          key={m.id} type="button"
+                          onClick={() => {
+                            const newConsumers = isSelected ? expenseForm.consumers.filter(id => id !== m.id) : [...expenseForm.consumers, m.id];
+                            setExpenseForm({...expenseForm, consumers: newConsumers});
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isSelected ? 'bg-pink-500/20 border-pink-500 text-pink-400' : 'bg-black/50 border-white/10 text-gray-500 hover:text-gray-300'}`}
+                        >
+                          {m.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full bg-pink-600 hover:bg-pink-500 text-white py-3 rounded-xl font-bold transition-colors mt-2">খরচ যুক্ত করুন</button>
+              </form>
+
+              {/* Expense List */}
+              <div className="space-y-3">
+                {expenses.length === 0 ? <p className="text-center text-gray-500 py-4 text-sm">কোনো খরচের হিসাব নেই।</p> : null}
+                {expenses.map((exp, i) => {
+                  const payerName = exp.payer === 'group' ? 'গ্রুপ ফান্ড' : members.find(m => m.id === exp.payer)?.name;
+                  return (
+                    <div key={exp.id} className="bg-white/5 border border-white/10 p-4 rounded-xl flex justify-between items-center gap-3 hover:bg-white/10 transition-colors">
+                      <div>
+                        <p className="font-bold text-white flex items-center gap-2">
+                          <span className="bg-white/10 text-xs px-2 py-0.5 rounded-md text-gray-400">#{expenses.length - i}</span> {exp.desc}
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-1">পেমেন্ট: <span className="text-blue-400 font-bold">{payerName}</span> • ভোগকারী: {exp.consumers.length === members.length ? 'সকলে' : `${exp.consumers.length} জন`}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-black text-pink-400">৳{exp.amount.toFixed(0)}</p>
+                        <button onClick={() => handleRemoveExpense(exp.id)} className="text-[10px] text-red-400 hover:text-red-300 font-bold mt-1 uppercase"><i className="fa-solid fa-trash mr-1"></i>ডিলিট</button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: FINAL SETTLEMENT & SLIP GENERATION */}
+        {activeTab === "settlement" && (
+          <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
             
+            {/* The Hidden/Visible Canvas Area for Slip Generation */}
+            <div ref={receiptRef} className="bg-gradient-to-b from-[#0a1c13] to-black border border-white/10 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
+              
+              {/* Slip Header */}
+              <div className="text-center border-b border-dashed border-white/20 pb-6 mb-6 relative">
+                <h2 className="text-3xl font-black text-white tracking-widest uppercase mb-1">CAS Final Slip</h2>
+                <h3 className="text-lg text-emerald-400 font-bold mb-2">{eventData.name || 'Unnamed Event'}</h3>
+                <p className="text-xs text-gray-400">{eventData.date ? `তারিখ: ${eventData.date}` : `জেনারেট করা হয়েছে: ${new Date().toLocaleDateString('en-GB')}`}</p>
+              </div>
+
+              {/* Core Stats */}
+              <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10 mb-6">
+                <div className="text-center w-1/2 border-r border-white/10">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">মোট সংগ্রহ</p>
+                  <p className="text-xl font-black text-emerald-400">৳{totalCollected.toFixed(0)}</p>
+                </div>
+                <div className="text-center w-1/2">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">মোট খরচ</p>
+                  <p className="text-xl font-black text-pink-400">৳{totalExpense.toFixed(0)}</p>
+                </div>
+              </div>
+
+              {/* Settlement Breakdowns */}
+              <div className="space-y-3 relative">
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">ব্যক্তিগত হিসাব নিকাশ:</p>
+                {Object.keys(settlementData).map(id => {
+                  const data = settlementData[id];
+                  const net = data.net;
+                  return (
+                    <div key={id} className="bg-black/40 p-3 rounded-lg flex justify-between items-center border-l-4" style={{borderColor: net > 0 ? '#10b981' : (net < 0 ? '#ef4444' : '#6b7280')}}>
+                      <div>
+                        <p className="font-bold text-white text-sm">{data.name}</p>
+                        <p className="text-[9px] text-gray-500 mt-0.5">জমা: ৳{data.paid.toFixed(0)} | খরচ হয়েছে: ৳{data.consumed.toFixed(0)}</p>
+                      </div>
+                      <div className="text-right">
+                        {net > 1 ? (
+                          <p className="text-sm font-black text-emerald-400">পাবে ৳{net.toFixed(0)}</p>
+                        ) : net < -1 ? (
+                          <p className="text-sm font-black text-red-500">দেবে ৳{Math.abs(net).toFixed(0)}</p>
+                        ) : (
+                          <p className="text-sm font-black text-gray-400">হিসাব ক্লিয়ার</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Watermark/Footer */}
+              <div className="text-center mt-12 pt-4 border-t border-white/10">
+                <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">Generated by CAS Artificial Intelligence</p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <button 
+                onClick={downloadReceipt} disabled={isGenerating}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] flex justify-center items-center gap-2"
+              >
+                {isGenerating ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-download"></i>}
+                {isGenerating ? "স্লিপ তৈরি হচ্ছে..." : "এইচডি স্লিপ ডাউনলোড"}
+              </button>
+              
+              <button 
+                onClick={resetCalculator}
+                className="bg-red-900/50 hover:bg-red-900 border border-red-500/50 text-red-400 px-6 py-4 rounded-xl font-bold transition-all text-xs uppercase"
+              >
+                <i className="fa-solid fa-power-off mr-2"></i>নতুন হিসাব শুরু
+              </button>
+            </div>
+
           </div>
         )}
       </div>
