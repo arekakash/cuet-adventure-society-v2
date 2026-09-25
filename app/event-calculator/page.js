@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import AOS from "aos";
 import "aos/dist/aos.css";
-// SSR (Server Side Rendering) এরর এড়াতে html2canvas কে ডাইনামিকভাবে ইমপোর্ট করবো ফাংশনের ভেতরে
 
 export default function EventCalculator() {
   const [isMounted, setIsMounted] = useState(false);
@@ -17,8 +16,17 @@ export default function EventCalculator() {
   // UI States
   const [activeTab, setActiveTab] = useState("setup"); // setup, members, expenses, settlement
   const [newMemberName, setNewMemberName] = useState("");
-  const [expenseForm, setExpenseForm] = useState({ desc: "", amount: "", payer: "group", consumers: [] });
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Expense Form State (Updated for Multi-Payers)
+  const [expenseForm, setExpenseForm] = useState({ 
+    desc: "", 
+    amount: "", 
+    paymentMethod: "group", // 'group', 'single', 'multiple'
+    singlePayerId: "", 
+    multiPayers: {}, // { memberId: amountStr }
+    consumers: [] 
+  });
 
   // --- Local Storage Sync (Offline Protection) ---
   useEffect(() => {
@@ -61,7 +69,6 @@ export default function EventCalculator() {
   const handleRemoveMember = (id) => {
     if (window.confirm("এই মেম্বারকে রিমুভ করবেন?")) {
       setMembers(members.filter(m => m.id !== id));
-      // Remove them from existing expenses too
       setExpenses(expenses.map(exp => ({
         ...exp,
         consumers: exp.consumers.filter(cId => cId !== id)
@@ -71,19 +78,39 @@ export default function EventCalculator() {
 
   const handleAddExpense = (e) => {
     e.preventDefault();
-    if (!expenseForm.desc || !expenseForm.amount) return alert("খরচের বিবরণ ও পরিমাণ দিন!");
+    const amountNum = parseFloat(expenseForm.amount);
+
+    if (!expenseForm.desc || !amountNum) return alert("খরচের বিবরণ ও পরিমাণ সঠিকভাবে দিন!");
     if (expenseForm.consumers.length === 0) return alert("অন্তত একজনকে সিলেক্ট করুন যার জন্য খরচ হয়েছে!");
     
+    // Validation for Multiple Payers
+    if (expenseForm.paymentMethod === 'multiple') {
+      const sumOfMultiPayers = Object.values(expenseForm.multiPayers).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+      if (sumOfMultiPayers !== amountNum) {
+        return alert(`হিসাব মিলছে না! মোট খরচ ৳${amountNum}, কিন্তু মেম্বারদের দেওয়া টাকার যোগফল ৳${sumOfMultiPayers}`);
+      }
+    }
+
+    if (expenseForm.paymentMethod === 'single' && !expenseForm.singlePayerId) {
+       return alert("কে টাকা দিয়েছে তা সিলেক্ট করুন!");
+    }
+
     setExpenses([{
       id: Date.now().toString(),
       desc: expenseForm.desc,
-      amount: parseFloat(expenseForm.amount),
-      payer: expenseForm.payer,
+      amount: amountNum,
+      paymentMethod: expenseForm.paymentMethod,
+      singlePayerId: expenseForm.singlePayerId,
+      multiPayers: expenseForm.multiPayers,
       consumers: expenseForm.consumers
     }, ...expenses]);
 
     // Reset Form
-    setExpenseForm({ desc: "", amount: "", payer: "group", consumers: members.map(m => m.id) });
+    setExpenseForm({ 
+      desc: "", amount: "", 
+      paymentMethod: "group", singlePayerId: "", multiPayers: {}, 
+      consumers: members.map(m => m.id) 
+    });
   };
 
   const handleRemoveExpense = (id) => {
@@ -103,9 +130,9 @@ export default function EventCalculator() {
   // --- Calculations ---
   const totalCollected = members.reduce((sum, m) => sum + (m.deposit || 0), 0);
   const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const groupFundBalance = totalCollected - expenses.filter(e => e.payer === 'group').reduce((sum, e) => sum + e.amount, 0);
+  const groupFundBalance = totalCollected - expenses.filter(e => e.paymentMethod === 'group').reduce((sum, e) => sum + e.amount, 0);
 
-  // Settlement Algorithm
+  // Settlement Algorithm (Updated for Multi-Payers)
   const calculateSettlement = () => {
     let balances = {}; // { memberId: netBalance } (+ means group owes them, - means they owe group)
     members.forEach(m => {
@@ -113,19 +140,24 @@ export default function EventCalculator() {
     });
 
     expenses.forEach(exp => {
-      // 1. Calculate how much each consumer owes for this expense
+      // 1. Consumers cost deduction
       const perHead = exp.amount / exp.consumers.length;
       exp.consumers.forEach(cId => {
         if (balances[cId]) balances[cId].consumed += perHead;
       });
 
-      // 2. If a specific member paid from pocket, add to their 'paid' amount
-      if (exp.payer !== 'group' && balances[exp.payer]) {
-        balances[exp.payer].paid += exp.amount;
+      // 2. Addition to paid amount based on payer type
+      if (exp.paymentMethod === 'single' && balances[exp.singlePayerId]) {
+        balances[exp.singlePayerId].paid += exp.amount;
+      } else if (exp.paymentMethod === 'multiple') {
+        Object.entries(exp.multiPayers).forEach(([pId, amtStr]) => {
+           const amt = parseFloat(amtStr) || 0;
+           if (balances[pId]) balances[pId].paid += amt;
+        });
       }
     });
 
-    // Calculate Net
+    // Calculate Net Balance
     Object.keys(balances).forEach(id => {
       balances[id].net = balances[id].paid - balances[id].consumed;
     });
@@ -142,7 +174,7 @@ export default function EventCalculator() {
       const html2canvas = (await import('html2canvas')).default;
       const element = receiptRef.current;
       const canvas = await html2canvas(element, { 
-        scale: 3, // High Resolution
+        scale: 3, 
         backgroundColor: '#0a1c13',
         useCORS: true
       });
@@ -163,8 +195,8 @@ export default function EventCalculator() {
   if (!isMounted) return null;
 
   return (
-    <div className="min-h-screen bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 relative text-gray-300">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 relative text-gray-300 overflow-x-hidden">
+      <div className="max-w-4xl mx-auto space-y-6 relative z-10">
         
         {/* Header */}
         <div className="text-center mb-8" data-aos="fade-down">
@@ -207,11 +239,10 @@ export default function EventCalculator() {
         {/* TAB 2: MEMBERS & FUND */}
         {activeTab === "members" && (
           <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
-            {/* Summary Cards */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gradient-to-br from-emerald-900/40 to-emerald-900/10 border border-emerald-500/30 p-5 rounded-2xl text-center">
                 <p className="text-xs text-emerald-400 font-bold mb-1">মোট ফান্ড কালেকশন</p>
-                <p className="text-3xl font-black text-white">৳{totalCollected}</p>
+                <p className="text-3xl font-black text-white">৳{totalCollected.toFixed(0)}</p>
               </div>
               <div className="bg-gradient-to-br from-purple-900/40 to-purple-900/10 border border-purple-500/30 p-5 rounded-2xl text-center">
                 <p className="text-xs text-purple-400 font-bold mb-1">মেম্বার সংখ্যা</p>
@@ -229,7 +260,7 @@ export default function EventCalculator() {
               <div className="space-y-3">
                 {members.length === 0 ? <p className="text-center text-gray-500 py-4 text-sm">কোনো মেম্বার যুক্ত করা হয়নি।</p> : null}
                 {members.map(member => (
-                  <div key={member.id} className="bg-white/5 border border-white/10 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div key={member.id} className="bg-white/5 border border-white/10 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/10 transition-colors">
                     <span className="font-bold text-white pl-2">{member.name}</span>
                     <div className="flex items-center gap-2">
                       <div className="relative">
@@ -251,21 +282,21 @@ export default function EventCalculator() {
             <div className="bg-gradient-to-br from-pink-900/40 to-pink-900/10 border border-pink-500/30 p-5 rounded-2xl text-center flex justify-between items-center">
               <div>
                 <p className="text-xs text-pink-400 font-bold mb-1">মোট খরচ</p>
-                <p className="text-3xl font-black text-white text-left">৳{totalExpense}</p>
+                <p className="text-3xl font-black text-white text-left">৳{totalExpense.toFixed(0)}</p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-gray-400 font-bold mb-1">গ্রুপ ফান্ডের ব্যালেন্স</p>
-                <p className={`text-xl font-black ${groupFundBalance < 0 ? 'text-red-500' : 'text-emerald-400'}`}>৳{groupFundBalance}</p>
+                <p className={`text-xl font-black ${groupFundBalance < 0 ? 'text-red-500' : 'text-emerald-400'}`}>৳{groupFundBalance.toFixed(0)}</p>
               </div>
             </div>
 
             <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-6 shadow-xl">
               <h3 className="text-lg font-black text-white mb-4 border-b border-white/5 pb-3">খরচের এন্ট্রি করুন</h3>
-              <form onSubmit={handleAddExpense} className="space-y-4 mb-8 bg-black/30 p-4 rounded-2xl border border-white/5">
+              <form onSubmit={handleAddExpense} className="space-y-4 mb-8 bg-black/30 p-5 rounded-2xl border border-white/5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-400 mb-1">কীসে খরচ হলো? *</label>
-                    <input type="text" value={expenseForm.desc} onChange={e => setExpenseForm({...expenseForm, desc: e.target.value})} placeholder="যেমন: বাসের ভাড়া" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 outline-none" />
+                    <input type="text" value={expenseForm.desc} onChange={e => setExpenseForm({...expenseForm, desc: e.target.value})} placeholder="যেমন: বাসের ভাড়া, খাবার" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-400 mb-1">টাকার পরিমাণ (৳) *</label>
@@ -273,19 +304,59 @@ export default function EventCalculator() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-1">টাকাটা কে দিয়েছে?</label>
-                  <select value={expenseForm.payer} onChange={e => setExpenseForm({...expenseForm, payer: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 outline-none">
-                    <option value="group">সবাই মিলে (গ্রুপ ফান্ড থেকে)</option>
-                    {members.map(m => <option key={m.id} value={m.id}>{m.name} নিজের পকেট থেকে দিয়েছে</option>)}
-                  </select>
+                {/* 🔴 Who Paid Section (UPDATED FOR MULTIPLE PAYERS) */}
+                <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                  <label className="block text-xs font-bold text-pink-400 mb-3 uppercase tracking-widest"><i className="fa-solid fa-wallet mr-1"></i> টাকাটা কে দিয়েছে?</label>
+                  <div className="flex gap-2 flex-wrap mb-4">
+                    <label className={`cursor-pointer px-4 py-2 rounded-lg text-xs font-bold border transition-all ${expenseForm.paymentMethod === 'group' ? 'bg-pink-500/20 border-pink-500 text-pink-400' : 'bg-black/50 border-white/10 text-gray-400'}`}>
+                      <input type="radio" name="payMethod" className="hidden" checked={expenseForm.paymentMethod === 'group'} onChange={() => setExpenseForm({...expenseForm, paymentMethod: 'group'})} />
+                      গ্রুপ ফান্ড
+                    </label>
+                    <label className={`cursor-pointer px-4 py-2 rounded-lg text-xs font-bold border transition-all ${expenseForm.paymentMethod === 'single' ? 'bg-pink-500/20 border-pink-500 text-pink-400' : 'bg-black/50 border-white/10 text-gray-400'}`}>
+                      <input type="radio" name="payMethod" className="hidden" checked={expenseForm.paymentMethod === 'single'} onChange={() => setExpenseForm({...expenseForm, paymentMethod: 'single', singlePayerId: members[0]?.id || ""})} />
+                      একজন মেম্বার
+                    </label>
+                    <label className={`cursor-pointer px-4 py-2 rounded-lg text-xs font-bold border transition-all ${expenseForm.paymentMethod === 'multiple' ? 'bg-pink-500/20 border-pink-500 text-pink-400' : 'bg-black/50 border-white/10 text-gray-400'}`}>
+                      <input type="radio" name="payMethod" className="hidden" checked={expenseForm.paymentMethod === 'multiple'} onChange={() => setExpenseForm({...expenseForm, paymentMethod: 'multiple', multiPayers: {}})} />
+                      একাধিক মেম্বার (Custom)
+                    </label>
+                  </div>
+
+                  {/* Single Payer Dropdown */}
+                  {expenseForm.paymentMethod === 'single' && (
+                    <select value={expenseForm.singlePayerId} onChange={e => setExpenseForm({...expenseForm, singlePayerId: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 outline-none mt-2">
+                      <option value="">-- মেম্বার সিলেক্ট করুন --</option>
+                      {members.map(m => <option key={m.id} value={m.id}>{m.name} নিজের পকেট থেকে দিয়েছে</option>)}
+                    </select>
+                  )}
+
+                  {/* Multiple Payers Input Grid */}
+                  {expenseForm.paymentMethod === 'multiple' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                      {members.map(m => (
+                        <div key={m.id} className="bg-black/40 p-2 rounded-lg border border-white/5">
+                          <span className="block text-[10px] text-gray-400 mb-1 truncate">{m.name}</span>
+                          <input 
+                            type="number" 
+                            placeholder="৳ 0"
+                            value={expenseForm.multiPayers[m.id] || ""} 
+                            onChange={(e) => setExpenseForm({
+                              ...expenseForm, 
+                              multiPayers: {...expenseForm.multiPayers, [m.id]: e.target.value}
+                            })}
+                            className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-pink-500 outline-none" 
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Sub-group Checkboxes */}
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label className="block text-xs font-bold text-gray-400">এই খরচটি কাদের জন্য প্রযোজ্য?</label>
-                    <button type="button" onClick={() => setExpenseForm({...expenseForm, consumers: expenseForm.consumers.length === members.length ? [] : members.map(m=>m.id)})} className="text-[10px] text-pink-400 hover:text-pink-300 font-bold">
+                    <label className="block text-xs font-bold text-gray-400">এই খরচটি কাদের জন্য প্রযোজ্য? (Sub-group)</label>
+                    <button type="button" onClick={() => setExpenseForm({...expenseForm, consumers: expenseForm.consumers.length === members.length ? [] : members.map(m=>m.id)})} className="text-[10px] text-pink-400 hover:text-pink-300 font-bold bg-pink-500/10 px-2 py-1 rounded">
                       {expenseForm.consumers.length === members.length ? 'সবাইকে আনসিলেক্ট করুন' : 'সবাইকে সিলেক্ট করুন'}
                     </button>
                   </div>
@@ -308,25 +379,34 @@ export default function EventCalculator() {
                   </div>
                 </div>
 
-                <button type="submit" className="w-full bg-pink-600 hover:bg-pink-500 text-white py-3 rounded-xl font-bold transition-colors mt-2">খরচ যুক্ত করুন</button>
+                <button type="submit" className="w-full bg-pink-600 hover:bg-pink-500 text-white py-3.5 rounded-xl font-bold uppercase tracking-widest transition-colors mt-4 shadow-glow">
+                  <i className="fa-solid fa-check mr-2"></i> খরচ যুক্ত করুন
+                </button>
               </form>
 
               {/* Expense List */}
               <div className="space-y-3">
                 {expenses.length === 0 ? <p className="text-center text-gray-500 py-4 text-sm">কোনো খরচের হিসাব নেই।</p> : null}
                 {expenses.map((exp, i) => {
-                  const payerName = exp.payer === 'group' ? 'গ্রুপ ফান্ড' : members.find(m => m.id === exp.payer)?.name;
+                  let payerName = "";
+                  if (exp.paymentMethod === 'group') payerName = "গ্রুপ ফান্ড";
+                  else if (exp.paymentMethod === 'single') payerName = members.find(m => m.id === exp.singlePayerId)?.name || 'Unknown';
+                  else payerName = "একাধিক মেম্বার";
+
                   return (
-                    <div key={exp.id} className="bg-white/5 border border-white/10 p-4 rounded-xl flex justify-between items-center gap-3 hover:bg-white/10 transition-colors">
-                      <div>
-                        <p className="font-bold text-white flex items-center gap-2">
-                          <span className="bg-white/10 text-xs px-2 py-0.5 rounded-md text-gray-400">#{expenses.length - i}</span> {exp.desc}
+                    <div key={exp.id} className="bg-white/5 border border-white/10 p-4 rounded-xl flex justify-between items-center gap-3 hover:bg-white/10 transition-colors relative group overflow-hidden">
+                      {exp.paymentMethod === 'multiple' && <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-500"></div>}
+                      <div className="pl-2">
+                        <p className="font-bold text-white flex items-center gap-2 text-sm sm:text-base">
+                          <span className="bg-white/10 text-[10px] px-2 py-0.5 rounded-md text-gray-400">#{expenses.length - i}</span> {exp.desc}
                         </p>
-                        <p className="text-[10px] text-gray-400 mt-1">পেমেন্ট: <span className="text-blue-400 font-bold">{payerName}</span> • ভোগকারী: {exp.consumers.length === members.length ? 'সকলে' : `${exp.consumers.length} জন`}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400 mt-1">
+                          পেমেন্ট: <span className="text-blue-400 font-bold">{payerName}</span> • ভোগকারী: {exp.consumers.length === members.length ? 'সকলে' : `${exp.consumers.length} জন`}
+                        </p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-black text-pink-400">৳{exp.amount.toFixed(0)}</p>
-                        <button onClick={() => handleRemoveExpense(exp.id)} className="text-[10px] text-red-400 hover:text-red-300 font-bold mt-1 uppercase"><i className="fa-solid fa-trash mr-1"></i>ডিলিট</button>
+                      <div className="text-right shrink-0">
+                        <p className="text-base sm:text-lg font-black text-pink-400">৳{exp.amount.toFixed(0)}</p>
+                        <button onClick={() => handleRemoveExpense(exp.id)} className="text-[10px] text-red-400 hover:text-red-300 font-bold mt-1 uppercase transition-colors"><i className="fa-solid fa-trash mr-1"></i>ডিলিট</button>
                       </div>
                     </div>
                   )
@@ -341,25 +421,28 @@ export default function EventCalculator() {
           <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
             
             {/* The Hidden/Visible Canvas Area for Slip Generation */}
-            <div ref={receiptRef} className="bg-gradient-to-b from-[#0a1c13] to-black border border-white/10 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
+            <div ref={receiptRef} className="bg-gradient-to-b from-[#0a1c13] to-[#050b08] border border-white/10 rounded-3xl p-6 sm:p-10 relative overflow-hidden shadow-2xl">
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
               
               {/* Slip Header */}
               <div className="text-center border-b border-dashed border-white/20 pb-6 mb-6 relative">
-                <h2 className="text-3xl font-black text-white tracking-widest uppercase mb-1">CAS Final Slip</h2>
-                <h3 className="text-lg text-emerald-400 font-bold mb-2">{eventData.name || 'Unnamed Event'}</h3>
-                <p className="text-xs text-gray-400">{eventData.date ? `তারিখ: ${eventData.date}` : `জেনারেট করা হয়েছে: ${new Date().toLocaleDateString('en-GB')}`}</p>
+                <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-3 border border-emerald-500/30 text-emerald-400 text-xl">
+                  <i className="fa-solid fa-receipt"></i>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-widest uppercase mb-1">CAS Final Slip</h2>
+                <h3 className="text-base sm:text-lg text-emerald-400 font-bold mb-2">{eventData.name || 'Unnamed Event'}</h3>
+                <p className="text-[10px] sm:text-xs text-gray-400">{eventData.date ? `তারিখ: ${eventData.date}` : `জেনারেট করা হয়েছে: ${new Date().toLocaleDateString('en-GB')}`}</p>
               </div>
 
               {/* Core Stats */}
-              <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10 mb-6">
+              <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10 mb-8 relative">
                 <div className="text-center w-1/2 border-r border-white/10">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">মোট সংগ্রহ</p>
-                  <p className="text-xl font-black text-emerald-400">৳{totalCollected.toFixed(0)}</p>
+                  <p className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest mb-1">মোট সংগ্রহ</p>
+                  <p className="text-xl sm:text-2xl font-black text-emerald-400">৳{totalCollected.toFixed(0)}</p>
                 </div>
                 <div className="text-center w-1/2">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">মোট খরচ</p>
-                  <p className="text-xl font-black text-pink-400">৳{totalExpense.toFixed(0)}</p>
+                  <p className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest mb-1">মোট খরচ</p>
+                  <p className="text-xl sm:text-2xl font-black text-pink-400">৳{totalExpense.toFixed(0)}</p>
                 </div>
               </div>
 
@@ -370,18 +453,26 @@ export default function EventCalculator() {
                   const data = settlementData[id];
                   const net = data.net;
                   return (
-                    <div key={id} className="bg-black/40 p-3 rounded-lg flex justify-between items-center border-l-4" style={{borderColor: net > 0 ? '#10b981' : (net < 0 ? '#ef4444' : '#6b7280')}}>
+                    <div key={id} className="bg-black/40 p-3 sm:p-4 rounded-xl flex justify-between items-center border-l-4 shadow-sm" style={{borderColor: net > 1 ? '#10b981' : (net < -1 ? '#ef4444' : '#6b7280')}}>
                       <div>
                         <p className="font-bold text-white text-sm">{data.name}</p>
-                        <p className="text-[9px] text-gray-500 mt-0.5">জমা: ৳{data.paid.toFixed(0)} | খরচ হয়েছে: ৳{data.consumed.toFixed(0)}</p>
+                        <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1">জমা/পকেট থেকে: ৳{data.paid.toFixed(0)} | খরচ হয়েছে: ৳{data.consumed.toFixed(0)}</p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0 pl-2">
                         {net > 1 ? (
-                          <p className="text-sm font-black text-emerald-400">পাবে ৳{net.toFixed(0)}</p>
+                          <div className="bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
+                            <p className="text-[9px] text-emerald-400 uppercase tracking-widest mb-0.5">গ্রুপের কাছে পাবে</p>
+                            <p className="text-sm font-black text-emerald-400">৳{net.toFixed(0)}</p>
+                          </div>
                         ) : net < -1 ? (
-                          <p className="text-sm font-black text-red-500">দেবে ৳{Math.abs(net).toFixed(0)}</p>
+                          <div className="bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20">
+                            <p className="text-[9px] text-red-400 uppercase tracking-widest mb-0.5">গ্রুপকে আরও দেবে</p>
+                            <p className="text-sm font-black text-red-500">৳{Math.abs(net).toFixed(0)}</p>
+                          </div>
                         ) : (
-                          <p className="text-sm font-black text-gray-400">হিসাব ক্লিয়ার</p>
+                          <div className="px-3 py-1.5">
+                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest"><i className="fa-solid fa-check-circle mr-1"></i>ক্লিয়ার</p>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -390,8 +481,9 @@ export default function EventCalculator() {
               </div>
 
               {/* Watermark/Footer */}
-              <div className="text-center mt-12 pt-4 border-t border-white/10">
-                <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">Generated by CAS Artificial Intelligence</p>
+              <div className="text-center mt-12 pt-6 border-t border-white/10 opacity-70">
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Calculated by CUET Adventure Society</p>
+                <p className="text-[8px] text-gray-600 mt-1">www.cuetas.com</p>
               </div>
             </div>
 
@@ -407,7 +499,7 @@ export default function EventCalculator() {
               
               <button 
                 onClick={resetCalculator}
-                className="bg-red-900/50 hover:bg-red-900 border border-red-500/50 text-red-400 px-6 py-4 rounded-xl font-bold transition-all text-xs uppercase"
+                className="bg-red-900/50 hover:bg-red-900 border border-red-500/50 text-red-400 px-6 py-4 rounded-xl font-bold transition-all text-xs uppercase shadow-lg"
               >
                 <i className="fa-solid fa-power-off mr-2"></i>নতুন হিসাব শুরু
               </button>
