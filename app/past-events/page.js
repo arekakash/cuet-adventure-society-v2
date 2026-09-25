@@ -80,7 +80,16 @@ export default function PastEventsPage() {
         setFilteredEvents(data)
 
         const totalExpeditions = data.length
-        const totalExplorers = data.reduce((sum, ev) => sum + (ev.booked_seats || 0), 0)
+        const totalExplorers = data.reduce((sum, ev) => {
+  // যদি booked_seats এর মান 0 এর চেয়ে বেশি থাকে, তবে সেটি ব্যবহার করবে। 
+  // না থাকলে total_seats থেকে available_seats বিয়োগ করে অভিযাত্রী সংখ্যা বের করবে।
+  const participants = ev.booked_seats > 0 
+    ? ev.booked_seats 
+    : Math.max(0, (ev.total_seats || 0) - (ev.available_seats || 0));
+    
+  return sum + participants;
+}, 0);
+
         const totalDistance = data.reduce((sum, ev) => sum + (ev.stats_meta?.distance || 0), 0)
 
         setGlobalStats({ totalExpeditions, totalExplorers, totalDistance })
