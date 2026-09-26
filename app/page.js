@@ -345,14 +345,28 @@ export default function HomePage() {
             পাহাড়ের গহীনে, মেঘের চূড়ায় কিংবা অরণ্যের গভীরে—চুয়েটিয়ানদের পদচারণায় জেগে উঠুক নতুন ট্রেইল।
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link href="/signup" className="w-full sm:w-auto bg-[#e76f51] hover:bg-orange-600 px-8 py-3.5 rounded-xl font-black transition-colors flex items-center justify-center gap-3 text-white shadow-lg">
-              <i className="fa-solid fa-shoe-prints"></i> এক্সপ্লোর শুরু করুন
-            </Link>
-            <Link href="/login" className="w-full sm:w-auto bg-[#0a1c13] hover:bg-[#0d261a] border border-emerald-900/50 text-white px-8 py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-3 shadow-lg">
-              <i className="fa-solid fa-right-to-bracket text-emerald-500"></i> লগইন
-            </Link>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            {userId ? (
+              <>
+                <Link href="/beginners-guide" className="w-full sm:w-auto bg-[#e76f51] hover:bg-orange-600 px-8 py-3.5 rounded-xl font-black transition-colors flex items-center justify-center gap-3 text-white shadow-lg">
+                  <i className="fa-solid fa-compass"></i> বেসিক সম্পর্কে জানুন
+                </Link>
+                <Link href="/past-events" className="w-full sm:w-auto bg-[#0a1c13] hover:bg-[#0d261a] border border-emerald-900/50 text-white px-8 py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-3 shadow-lg">
+                  <i className="fa-solid fa-images text-emerald-500"></i> আগের ইভেন্টগুলো দেখুন
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/signup" className="w-full sm:w-auto bg-[#e76f51] hover:bg-orange-600 px-8 py-3.5 rounded-xl font-black transition-colors flex items-center justify-center gap-3 text-white shadow-lg">
+                  <i className="fa-solid fa-shoe-prints"></i> এক্সপ্লোর শুরু করুন
+                </Link>
+                <Link href="/login" className="w-full sm:w-auto bg-[#0a1c13] hover:bg-[#0d261a] border border-emerald-900/50 text-white px-8 py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-3 shadow-lg">
+                  <i className="fa-solid fa-right-to-bracket text-emerald-500"></i> লগইন
+                </Link>
+              </>
+            )}
           </div>
+
         </div>
       </section>
 
