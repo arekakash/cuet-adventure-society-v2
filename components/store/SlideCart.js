@@ -37,7 +37,7 @@ export default function SlideCart({
       {cart.length > 0 && (
         <button 
           onClick={() => setIsCartOpen(true)} 
-          className="fixed bottom-6 right-6 z-[9990] bg-[#e76f51] text-white p-4 rounded-full shadow-[0_0_30px_rgba(231,111,81,0.5)] hover:scale-110 transition-transform animate-bounce focus:outline-none"
+          className="fixed bottom-24 right-6 z-[9990] bg-[#e76f51] text-white p-4 rounded-full shadow-[0_0_30px_rgba(231,111,81,0.5)] hover:scale-110 transition-transform animate-bounce focus:outline-none"
         >
           <i className="fa-solid fa-cart-shopping text-xl"></i>
           <span className="absolute -top-2 -right-2 bg-white text-[#e76f51] text-xs font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#e76f51]">
