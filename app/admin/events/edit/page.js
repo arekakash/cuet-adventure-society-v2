@@ -245,7 +245,7 @@ export default function EditEvent() {
     setTags(prev => ({ ...prev, [category]: prev[category].filter((_, i) => i !== index) }))
   }
 
-  const handleSubmit = async (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault()
     if (paymentMethods.length === 0) {
       alert("অনুগ্রহ করে অন্তত একটি পেমেন্ট মেথড যুক্ত করুন!")
@@ -255,8 +255,17 @@ export default function EditEvent() {
     setLoading(true)
 
     try {
-      let finalCoverPhotoUrl = existingImage
+      // 🔴 ১. ইভেন্ট আপডেট করার আগে ডেটাবেজ থেকে ইভেন্টের বর্তমান/পুরোনো ডেটা ফেচ করে আনা হচ্ছে
+      const { data: oldEvent, error: fetchError } = await supabase
+        .from('events')
+        .select('status, stats_meta, category')
+        .eq('id', eventId)
+        .single()
 
+      if (fetchError) throw fetchError
+
+      // ২. ছবি আপলোডের কাজ...
+      let finalCoverPhotoUrl = existingImage
       if (imageFile) {
         const imgFormData = new FormData()
         imgFormData.append('image', imageFile)
@@ -271,8 +280,11 @@ export default function EditEvent() {
         finalCoverPhotoUrl = imgbbData.data.url
       }
 
-      // 🔴 Clean up Memory Links (remove empty ones)
       const validMemoryLinks = memoryLinks.filter(m => m.url.trim() !== '')
+
+      // নতুন ভ্যালুগুলো
+      const newTreks = parseInt(formData.metaTreks) || 0;
+      const newDistance = parseInt(formData.metaDistance) || 0;
 
       const updateData = {
         title: formData.title,
@@ -287,7 +299,7 @@ export default function EditEvent() {
         tour_fee: parseInt(formData.totalFee),
         booking_fee: parseInt(formData.bookingFee),
         refund_policy: formData.refundPolicy,
-        payment_methods: paymentMethods, // 🔴 Saving as JSON Array
+        payment_methods: paymentMethods,
         stay_type: isDayEvent ? 'None' : formData.stayType,
         washroom: formData.washroom,
         food_plan: formData.foodPlan,
@@ -298,23 +310,90 @@ export default function EditEvent() {
         leader_phone: formData.leaderPhone,
         leader_whatsapp: formData.leaderWhatsapp,
         description: formData.description,
-        album_link: validMemoryLinks, // 🔴 Memory Lane saved as JSON Array
+        album_link: validMemoryLinks,
         included: tags.included,
         required_gear: tags.gear,
         excluded: tags.excluded,
         warnings: tags.warnings,
         itinerary: itinerary,
         stats_meta: {
-            treks: parseInt(formData.metaTreks) || 0,
-            distance: parseInt(formData.metaDistance) || 0,
+            treks: newTreks,
+            distance: newDistance,
             nights: isDayEvent ? 0 : (parseInt(formData.metaNights) || 0)
         }
       }
 
+      // 🔴 ৩. ইভেন্ট আপডেট করা হলো
       const { error } = await supabase.from('events').update(updateData).eq('id', eventId)
       if (error) throw error
 
-      alert("ইভেন্ট সফলভাবে আপডেট করা হয়েছে!")
+      // 🔴 ৪. লিডারবোর্ড সিঙ্ক লজিক (যদি ইভেন্টটি 'completed' অবস্থায় থাকে)
+      if (oldEvent.status === 'completed') {
+        const oldTreks = oldEvent.stats_meta?.treks || 0;
+        const oldDistance = oldEvent.stats_meta?.distance || 0;
+        const oldCategory = oldEvent.category?.toLowerCase() || '';
+        const newCategory = formData.category.toLowerCase();
+
+        // যদি ক্যাটাগরি বা পয়েন্ট পরিবর্তন হয়ে থাকে
+        if (oldTreks !== newTreks || oldDistance !== newDistance || oldCategory !== newCategory) {
+          
+          // যারা এই ইভেন্টটি কমপ্লিট করেছে তাদের লিস্ট আনা হচ্ছে
+          const { data: bookings } = await supabase
+            .from('bookings')
+            .select('user_id')
+            .eq('event_id', eventId)
+            .eq('status', 'approved')
+
+          if (bookings && bookings.length > 0) {
+            for (const booking of bookings) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, total_runs, running_distance')
+                .eq('id', booking.user_id)
+                .single()
+
+              if (profile) {
+                let updates = {}
+
+                // ক) প্রথমে ইউজারের প্রোফাইল থেকে পুরনো ভ্যালু মাইনাস করে দেওয়া হলো
+                if (oldCategory === 'trekking') {
+                  updates.total_treks = Math.max(0, (profile.total_treks || 0) - oldTreks)
+                  updates.total_distance = Math.max(0, (profile.total_distance || 0) - oldDistance)
+                } else if (oldCategory === 'cycling') {
+                  updates.total_rides = Math.max(0, (profile.total_rides || 0) - oldTreks)
+                  updates.cycling_distance = Math.max(0, (profile.cycling_distance || 0) - oldDistance)
+                } else if (oldCategory === 'swimming') {
+                  updates.total_swims = Math.max(0, (profile.total_swims || 0) - oldTreks)
+                  updates.swimming_distance = Math.max(0, (profile.swimming_distance || 0) - oldDistance)
+                } else if (oldCategory === 'running') {
+                  updates.total_runs = Math.max(0, (profile.total_runs || 0) - oldTreks)
+                  updates.running_distance = Math.max(0, (profile.running_distance || 0) - oldDistance)
+                }
+
+                // খ) এরপর ইউজারের প্রোফাইলে নতুন ভ্যালু যোগ করা হলো
+                if (newCategory === 'trekking') {
+                  updates.total_treks = (updates.total_treks !== undefined ? updates.total_treks : profile.total_treks || 0) + newTreks
+                  updates.total_distance = (updates.total_distance !== undefined ? updates.total_distance : profile.total_distance || 0) + newDistance
+                } else if (newCategory === 'cycling') {
+                  updates.total_rides = (updates.total_rides !== undefined ? updates.total_rides : profile.total_rides || 0) + newTreks
+                  updates.cycling_distance = (updates.cycling_distance !== undefined ? updates.cycling_distance : profile.cycling_distance || 0) + newDistance
+                } else if (newCategory === 'swimming') {
+                  updates.total_swims = (updates.total_swims !== undefined ? updates.total_swims : profile.total_swims || 0) + newTreks
+                  updates.swimming_distance = (updates.swimming_distance !== undefined ? updates.swimming_distance : profile.swimming_distance || 0) + newDistance
+                } else if (newCategory === 'running') {
+                  updates.total_runs = (updates.total_runs !== undefined ? updates.total_runs : profile.total_runs || 0) + newTreks
+                  updates.running_distance = (updates.running_distance !== undefined ? updates.running_distance : profile.running_distance || 0) + newDistance
+                }
+
+                // প্রোফাইল আপডেট
+                await supabase.from('profiles').update(updates).eq('id', booking.user_id)
+              }
+            }
+          }
+        }
+      }
+
+      alert("ইভেন্ট সফলভাবে আপডেট করা হয়েছে এবং লিডারবোর্ড সিঙ্ক হয়েছে!")
       router.push('/admin/events')
 
     } catch (error) {
@@ -324,6 +403,7 @@ export default function EditEvent() {
       setLoading(false)
     }
   }
+
 
     const handleMoveToTrash = async () => {
     try {
