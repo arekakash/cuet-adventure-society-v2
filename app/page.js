@@ -349,7 +349,7 @@ export default function HomePage() {
             {userId ? (
               <>
                 <Link href="/beginners-guide" className="w-full sm:w-auto bg-[#e76f51] hover:bg-orange-600 px-8 py-3.5 rounded-xl font-black transition-colors flex items-center justify-center gap-3 text-white shadow-lg">
-                  <i className="fa-solid fa-compass"></i> বেসিক সম্পর্কে জানুন
+                  <i className="fa-solid fa-compass"></i> অ্যাডভেঞ্চারের বেসিক সম্পর্কে জানুন
                 </Link>
                 <Link href="/past-events" className="w-full sm:w-auto bg-[#0a1c13] hover:bg-[#0d261a] border border-emerald-900/50 text-white px-8 py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-3 shadow-lg">
                   <i className="fa-solid fa-images text-emerald-500"></i> আগের ইভেন্টগুলো দেখুন
