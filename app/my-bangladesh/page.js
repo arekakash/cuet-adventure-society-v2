@@ -4,7 +4,6 @@ import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import html2canvas from "html2canvas";
 
-
 // ৬৪ জেলার ডাটা (সংক্ষিপ্ত উদাহরণ)। 
 // নোট: আসল ম্যাপের জন্য এখানে ৬৪টি জেলার নিখুঁত SVG <path> বসাতে হবে।
 const DISTRICTS = [
@@ -75,12 +74,15 @@ export default function MyBangladesh() {
     if (!mapRef.current) return;
     try {
       setSaving(true);
-      // html-to-image ব্যবহার করে হাই রেজুলেশন ছবি তৈরি (pixelRatio: 3 মানে 3x Resolution)
-      const dataUrl = await htmlToImage.toPng(mapRef.current, { 
-        quality: 1, 
-        pixelRatio: 3,
-        backgroundColor: '#030705' 
+      
+      // html2canvas ব্যবহার করে হাই রেজুলেশন ছবি তৈরি (scale: 3 মানে 3x Resolution)
+      const canvas = await html2canvas(mapRef.current, { 
+        scale: 3, 
+        backgroundColor: '#030705',
+        useCORS: true
       });
+      
+      const dataUrl = canvas.toDataURL("image/png", 1.0);
       
       // ক্লায়েন্ট-সাইডেই ছবি ডাউনলোডের ব্যবস্থা
       const link = document.createElement('a');
