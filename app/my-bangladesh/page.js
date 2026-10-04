@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
-import * as htmlToImage from "html-to-image";
+import html2canvas from "html2canvas";
+
 
 // ৬৪ জেলার ডাটা (সংক্ষিপ্ত উদাহরণ)। 
 // নোট: আসল ম্যাপের জন্য এখানে ৬৪টি জেলার নিখুঁত SVG <path> বসাতে হবে।
