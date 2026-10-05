@@ -396,7 +396,7 @@ export default function MyBangladeshPage() {
           style={{ backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.borderColor}` }}
           data-aos="zoom-in"
         >
-          {/* 🔴 কম্প্যাক্ট হেডার: বড় ছবি বামে, নাম ও ছোট ব্যাজ ডানে */}
+          {/* 🔴 কম্প্যাক্ট হেডার: বড় ছবি বামে, নাম ও ক্লিন স্ট্যাটিস্টিক্স ডানে */}
           <div className="flex items-center gap-3 sm:gap-4 mb-3 shrink-0 relative z-10 w-full">
             
             {/* 🔴 ইউজারের বড় গোল ছবি (w-20 h-20) */}
@@ -426,41 +426,42 @@ export default function MyBangladeshPage() {
 
             {/* 🔴 টাইটেল এবং স্ট্যাটিস্টিক্স */}
             <div className="flex-1 flex flex-col justify-center min-w-0">
-              <h2 className="text-lg sm:text-xl font-black tracking-tight leading-tight truncate" style={{ color: themeStyles.textColor }}>
+              {/* ওভারল্যাপ রোধ করার জন্য truncate সরানো হয়েছে, এখন বড় নাম দিলে দুই লাইনে চলে আসবে */}
+              <h2 className="text-base sm:text-lg font-black tracking-tight leading-snug break-words" style={{ color: themeStyles.textColor }}>
                 {displayName.trim() === "গেস্ট এক্সপ্লোরার" || !displayName.trim() 
                   ? "আমার বাংলাদেশ ভ্রমণ" 
                   : `${displayName} এর বাংলাদেশ ভ্রমণ`}
               </h2>
               
-              <div data-html2canvas-ignore="true" className="flex items-end gap-1.5 mt-0.5 mb-1.5">
+              <div data-html2canvas-ignore="true" className="flex items-end gap-1.5 mt-1 mb-2">
                 <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest pb-1" style={{ color: themeStyles.subTextColor }}>অভিযাত্রী:</p>
                 <input 
                   type="text" 
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:outline-none text-xs font-black w-24 sm:w-32 px-0.5 py-0.5 leading-normal transition-colors"
+                  className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:outline-none text-xs font-black flex-1 min-w-0 px-0.5 py-0.5 leading-normal transition-colors"
                   style={{ color: selectedColor }}
                   title="আপনার নাম পরিবর্তন করতে এখানে ক্লিক করুন"
                 />
               </div>
 
-              {/* স্ট্যাটিস্টিক্স ব্যাজ */}
-              <div className="flex gap-1.5 sm:gap-2 w-full mt-1">
-                <div className="flex-1 py-1 px-1 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-                  <p className="text-[7px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
-                  <h3 className="text-xs sm:text-sm font-black" style={{ color: selectedColor }}>
-                    {e2b(validCount)} <span className="text-[7px]" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
+              {/* 🔴 স্ট্যাটিস্টিক্স (বক্স ছাড়া ক্লিন এবং বড় ফন্টের ডিজাইন) */}
+              <div className="flex gap-2 w-full mt-1 border-t border-dashed pt-2" style={{ borderColor: themeStyles.borderColor }}>
+                <div className="flex-1 text-left">
+                  <p className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
+                  <h3 className="text-sm sm:text-base font-black leading-none" style={{ color: selectedColor }}>
+                    {e2b(validCount)} <span className="text-[8px] sm:text-[9px]" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
                   </h3>
                 </div>
-                <div className="flex-1 py-1 px-1 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-                  <p className="text-[7px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
-                  <h3 className="text-xs sm:text-sm font-black" style={{ color: themeStyles.textColor }}>
-                    {e2b(64 - validCount)} <span className="text-[7px]" style={{ color: themeStyles.subTextColor }}>জেলা</span>
+                <div className="flex-1 text-center">
+                  <p className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
+                  <h3 className="text-sm sm:text-base font-black leading-none" style={{ color: themeStyles.textColor }}>
+                    {e2b(64 - validCount)} <span className="text-[8px] sm:text-[9px]" style={{ color: themeStyles.subTextColor }}>জেলা</span>
                   </h3>
                 </div>
-                <div className="flex-1 py-1 px-1 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-                  <p className="text-[7px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>সম্পন্ন</p>
-                  <h3 className="text-xs sm:text-sm font-black" style={{ color: selectedColor }}>
+                <div className="flex-1 text-right">
+                  <p className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>সম্পন্ন</p>
+                  <h3 className="text-sm sm:text-base font-black leading-none" style={{ color: selectedColor }}>
                     {e2b(percentage)}%
                   </h3>
                 </div>
@@ -468,10 +469,10 @@ export default function MyBangladeshPage() {
             </div>
           </div>
 
-          {/* 🔴 ম্যাপ কন্টেইনার (বাকি সমস্ত জায়গা জুড়ে থাকবে, কোনো অতিরিক্ত কার্ড বসবেবিধা নেই) */}
+          {/* 🔴 ম্যাপ কন্টেইনার */}
           <div className="w-full flex-1 rounded-2xl overflow-hidden flex items-center justify-center relative select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
 
-            {/* 🔴 অতি ক্ষুদ্র আকারে ম্যাপের নিচে ওয়াটারমার্ক (বাম পাশে এবং আরেকটু নিচে) */}
+            {/* 🔴 ওয়াটারমার্ক (বাম পাশে এবং নিচে) */}
             <div className="absolute bottom-1 left-3 z-10 opacity-40 pointer-events-none">
               <p className="text-[7px] font-bold tracking-wider uppercase" style={{ color: themeStyles.subTextColor }}>
                 Map generated by CUET Adventure Society
