@@ -21,15 +21,35 @@ const colorPalette = [
   { name: "Teal", value: "#2dd4bf" }
 ];
 
+// 🔴 আপডেট: বিভিন্ন বানানের ভ্যারিয়েশন যুক্ত করা হয়েছে যাতে কোনোটি ইংরেজিতে না দেখায়
 const districtBn = {
   "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
-  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
+  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Bramhanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Chittagong": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Coxs Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
   "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
   "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
-  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Sherpur": "শেরপুর",
-  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
-  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
+  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Netrakona": "নেত্রকোনা", "Sherpur": "শেরপুর",
+  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Chapainababganj": "চাঁপাইনবাবগঞ্জ", "Nawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
+  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Panchagar": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
+};
+
+// 🔴 ওভারল্যাপিং এড়ানোর জন্য ছোট ও গাদাগাদি করে থাকা জেলাগুলোর কাস্টম ফন্ট সাইজ এবং পজিশন
+const districtConfigs = {
+  "Dhaka": { fontSize: 4.5, dx: 0, dy: -2 },
+  "Narayanganj": { fontSize: 4, dx: 2, dy: 2 },
+  "Munshiganj": { fontSize: 4, dx: 0, dy: 4 },
+  "Madaripur": { fontSize: 4.5, dx: 0, dy: 0 },
+  "Shariatpur": { fontSize: 4.5, dx: 0, dy: 0 },
+  "Jhalokati": { fontSize: 4.5, dx: 0, dy: 0 },
+  "Feni": { fontSize: 4.5, dx: 0, dy: 0 },
+  "Meherpur": { fontSize: 4.5, dx: 0, dy: 0 },
+  "Narail": { fontSize: 4.5, dx: 0, dy: 0 },
+  "Magura": { fontSize: 4.5, dx: 0, dy: 0 },
+  "Rajbari": { fontSize: 4.5, dx: 0, dy: 0 },
+  "Chapainababganj": { fontSize: 4.5, dx: -2, dy: 0 },
+  "Chapainawabganj": { fontSize: 4.5, dx: -2, dy: 0 },
+  "Brahmanbaria": { fontSize: 5, dx: 0, dy: 0 },
+  "Lalmonirhat": { fontSize: 4.5, dx: 0, dy: 0 },
 };
 
 const bangladeshDivisions = [
@@ -82,7 +102,9 @@ export default function MyBangladeshPage() {
 
     if (data && !error) {
       setUserProfile(data);
-      setVisitedDistricts(data.visited_districts || []);
+      // 🔴 ডুপ্লিকেট ডেটা রিমুভ করে সেভ করা হচ্ছে
+      const uniqueDistricts = [...new Set(data.visited_districts || [])];
+      setVisitedDistricts(uniqueDistricts);
       setDisplayName(data.full_name || "গেস্ট এক্সপ্লোরার");
     } else {
       setUserProfile({ isGuest: true });
@@ -102,6 +124,8 @@ export default function MyBangladeshPage() {
       updatedDistricts.push(districtName);
     }
 
+    // 🔴 103% বাগ ফিক্স: শুধুমাত্র ইউনিক ভ্যালু রাখা হলো
+    updatedDistricts = [...new Set(updatedDistricts)];
     setVisitedDistricts(updatedDistricts);
 
     if (userProfile?.isGuest) {
@@ -186,7 +210,10 @@ export default function MyBangladeshPage() {
     );
   }
 
-  const percentage = Math.round((visitedDistricts.length / 64) * 100);
+  // 🔴 103% বাগ ফিক্স: কাউন্ট ম্যাক্সিমাম 64 সেট করা হলো
+  const validCount = Math.min(visitedDistricts.length, 64);
+  const percentage = Math.round((validCount / 64) * 100);
+
   const isLight = downloadTheme === "light";
   const themeStyles = {
     cardBg: isLight ? "#ffffff" : "#0a1c13",
@@ -246,7 +273,6 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* ডাউনলোড কার্ড */}
         <div 
           ref={mapCardRef} 
           className="rounded-[2rem] p-6 sm:p-8 shadow-2xl relative" 
@@ -280,13 +306,13 @@ export default function MyBangladeshPage() {
             <div className="flex-1 p-3 sm:p-4 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
               <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
               <h3 className="text-2xl sm:text-4xl font-black" style={{ color: selectedColor }}>
-                {visitedDistricts.length} <span className="text-sm" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
+                {validCount} <span className="text-sm" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
               </h3>
             </div>
             <div className="flex-1 p-3 sm:p-4 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
               <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
               <h3 className="text-2xl sm:text-4xl font-black" style={{ color: themeStyles.textColor }}>
-                {64 - visitedDistricts.length} <span className="text-xs" style={{ color: themeStyles.subTextColor }}>জেলা</span>
+                {64 - validCount} <span className="text-xs" style={{ color: themeStyles.subTextColor }}>জেলা</span>
               </h3>
             </div>
             <div className="flex-1 p-3 sm:p-4 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
@@ -349,7 +375,7 @@ export default function MyBangladeshPage() {
                         );
                       })}
                       
-                      {/* 🔴 বাংলা নাম ও বড় ফন্ট সাইজ */}
+                      {/* 🔴 ডায়নামিক ফন্ট সাইজ এবং অফসেট ব্যবহার করে নামগুলো রেন্ডার করা */}
                       {geographies.map((geo) => {
                         const districtName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
                         const isVisited = visitedDistricts.includes(districtName);
@@ -357,17 +383,21 @@ export default function MyBangladeshPage() {
                         if (!isVisited) return null;
                         const centroid = geoCentroid(geo);
                         const bengaliName = districtBn[districtName] || districtName;
+                        
+                        // 🔴 কাস্টম সেটিংস (যদি থাকে) নাহলে ডিফল্ট সাইজ 6
+                        const config = districtConfigs[districtName] || { fontSize: 6, dx: 0, dy: 0 };
 
                         return (
                           <Marker key={`${geo.rsmKey}-label`} coordinates={centroid}>
                             <text
-                              y="2"
-                              fontSize={15} /* 🔴 ফন্ট সাইজ বড় করা হয়েছে */
+                              x={config.dx}
+                              y={config.dy + 1}
+                              fontSize={config.fontSize}
                               fontFamily="'Noto Sans Bengali', sans-serif"
                               textAnchor="middle"
                               alignmentBaseline="middle"
                               fill={themeStyles.nameLabelColor}
-                              className="font-black pointer-events-none" /* 🔴 ফন্ট মোটা করা হয়েছে */
+                              className="font-black pointer-events-none"
                               style={{ filter: isLight ? 'drop-shadow(0px 1px 1px rgba(255,255,255,0.8))' : 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }}
                             >
                               {bengaliName}
@@ -383,7 +413,6 @@ export default function MyBangladeshPage() {
           </div>
         </div>
         
-        {/* 체কলিস্ট */}
         <div className="mt-8 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl" data-aos="fade-up">
           <h3 className="text-xl sm:text-2xl font-black mb-8 text-white flex items-center gap-3 border-b border-white/10 pb-4">
             <i className="fa-solid fa-list-check" style={{ color: selectedColor }}></i> দ্রুত জেলা নির্বাচন করুন
@@ -426,7 +455,6 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* ডাউনলোড প্যানেল (সবার নিচে) */}
         {visitedDistricts.length > 0 && (
           <div className="mt-8 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center" data-aos="fade-up">
             <h3 className="text-xl font-black text-white mb-2">আপনার ম্যাপ প্রস্তুত!</h3>
