@@ -286,11 +286,14 @@ export default function MyBangladeshPage() {
               </div>
             )}
 
-            <ComposableMap
+                        <ComposableMap
               projection="geoMercator"
-              projectionConfig={{ scale: 5200, center: [90.35, 23.8] }}
+              width={400}
+              height={600}
+              projectionConfig={{ scale: 6500, center: [90.35, 23.7] }}
               className="w-full h-full outline-none"
             >
+
               <Geographies geography={geoUrl}>
                 {({ geographies }) => (
                   <>
