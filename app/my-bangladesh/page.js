@@ -4,13 +4,12 @@ import { supabase } from "@/lib/supabase";
 import html2canvas from "html2canvas";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 
-// 🔴 গ্লোবাল ও সবচেয়ে স্ট্রং TopoJSON সোর্স (কখনো ডাউন হবে না)
-const GEO_URL = "https://unpkg.com/bangladesh-geojson@1.0.0/src/data/bangladesh.geojson";
+// 🔴 গ্লোবাল CDN লিংক (এটি গিটহাবের র-লিংকের মতো বাংলাদেশে ব্লক হবে না)
+const MAP_URL = "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/bangladesh/bangladesh-districts.json";
 
 export default function MyBangladesh() {
   const [user, setUser] = useState(null);
   const [visited, setVisited] = useState([]);
-  const [mapError, setMapError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -19,8 +18,6 @@ export default function MyBangladesh() {
   useEffect(() => {
     const fetchUserData = async () => {
       setLoading(true);
-      setMapError(null);
-      
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
@@ -115,7 +112,6 @@ export default function MyBangladesh() {
     <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 relative text-gray-300">
       <div className="max-w-4xl mx-auto">
         
-        {/* Header Section */}
         <div className="text-center mb-10">
           <h1 className="text-4xl sm:text-5xl font-black text-white mb-2 uppercase tracking-tight">
             আমার <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-[#e76f51]">বাংলাদেশ</span>
@@ -125,7 +121,6 @@ export default function MyBangladesh() {
           </p>
         </div>
 
-        {/* Dashboard / Stats Section */}
         <div className="flex flex-col sm:flex-row justify-between items-center bg-[#0a1c13] p-4 rounded-2xl border border-white/10 mb-8 gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-black/40 border border-[#e76f51]/50 flex items-center justify-center">
@@ -147,12 +142,10 @@ export default function MyBangladesh() {
           </button>
         </div>
 
-        {/* Printable Map Area */}
         <div 
           ref={mapRef} 
           className="bg-[#030705] p-6 sm:p-10 rounded-3xl border border-white/5 relative overflow-hidden min-h-[400px] flex items-center justify-center"
         >
-          {/* Watermark */}
           <div className="absolute top-6 left-6 opacity-30 pointer-events-none z-10">
             <h2 className="text-3xl font-black tracking-widest text-white">
               <span className="text-[#e76f51]">C</span>UET <span className="text-[#e76f51]">A</span>S
@@ -160,7 +153,6 @@ export default function MyBangladesh() {
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Adventure Society</p>
           </div>
 
-          {/* User Stats on Map */}
           {user && (
              <div className="absolute top-6 right-6 text-right pointer-events-none z-10">
                <p className="text-[#e76f51] font-black text-xl">{visited.length} / 64</p>
@@ -168,7 +160,6 @@ export default function MyBangladesh() {
              </div>
           )}
 
-          {/* Interactive SVG Map (Fetching from unpkg CDN directly) */}
           <div className="w-full max-w-lg mx-auto aspect-[3/4] relative mt-16 sm:mt-8">
             <ComposableMap
               projection="geoMercator"
@@ -178,10 +169,10 @@ export default function MyBangladesh() {
               }}
               className="w-full h-full drop-shadow-2xl"
             >
-              <Geographies geography={GEO_URL}>
+              <Geographies geography={MAP_URL}>
                 {({ geographies }) =>
                   geographies.map((geo) => {
-                    const name = geo.properties.shapeName || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || "Unknown";
+                    const name = geo.properties.NAME_2 || geo.properties.NAME_1 || "Unknown";
                     const districtId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
                     const isVisited = visited.includes(districtId);
 
