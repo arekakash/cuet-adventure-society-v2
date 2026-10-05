@@ -1,4 +1,3 @@
-// app/beginners-guide/page.js
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase"; 
@@ -136,36 +135,44 @@ export default function BeginnersGuidePage() {
     }
   };
 
+  // কালার ভ্যারিয়েশন ফাংশন
+  const getCardColorTheme = (index) => {
+    const colors = [
+      "blue", "emerald", "orange", "purple", "pink", "yellow", "cyan"
+    ];
+    return colors[index % colors.length];
+  };
+
   return (
-    <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8 text-gray-300">
+    <div className="min-h-screen bg-pastel-bg dark:bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8 text-gray-800 dark:text-gray-300 transition-colors duration-500">
       <div className="max-w-7xl mx-auto">
         
-        {/* Header & IQ Bar */}
-        <div className="glass-panel rounded-[2rem] p-8 md:p-12 mb-10 text-center relative overflow-hidden">
-          <h1 className="text-3xl sm:text-5xl font-black text-white mb-4 tracking-tight">সারভাইভাল গাইড ও নলেজ বেস</h1>
-          <p className="text-gray-400 max-w-2xl mx-auto mb-10 text-sm sm:text-base">লেসনগুলো পড়ুন, কুইজ দিন এবং আপনার <strong className="text-[#34d399]">Survival IQ</strong> বাড়িয়ে তুলুন!</p>
+        {/* 🔴 Header & IQ Bar (Light/Dark Mode Supported with Depth Shadow) */}
+        <div className="bg-white/80 dark:bg-moss/70 backdrop-blur-md border border-gray-200 dark:border-white/5 rounded-[2rem] p-8 md:p-12 mb-10 text-center relative overflow-hidden shadow-soft dark:shadow-none transition-colors duration-500">
+          <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white mb-4 tracking-tight transition-colors duration-500">সারভাইভাল গাইড ও নলেজ বেস</h1>
+          <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 text-sm sm:text-base transition-colors duration-500">লেসনগুলো পড়ুন, কুইজ দিন এবং আপনার <strong className="text-emerald-600 dark:text-[#34d399]">Survival IQ</strong> বাড়িয়ে তুলুন!</p>
           
-          <div className="max-w-xl mx-auto bg-black/40 p-6 rounded-2xl border border-white/5 shadow-inner">
+          <div className="max-w-xl mx-auto bg-gray-50 dark:bg-black/40 p-6 rounded-2xl border border-gray-200 dark:border-white/5 shadow-inner transition-colors duration-500">
             <div className="flex justify-between items-end mb-3">
               <div className="text-left">
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Current Rank</p>
-                <p className="text-xl font-black text-[#34d399]">{getLevelName(survivalIQ)}</p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1 transition-colors">Current Rank</p>
+                <p className="text-xl font-black text-emerald-600 dark:text-[#34d399] transition-colors">{getLevelName(survivalIQ)}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Total Points</p>
-                <p className="text-2xl font-black text-white">{survivalIQ} <span className="text-sm text-gray-500">IQ</span></p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1 transition-colors">Total Points</p>
+                <p className="text-2xl font-black text-gray-900 dark:text-white transition-colors">{survivalIQ} <span className="text-sm text-gray-500">IQ</span></p>
               </div>
             </div>
-            <div className="w-full bg-gray-800 rounded-full h-3 mb-1 overflow-hidden">
+            <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-3 mb-1 overflow-hidden transition-colors duration-500">
               <div className="bg-gradient-to-r from-[#34d399] to-blue-500 h-3 rounded-full transition-all duration-1000" style={{ width: `${Math.min((survivalIQ / 4000) * 100, 100)}%` }}></div>
             </div>
           </div>
         </div>
 
-        {/* Dynamic Modules Grid */}
+        {/* 🔴 Dynamic Modules Grid (Colorful Pastel Theme for Light Mode) */}
         <div className="space-y-16">
           {megaCurriculum.map((module, mIndex) => {
-            // Lock Logic: Check if previous module's lessons are all in completedLessons
+            // Lock Logic
             let isModuleLocked = false;
             if (mIndex > 0) {
               const prevModule = megaCurriculum[mIndex - 1];
@@ -176,37 +183,46 @@ export default function BeginnersGuidePage() {
             }
 
             return (
-              <div key={module.moduleId} className={isModuleLocked ? "opacity-60" : ""}>
-                <div className={`mb-6 pl-4 border-l-4 ${isModuleLocked ? "border-gray-500" : "border-[#e76f51]"}`}>
-                  <h2 className="text-2xl font-black text-white flex items-center gap-3">
+              <div key={module.moduleId} className={isModuleLocked ? "opacity-60 grayscale-[50%]" : ""}>
+                <div className={`mb-6 pl-4 border-l-4 ${isModuleLocked ? "border-gray-400 dark:border-gray-500" : "border-[#e76f51]"} transition-colors duration-500`}>
+                  <h2 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-3 transition-colors duration-500">
                     {module.moduleTitle}
-                    {isModuleLocked && <span className="text-xs bg-gray-500 text-white px-2 py-1 rounded-md"><i className="fa-solid fa-lock"></i> Locked</span>}
+                    {isModuleLocked && <span className="text-xs bg-gray-500 text-white px-2 py-1 rounded-md shadow-sm"><i className="fa-solid fa-lock"></i> Locked</span>}
                   </h2>
-                  <p className="text-sm text-gray-400 mt-1 font-medium">{module.moduleDesc}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 font-medium transition-colors duration-500">{module.moduleDesc}</p>
                   {isModuleLocked && <p className="text-xs text-[#e76f51] mt-1 font-bold">আগের মডিউলের সব লেসন শেষ করলে এটি আনলক হবে।</p>}
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {module.lessons.map((lesson) => {
+                  {module.lessons.map((lesson, lIndex) => {
                     const isCompleted = completedLessons.includes(lesson.id);
-                    let cardStyle = "border-white/10 hover:border-blue-500/50 hover:-translate-y-2 cursor-pointer";
-                    if (isCompleted) cardStyle = "border-[#34d399]/30 bg-[#34d399]/5 opacity-80 cursor-pointer";
-                    if (isModuleLocked) cardStyle = "border-gray-500/30 bg-gray-500/5 module-locked";
+                    const themeColor = getCardColorTheme(lIndex); // 🔴 ডায়নামিক কালার সিলেকশন
+                    
+                    let cardStyle = `bg-white dark:bg-moss/70 border-gray-200 dark:border-white/10 hover:border-${themeColor}-500/50 hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-2 cursor-pointer shadow-soft dark:shadow-none`;
+                    
+                    if (isCompleted) cardStyle = "border-emerald-300 dark:border-[#34d399]/30 bg-emerald-50 dark:bg-[#34d399]/5 opacity-80 cursor-pointer shadow-sm";
+                    if (isModuleLocked) cardStyle = "border-gray-300 dark:border-gray-500/30 bg-gray-100 dark:bg-gray-500/5 module-locked shadow-none";
 
                     return (
-                      <div key={lesson.id} onClick={() => !isModuleLocked && openLesson(lesson)} className={`relative glass-panel rounded-2xl p-6 transition-all duration-300 ${cardStyle} group`}>
+                      <div key={lesson.id} onClick={() => !isModuleLocked && openLesson(lesson)} className={`relative rounded-2xl p-6 transition-all duration-300 ${cardStyle} group border`}>
+                        
+                        {/* Status Badges */}
                         {isCompleted ? (
-                          <span className="absolute -top-3 -right-3 bg-[#34d399] text-white w-8 h-8 rounded-full flex items-center justify-center border-4 border-[#050b08] shadow-lg"><i className="fa-solid fa-check"></i></span>
+                          <span className="absolute -top-3 -right-3 bg-emerald-500 text-white w-8 h-8 rounded-full flex items-center justify-center border-4 border-white dark:border-[#050b08] shadow-md transition-colors duration-500"><i className="fa-solid fa-check"></i></span>
                         ) : isModuleLocked && (
-                          <span className="absolute -top-3 -right-3 bg-gray-500 text-white w-8 h-8 rounded-full flex items-center justify-center border-4 border-[#050b08] shadow-lg"><i className="fa-solid fa-lock"></i></span>
+                          <span className="absolute -top-3 -right-3 bg-gray-500 text-white w-8 h-8 rounded-full flex items-center justify-center border-4 border-white dark:border-[#050b08] shadow-md transition-colors duration-500"><i className="fa-solid fa-lock"></i></span>
                         )}
-                        <div className="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                        
+                        {/* Icon Container (Colorful) */}
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform ${isCompleted ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : isModuleLocked ? 'bg-gray-200 dark:bg-gray-500/20 text-gray-500' : `bg-${themeColor}-100 dark:bg-${themeColor}-500/20 text-${themeColor}-600 dark:text-${themeColor}-400`}`}>
                           <i className={`fa-solid ${lesson.icon}`}></i>
                         </div>
-                        <h4 className="text-lg font-black text-white mb-2 leading-tight group-hover:text-blue-400 transition-colors">{lesson.title}</h4>
-                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/5">
-                          <span className="text-xs text-gray-400 font-bold"><i className="fa-solid fa-clock mr-1"></i> {lesson.readTime}</span>
-                          <span className="text-xs text-[#34d399] font-black tracking-widest">+{lesson.points} IQ</span>
+                        
+                        <h4 className={`text-lg font-black mb-2 leading-tight transition-colors duration-300 ${isCompleted ? 'text-gray-900 dark:text-white' : isModuleLocked ? 'text-gray-500' : `text-gray-800 dark:text-white group-hover:text-${themeColor}-600 dark:group-hover:text-${themeColor}-400`}`}>{lesson.title}</h4>
+                        
+                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200 dark:border-white/5 transition-colors duration-500">
+                          <span className="text-xs text-gray-500 dark:text-gray-400 font-bold transition-colors"><i className="fa-solid fa-clock mr-1"></i> {lesson.readTime}</span>
+                          <span className="text-xs text-emerald-600 dark:text-[#34d399] font-black tracking-widest transition-colors">+{lesson.points} IQ</span>
                         </div>
                       </div>
                     );
@@ -219,26 +235,27 @@ export default function BeginnersGuidePage() {
 
       </div>
 
-      {/* Lesson Modal */}
+      {/* 🔴 Lesson Reader Modal (Pastel Eye-Soothing for Light Mode) */}
       {isLessonModalOpen && activeLesson && (
-        <div className="fixed inset-0 z-50 flex justify-center items-start py-10 px-4 overflow-y-auto bg-black/80 backdrop-blur-sm">
-          <button onClick={closeLessonModal} className="fixed top-6 right-6 w-12 h-12 bg-white/10 border border-white/20 rounded-full flex items-center justify-center text-white hover:bg-red-500 transition-all z-50">
+        <div className="fixed inset-0 z-50 flex justify-center items-start py-10 px-4 overflow-y-auto bg-black/40 dark:bg-black/80 backdrop-blur-md transition-colors duration-500">
+          <button onClick={closeLessonModal} className="fixed top-6 right-6 w-12 h-12 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-full flex items-center justify-center text-gray-600 dark:text-white hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500 transition-all z-50 shadow-md">
             <i className="fa-solid fa-xmark text-xl"></i>
           </button>
-          <div className="glass-panel rounded-3xl p-8 sm:p-14 mb-10 w-full max-w-4xl mt-12 bg-[#0a1c13]">
-            <h2 className="text-3xl sm:text-5xl font-black text-white leading-tight mb-8">{activeLesson.title}</h2>
-            <div className="lesson-content text-base sm:text-lg" dangerouslySetInnerHTML={{ __html: activeLesson.content }}></div>
+          
+          <div className="bg-[#fdfbf7] dark:bg-[#0a1c13] rounded-3xl p-8 sm:p-14 mb-10 w-full max-w-4xl mt-12 shadow-2xl transition-colors duration-500 border border-gray-200 dark:border-white/5">
+            <h2 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white leading-tight mb-8 transition-colors duration-500">{activeLesson.title}</h2>
+            <div className="lesson-content text-base sm:text-lg transition-colors duration-500" dangerouslySetInnerHTML={{ __html: activeLesson.content }}></div>
             
-            <div className="mt-16 pt-10 border-t border-white/10 text-center">
-              <h3 className="text-2xl font-black text-white mb-4">পড়া শেষ? এবার পরীক্ষা দেওয়ার পালা!</h3>
-              <p className="text-gray-400 mb-8">কুইজের জন্য সময় পাবেন মাত্র ৩ মিনিট।</p>
+            <div className="mt-16 pt-10 border-t border-gray-200 dark:border-white/10 text-center transition-colors duration-500">
+              <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-4 transition-colors">পড়া শেষ? এবার পরীক্ষা দেওয়ার পালা!</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-8 transition-colors">কুইজের জন্য সময় পাবেন মাত্র ৩ মিনিট।</p>
               
               {completedLessons.includes(activeLesson.id) ? (
-                <button disabled className="bg-gray-600 text-gray-300 px-10 py-5 rounded-2xl font-black text-xl transition-all cursor-not-allowed mx-auto block">
+                <button disabled className="bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-300 px-10 py-5 rounded-2xl font-black text-xl transition-all cursor-not-allowed mx-auto block shadow-inner">
                   <i className="fa-solid fa-check-circle"></i> কমপ্লিটেড
                 </button>
               ) : (
-                <button onClick={startQuiz} className="bg-[#34d399] hover:bg-emerald-600 text-[#050b08] px-10 py-5 rounded-2xl font-black text-xl transition-all shadow-[0_0_20px_rgba(52,211,153,0.4)] mx-auto block">
+                <button onClick={startQuiz} className="bg-emerald-500 hover:bg-emerald-600 dark:bg-[#34d399] dark:hover:bg-emerald-600 text-white dark:text-[#050b08] px-10 py-5 rounded-2xl font-black text-xl transition-all shadow-lg dark:shadow-[0_0_20px_rgba(52,211,153,0.4)] hover:-translate-y-1 mx-auto block">
                   <i className="fa-solid fa-brain"></i> টেক কুইজ & আর্ন পয়েন্ট!
                 </button>
               )}
@@ -247,26 +264,26 @@ export default function BeginnersGuidePage() {
         </div>
       )}
 
-      {/* Quiz Modal */}
+      {/* 🔴 Quiz Modal (Light/Dark Mode Support) */}
       {isQuizModalOpen && activeLesson && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
-          <div className="bg-[#0a1c13] border border-white/10 rounded-[2rem] p-6 sm:p-10 max-w-3xl w-full relative shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4 sticky top-0 bg-[#0a1c13] z-10">
-              <h3 className="text-xl sm:text-2xl font-black text-[#34d399] flex items-center gap-2"><i className="fa-solid fa-stopwatch"></i> নলেজ টেস্ট</h3>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 dark:bg-black/80 backdrop-blur-md px-4 transition-colors duration-500">
+          <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 rounded-[2rem] p-6 sm:p-10 max-w-3xl w-full relative shadow-2xl max-h-[90vh] overflow-y-auto transition-colors duration-500">
+            <div className="flex justify-between items-center mb-6 border-b border-gray-200 dark:border-white/10 pb-4 sticky top-0 bg-white dark:bg-[#0a1c13] z-10 transition-colors duration-500">
+              <h3 className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-[#34d399] flex items-center gap-2 transition-colors"><i className="fa-solid fa-stopwatch"></i> নলেজ টেস্ট</h3>
               <div className="text-2xl font-black text-red-500 animate-pulse">{formatTime(timeLeft)}</div>
               <button onClick={closeQuizModal} className="text-gray-400 hover:text-red-500 transition-colors"><i className="fa-solid fa-xmark text-2xl"></i></button>
             </div>
             
             <div className="space-y-8">
               {activeLesson.quiz.map((qObj, qIndex) => (
-                <div key={qIndex} className="bg-black/20 p-6 rounded-2xl border border-white/5">
-                  <h4 className="font-bold text-lg text-white mb-4">{qIndex + 1}. {qObj.q}</h4>
+                <div key={qIndex} className="bg-gray-50 dark:bg-black/20 p-6 rounded-2xl border border-gray-100 dark:border-white/5 transition-colors duration-500 shadow-sm dark:shadow-none">
+                  <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 transition-colors">{qIndex + 1}. {qObj.q}</h4>
                   <div className="space-y-3">
                     {qObj.options.map((opt, oIndex) => (
                       <label key={oIndex} className="block relative cursor-pointer group">
                         <input type="radio" name={`q_${qIndex}`} value={oIndex} onChange={() => handleOptionChange(qIndex, oIndex)} checked={answers[qIndex] === oIndex} className="hidden" />
-                        <div className={`border rounded-xl p-4 transition-all duration-200 flex items-center gap-3 font-medium ${answers[qIndex] === oIndex ? 'border-[#e76f51] bg-[#e76f51]/10 text-white' : 'border-white/10 text-gray-300 hover:bg-white/5'}`}>
-                          <div className={`w-5 h-5 rounded-full border-2 flex shrink-0 items-center justify-center transition-colors ${answers[qIndex] === oIndex ? 'border-[#e76f51] bg-[#e76f51]' : 'border-gray-500'}`}>
+                        <div className={`border rounded-xl p-4 transition-all duration-200 flex items-center gap-3 font-medium shadow-sm dark:shadow-none ${answers[qIndex] === oIndex ? 'border-orange-500 dark:border-[#e76f51] bg-orange-50 dark:bg-[#e76f51]/10 text-orange-700 dark:text-white' : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}>
+                          <div className={`w-5 h-5 rounded-full border-2 flex shrink-0 items-center justify-center transition-colors ${answers[qIndex] === oIndex ? 'border-orange-500 bg-orange-500 dark:border-[#e76f51] dark:bg-[#e76f51]' : 'border-gray-400 dark:border-gray-500'}`}>
                              {answers[qIndex] === oIndex && <div className="w-2 h-2 bg-white rounded-full"></div>}
                           </div>
                           <span>{opt}</span>
@@ -278,8 +295,8 @@ export default function BeginnersGuidePage() {
               ))}
             </div>
 
-            <div className="mt-10 pt-6 border-t border-white/10">
-              <button onClick={submitQuiz} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black text-lg py-4 rounded-xl transition-all shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+            <div className="mt-10 pt-6 border-t border-gray-200 dark:border-white/10 transition-colors">
+              <button onClick={submitQuiz} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black text-lg py-4 rounded-xl transition-all shadow-md dark:shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:-translate-y-1">
                 <i className="fa-solid fa-paper-plane"></i> সাবমিট উত্তর
               </button>
             </div>
@@ -287,20 +304,20 @@ export default function BeginnersGuidePage() {
         </div>
       )}
 
-      {/* Success Modal */}
+      {/* 🔴 Success Modal (Light/Dark Mode Support) */}
       {isSuccessModalOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
-          <div className="bg-[#0a1c13] border border-[#34d399]/50 rounded-[2rem] p-10 text-center max-w-sm w-full relative shadow-[0_0_40px_rgba(52,211,153,0.3)] animate-bounce">
-            <div className="w-24 h-24 bg-[#34d399]/20 rounded-full flex items-center justify-center text-[#34d399] text-5xl mx-auto mb-6 shadow-inner border border-[#34d399]/30">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 dark:bg-black/80 backdrop-blur-md px-4 transition-colors duration-500">
+          <div className="bg-white dark:bg-[#0a1c13] border border-emerald-300 dark:border-[#34d399]/50 rounded-[2rem] p-10 text-center max-w-sm w-full relative shadow-2xl dark:shadow-[0_0_40px_rgba(52,211,153,0.3)] animate-bounce transition-colors duration-500">
+            <div className="w-24 h-24 bg-emerald-100 dark:bg-[#34d399]/20 rounded-full flex items-center justify-center text-emerald-500 dark:text-[#34d399] text-5xl mx-auto mb-6 shadow-inner border border-emerald-200 dark:border-[#34d399]/30 transition-colors">
               <i className="fa-solid fa-check"></i>
             </div>
-            <h3 className="text-3xl font-black text-white mb-2">অভিনন্দন!</h3>
-            <p className="text-gray-400 mb-6">আপনি সফলভাবে লেসনটি সম্পন্ন করেছেন.</p>
-            <div className="bg-[#34d399]/10 border border-[#34d399]/30 rounded-xl p-4 mb-8">
-              <p className="text-[#34d399] font-black text-3xl">+{earnedPoints}</p>
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Survival IQ Added</p>
+            <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-2 transition-colors">অভিনন্দন!</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-6 transition-colors">আপনি সফলভাবে লেসনটি সম্পন্ন করেছেন.</p>
+            <div className="bg-emerald-50 dark:bg-[#34d399]/10 border border-emerald-200 dark:border-[#34d399]/30 rounded-xl p-4 mb-8 transition-colors">
+              <p className="text-emerald-600 dark:text-[#34d399] font-black text-3xl transition-colors">+{earnedPoints}</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold transition-colors">Survival IQ Added</p>
             </div>
-            <button onClick={() => setIsSuccessModalOpen(false)} className="w-full bg-[#34d399] hover:bg-emerald-600 text-[#050b08] font-black py-4 rounded-xl transition-all shadow-[0_0_15px_rgba(52,211,153,0.4)]">
+            <button onClick={() => setIsSuccessModalOpen(false)} className="w-full bg-emerald-500 hover:bg-emerald-600 dark:bg-[#34d399] dark:hover:bg-emerald-600 text-white dark:text-[#050b08] font-black py-4 rounded-xl transition-all shadow-md dark:shadow-[0_0_15px_rgba(52,211,153,0.4)] hover:-translate-y-1">
               কন্টিনিউ করুন
             </button>
           </div>
