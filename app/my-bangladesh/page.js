@@ -98,7 +98,7 @@ export default function MyBangladeshPage() {
   const [markerType, setMarkerType] = useState("name"); 
   const [displayName, setDisplayName] = useState("গেস্ট এক্সপ্লোরার");
   
-  const BASE_SCALE = 5200; // 🔴 ম্যাপের সাইজ আগের চেয়ে অনেক বড় করা হয়েছে
+  const BASE_SCALE = 5200; 
   const [zoomLevel, setZoomLevel] = useState(1);
   
   const mapCardRef = useRef(null);
@@ -389,20 +389,20 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* 🔴 Perfect 4:5 Download Card */}
+        {/* 🔴 Perfect 4:5 Download Card (Maximum Map Space + Big Avatar) */}
         <div 
           ref={mapCardRef} 
           className="rounded-[2rem] p-4 sm:p-5 shadow-2xl relative flex flex-col mx-auto w-full max-w-[480px] aspect-[4/5] overflow-hidden" 
           style={{ backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.borderColor}` }}
           data-aos="zoom-in"
         >
-          {/* 🔴 কম্প্যাক্ট হেডার: Avatar, Title এবং Stats একসাথে */}
+          {/* 🔴 কম্প্যাক্ট হেডার: বড় ছবি বামে, নাম ও ছোট ব্যাজ ডানে */}
           <div className="flex items-center gap-3 sm:gap-4 mb-3 shrink-0 relative z-10 w-full">
             
-            {/* 🔴 ইউজারের বড় ছবি (w-20 h-20 / w-24 h-24) */}
+            {/* 🔴 ইউজারের বড় গোল ছবি (w-20 h-20) */}
             <div 
               onClick={() => fileInputRef.current.click()} 
-              className="relative group cursor-pointer w-20 h-20 sm:w-24 sm:h-24 shrink-0"
+              className="relative group cursor-pointer w-20 h-20 sm:w-24 sm:h-24 shrink-0 shadow-lg rounded-full"
               title="আপনার ছবি যুক্ত করুন"
             >
               {croppedAvatar ? (
@@ -424,9 +424,9 @@ export default function MyBangladeshPage() {
               )}
             </div>
 
-            {/* 🔴 টাইটেল এবং ছোট স্ট্যাটিস্টিক্স ব্যাজ */}
+            {/* 🔴 টাইটেল এবং স্ট্যাটিস্টিক্স */}
             <div className="flex-1 flex flex-col justify-center min-w-0">
-              <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-tight truncate" style={{ color: themeStyles.textColor }}>
+              <h2 className="text-lg sm:text-xl font-black tracking-tight leading-tight truncate" style={{ color: themeStyles.textColor }}>
                 {displayName.trim() === "গেস্ট এক্সপ্লোরার" || !displayName.trim() 
                   ? "আমার বাংলাদেশ ভ্রমণ" 
                   : `${displayName} এর বাংলাদেশ ভ্রমণ`}
@@ -444,22 +444,22 @@ export default function MyBangladeshPage() {
                 />
               </div>
 
-              {/* স্ট্যাটিস্টিক্স ব্যাজ (অনেক জায়গা বাঁচাবে) */}
+              {/* স্ট্যাটিস্টিক্স ব্যাজ */}
               <div className="flex gap-1.5 sm:gap-2 w-full mt-1">
-                <div className="flex-1 py-1 px-1.5 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-                  <p className="text-[7px] sm:text-[8px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
+                <div className="flex-1 py-1 px-1 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+                  <p className="text-[7px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
                   <h3 className="text-xs sm:text-sm font-black" style={{ color: selectedColor }}>
-                    {e2b(validCount)} <span className="text-[8px]" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
+                    {e2b(validCount)} <span className="text-[7px]" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
                   </h3>
                 </div>
-                <div className="flex-1 py-1 px-1.5 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-                  <p className="text-[7px] sm:text-[8px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
+                <div className="flex-1 py-1 px-1 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+                  <p className="text-[7px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
                   <h3 className="text-xs sm:text-sm font-black" style={{ color: themeStyles.textColor }}>
-                    {e2b(64 - validCount)} <span className="text-[8px]" style={{ color: themeStyles.subTextColor }}>জেলা</span>
+                    {e2b(64 - validCount)} <span className="text-[7px]" style={{ color: themeStyles.subTextColor }}>জেলা</span>
                   </h3>
                 </div>
-                <div className="flex-1 py-1 px-1.5 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-                  <p className="text-[7px] sm:text-[8px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>সম্পন্ন</p>
+                <div className="flex-1 py-1 px-1 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+                  <p className="text-[7px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>সম্পন্ন</p>
                   <h3 className="text-xs sm:text-sm font-black" style={{ color: selectedColor }}>
                     {e2b(percentage)}%
                   </h3>
@@ -468,13 +468,14 @@ export default function MyBangladeshPage() {
             </div>
           </div>
 
-          {/* 🔴 ম্যাপ কন্টেইনার (বাকি সমস্ত জায়গা নিয়ে নেবে) */}
+          {/* 🔴 ম্যাপ কন্টেইনার (বাকি সমস্ত জায়গা জুড়ে থাকবে, কোনো অতিরিক্ত কার্ড বসবে না) */}
           <div className="w-full flex-1 rounded-2xl overflow-hidden flex items-center justify-center relative select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
 
-            {/* 🔴 CUET AS ওয়াটারমার্ক ম্যাপের ভেতরে কোণায় */}
-            <div className="absolute bottom-3 right-4 z-10 text-right opacity-60">
-              <h2 className="text-lg font-black" style={{ color: themeStyles.textColor }}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
-              <p className="text-[7px] font-black tracking-widest uppercase mt-0.5" style={{ color: themeStyles.subTextColor }}>Adventure Society</p>
+            {/* 🔴 অতি ক্ষুদ্র আকারে ম্যাপের নিচে ওয়াটারমার্ক */}
+            <div className="absolute bottom-2 right-3 z-10 opacity-40 pointer-events-none">
+              <p className="text-[7px] font-bold tracking-wider uppercase" style={{ color: themeStyles.subTextColor }}>
+                Map generated by CUET Adventure Society
+              </p>
             </div>
 
             <div data-html2canvas-ignore="true" className="absolute top-3 right-3 z-20 flex flex-col gap-2">
@@ -636,7 +637,7 @@ export default function MyBangladeshPage() {
                 className="w-full sm:w-auto text-white px-8 py-3.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-105"
                 style={{ backgroundColor: selectedColor, boxShadow: `0 0 20px ${selectedColor}60` }}
               >
-                {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-file-image"></i>}
+                {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-image"></i>}
                 {downloading ? "প্রসেসিং..." : "ডাউনলোড JPG"}
               </button>
 
