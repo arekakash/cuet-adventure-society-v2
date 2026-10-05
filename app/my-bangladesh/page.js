@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps"; // 🔴 ZoomableGroup বাদ দেওয়া হয়েছে
+import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from "react-simple-maps";
 import { geoCentroid } from "d3-geo";
 import Link from "next/link";
 import html2canvas from "html2canvas";
@@ -55,9 +55,9 @@ export default function MyBangladeshPage() {
   const [downloadTheme, setDownloadTheme] = useState("dark"); 
   const [displayName, setDisplayName] = useState("গেস্ট এক্সপ্লোরার");
   
-  // 🔴 কাস্টম জুম স্কেলিং স্টেট
   const BASE_SCALE = 4200;
   const [zoomScale, setZoomScale] = useState(BASE_SCALE);
+  const [position, setPosition] = useState({ coordinates: [90.35, 23.8], zoom: 1 });
   
   const mapCardRef = useRef(null);
 
@@ -125,7 +125,6 @@ export default function MyBangladeshPage() {
     toggleDistrict(districtName);
   };
 
-  // 🔴 জুম ইন এবং আউট হ্যান্ডলার (কাস্টম লজিক)
   const handleZoomIn = () => {
     setZoomScale(prev => Math.min(prev * 1.3, BASE_SCALE * 3));
   };
@@ -133,6 +132,8 @@ export default function MyBangladeshPage() {
   const handleZoomOut = () => {
     setZoomScale(prev => Math.max(prev / 1.3, BASE_SCALE));
   };
+  
+  const handleMoveEnd = (newPosition) => setPosition(newPosition);
 
   const handleDownloadMap = async (format) => {
     if (!mapCardRef.current) return;
@@ -296,7 +297,6 @@ export default function MyBangladeshPage() {
             </div>
           </div>
 
-          {/* 🔴 Map Container (touch-none সরানো হয়েছে, ম্যাপ এখন শুধু বাটন দিয়ে জুম হবে) */}
           <div className="w-full h-[65vh] sm:h-[75vh] rounded-3xl overflow-hidden flex items-center justify-center relative select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
 
             <div data-html2canvas-ignore="true" className="absolute top-4 right-4 z-20 flex flex-col gap-2">
@@ -316,68 +316,69 @@ export default function MyBangladeshPage() {
 
             <ComposableMap
               projection="geoMercator"
-              // 🔴 ডাইনামিক স্কেলিং স্টেট যুক্ত করা হলো
               projectionConfig={{ scale: zoomScale, center: [90.35, 23.8] }}
               className="w-full h-full outline-none transition-all duration-300 ease-in-out"
             >
-              {/* 🔴 ZoomableGroup 완전히 রিমুভ করা হয়েছে */}
-              <Geographies geography={geoUrl}>
-                {({ geographies }) => (
-                  <>
-                    {geographies.map((geo) => {
-                      const districtName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
-                      const isVisited = visitedDistricts.includes(districtName);
+              <ZoomableGroup zoom={position.zoom} center={position.coordinates} onMoveEnd={handleMoveEnd}>
+                <Geographies geography={geoUrl}>
+                  {({ geographies }) => (
+                    <>
+                      {geographies.map((geo) => {
+                        const districtName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
+                        const isVisited = visitedDistricts.includes(districtName);
 
-                      return (
-                        <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          onClick={() => handleMapClick(geo)}
-                          onMouseEnter={() => setHoveredDistrict(districtBn[districtName] || districtName)}
-                          onMouseLeave={() => setHoveredDistrict("")}
-                          style={{
-                            default: {
-                              fill: isVisited ? selectedColor : themeStyles.unvisitedFill,
-                              outline: "none",
-                              stroke: themeStyles.mapStroke,
-                              strokeWidth: isLight ? 1 : 0.8,
-                              filter: isVisited && !isLight ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
-                              transition: "all 0.3s ease"
-                            },
-                            hover: { fill: isVisited ? selectedColor : "#3b82f6", outline: "none", stroke: isLight ? "#000" : "#ffffff", strokeWidth: 1.5, cursor: "pointer" }
-                          }}
-                        />
-                      );
-                    })}
-                    
-                    {geographies.map((geo) => {
-                      const districtName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
-                      const isVisited = visitedDistricts.includes(districtName);
+                        return (
+                          <Geography
+                            key={geo.rsmKey}
+                            geography={geo}
+                            onClick={() => handleMapClick(geo)}
+                            onMouseEnter={() => setHoveredDistrict(districtBn[districtName] || districtName)}
+                            onMouseLeave={() => setHoveredDistrict("")}
+                            style={{
+                              default: {
+                                fill: isVisited ? selectedColor : themeStyles.unvisitedFill,
+                                outline: "none",
+                                stroke: themeStyles.mapStroke,
+                                strokeWidth: isLight ? 1 : 0.8,
+                                filter: isVisited && !isLight ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
+                                transition: "all 0.3s ease"
+                              },
+                              hover: { fill: isVisited ? selectedColor : "#3b82f6", outline: "none", stroke: isLight ? "#000" : "#ffffff", strokeWidth: 1.5, cursor: "pointer" }
+                            }}
+                          />
+                        );
+                      })}
                       
-                      if (!isVisited) return null;
-                      const centroid = geoCentroid(geo);
-                      const bengaliName = districtBn[districtName] || districtName;
+                      {/* 🔴 বাংলা নাম ও বড় ফন্ট সাইজ */}
+                      {geographies.map((geo) => {
+                        const districtName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
+                        const isVisited = visitedDistricts.includes(districtName);
+                        
+                        if (!isVisited) return null;
+                        const centroid = geoCentroid(geo);
+                        const bengaliName = districtBn[districtName] || districtName;
 
-                      return (
-                        <Marker key={`${geo.rsmKey}-label`} coordinates={centroid}>
-                          <text
-                            y="2"
-                            fontSize={5}
-                            fontFamily="'Noto Sans Bengali', sans-serif"
-                            textAnchor="middle"
-                            alignmentBaseline="middle"
-                            fill={themeStyles.nameLabelColor}
-                            className="font-bold pointer-events-none"
-                            style={{ filter: isLight ? 'drop-shadow(0px 1px 1px rgba(255,255,255,0.8))' : 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }}
-                          >
-                            {bengaliName}
-                          </text>
-                        </Marker>
-                      );
-                    })}
-                  </>
-                )}
-              </Geographies>
+                        return (
+                          <Marker key={`${geo.rsmKey}-label`} coordinates={centroid}>
+                            <text
+                              y="2"
+                              fontSize={15} /* 🔴 ফন্ট সাইজ বড় করা হয়েছে */
+                              fontFamily="'Noto Sans Bengali', sans-serif"
+                              textAnchor="middle"
+                              alignmentBaseline="middle"
+                              fill={themeStyles.nameLabelColor}
+                              className="font-black pointer-events-none" /* 🔴 ফন্ট মোটা করা হয়েছে */
+                              style={{ filter: isLight ? 'drop-shadow(0px 1px 1px rgba(255,255,255,0.8))' : 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }}
+                            >
+                              {bengaliName}
+                            </text>
+                          </Marker>
+                        );
+                      })}
+                    </>
+                  )}
+                </Geographies>
+              </ZoomableGroup>
             </ComposableMap>
           </div>
         </div>
