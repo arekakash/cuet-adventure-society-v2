@@ -2,41 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Scrollbar */
+/* ==========================================
+   Base Theme Switching (Light/Pastel & Dark)
+   ========================================== */
+@layer base {
+  body {
+    @apply bg-pastel-bg text-pastel-text transition-colors duration-500 ease-in-out;
+  }
+  .dark body {
+    @apply bg-darkForest text-gray-300;
+  }
+}
+
+/* ==========================================
+   Custom Scrollbar (Adapts to Light/Dark)
+   ========================================== */
 ::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #050b08; }
-::-webkit-scrollbar-thumb { background: #2d6a4f; border-radius: 4px; }
+
+/* Light Mode Scrollbar */
+::-webkit-scrollbar-track { background: #fdfbf7; }
+::-webkit-scrollbar-thumb { background: #8c98a9; border-radius: 4px; }
+
+/* Dark Mode Scrollbar */
+.dark ::-webkit-scrollbar-track { background: #050b08; }
+.dark ::-webkit-scrollbar-thumb { background: #2d6a4f; border-radius: 4px; }
+
 ::-webkit-scrollbar-thumb:hover { background: #e76f51; }
 
-/* Glass Panel Styling */
-.glass-panel {
-    background: rgba(10, 28, 19, 0.7);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+/* ==========================================
+   Components (Glassmorphism & Lesson Reader)
+   ========================================== */
+@layer components {
+  /* Glass Panel Styling */
+  .glass-panel {
+    @apply bg-white/60 dark:bg-moss/70 backdrop-blur-md border border-pastel-border dark:border-white/5 shadow-soft dark:shadow-none transition-all duration-500;
+  }
+
+  .glass-input {
+    @apply bg-gray-50/50 dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-gray-100 backdrop-blur-md transition-all duration-300;
+  }
+
+  .glass-input:focus {
+    @apply bg-white dark:bg-moss/80 border-campfire ring-1 ring-campfire/30 dark:shadow-glow outline-none;
+  }
+
+  /* Landing Page Additions */
+  .glass-dark {
+    @apply bg-white/50 dark:bg-moss/60 backdrop-blur-md border border-gray-200 dark:border-white/5 shadow-soft dark:shadow-none transition-all duration-500;
+  }
+
+  /* Beginners Guide / Lesson Reader Styling */
+  .lesson-content h3 { 
+    @apply text-2xl font-black text-campfire mt-10 mb-4 border-b border-campfire/30 pb-2 transition-colors duration-500;
+  }
+
+  .lesson-content p { 
+    @apply mb-4 leading-relaxed text-gray-700 dark:text-gray-300 transition-colors duration-500;
+  }
+
+  .lesson-content ul { 
+    @apply list-disc ml-6 mb-6 text-gray-700 dark:text-gray-300 transition-colors duration-500;
+  }
+
+  /* Lock state for uncompleted modules */
+  .module-locked { 
+    @apply grayscale opacity-60 pointer-events-none transition-all duration-500;
+  }
 }
 
-.glass-input {
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #f3f4f6; 
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    backdrop-filter: blur(8px);
-}
-
-.glass-input:focus {
-    background: rgba(10, 28, 19, 0.8);
-    border-color: #e76f51;
-    box-shadow: 0 0 15px rgba(231, 111, 81, 0.3);
-    outline: none;
-}
-
-/* Landing Page Additions */
-.glass-dark {
-    background: rgba(10, 28, 19, 0.6);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
+/* ==========================================
+   Keyframes & Animations
+   ========================================== */
 @keyframes pulseGlowBlue {
     0%, 100% { text-shadow: 0 0 15px rgba(6, 182, 212, 0.5), 0 0 30px rgba(6, 182, 212, 0.3); }
     50% { text-shadow: 0 0 25px rgba(6, 182, 212, 0.9), 0 0 50px rgba(6, 182, 212, 0.6), 0 0 80px rgba(6, 182, 212, 0.4); }
@@ -44,37 +80,4 @@
 
 .text-glow-futuristic {
     animation: pulseGlowBlue 4s ease-in-out infinite;
-}
-
-/* ==========================================
-   Beginners Guide / Lesson Reader Styling
-   ========================================== */
-
-.lesson-content h3 { 
-    font-size: 1.5rem; 
-    font-weight: 900; 
-    color: #e76f51; 
-    margin-top: 2.5rem; 
-    margin-bottom: 1rem; 
-    border-bottom: 1px solid rgba(231, 111, 81, 0.3); 
-    padding-bottom: 0.5rem; 
-}
-
-.lesson-content p { 
-    margin-bottom: 1rem; 
-    line-height: 1.8; 
-    color: #d1d5db; 
-}
-
-.lesson-content ul { 
-    list-style-type: disc; 
-    margin-left: 1.5rem; 
-    margin-bottom: 1.5rem; 
-    color: #d1d5db; 
-}
-
-/* Lock state for uncompleted modules */
-.module-locked { 
-    filter: grayscale(100%) opacity(60%); 
-    pointer-events: none; 
 }
