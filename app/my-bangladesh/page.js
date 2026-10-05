@@ -277,7 +277,8 @@ export default function MyBangladeshPage() {
             </div>
           </div>
 
-          <div className="w-full h-[65vh] sm:h-[75vh] rounded-3xl overflow-hidden flex items-center justify-center relative" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
+          <div className="w-full h-[65vh] sm:h-[75vh] rounded-3xl overflow-hidden flex items-center justify-center relative touch-none select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
+
             
             {hoveredDistrict && (
               <div className="absolute top-4 left-4 z-20 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg border border-white/10" style={{ color: selectedColor }}>
