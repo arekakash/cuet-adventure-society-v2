@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps";
+import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from "react-simple-maps";
+import { geoCentroid } from "d3-geo";
 import Link from "next/link";
 import html2canvas from "html2canvas";
 import AOS from "aos";
@@ -17,6 +18,18 @@ const colorPalette = [
   { name: "Golden Amber", value: "#fbbf24" },
   { name: "Rose", value: "#fb7185" },
   { name: "Teal", value: "#2dd4bf" }
+];
+
+// বাংলাদেশের ৮ বিভাগ ও ৬৪ জেলার ডেটাবেস
+const bangladeshDivisions = [
+  { name: "ঢাকা", districts: ["Dhaka", "Faridpur", "Gazipur", "Gopalganj", "Kishoreganj", "Madaripur", "Manikganj", "Munshiganj", "Narayanganj", "Narsingdi", "Rajbari", "Shariatpur", "Tangail"] },
+  { name: "চট্টগ্রাম", districts: ["Bandarban", "Brahmanbaria", "Chandpur", "Chattogram", "Cox's Bazar", "Cumilla", "Feni", "Khagrachhari", "Lakshmipur", "Noakhali", "Rangamati"] },
+  { name: "সিলেট", districts: ["Habiganj", "Moulvibazar", "Sunamganj", "Sylhet"] },
+  { name: "খুলনা", districts: ["Bagerhat", "Chuadanga", "Jashore", "Jhenaidah", "Khulna", "Kushtia", "Magura", "Meherpur", "Narail", "Satkhira"] },
+  { name: "রাজশাহী", districts: ["Bogura", "Chapainawabganj", "Joypurhat", "Naogaon", "Natore", "Pabna", "Rajshahi", "Sirajganj"] },
+  { name: "রংপুর", districts: ["Dinajpur", "Gaibandha", "Kurigram", "Lalmonirhat", "Nilphamari", "Panchagarh", "Rangpur", "Thakurgaon"] },
+  { name: "বরিশাল", districts: ["Barguna", "Barishal", "Bhola", "Jhalokati", "Patuakhali", "Pirojpur"] },
+  { name: "ময়মনসিংহ", districts: ["Jamalpur", "Mymensingh", "Netrokona", "Sherpur"] }
 ];
 
 export default function MyBangladeshPage() {
@@ -57,20 +70,9 @@ export default function MyBangladeshPage() {
     setLoading(false);
   };
 
-  const handleDistrictClick = async (geo) => {
-    if (!userProfile) {
-      alert("ম্যাপে জেলা মার্ক করতে অনুগ্রহ করে প্রথমে লগইন করুন!");
-      return;
-    }
-
-    const districtName = 
-      geo.properties.adm2_name || 
-      geo.properties.ADM2_EN || 
-      geo.properties.NAME_2 || 
-      geo.properties.name || 
-      geo.properties.Dist_Name ||
-      geo.properties.district;
-    
+  // ম্যাপ বা চেকলিস্ট থেকে জেলা সিলেক্ট/ডিসিলেক্ট করার ফাংশন
+  const toggleDistrict = async (districtName) => {
+    if (!userProfile) return alert("ম্যাপ আপডেট করতে অনুগ্রহ করে প্রথমে লগইন করুন!");
     if (!districtName) return;
 
     setSaving(true);
@@ -96,13 +98,25 @@ export default function MyBangladeshPage() {
     setSaving(false);
   };
 
+  // ম্যাপ থেকে ক্লিক ইভেন্ট হ্যান্ডলার
+  const handleMapClick = (geo) => {
+    const districtName = 
+      geo.properties.adm2_name || 
+      geo.properties.ADM2_EN || 
+      geo.properties.NAME_2 || 
+      geo.properties.name || 
+      geo.properties.Dist_Name ||
+      geo.properties.district;
+      
+    toggleDistrict(districtName);
+  };
+
   const handleDownloadMap = async () => {
     if (!mapCardRef.current) return;
     setDownloading(true);
     
     try {
-      // থিম চেঞ্জ হওয়ার পর DOM আপডেট হওয়ার জন্য 300ms এর একটি ছোট্ট ডিলে (Zero Blank Screen Bug)
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 300)); // DOM update delay
       
       const bgColor = downloadTheme === "light" ? "#f8fafc" : "#050b08";
 
@@ -139,7 +153,7 @@ export default function MyBangladeshPage() {
 
   const percentage = Math.round((visitedDistricts.length / 64) * 100);
 
-  // 🔴 html2canvas এর জন্য বুলেটপ্রুফ Inline Styles ভেরিয়েবল
+  // থিম স্টাইলস
   const isLight = downloadTheme === "light";
   const themeStyles = {
     cardBg: isLight ? "#ffffff" : "#0a1c13",
@@ -150,6 +164,7 @@ export default function MyBangladeshPage() {
     mapBg: isLight ? "#f1f5f9" : "rgba(0, 0, 0, 0.4)",
     unvisitedFill: isLight ? "#cbd5e1" : "#1e293b",
     mapStroke: isLight ? "#ffffff" : "#050b08",
+    nameLabelColor: isLight ? "#0f172a" : "#ffffff"
   };
 
   return (
@@ -158,7 +173,8 @@ export default function MyBangladeshPage() {
       <div className="absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
       <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
 
-      <div className="max-w-4xl mx-auto z-10 relative">
+      <div className="max-w-5xl mx-auto z-10 relative">
+        {/* Top Navigation & Controls */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-6" data-aos="fade-down">
           <div>
             <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors font-bold mb-4 text-sm">
@@ -188,7 +204,7 @@ export default function MyBangladeshPage() {
               </div>
             )}
             
-            {/* ডাউনলোড প্যানেল */}
+            {/* ডাউনলোড অপশন */}
             {visitedDistricts.length > 0 && (
               <div className="bg-[#0a1c13] border border-white/10 p-4 rounded-2xl shadow-lg w-full md:w-auto flex flex-col sm:flex-row items-center gap-4">
                 <div className="flex bg-black/40 rounded-xl p-1 border border-white/5">
@@ -212,61 +228,57 @@ export default function MyBangladeshPage() {
                   className="w-full sm:w-auto text-white px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-105"
                   style={{ backgroundColor: selectedColor, boxShadow: `0 0 20px ${selectedColor}60` }}
                 >
-                  {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-download"></i>}
-                  {downloading ? "প্রসেসিং..." : "ম্যাপ ডাউনলোড"}
+                  {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-image"></i>}
+                  {downloading ? "প্রসেসিং..." : "ম্যাপ সেভ করুন"}
                 </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* 🔴 ডাউনলোড কার্ড (Inline styles for flawless html2canvas rendering) */}
+        {/* 🔴 ডাউনলোড কার্ড (শুধুমাত্র এই অংশের স্ক্রিনশট নেওয়া হবে) */}
         <div 
           ref={mapCardRef} 
           className="rounded-[2rem] p-6 sm:p-8 shadow-2xl relative" 
           style={{ backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.borderColor}` }}
           data-aos="zoom-in"
         >
-          {/* Header */}
           <div className="flex justify-between items-end pb-4 mb-6" style={{ borderBottom: `1px solid ${themeStyles.borderColor}` }}>
             <div>
-              <h2 className="text-2xl sm:text-4xl font-black tracking-tight mb-1" style={{ color: themeStyles.textColor }}>আমার বাংলাদেশ ভ্রমণ</h2>
+              <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-1" style={{ color: themeStyles.textColor }}>আমার বাংলাদেশ ভ্রমণ</h2>
               <p className="text-xs sm:text-sm font-bold uppercase tracking-widest" style={{ color: themeStyles.subTextColor }}>
-                অভিযাত্রী: <span style={{ color: selectedColor }} className="text-base sm:text-lg font-black ml-1">{userProfile?.full_name || 'Guest Explorer'}</span>
+                অভিযাত্রী: <span style={{ color: selectedColor }} className="text-lg font-black ml-1">{userProfile?.full_name || 'Guest Explorer'}</span>
               </p>
             </div>
             <div className="text-right hidden sm:block">
-              <h2 className="text-xl font-black" style={{ color: themeStyles.textColor }}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
-              <p className="text-[9px] font-black tracking-widest uppercase mt-0.5" style={{ color: themeStyles.subTextColor }}>Adventure Society</p>
+              <h2 className="text-2xl font-black" style={{ color: themeStyles.textColor }}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
+              <p className="text-[10px] font-black tracking-widest uppercase mt-0.5" style={{ color: themeStyles.subTextColor }}>Adventure Society</p>
             </div>
           </div>
           
-          {/* Stats Section */}
           <div className="flex gap-3 sm:gap-6 mb-6">
             <div className="flex-1 p-3 sm:p-4 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
-              <h3 className="text-xl sm:text-3xl font-black" style={{ color: selectedColor }}>
-                {visitedDistricts.length} <span className="text-xs sm:text-sm" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
+              <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
+              <h3 className="text-2xl sm:text-4xl font-black" style={{ color: selectedColor }}>
+                {visitedDistricts.length} <span className="text-sm" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
               </h3>
             </div>
             <div className="flex-1 p-3 sm:p-4 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
-              <h3 className="text-xl sm:text-3xl font-black" style={{ color: themeStyles.textColor }}>
-                {64 - visitedDistricts.length} <span className="text-[10px] sm:text-xs" style={{ color: themeStyles.subTextColor }}>জেলা</span>
+              <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
+              <h3 className="text-2xl sm:text-4xl font-black" style={{ color: themeStyles.textColor }}>
+                {64 - visitedDistricts.length} <span className="text-xs" style={{ color: themeStyles.subTextColor }}>জেলা</span>
               </h3>
             </div>
             <div className="flex-1 p-3 sm:p-4 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>সম্পন্ন হয়েছে</p>
-              <h3 className="text-xl sm:text-3xl font-black" style={{ color: selectedColor }}>
+              <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>সম্পন্ন হয়েছে</p>
+              <h3 className="text-2xl sm:text-4xl font-black" style={{ color: selectedColor }}>
                 {percentage}%
               </h3>
             </div>
           </div>
 
-          {/* Map Container */}
-          <div className="w-full h-[60vh] sm:h-[65vh] md:h-[70vh] rounded-3xl overflow-hidden flex items-center justify-center relative" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
+          <div className="w-full h-[65vh] sm:h-[75vh] rounded-3xl overflow-hidden flex items-center justify-center relative" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
             
-            {/* Hover Tooltip */}
             {hoveredDistrict && (
               <div className="absolute top-4 left-4 z-20 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg border border-white/10" style={{ color: selectedColor }}>
                 📍 {hoveredDistrict}
@@ -275,61 +287,151 @@ export default function MyBangladeshPage() {
 
             <ComposableMap
               projection="geoMercator"
-              projectionConfig={{ scale: 4800, center: [90.35, 23.8] }}
+              projectionConfig={{ scale: 5000, center: [90.35, 23.8] }}
               className="w-full h-full outline-none"
             >
               <ZoomableGroup zoom={1} minZoom={1} maxZoom={4}>
                 <Geographies geography={geoUrl}>
-                  {({ geographies }) =>
-                    geographies.map((geo) => {
-                      const districtName = 
-                        geo.properties.adm2_name || 
-                        geo.properties.ADM2_EN || 
-                        geo.properties.NAME_2 || 
-                        geo.properties.name || 
-                        geo.properties.Dist_Name ||
-                        geo.properties.district;
+                  {({ geographies }) => (
+                    <>
+                      {/* ম্যাপের জেলাগুলো রেন্ডার করা */}
+                      {geographies.map((geo) => {
+                        const districtName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
+                        const isVisited = visitedDistricts.includes(districtName);
 
-                      const isVisited = visitedDistricts.includes(districtName);
+                        return (
+                          <Geography
+                            key={geo.rsmKey}
+                            geography={geo}
+                            onClick={() => handleMapClick(geo)}
+                            onMouseEnter={() => setHoveredDistrict(districtName || "")}
+                            onMouseLeave={() => setHoveredDistrict("")}
+                            style={{
+                              default: {
+                                fill: isVisited ? selectedColor : themeStyles.unvisitedFill,
+                                outline: "none",
+                                stroke: themeStyles.mapStroke,
+                                strokeWidth: isLight ? 1 : 0.8,
+                                filter: isVisited && !isLight ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
+                                transition: "all 0.3s ease"
+                              },
+                              hover: {
+                                fill: isVisited ? selectedColor : "#3b82f6",
+                                outline: "none",
+                                stroke: isLight ? "#000" : "#ffffff",
+                                strokeWidth: 1.5,
+                                cursor: "pointer",
+                              }
+                            }}
+                          />
+                        );
+                      })}
+                      
+                      {/* 🔴 ম্যাপের ওপর সিলেক্ট করা জেলার নাম রেন্ডার করা */}
+                      {geographies.map((geo) => {
+                        const districtName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
+                        const isVisited = visitedDistricts.includes(districtName);
+                        
+                        if (!isVisited) return null;
+                        
+                        // জেলার ঠিক মাঝখানের পয়েন্ট (Centroid) বের করা
+                        const centroid = geoCentroid(geo);
 
-                      return (
-                        <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          onClick={() => handleDistrictClick(geo)}
-                          onMouseEnter={() => setHoveredDistrict(districtName || "")}
-                          onMouseLeave={() => setHoveredDistrict("")}
-                          style={{
-                            default: {
-                              fill: isVisited ? selectedColor : themeStyles.unvisitedFill,
-                              outline: "none",
-                              stroke: themeStyles.mapStroke,
-                              strokeWidth: isLight ? 1 : 0.8,
-                              filter: isVisited && !isLight ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
-                              transition: "all 0.3s ease"
-                            },
-                            hover: {
-                              fill: isVisited ? selectedColor : "#3b82f6",
-                              outline: "none",
-                              stroke: isLight ? "#000" : "#ffffff",
-                              strokeWidth: 1.5,
-                              cursor: "pointer",
-                            },
-                            pressed: {
-                              fill: "#ffffff",
-                              outline: "none",
-                            },
-                          }}
-                        />
-                      );
-                    })
-                  }
+                        return (
+                          <Marker key={`${geo.rsmKey}-label`} coordinates={centroid}>
+                            <text
+                              y="2"
+                              fontSize={4.5}
+                              textAnchor="middle"
+                              alignmentBaseline="middle"
+                              fill={themeStyles.nameLabelColor}
+                              className="font-bold pointer-events-none"
+                              style={{ filter: isLight ? 'drop-shadow(0px 1px 1px rgba(255,255,255,0.8))' : 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }}
+                            >
+                              {districtName}
+                            </text>
+                          </Marker>
+                        );
+                      })}
+                    </>
+                  )}
                 </Geographies>
               </ZoomableGroup>
             </ComposableMap>
           </div>
         </div>
+        
+        {/* 🔴 বিভাগ ও জেলার 체কলিস্ট (এটি ডাউনলোড করা ইমেজে আসবে না) */}
+        <div className="mt-16 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl" data-aos="fade-up">
+          <h3 className="text-xl sm:text-2xl font-black mb-8 text-white flex items-center gap-3 border-b border-white/10 pb-4">
+            <i className="fa-solid fa-list-check" style={{ color: selectedColor }}></i> দ্রুত জেলা নির্বাচন করুন
+          </h3>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {bangladeshDivisions.map((division) => {
+              // এই বিভাগের কয়টি জেলা ভিজিট হয়েছে তার কাউন্ট
+              const divVisitedCount = division.districts.filter(d => visitedDistricts.includes(d)).length;
+              
+              return (
+                <div key={division.name} className="bg-black/30 rounded-2xl p-5 border border-white/5 shadow-sm">
+                  <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-3">
+                    <h4 className="font-black text-white">{division.name}</h4>
+                    <span className="text-xs font-bold px-2 py-1 rounded-md bg-white/5 text-gray-300">
+                      <span style={{ color: divVisitedCount > 0 ? selectedColor : '' }}>{divVisitedCount}</span> / {division.districts.length}
+                    </span>
+                  </div>
+                  
+                  {/* Custom Scrollbar for district list */}
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto pr-2 custom-scrollbar">
+                    {division.districts.map(dist => {
+                      const isChecked = visitedDistricts.includes(dist);
+                      
+                      return (
+                        <label key={dist} className={`flex items-center gap-3 cursor-pointer group p-2 rounded-lg transition-colors ${isChecked ? 'bg-white/10' : 'hover:bg-white/5'}`}>
+                          <input 
+                            type="checkbox" 
+                            checked={isChecked}
+                            onChange={() => toggleDistrict(dist)}
+                            className="hidden" 
+                          />
+                          <div 
+                            className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'border-transparent' : 'border-gray-500'}`}
+                            style={{ backgroundColor: isChecked ? selectedColor : 'transparent' }}
+                          >
+                            {isChecked && <i className="fa-solid fa-check text-[10px] text-white"></i>}
+                          </div>
+                          <span className={`text-sm font-bold ${isChecked ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
+                            {dist}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
+      
+      {/* গ্লোবাল CSS ফর কাস্টম স্ক্রলবার (যেহেতু লিস্টে স্ক্রল লাগবে) */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.4);
+        }
+      `}</style>
     </div>
   );
 }
