@@ -9,7 +9,6 @@ import "aos/dist/aos.css";
 
 const geoUrl = "/bd-districts.json"; 
 
-// ইউজারদের জন্য দারুণ কিছু প্যাস্টেল ও ভাইব্র্যান্ট কালারের কালেকশন
 const colorPalette = [
   { name: "Emerald", value: "#10b981" },
   { name: "Sky Blue", value: "#3b82f6" },
@@ -28,10 +27,7 @@ export default function MyBangladeshPage() {
   const [downloading, setDownloading] = useState(false);
   const [hoveredDistrict, setHoveredDistrict] = useState("");
   
-  // ইউজারের সিলেক্ট করা কালার (ডিফল্ট: Emerald)
   const [selectedColor, setSelectedColor] = useState(colorPalette[0].value);
-  
-  // ম্যাপের অংশটুকু ক্যাপচার করার জন্য রেফারেন্স
   const mapCardRef = useRef(null);
 
   useEffect(() => {
@@ -65,7 +61,9 @@ export default function MyBangladeshPage() {
       return;
     }
 
+    // 🔴 এখানে adm2_name যুক্ত করা হলো
     const districtName = 
+      geo.properties.adm2_name || 
       geo.properties.ADM2_EN || 
       geo.properties.NAME_2 || 
       geo.properties.name || 
@@ -137,7 +135,6 @@ export default function MyBangladeshPage() {
   return (
     <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       
-      {/* ডায়নামিক ব্যাকগ্রাউন্ড গ্লো */}
       <div className="absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
       <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
 
@@ -148,7 +145,6 @@ export default function MyBangladeshPage() {
               <i className="fa-solid fa-arrow-left"></i> হোমে ফিরে যান
             </Link>
             
-            {/* কালার পিকার */}
             <div className="bg-[#0a1c13] border border-white/10 px-5 py-3 rounded-2xl shadow-lg inline-block">
               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-3">আপনার প্রিয় থিম কালার বেছে নিন:</p>
               <div className="flex flex-wrap gap-3">
@@ -186,13 +182,11 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* 🔴 এই পুরো কন্টেইনারটির স্ক্রিনশট নেওয়া হবে (ডাউনলোড কার্ড) */}
         <div 
           ref={mapCardRef} 
           className="glass-panel border border-white/10 rounded-[2.5rem] p-6 sm:p-10 shadow-2xl relative bg-[#0a1c13] transition-colors duration-500" 
           data-aos="zoom-in"
         >
-          {/* Header for Downloaded Image */}
           <div className="flex justify-between items-end border-b border-white/10 pb-6 mb-8">
             <div>
               <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-2">আমার বাংলাদেশ ভ্রমণ</h2>
@@ -208,7 +202,6 @@ export default function MyBangladeshPage() {
           
           <div className="flex flex-col md:flex-row gap-8 items-center">
             
-            {/* Stats Sidebar */}
             <div className="w-full md:w-1/4 flex flex-row md:flex-col gap-4">
               <div className="flex-1 bg-black/40 p-5 rounded-2xl border border-white/5 shadow-lg">
                 <p className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">মোট ভ্রমণ</p>
@@ -231,10 +224,8 @@ export default function MyBangladeshPage() {
               </div>
             </div>
 
-            {/* Map Container */}
             <div className="w-full md:w-3/4 h-[50vh] sm:h-[65vh] bg-black/40 rounded-3xl border border-white/5 overflow-hidden flex items-center justify-center relative shadow-inner">
               
-              {/* Hover Tooltip */}
               {hoveredDistrict && (
                 <div className="absolute top-4 left-4 z-20 bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl text-sm font-black shadow-lg border border-white/10 transition-colors duration-300" style={{ color: selectedColor }}>
                   📍 {hoveredDistrict}
@@ -243,14 +234,19 @@ export default function MyBangladeshPage() {
 
               <ComposableMap
                 projection="geoMercator"
-                projectionConfig={{ scale: 4800, center: [90.35, 23.68] }}
+                projectionConfig={{ 
+                  scale: 4000, 
+                  center: [90.35, 23.8] // সেন্টার পয়েন্ট একটু অ্যাডজাস্ট করা হলো
+                }}
                 className="w-full h-full outline-none"
               >
                 <ZoomableGroup zoom={1} minZoom={1} maxZoom={4}>
                   <Geographies geography={geoUrl}>
                     {({ geographies }) =>
                       geographies.map((geo) => {
+                        // 🔴 এখানেও adm2_name যুক্ত করা হলো
                         const districtName = 
+                          geo.properties.adm2_name || 
                           geo.properties.ADM2_EN || 
                           geo.properties.NAME_2 || 
                           geo.properties.name || 
