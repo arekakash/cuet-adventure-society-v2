@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps"; // 🔴 ZoomableGroup বাদ দেওয়া হয়েছে
+import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 import { geoCentroid } from "d3-geo";
 import Link from "next/link";
 import html2canvas from "html2canvas";
@@ -39,23 +39,33 @@ const districtBn = {
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
-// 🔴 ওভারল্যাপিং এড়ানোর জন্য ছোট জেলাগুলোর ফন্ট সাইজ এবং পজিশন
+// 🔴 ১০০% ওভারল্যাপ ফ্রি পজিশনিং কনফিগারেশন (খুব কাছাকাছি থাকা জেলাগুলোকে দূরে সরানো হয়েছে)
 const districtConfigs = {
-  "Dhaka": { fontSize: 9, dx: 0, dy: -3 },
-  "Narayanganj": { fontSize: 8, dx: 5, dy: 3 },
-  "Munshiganj": { fontSize: 9, dx: 0, dy: 4 },
-  "Madaripur": { fontSize: 10, dx: 0, dy: 0 },
-  "Shariatpur": { fontSize: 10, dx: 0, dy: 0 },
-  "Jhalokati": { fontSize: 10, dx: 0, dy: 0 },
-  "Feni": { fontSize: 11, dx: 0, dy: 0 },
-  "Meherpur": { fontSize: 11, dx: 0, dy: 0 },
-  "Narail": { fontSize: 11, dx: 0, dy: 0 },
-  "Magura": { fontSize: 11, dx: 0, dy: 0 },
-  "Rajbari": { fontSize: 11, dx: 0, dy: 0 },
-  "Chapainawabganj": { fontSize: 11, dx: -2, dy: 0 },
-  "Brahmanbaria": { fontSize: 11, dx: 0, dy: 0 },
-  "Lalmonirhat": { fontSize: 10, dx: 0, dy: 0 },
-  "Jashore": { fontSize: 12, dx: 0, dy: 0 },
+  "Dhaka": { fontSize: 3.5, dx: 0, dy: -1.5 },
+  "Narayanganj": { fontSize: 3.2, dx: 3, dy: 1.5 },
+  "Munshiganj": { fontSize: 3.2, dx: 0, dy: 3 },
+  "Madaripur": { fontSize: 3.5, dx: -1, dy: 1 },
+  "Shariatpur": { fontSize: 3.5, dx: 1.5, dy: 0 },
+  "Jhalokati": { fontSize: 3.5, dx: 1.5, dy: -1 },
+  "Pirojpur": { fontSize: 3.5, dx: -1.5, dy: 0 },
+  "Feni": { fontSize: 3.5, dx: 2, dy: 0 },
+  "Meherpur": { fontSize: 3.2, dx: -2, dy: 0 },
+  "Chuadanga": { fontSize: 3.5, dx: -1, dy: 1.5 },
+  "Kushtia": { fontSize: 3.8, dx: 1, dy: -1 },
+  "Jhenaidah": { fontSize: 3.8, dx: 1, dy: 1 },
+  "Narail": { fontSize: 3.5, dx: -1, dy: 0 },
+  "Magura": { fontSize: 3.5, dx: -1, dy: 0 },
+  "Rajbari": { fontSize: 3.5, dx: -1, dy: -1.5 },
+  "Chapainawabganj": { fontSize: 3.5, dx: -2, dy: 0 },
+  "Brahmanbaria": { fontSize: 3.8, dx: 1.5, dy: 0 },
+  "Lalmonirhat": { fontSize: 3.5, dx: 0, dy: -1 },
+  "Joypurhat": { fontSize: 3.5, dx: 0, dy: 0 },
+  "Narsingdi": { fontSize: 3.2, dx: 2, dy: -1 },
+  "Manikganj": { fontSize: 3.5, dx: -1.5, dy: 0 },
+  "Gazipur": { fontSize: 3.8, dx: 0, dy: -1.5 },
+  "Sirajganj": { fontSize: 3.8, dx: 1, dy: 0 },
+  "Lakshmipur": { fontSize: 3.8, dx: -1.5, dy: 0 },
+  "Noakhali": { fontSize: 3.8, dx: -1, dy: 1.5 }
 };
 
 const bangladeshDivisions = [
@@ -79,14 +89,10 @@ export default function MyBangladeshPage() {
   
   const [selectedColor, setSelectedColor] = useState(colorPalette[0].value);
   const [downloadTheme, setDownloadTheme] = useState("dark"); 
-  
-  // 🔴 নতুন স্টেট: লেবেলের ধরন (নাম / পিন আইকন / বিন্দু / ফাঁকা)
   const [markerType, setMarkerType] = useState("name"); 
   const [displayName, setDisplayName] = useState("গেস্ট এক্সপ্লোরার");
   
-  // 🔴 CSS Zoom Level State (Touch Conflict Free)
   const [zoomLevel, setZoomLevel] = useState(1);
-  
   const mapCardRef = useRef(null);
 
   useEffect(() => {
@@ -164,7 +170,6 @@ export default function MyBangladeshPage() {
     toggleDistrict(rawName);
   };
 
-  // 🔴 CSS Zoom Handlers
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.3, 3));
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.3, 1));
 
@@ -271,7 +276,6 @@ export default function MyBangladeshPage() {
               </div>
             )}
             
-            {/* 🔴 ম্যাপের লেবেল এবং থিম কন্ট্রোল প্যানেল */}
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <div className="flex bg-black/40 rounded-xl p-1 border border-white/5 w-full sm:w-auto justify-between">
                 <button onClick={() => setMarkerType("name")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'name' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>নাম</button>
@@ -288,7 +292,6 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* 🔴 ডাউনলোড কার্ড */}
         <div 
           ref={mapCardRef} 
           className="rounded-[2rem] p-6 sm:p-8 shadow-2xl relative" 
@@ -356,7 +359,6 @@ export default function MyBangladeshPage() {
               </div>
             )}
 
-            {/* 🔴 CSS Transform ব্যবহার করে জুম কন্ট্রোল (স্ক্রল কনফ্লিক্ট এড়াতে) */}
             <div 
               className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
               style={{ transform: `scale(${zoomLevel})`, transformOrigin: "center" }}
@@ -401,25 +403,26 @@ export default function MyBangladeshPage() {
                         const districtName = standardMap[rawName] || rawName;
                         const isVisited = visitedDistricts.includes(districtName);
                         
-                        // যদি জেলা সিলেক্ট না থাকে বা ইউজার "ফাঁকা" অপশন বেছে নেয়
                         if (!isVisited || markerType === "blank") return null;
                         
                         const centroid = geoCentroid(geo);
                         const bengaliName = districtBn[districtName] || districtName;
-                        const config = districtConfigs[districtName] || { fontSize: 13, dx: 0, dy: 0 }; // 🔴 ডিফল্ট ফন্ট সাইজ ১৩
+                        
+                        // 🔴 ওভারল্যাপ ফ্রি পজিশনিং ও ফন্ট সাইজ (ডিফল্ট ৪.২)
+                        const config = districtConfigs[districtName] || { fontSize: 4.2, dx: 0, dy: 0 }; 
 
                         return (
                           <Marker key={`${geo.rsmKey}-label`} coordinates={centroid}>
                             {markerType === "name" && (
                               <text
                                 x={config.dx}
-                                y={config.dy + 2}
+                                y={config.dy + 1}
                                 fontSize={config.fontSize} 
                                 fontFamily="'Noto Sans Bengali', sans-serif"
                                 textAnchor="middle"
                                 alignmentBaseline="middle"
                                 fill={themeStyles.nameLabelColor}
-                                className="font-black pointer-events-none"
+                                className="font-bold pointer-events-none"
                                 style={{ filter: isLight ? 'drop-shadow(0px 1px 1px rgba(255,255,255,0.8))' : 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }}
                               >
                                 {bengaliName}
@@ -428,7 +431,7 @@ export default function MyBangladeshPage() {
                             
                             {markerType === "dot" && (
                               <circle 
-                                cx={0} cy={0} r={4} 
+                                cx={0} cy={0} r={1.5} 
                                 fill={themeStyles.nameLabelColor} 
                                 className="pointer-events-none"
                                 style={{ filter: isLight ? 'drop-shadow(0px 1px 1px rgba(255,255,255,0.8))' : 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }} 
@@ -436,7 +439,7 @@ export default function MyBangladeshPage() {
                             )}
 
                             {markerType === "icon" && (
-                              <g transform="translate(-6, -16) scale(0.035)" className="pointer-events-none" style={{ filter: isLight ? 'drop-shadow(0px 30px 30px rgba(255,255,255,0.8))' : 'drop-shadow(0px 30px 30px rgba(0,0,0,0.8))' }}>
+                              <g transform="translate(-3, -8) scale(0.015)" className="pointer-events-none" style={{ filter: isLight ? 'drop-shadow(0px 30px 30px rgba(255,255,255,0.8))' : 'drop-shadow(0px 30px 30px rgba(0,0,0,0.8))' }}>
                                 <path 
                                   d="M256 0C161.9 0 85.3 76.6 85.3 170.7c0 119.5 170.7 341.3 170.7 341.3s170.7-221.8 170.7-341.3C426.7 76.6 350.1 0 256 0zm0 256c-47.1 0-85.3-38.2-85.3-85.3S208.9 85.3 256 85.3s85.3 38.2 85.3 85.3S303.1 256 256 256z" 
                                   fill={themeStyles.nameLabelColor} 
@@ -496,7 +499,6 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* 🔴 ডাউনলোড প্যানেল (সবার নিচে) */}
         {visitedDistricts.length > 0 && (
           <div className="mt-8 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center" data-aos="fade-up">
             <h3 className="text-xl font-black text-white mb-2">আপনার ম্যাপ প্রস্তুত!</h3>
