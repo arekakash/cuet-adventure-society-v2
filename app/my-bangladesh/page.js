@@ -7,7 +7,9 @@ import html2canvas from "html2canvas";
 import AOS from "aos";
 import "aos/dist/aos.css";
 
-const geoUrl = "/bd-districts.json"; 
+// public ফোল্ডারে রাখা নতুন TopoJSON ফাইল
+const geoUrl = "/bd-districts.topo.json"; 
+
 
 const colorPalette = [
   { name: "Emerald", value: "#10b981" },
