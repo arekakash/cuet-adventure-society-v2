@@ -40,38 +40,39 @@ const districtBn = {
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
+// 🔴 ফন্টের সাইজ সামান্য বাড়ানো হয়েছে এবং ওভারল্যাপ রোধে পজিশন (dx, dy) ফাইন-টিউন করা হয়েছে
 const districtConfigs = {
-  "Dhaka": { fontSize: 5, dx: 0, dy: -1.5 },
-  "Gazipur": { fontSize: 5.5, dx: 0, dy: -2.5 },
-  "Narayanganj": { fontSize: 4.5, dx: 3.5, dy: 1.5 },
-  "Munshiganj": { fontSize: 4.5, dx: 0, dy: 3.5 },
-  "Narsingdi": { fontSize: 4.5, dx: 3.5, dy: -1.5 },
-  "Manikganj": { fontSize: 5, dx: -2.5, dy: 0 },
-  "Faridpur": { fontSize: 6, dx: -1, dy: 0 },
-  "Rajbari": { fontSize: 5, dx: -1.5, dy: -1.5 },
-  "Madaripur": { fontSize: 5, dx: -1, dy: 1 },
-  "Shariatpur": { fontSize: 5, dx: 2, dy: 1 },
-  "Magura": { fontSize: 5, dx: -1.5, dy: 0 },
-  "Narail": { fontSize: 5, dx: -1.5, dy: 1 },
-  "Jhenaidah": { fontSize: 5.5, dx: 0, dy: 0 },
-  "Chuadanga": { fontSize: 5, dx: -2, dy: 0 },
-  "Meherpur": { fontSize: 5, dx: -2, dy: -1 },
-  "Kushtia": { fontSize: 5.5, dx: 0, dy: -1.5 },
-  "Pabna": { fontSize: 6, dx: 0, dy: 0 },
-  "Sirajganj": { fontSize: 5.5, dx: 1.5, dy: 0 },
-  "Bogura": { fontSize: 6, dx: 0, dy: 0 },
-  "Joypurhat": { fontSize: 5, dx: 0, dy: -1 },
-  "Chapainawabganj": { fontSize: 5, dx: -3, dy: -1 },
-  "Jhalokati": { fontSize: 5, dx: 2, dy: -1 },
-  "Pirojpur": { fontSize: 5.5, dx: -2, dy: 0 },
-  "Feni": { fontSize: 5, dx: 3, dy: -1 },
-  "Noakhali": { fontSize: 6, dx: -1, dy: 2 },
-  "Lakshmipur": { fontSize: 5.5, dx: -2, dy: 0 },
-  "Brahmanbaria": { fontSize: 5.5, dx: 2, dy: 0 },
-  "Lalmonirhat": { fontSize: 5.5, dx: 1, dy: -1 },
-  "Kurigram": { fontSize: 6, dx: 2, dy: 0 },
-  "Sylhet": { fontSize: 6, dx: 0, dy: 0 },
-  "Moulvibazar": { fontSize: 5.5, dx: 1, dy: 1 }
+  "Dhaka": { fontSize: 6.5, dx: 0, dy: -2 },
+  "Gazipur": { fontSize: 7.5, dx: 0, dy: -3 },
+  "Narayanganj": { fontSize: 5.5, dx: 4.5, dy: 2 },
+  "Munshiganj": { fontSize: 5.5, dx: 0, dy: 4 },
+  "Narsingdi": { fontSize: 5.5, dx: 4.5, dy: -2 },
+  "Manikganj": { fontSize: 6.5, dx: -3.5, dy: 0 },
+  "Faridpur": { fontSize: 8, dx: -1.5, dy: 0 },
+  "Rajbari": { fontSize: 6.5, dx: -2, dy: -2 },
+  "Madaripur": { fontSize: 6.5, dx: -1.5, dy: 1.5 },
+  "Shariatpur": { fontSize: 6.5, dx: 2.5, dy: 1.5 },
+  "Magura": { fontSize: 6.5, dx: -2, dy: 0 },
+  "Narail": { fontSize: 6.5, dx: -2, dy: 1.5 },
+  "Jhenaidah": { fontSize: 7.5, dx: 0, dy: 0 },
+  "Chuadanga": { fontSize: 6.5, dx: -2.5, dy: 0 },
+  "Meherpur": { fontSize: 6.5, dx: -2.5, dy: -1.5 },
+  "Kushtia": { fontSize: 7.5, dx: 0, dy: -1.5 },
+  "Pabna": { fontSize: 8, dx: 0, dy: 0 },
+  "Sirajganj": { fontSize: 7.5, dx: 1.5, dy: 0 },
+  "Bogura": { fontSize: 8, dx: 0, dy: 0 },
+  "Joypurhat": { fontSize: 6.5, dx: 0, dy: -1.5 },
+  "Chapainawabganj": { fontSize: 6.5, dx: -3.5, dy: -1 },
+  "Jhalokati": { fontSize: 6.5, dx: 2.5, dy: -1.5 },
+  "Pirojpur": { fontSize: 7.5, dx: -2.5, dy: 0 },
+  "Feni": { fontSize: 6.5, dx: 3.5, dy: -1.5 },
+  "Noakhali": { fontSize: 8, dx: -1, dy: 2.5 },
+  "Lakshmipur": { fontSize: 7.5, dx: -2.5, dy: 0 },
+  "Brahmanbaria": { fontSize: 7.5, dx: 2.5, dy: 0 },
+  "Lalmonirhat": { fontSize: 7.5, dx: 1.5, dy: -1.5 },
+  "Kurigram": { fontSize: 8, dx: 2.5, dy: 0 },
+  "Sylhet": { fontSize: 8, dx: 0, dy: 0 },
+  "Moulvibazar": { fontSize: 7.5, dx: 1.5, dy: 1.5 }
 };
 
 const bangladeshDivisions = [
@@ -389,17 +390,14 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* 🔴 Perfect 4:5 Download Card (Maximum Map Space + Big Avatar) */}
         <div 
           ref={mapCardRef} 
           className="rounded-[2rem] p-4 sm:p-5 shadow-2xl relative flex flex-col mx-auto w-full max-w-[480px] aspect-[4/5] overflow-hidden" 
           style={{ backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.borderColor}` }}
           data-aos="zoom-in"
         >
-          {/* 🔴 কম্প্যাক্ট হেডার: বড় ছবি বামে, নাম ও ক্লিন স্ট্যাটিস্টিক্স ডানে */}
           <div className="flex items-center gap-3 sm:gap-4 mb-3 shrink-0 relative z-10 w-full">
             
-            {/* 🔴 ইউজারের বড় গোল ছবি (w-20 h-20) */}
             <div 
               onClick={() => fileInputRef.current.click()} 
               className="relative group cursor-pointer w-20 h-20 sm:w-24 sm:h-24 shrink-0 shadow-lg rounded-full"
@@ -424,9 +422,7 @@ export default function MyBangladeshPage() {
               )}
             </div>
 
-            {/* 🔴 টাইটেল এবং স্ট্যাটিস্টিক্স */}
             <div className="flex-1 flex flex-col justify-center min-w-0">
-              {/* ওভারল্যাপ রোধ করার জন্য truncate সরানো হয়েছে, এখন বড় নাম দিলে দুই লাইনে চলে আসবে */}
               <h2 className="text-base sm:text-lg font-black tracking-tight leading-snug break-words" style={{ color: themeStyles.textColor }}>
                 {displayName.trim() === "গেস্ট এক্সপ্লোরার" || !displayName.trim() 
                   ? "আমার বাংলাদেশ ভ্রমণ" 
@@ -445,7 +441,6 @@ export default function MyBangladeshPage() {
                 />
               </div>
 
-              {/* 🔴 স্ট্যাটিস্টিক্স (বক্স ছাড়া ক্লিন এবং বড় ফন্টের ডিজাইন) */}
               <div className="flex gap-2 w-full mt-1 border-t border-dashed pt-2" style={{ borderColor: themeStyles.borderColor }}>
                 <div className="flex-1 text-left">
                   <p className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
@@ -469,10 +464,9 @@ export default function MyBangladeshPage() {
             </div>
           </div>
 
-          {/* 🔴 ম্যাপ কন্টেইনার */}
           <div className="w-full flex-1 rounded-2xl overflow-hidden flex items-center justify-center relative select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
 
-            {/* 🔴 ওয়াটারমার্ক (বাম পাশে এবং নিচে) */}
+            {/* ওয়াটারমার্ক আগের মতোই বাম পাশে এবং নিচে রাখা আছে */}
             <div className="absolute bottom-1 left-3 z-10 opacity-40 pointer-events-none">
               <p className="text-[7px] font-bold tracking-wider uppercase" style={{ color: themeStyles.subTextColor }}>
                 Map generated by CUET Adventure Society
@@ -536,7 +530,9 @@ export default function MyBangladeshPage() {
                         
                         const centroid = geoCentroid(geo);
                         const bengaliName = districtBn[districtName] || districtName;
-                        const config = districtConfigs[districtName] || { fontSize: 7, dx: 0, dy: 0 }; 
+                        
+                        // 🔴 ফন্টের সাইজের জন্য ডিফল্ট ভ্যালু ৮ দেওয়া হয়েছে (যাতে যেসব জেলার নাম config এ নেই, সেগুলোও বড় দেখায়)
+                        const config = districtConfigs[districtName] || { fontSize: 8, dx: 0, dy: 0 }; 
 
                         return (
                           <Marker key={`${geo.rsmKey}-label`} coordinates={centroid}>
@@ -550,7 +546,8 @@ export default function MyBangladeshPage() {
                                 alignmentBaseline="middle"
                                 fill={themeStyles.nameLabelColor}
                                 className="font-bold pointer-events-none"
-                                style={{ filter: isLight ? 'drop-shadow(0px 1px 1px rgba(255,255,255,0.8))' : 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }}
+                                // 🔴 শ্যাডো আরও গাঢ় করা হয়েছে যাতে টেক্সট স্পষ্ট থাকে
+                                style={{ filter: isLight ? 'drop-shadow(0px 1px 2px rgba(255,255,255,0.9))' : 'drop-shadow(0px 1px 3px rgba(0,0,0,0.9))' }}
                               >
                                 {bengaliName}
                               </text>
