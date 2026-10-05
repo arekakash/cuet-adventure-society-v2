@@ -98,7 +98,7 @@ export default function MyBangladeshPage() {
   const [markerType, setMarkerType] = useState("name"); 
   const [displayName, setDisplayName] = useState("গেস্ট এক্সপ্লোরার");
   
-  const BASE_SCALE = 4800; // স্কেল বাড়িয়ে ম্যাপকে বড় করা হয়েছে
+  const BASE_SCALE = 4800;
   const [zoomLevel, setZoomLevel] = useState(1);
   
   const mapCardRef = useRef(null);
@@ -300,24 +300,30 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* 🔴 ডাউনলোড কার্ড - Social Media Optimized Aspect Ratio (4:5 or 1:1) */}
+        {/* 🔴 ডাউনলোড কার্ড */}
         <div 
           ref={mapCardRef} 
           className="rounded-[2rem] p-4 sm:p-6 shadow-2xl relative flex flex-col mx-auto w-full max-w-2xl" 
           style={{ backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.borderColor}` }}
           data-aos="zoom-in"
         >
-          {/* কম্প্যাক্ট হেডার */}
-          <div className="flex justify-between items-center mb-4 border-b pb-2" style={{ borderColor: themeStyles.borderColor }}>
+          {/* কম্প্যাক্ট হেডার (Fixed Input Clipping + Dynamic Title) */}
+          <div className="flex justify-between items-center mb-5 border-b pb-3" style={{ borderColor: themeStyles.borderColor }}>
             <div>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-0.5" style={{ color: themeStyles.textColor }}>আমার বাংলাদেশ ভ্রমণ</h2>
-              <div className="flex items-center gap-2">
-                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest" style={{ color: themeStyles.subTextColor }}>অভিযাত্রী:</p>
+              {/* 🔴 ডায়নামিক টাইটেল লজিক */}
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2" style={{ color: themeStyles.textColor }}>
+                {displayName.trim() === "গেস্ট এক্সপ্লোরার" || !displayName.trim() 
+                  ? "আমার বাংলাদেশ ভ্রমণ" 
+                  : `${displayName} এর বাংলাদেশ ভ্রমণ`}
+              </h2>
+              <div className="flex items-end gap-2">
+                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest pb-1" style={{ color: themeStyles.subTextColor }}>অভিযাত্রী:</p>
                 <input 
                   type="text" 
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:border-gray-400 focus:outline-none text-sm font-black w-32 sm:w-48 px-1 transition-colors"
+                  // 🔴 py-1 এবং leading-normal যুক্ত করা হয়েছে যাতে বাংলা ফন্টের ওপরের অংশ না কাটে
+                  className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:border-gray-400 focus:outline-none text-sm sm:text-base font-black w-40 sm:w-56 px-1 py-1 leading-normal transition-colors"
                   style={{ color: selectedColor }}
                   title="আপনার নাম পরিবর্তন করতে এখানে ক্লিক করুন"
                 />
@@ -329,7 +335,6 @@ export default function MyBangladeshPage() {
             </div>
           </div>
           
-          {/* কম্প্যাক্ট স্ট্যাটিস্টিক্স */}
           <div className="flex gap-2 sm:gap-4 mb-4">
             <div className="flex-1 py-2 px-3 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
               <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
@@ -351,7 +356,6 @@ export default function MyBangladeshPage() {
             </div>
           </div>
 
-          {/* 🔴 ম্যাপ কন্টেইনার - aspect ratio 4:5 ব্যবহার করা হয়েছে যাতে লম্বাটে না হয়ে যায় */}
           <div className="w-full aspect-[4/5] sm:aspect-square rounded-2xl overflow-hidden flex items-center justify-center relative select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
 
             <div data-html2canvas-ignore="true" className="absolute top-4 right-4 z-20 flex flex-col gap-2">
@@ -417,7 +421,6 @@ export default function MyBangladeshPage() {
                         
                         const centroid = geoCentroid(geo);
                         const bengaliName = districtBn[districtName] || districtName;
-                        // 🔴 ডিফল্ট ফন্ট সাইজ 7 দেওয়া হয়েছে (বড় ও স্পষ্ট)
                         const config = districtConfigs[districtName] || { fontSize: 7, dx: 0, dy: 0 }; 
 
                         return (
