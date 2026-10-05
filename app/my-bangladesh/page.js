@@ -9,6 +9,17 @@ import "aos/dist/aos.css";
 
 const geoUrl = "/bd-districts.json"; 
 
+// ইউজারদের জন্য দারুণ কিছু প্যাস্টেল ও ভাইব্র্যান্ট কালারের কালেকশন
+const colorPalette = [
+  { name: "Emerald", value: "#10b981" },
+  { name: "Sky Blue", value: "#3b82f6" },
+  { name: "Pastel Pink", value: "#f472b6" },
+  { name: "Soft Purple", value: "#a78bfa" },
+  { name: "Golden Amber", value: "#fbbf24" },
+  { name: "Rose", value: "#fb7185" },
+  { name: "Teal", value: "#2dd4bf" }
+];
+
 export default function MyBangladeshPage() {
   const [visitedDistricts, setVisitedDistricts] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
@@ -16,6 +27,9 @@ export default function MyBangladeshPage() {
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [hoveredDistrict, setHoveredDistrict] = useState("");
+  
+  // ইউজারের সিলেক্ট করা কালার (ডিফল্ট: Emerald)
+  const [selectedColor, setSelectedColor] = useState(colorPalette[0].value);
   
   // ম্যাপের অংশটুকু ক্যাপচার করার জন্য রেফারেন্স
   const mapCardRef = useRef(null);
@@ -83,33 +97,28 @@ export default function MyBangladeshPage() {
     setSaving(false);
   };
 
-  // জিরো স্টোরেজ পলিসি: ক্লায়েন্ট সাইডে ম্যাপ ডাউনলোড করার ফাংশন
   const handleDownloadMap = async () => {
     if (!mapCardRef.current) return;
-    
     setDownloading(true);
     
     try {
-      // html2canvas দিয়ে HTML কে হাই-রেজোলিউশন ছবিতে রূপান্তর (Scale: 2)
       const canvas = await html2canvas(mapCardRef.current, {
-        backgroundColor: '#0a1c13', // ম্যাপের ব্যাকগ্রাউন্ড কালার
+        backgroundColor: '#050b08', 
         scale: 2, 
         useCORS: true,
       });
       
       const dataUrl = canvas.toDataURL("image/png");
-      
-      // অটোমেটিক ডাউনলোড ট্রিগার করা
       const link = document.createElement("a");
       link.href = dataUrl;
-      link.download = `Travel-Map-${userProfile?.full_name || 'CUET-AS'}.png`;
+      link.download = `My-Bangladesh-${userProfile?.full_name || 'Travel-Map'}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
     } catch (error) {
       console.error("Download Error:", error);
-      alert("ম্যাপটি ডাউনলোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন!");
+      alert("ম্যাপটি ডাউনলোড করতে সমস্যা হয়েছে।");
     } finally {
       setDownloading(false);
     }
@@ -118,7 +127,7 @@ export default function MyBangladeshPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex justify-center items-center bg-[#050b08]">
-        <i className="fa-solid fa-compass fa-spin text-4xl text-emerald-500"></i>
+        <i className="fa-solid fa-compass fa-spin text-4xl" style={{ color: selectedColor }}></i>
       </div>
     );
   }
@@ -127,137 +136,166 @@ export default function MyBangladeshPage() {
 
   return (
     <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      <div className="absolute top-20 left-10 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-10 right-10 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      
+      {/* ডায়নামিক ব্যাকগ্রাউন্ড গ্লো */}
+      <div className="absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
+      <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
 
       <div className="max-w-6xl mx-auto z-10 relative">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4" data-aos="fade-down">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-6" data-aos="fade-down">
           <div>
-            <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-emerald-400 transition-colors font-bold mb-2 text-sm">
+            <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors font-bold mb-4 text-sm">
               <i className="fa-solid fa-arrow-left"></i> হোমে ফিরে যান
             </Link>
-            <h1 className="text-3xl sm:text-4xl font-black text-white flex items-center gap-3">
-              <i className="fa-solid fa-map-location-dot text-emerald-500"></i> আমার বাংলাদেশ
-            </h1>
-            <p className="text-gray-400 mt-2 text-sm">
-              আপনি ৬৪টি জেলার মধ্যে <strong className="text-emerald-400 text-lg">{visitedDistricts.length}</strong> টি জেলা ভ্রমণ করেছেন!
-            </p>
+            
+            {/* কালার পিকার */}
+            <div className="bg-[#0a1c13] border border-white/10 px-5 py-3 rounded-2xl shadow-lg inline-block">
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-3">আপনার প্রিয় থিম কালার বেছে নিন:</p>
+              <div className="flex flex-wrap gap-3">
+                {colorPalette.map((color) => (
+                  <button
+                    key={color.value}
+                    onClick={() => setSelectedColor(color.value)}
+                    className={`w-8 h-8 rounded-full shadow-lg transition-all duration-300 ${selectedColor === color.value ? 'scale-125 ring-2 ring-white ring-offset-2 ring-offset-[#0a1c13]' : 'hover:scale-110 opacity-70 hover:opacity-100'}`}
+                    style={{ backgroundColor: color.value }}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
             {saving && (
-              <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-full text-emerald-400 text-xs font-bold flex items-center gap-2">
+              <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2" style={{ color: selectedColor }}>
                 <i className="fa-solid fa-circle-notch fa-spin"></i> সেভ হচ্ছে...
               </div>
             )}
             
-            {/* ডাউনলোড বাটন */}
             {visitedDistricts.length > 0 && (
               <button 
                 onClick={handleDownloadMap} 
                 disabled={downloading}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all flex items-center gap-2 disabled:opacity-50"
+                className="text-white px-6 py-3 rounded-xl text-sm font-black transition-all flex items-center gap-2 disabled:opacity-50 hover:scale-105"
+                style={{ backgroundColor: selectedColor, boxShadow: `0 0 20px ${selectedColor}60` }}
               >
                 {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-download"></i>}
-                {downloading ? "প্রসেসিং..." : "ম্যাপ ডাউনলোড"}
+                {downloading ? "প্রসেসিং..." : "ম্যাপ ডাউনলোড করুন"}
               </button>
             )}
           </div>
         </div>
 
-        {/* 🔴 এই কন্টেইনারটির স্ক্রিনশট নেওয়া হবে */}
+        {/* 🔴 এই পুরো কন্টেইনারটির স্ক্রিনশট নেওয়া হবে (ডাউনলোড কার্ড) */}
         <div 
           ref={mapCardRef} 
-          className="glass-panel border border-white/10 rounded-[2rem] p-4 sm:p-8 shadow-2xl relative bg-[#0a1c13]" 
+          className="glass-panel border border-white/10 rounded-[2.5rem] p-6 sm:p-10 shadow-2xl relative bg-[#0a1c13] transition-colors duration-500" 
           data-aos="zoom-in"
         >
-          {/* ওয়াটারমার্ক / ব্র্যান্ডিং (শুধুমাত্র ডাউনলোড করা ইমেজে সুন্দর দেখানোর জন্য) */}
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-black text-white"><span className="text-[#e76f51]">C</span>UET <span className="text-[#e76f51]">A</span>S</h2>
-            <div className="text-right">
-              <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Explorer</p>
-              <p className="text-sm font-bold text-emerald-400">{userProfile?.full_name || 'Guest'}</p>
+          {/* Header for Downloaded Image */}
+          <div className="flex justify-between items-end border-b border-white/10 pb-6 mb-8">
+            <div>
+              <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-2">আমার বাংলাদেশ ভ্রমণ</h2>
+              <p className="text-sm sm:text-base font-bold text-gray-400 uppercase tracking-widest mt-2">
+                অ্যাডভেঞ্চারার: <span style={{ color: selectedColor }} className="text-lg font-black ml-1 transition-colors duration-500">{userProfile?.full_name || 'Guest Explorer'}</span>
+              </p>
+            </div>
+            <div className="text-right hidden sm:block">
+              <h2 className="text-2xl font-black text-white"><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
+              <p className="text-[10px] text-gray-500 font-black tracking-widest uppercase mt-1">Adventure Society</p>
             </div>
           </div>
           
-          {/* Map Container */}
-          <div className="w-full h-[65vh] sm:h-[75vh] bg-black/40 rounded-3xl border border-white/5 overflow-hidden flex items-center justify-center relative">
+          <div className="flex flex-col md:flex-row gap-8 items-center">
             
-            {/* Hover Tooltip */}
-            {hoveredDistrict && (
-              <div className="absolute top-4 left-4 z-20 bg-[#10b981]/20 border border-[#10b981]/50 backdrop-blur-md text-[#34d399] px-4 py-2 rounded-xl text-sm font-black shadow-lg">
-                📍 {hoveredDistrict}
+            {/* Stats Sidebar */}
+            <div className="w-full md:w-1/4 flex flex-row md:flex-col gap-4">
+              <div className="flex-1 bg-black/40 p-5 rounded-2xl border border-white/5 shadow-lg">
+                <p className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">মোট ভ্রমণ</p>
+                <h3 className="text-3xl sm:text-5xl font-black transition-colors duration-500" style={{ color: selectedColor }}>
+                  {visitedDistricts.length} <span className="text-base sm:text-lg text-gray-500">/ ৬৪</span>
+                </h3>
               </div>
-            )}
-
-            <ComposableMap
-              projection="geoMercator"
-              projectionConfig={{ scale: 4800, center: [90.35, 23.68] }}
-              className="w-full h-full outline-none"
-            >
-              <ZoomableGroup zoom={1} minZoom={1} maxZoom={4}>
-                <Geographies geography={geoUrl}>
-                  {({ geographies }) =>
-                    geographies.map((geo) => {
-                      const districtName = 
-                        geo.properties.ADM2_EN || 
-                        geo.properties.NAME_2 || 
-                        geo.properties.name || 
-                        geo.properties.Dist_Name ||
-                        geo.properties.district;
-
-                      const isVisited = visitedDistricts.includes(districtName);
-
-                      return (
-                        <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          onClick={() => handleDistrictClick(geo)}
-                          onMouseEnter={() => setHoveredDistrict(districtName || "")}
-                          onMouseLeave={() => setHoveredDistrict("")}
-                          style={{
-                            default: {
-                              fill: isVisited ? "#10b981" : "#1e293b",
-                              outline: "none",
-                              stroke: "#0a1c13",
-                              strokeWidth: 0.8,
-                              transition: "all 0.25s ease"
-                            },
-                            hover: {
-                              fill: isVisited ? "#34d399" : "#3b82f6",
-                              outline: "none",
-                              stroke: "#ffffff",
-                              strokeWidth: 1.2,
-                              cursor: "pointer",
-                            },
-                            pressed: {
-                              fill: "#e76f51",
-                              outline: "none",
-                            },
-                          }}
-                        />
-                      );
-                    })
-                  }
-                </Geographies>
-              </ZoomableGroup>
-            </ComposableMap>
-          </div>
-
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-4 text-xs font-bold text-gray-400 border-t border-white/5 pt-4">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <div className="w-3.5 h-3.5 rounded bg-[#10b981]"></div>
-                <span>ভ্রমণ সম্পন্ন ({visitedDistricts.length})</span>
+              <div className="flex-1 bg-black/40 p-5 rounded-2xl border border-white/5 shadow-lg">
+                <p className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">বাকি আছে</p>
+                <h3 className="text-2xl sm:text-4xl font-black text-gray-300">
+                  {64 - visitedDistricts.length} <span className="text-xs sm:text-sm text-gray-500 uppercase tracking-widest">জেলা</span>
+                </h3>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3.5 h-3.5 rounded bg-[#1e293b] border border-[#334155]"></div>
-                <span>এখনো বাকি ({64 - visitedDistricts.length})</span>
+              <div className="flex-1 bg-black/40 p-5 rounded-2xl border border-white/5 shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-16 h-16 rounded-full blur-2xl opacity-20" style={{ backgroundColor: selectedColor }}></div>
+                <p className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">সম্পন্ন হয়েছে</p>
+                <h3 className="text-3xl sm:text-5xl font-black transition-colors duration-500" style={{ color: selectedColor }}>
+                  {percentage}%
+                </h3>
               </div>
             </div>
-            <div className="text-[11px] text-emerald-500/70 font-black tracking-widest">
-              {percentage}% OF BANGLADESH EXPLORED
+
+            {/* Map Container */}
+            <div className="w-full md:w-3/4 h-[50vh] sm:h-[65vh] bg-black/40 rounded-3xl border border-white/5 overflow-hidden flex items-center justify-center relative shadow-inner">
+              
+              {/* Hover Tooltip */}
+              {hoveredDistrict && (
+                <div className="absolute top-4 left-4 z-20 bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl text-sm font-black shadow-lg border border-white/10 transition-colors duration-300" style={{ color: selectedColor }}>
+                  📍 {hoveredDistrict}
+                </div>
+              )}
+
+              <ComposableMap
+                projection="geoMercator"
+                projectionConfig={{ scale: 4800, center: [90.35, 23.68] }}
+                className="w-full h-full outline-none"
+              >
+                <ZoomableGroup zoom={1} minZoom={1} maxZoom={4}>
+                  <Geographies geography={geoUrl}>
+                    {({ geographies }) =>
+                      geographies.map((geo) => {
+                        const districtName = 
+                          geo.properties.ADM2_EN || 
+                          geo.properties.NAME_2 || 
+                          geo.properties.name || 
+                          geo.properties.Dist_Name ||
+                          geo.properties.district;
+
+                        const isVisited = visitedDistricts.includes(districtName);
+
+                        return (
+                          <Geography
+                            key={geo.rsmKey}
+                            geography={geo}
+                            onClick={() => handleDistrictClick(geo)}
+                            onMouseEnter={() => setHoveredDistrict(districtName || "")}
+                            onMouseLeave={() => setHoveredDistrict("")}
+                            style={{
+                              default: {
+                                fill: isVisited ? selectedColor : "#1e293b",
+                                outline: "none",
+                                stroke: "#050b08",
+                                strokeWidth: 0.8,
+                                filter: isVisited ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
+                                transition: "all 0.3s ease"
+                              },
+                              hover: {
+                                fill: isVisited ? selectedColor : "#3b82f6",
+                                outline: "none",
+                                stroke: "#ffffff",
+                                strokeWidth: 1.5,
+                                cursor: "pointer",
+                              },
+                              pressed: {
+                                fill: "#ffffff",
+                                outline: "none",
+                              },
+                            }}
+                          />
+                        );
+                      })
+                    }
+                  </Geographies>
+                </ZoomableGroup>
+              </ComposableMap>
             </div>
+
           </div>
         </div>
       </div>
