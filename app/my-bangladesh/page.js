@@ -8,6 +8,8 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import AOS from "aos";
 import "aos/dist/aos.css";
+// 🔴 ইমেজ ক্রপ করার লাইব্রেরি ইমপোর্ট করা হলো
+import Cropper from "react-easy-crop";
 
 const geoUrl = "/bd-districts.topo.json"; 
 
@@ -102,6 +104,14 @@ export default function MyBangladeshPage() {
   
   const mapCardRef = useRef(null);
 
+  // 🔴 ইমেজ ক্রপিংয়ের জন্য প্রয়োজনীয় স্টেটস (Zero Storage Logic)
+  const fileInputRef = useRef(null);
+  const [rawImage, setRawImage] = useState(null);
+  const [croppedAvatar, setCroppedAvatar] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
     fetchUserData();
@@ -180,6 +190,59 @@ export default function MyBangladeshPage() {
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.3, 3));
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.3, 1));
 
+  // 🔴 ফাইল সিলেক্ট করা হলে লোকাল ব্রাউজারে রিড করা (কোনো আপলোড নয়)
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => setRawImage(reader.result));
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  const onCropComplete = (croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
+  // 🔴 ক্যানভাস ব্যবহার করে গোলাকৃতি করে ইমেজ ক্রপ করা
+  const generateCroppedImage = async () => {
+    try {
+      const image = new Image();
+      image.src = rawImage;
+      await new Promise((resolve) => (image.onload = resolve));
+      
+      const canvas = document.createElement("canvas");
+      canvas.width = croppedAreaPixels.width;
+      canvas.height = croppedAreaPixels.height;
+      const ctx = canvas.getContext("2d");
+
+      // বৃত্তাকার শেপ তৈরি করা
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, canvas.height / 2, canvas.width / 2, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+
+      // অরিজিনাল ইমেজ থেকে ক্রপ করা অংশ ক্যানভাসে ড্র করা
+      ctx.drawImage(
+        image,
+        croppedAreaPixels.x,
+        croppedAreaPixels.y,
+        croppedAreaPixels.width,
+        croppedAreaPixels.height,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+      
+      // DataURL হিসেবে লোকাল স্টেটে সেভ করা
+      setCroppedAvatar(canvas.toDataURL("image/png"));
+      setRawImage(null); // ক্রপার বন্ধ করা
+    } catch (e) {
+      console.error(e);
+      alert("ছবি ক্রপ করতে সমস্যা হয়েছে।");
+    }
+  };
+
   const handleDownloadMap = async (format) => {
     if (!mapCardRef.current) return;
     setDownloading(true);
@@ -190,7 +253,7 @@ export default function MyBangladeshPage() {
 
       const canvas = await html2canvas(mapCardRef.current, {
         backgroundColor: bgColor, 
-        scale: 4, // 🔴 রেজুলেশন ২ থেকে বাড়িয়ে ৪ করা হয়েছে (High Definition Quality)
+        scale: 4, 
         useCORS: true,
         logging: false
       });
@@ -250,6 +313,49 @@ export default function MyBangladeshPage() {
   return (
     <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       
+      {/* 🔴 Full Screen Cropper Modal (যখন ইউজার ছবি সিলেক্ট করবে) */}
+      {rawImage && (
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+          <div className="relative flex-1">
+            <Cropper
+              image={rawImage}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              cropShape="round"
+              showGrid={false}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+            />
+          </div>
+          <div className="p-6 bg-gray-900 flex justify-between items-center gap-4 shadow-[0_-10px_20px_rgba(0,0,0,0.5)] z-10 border-t border-white/10">
+            <button onClick={() => setRawImage(null)} className="px-5 py-2.5 bg-gray-800 text-white rounded-xl font-bold hover:bg-gray-700 transition-colors">বাতিল</button>
+            <input 
+              type="range" 
+              value={zoom} 
+              min={1} 
+              max={3} 
+              step={0.1} 
+              onChange={(e) => setZoom(e.target.value)} 
+              className="flex-1 accent-emerald-500" 
+            />
+            <button onClick={generateCroppedImage} className="px-5 py-2.5 text-white rounded-xl font-black shadow-lg hover:scale-105 transition-transform" style={{ backgroundColor: selectedColor }}>
+              <i className="fa-solid fa-crop-simple mr-2"></i> ক্রপ করুন
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden File Input */}
+      <input 
+        type="file" 
+        accept="image/*" 
+        ref={fileInputRef} 
+        onChange={handleFileChange} 
+        className="hidden" 
+      />
+
       <div className="absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
       <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
 
@@ -305,26 +411,58 @@ export default function MyBangladeshPage() {
           style={{ backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.borderColor}` }}
           data-aos="zoom-in"
         >
-          <div className="flex justify-between items-center mb-5 border-b pb-3" style={{ borderColor: themeStyles.borderColor }}>
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2" style={{ color: themeStyles.textColor }}>
-                {displayName.trim() === "গেস্ট এক্সপ্লোরার" || !displayName.trim() 
-                  ? "আমার বাংলাদেশ ভ্রমণ" 
-                  : `${displayName} এর বাংলাদেশ ভ্রমণ`}
-              </h2>
-              {/* 🔴 ডাউনলোড করার সময় এই ফিল্ডটি গায়েব হয়ে যাবে (data-html2canvas-ignore) */}
-              <div data-html2canvas-ignore="true" className="flex items-end gap-2 mt-1">
-                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest pb-1" style={{ color: themeStyles.subTextColor }}>অভিযাত্রী:</p>
-                <input 
-                  type="text" 
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:border-gray-400 focus:outline-none text-sm sm:text-base font-black w-40 sm:w-56 px-1 py-1 leading-normal transition-colors"
-                  style={{ color: selectedColor }}
-                  title="আপনার নাম পরিবর্তন করতে এখানে ক্লিক করুন"
-                />
+          <div className="flex justify-between items-center mb-5 border-b pb-4" style={{ borderColor: themeStyles.borderColor }}>
+            
+            {/* 🔴 হেডার সেকশন: প্রোফাইল পিকচার এবং টাইটেল একসাথে */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              
+              {/* 🔴 প্রোফাইল পিকচার / ক্যামেরা আইকন */}
+              <div 
+                onClick={() => fileInputRef.current.click()} 
+                className="relative group cursor-pointer w-12 h-12 sm:w-16 sm:h-16 shrink-0"
+                title="আপনার ছবি যুক্ত করুন"
+              >
+                {croppedAvatar ? (
+                  <>
+                    <img 
+                      src={croppedAvatar} 
+                      className="w-full h-full rounded-full border-[3px] object-cover shadow-md transition-transform group-hover:scale-105" 
+                      style={{ borderColor: selectedColor }} 
+                      alt="Avatar" 
+                    />
+                    {/* ডিলিট অপশন (শুধুমাত্র ওয়েবসাইটে দেখাবে, ডাউনলোডে আসবে না) */}
+                    <div data-html2canvas-ignore="true" onClick={(e) => { e.stopPropagation(); setCroppedAvatar(null); }} className="absolute -bottom-1 -right-1 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] shadow-lg hover:bg-red-600">
+                      <i className="fa-solid fa-times"></i>
+                    </div>
+                  </>
+                ) : (
+                  /* ছবি না থাকলে ক্যামেরা আইকন দেখাবে (ডাউনলোডের সময় এটি গায়েব হয়ে যাবে) */
+                  <div data-html2canvas-ignore="true" className="w-full h-full rounded-full border-2 border-dashed flex items-center justify-center transition-colors hover:border-gray-300 hover:bg-white/5" style={{ borderColor: themeStyles.subTextColor, backgroundColor: isLight ? '#f1f5f9' : 'rgba(0,0,0,0.2)' }}>
+                    <i className="fa-solid fa-camera text-lg" style={{ color: themeStyles.subTextColor }}></i>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2" style={{ color: themeStyles.textColor }}>
+                  {displayName.trim() === "গেস্ট এক্সপ্লোরার" || !displayName.trim() 
+                    ? "আমার বাংলাদেশ ভ্রমণ" 
+                    : `${displayName} এর বাংলাদেশ ভ্রমণ`}
+                </h2>
+                <div data-html2canvas-ignore="true" className="flex items-end gap-2 mt-1">
+                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest pb-1" style={{ color: themeStyles.subTextColor }}>অভিযাত্রী:</p>
+                  <input 
+                    type="text" 
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:border-gray-400 focus:outline-none text-sm sm:text-base font-black w-32 sm:w-48 px-1 py-1 leading-normal transition-colors"
+                    style={{ color: selectedColor }}
+                    title="আপনার নাম পরিবর্তন করতে এখানে ক্লিক করুন"
+                  />
+                </div>
               </div>
             </div>
+
             <div className="text-right hidden sm:block">
               <h2 className="text-xl font-black" style={{ color: themeStyles.textColor }}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
               <p className="text-[9px] font-black tracking-widest uppercase mt-0.5" style={{ color: themeStyles.subTextColor }}>Adventure Society</p>
