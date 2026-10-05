@@ -1,59 +1,65 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import Link from "next/link";
 import html2canvas from "html2canvas";
-
-// ৬৪ জেলার ডাটা (সংক্ষিপ্ত উদাহরণ)। 
-// নোট: আসল ম্যাপের জন্য এখানে ৬৪টি জেলার নিখুঁত SVG <path> বসাতে হবে।
-const DISTRICTS = [
-  { id: "dhaka", name: "ঢাকা", d: "M10,10 L50,10 L50,50 L10,50 Z" }, // এটি একটি ডেমো পাথ
-  { id: "sylhet", name: "সিলেট", d: "M60,10 L100,10 L100,50 L60,50 Z" }, 
-  { id: "chittagong", name: "চট্টগ্রাম", d: "M110,60 L150,60 L150,100 L110,100 Z" },
-  // ... বাকি ৬১টি জেলার পাথ এখানে যুক্ত করতে হবে
-];
+import { fetchDistrictsData } from "./districtData";
 
 export default function MyBangladesh() {
   const [user, setUser] = useState(null);
   const [visited, setVisited] = useState([]);
+  const [districts, setDistricts] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // এই Ref টি ব্যবহার করে আমরা নির্দিষ্ট অংশটুকুর ছবি তুলবো
   const mapRef = useRef(null);
 
   useEffect(() => {
-    fetchUserData();
+    const initializeData = async () => {
+      setLoading(true);
+      
+      // ১. ৬৪ জেলার ম্যাপ ডেটা ফেচ করা
+      const mapData = await fetchDistrictsData();
+      setDistricts(mapData);
+
+      // ২. ইউজারের ডেটা ফেচ করা
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
+        const { data } = await supabase
+          .from("profiles")
+          .select("visited_districts")
+          .eq("id", session.user.id)
+          .single();
+        
+        if (data?.visited_districts) {
+          setVisited(data.visited_districts);
+        }
+      }
+      setLoading(false);
+    };
+
+    initializeData();
   }, []);
 
-  const fetchUserData = async () => {
-    setLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      setUser(session.user);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("visited_districts")
-        .eq("id", session.user.id)
-        .single();
-      
-      if (data && data.visited_districts) {
-        setVisited(data.visited_districts);
-      }
-    }
-    setLoading(false);
-  };
-
-  const toggleDistrict = async (districtId) => {
+  const toggleDistrict = async (districtId, districtName) => {
     if (!user) return alert("ম্যাপ আপডেট করতে আগে লগইন করুন!");
     
+    const isAlreadyVisited = visited.includes(districtId);
+    
     // নতুন লিস্ট তৈরি (থাকলে রিমুভ, না থাকলে অ্যাড)
-    const newVisited = visited.includes(districtId)
+    const newVisited = isAlreadyVisited
       ? visited.filter((id) => id !== districtId)
       : [...visited, districtId];
       
     setVisited(newVisited);
     setSaving(true);
+
+    // মোবাইলের ইউজারের জন্য ছোট্ট অ্যালার্ট (যাতে বুঝতে পারে কোন জেলায় ক্লিক পড়েছে)
+    if (!isAlreadyVisited) {
+       alert(`✅ ${districtName} আপনার ট্রাভেল লিস্টে যুক্ত হয়েছে!`);
+    } else {
+       alert(`❌ ${districtName} ট্রাভেল লিস্ট থেকে বাদ দেওয়া হয়েছে!`);
+    }
 
     try {
       const { error } = await supabase
@@ -75,7 +81,7 @@ export default function MyBangladesh() {
     try {
       setSaving(true);
       
-      // html2canvas ব্যবহার করে হাই রেজুলেশন ছবি তৈরি (scale: 3 মানে 3x Resolution)
+      // html2canvas ব্যবহার করে হাই রেজুলেশন ছবি তৈরি (scale: 3)
       const canvas = await html2canvas(mapRef.current, { 
         scale: 3, 
         backgroundColor: '#030705',
@@ -150,7 +156,7 @@ export default function MyBangladesh() {
           className="bg-[#030705] p-6 sm:p-10 rounded-3xl border border-white/5 relative overflow-hidden"
         >
           {/* Watermark for Downloaded Image */}
-          <div className="absolute top-6 left-6 opacity-30 pointer-events-none">
+          <div className="absolute top-6 left-6 opacity-30 pointer-events-none z-10">
             <h2 className="text-3xl font-black tracking-widest text-white">
               <span className="text-[#e76f51]">C</span>UET <span className="text-[#e76f51]">A</span>S
             </h2>
@@ -159,7 +165,7 @@ export default function MyBangladesh() {
 
           {/* User Name & Stats on Map */}
           {user && (
-             <div className="absolute top-6 right-6 text-right pointer-events-none">
+             <div className="absolute top-6 right-6 text-right pointer-events-none z-10">
                <p className="text-[#e76f51] font-black text-xl">{visited.length} / 64</p>
                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Districts Explored</p>
              </div>
@@ -167,29 +173,35 @@ export default function MyBangladesh() {
 
           {/* Interactive SVG Map */}
           <div className="w-full max-w-lg mx-auto aspect-[3/4] relative mt-16 sm:mt-8">
-            <svg 
-              viewBox="0 0 200 200" // আসল ম্যাপের ভিউবক্স দিতে হবে (e.g. "0 0 800 1000")
-              className="w-full h-full drop-shadow-2xl"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              {DISTRICTS.map((district) => {
-                const isVisited = visited.includes(district.id);
-                return (
-                  <path
-                    key={district.id}
-                    d={district.d}
-                    onClick={() => toggleDistrict(district.id)}
-                    className={`cursor-pointer transition-all duration-300 stroke-[#050b08] stroke-[1px] outline-none ${
-                      isVisited 
-                        ? 'fill-[#e76f51] drop-shadow-[0_0_8px_rgba(231,111,81,0.8)]' // গ্লোয়িং কালার
-                        : 'fill-gray-700/50 hover:fill-gray-500' // ডিম কালার
-                    }`}
-                  >
-                    <title>{district.name}</title>
-                  </path>
-                );
-              })}
-            </svg>
+            {districts.length > 0 ? (
+              <svg 
+                viewBox="0 0 550 750" // বাংলাদেশের অরিজিনাল GeoJSON টু SVG এর সাধারণত এই ভিউবক্স থাকে (প্রয়োজনে অ্যাডজাস্ট করা যাবে)
+                className="w-full h-full drop-shadow-2xl"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                {districts.map((district) => {
+                  const isVisited = visited.includes(district.id);
+                  return (
+                    <path
+                      key={district.id}
+                      d={district.d}
+                      onClick={() => toggleDistrict(district.id, district.nameBn || district.name)}
+                      className={`cursor-pointer transition-all duration-300 stroke-[#050b08] stroke-[1px] outline-none ${
+                        isVisited 
+                          ? 'fill-[#e76f51] drop-shadow-[0_0_8px_rgba(231,111,81,0.8)]' // গ্লোয়িং কালার
+                          : 'fill-gray-700/50 hover:fill-gray-500' // ডিম কালার
+                      }`}
+                    >
+                      <title>{district.nameBn || district.name}</title>
+                    </path>
+                  );
+                })}
+              </svg>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                 <p className="text-gray-500 font-bold animate-pulse">ম্যাপ লোড হচ্ছে...</p>
+              </div>
+            )}
           </div>
         </div>
 
