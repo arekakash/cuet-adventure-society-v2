@@ -8,6 +8,7 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import AOS from "aos";
 import "aos/dist/aos.css";
+// 🔴 ইমেজ ক্রপ করার লাইব্রেরি ইমপোর্ট করা হলো
 import Cropper from "react-easy-crop";
 
 const geoUrl = "/bd-districts.topo.json"; 
@@ -40,39 +41,38 @@ const districtBn = {
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
-// 🔴 ওভারল্যাপ ফ্রি টাইপোগ্রাফি
 const districtConfigs = {
-  "Dhaka": { fontSize: 3.5, dx: 0, dy: -1.5 },
-  "Gazipur": { fontSize: 3.8, dx: 0, dy: -2.5 },
-  "Narayanganj": { fontSize: 3.2, dx: 3.5, dy: 1.5 },
-  "Munshiganj": { fontSize: 3.2, dx: 0, dy: 3.5 },
-  "Narsingdi": { fontSize: 3.2, dx: 3.5, dy: -1.5 },
-  "Manikganj": { fontSize: 3.5, dx: -2.5, dy: 0 },
-  "Faridpur": { fontSize: 4.5, dx: -1, dy: 0 },
-  "Rajbari": { fontSize: 3.5, dx: -1.5, dy: -1.5 },
-  "Madaripur": { fontSize: 3.5, dx: -1, dy: 1 },
-  "Shariatpur": { fontSize: 3.5, dx: 2, dy: 1 },
-  "Magura": { fontSize: 3.5, dx: -1.5, dy: 0 },
-  "Narail": { fontSize: 3.5, dx: -1.5, dy: 1 },
-  "Jhenaidah": { fontSize: 3.8, dx: 0, dy: 0 },
-  "Chuadanga": { fontSize: 3.5, dx: -2, dy: 0 },
-  "Meherpur": { fontSize: 3.5, dx: -2, dy: -1 },
-  "Kushtia": { fontSize: 3.8, dx: 0, dy: -1.5 },
-  "Pabna": { fontSize: 4.5, dx: 0, dy: 0 },
-  "Sirajganj": { fontSize: 4, dx: 1.5, dy: 0 },
-  "Bogura": { fontSize: 4.5, dx: 0, dy: 0 },
-  "Joypurhat": { fontSize: 3.5, dx: 0, dy: -1 },
-  "Chapainawabganj": { fontSize: 3.5, dx: -3, dy: -1 },
-  "Jhalokati": { fontSize: 3.5, dx: 2, dy: -1 },
-  "Pirojpur": { fontSize: 4, dx: -2, dy: 0 },
-  "Feni": { fontSize: 3.5, dx: 3, dy: -1 },
-  "Noakhali": { fontSize: 4.5, dx: -1, dy: 2 },
-  "Lakshmipur": { fontSize: 4, dx: -2, dy: 0 },
-  "Brahmanbaria": { fontSize: 4, dx: 2, dy: 0 },
-  "Lalmonirhat": { fontSize: 4, dx: 1, dy: -1 },
-  "Kurigram": { fontSize: 4.5, dx: 2, dy: 0 },
-  "Sylhet": { fontSize: 4.5, dx: 0, dy: 0 },
-  "Moulvibazar": { fontSize: 4, dx: 1, dy: 1 }
+  "Dhaka": { fontSize: 5, dx: 0, dy: -1.5 },
+  "Gazipur": { fontSize: 5.5, dx: 0, dy: -2.5 },
+  "Narayanganj": { fontSize: 4.5, dx: 3.5, dy: 1.5 },
+  "Munshiganj": { fontSize: 4.5, dx: 0, dy: 3.5 },
+  "Narsingdi": { fontSize: 4.5, dx: 3.5, dy: -1.5 },
+  "Manikganj": { fontSize: 5, dx: -2.5, dy: 0 },
+  "Faridpur": { fontSize: 6, dx: -1, dy: 0 },
+  "Rajbari": { fontSize: 5, dx: -1.5, dy: -1.5 },
+  "Madaripur": { fontSize: 5, dx: -1, dy: 1 },
+  "Shariatpur": { fontSize: 5, dx: 2, dy: 1 },
+  "Magura": { fontSize: 5, dx: -1.5, dy: 0 },
+  "Narail": { fontSize: 5, dx: -1.5, dy: 1 },
+  "Jhenaidah": { fontSize: 5.5, dx: 0, dy: 0 },
+  "Chuadanga": { fontSize: 5, dx: -2, dy: 0 },
+  "Meherpur": { fontSize: 5, dx: -2, dy: -1 },
+  "Kushtia": { fontSize: 5.5, dx: 0, dy: -1.5 },
+  "Pabna": { fontSize: 6, dx: 0, dy: 0 },
+  "Sirajganj": { fontSize: 5.5, dx: 1.5, dy: 0 },
+  "Bogura": { fontSize: 6, dx: 0, dy: 0 },
+  "Joypurhat": { fontSize: 5, dx: 0, dy: -1 },
+  "Chapainawabganj": { fontSize: 5, dx: -3, dy: -1 },
+  "Jhalokati": { fontSize: 5, dx: 2, dy: -1 },
+  "Pirojpur": { fontSize: 5.5, dx: -2, dy: 0 },
+  "Feni": { fontSize: 5, dx: 3, dy: -1 },
+  "Noakhali": { fontSize: 6, dx: -1, dy: 2 },
+  "Lakshmipur": { fontSize: 5.5, dx: -2, dy: 0 },
+  "Brahmanbaria": { fontSize: 5.5, dx: 2, dy: 0 },
+  "Lalmonirhat": { fontSize: 5.5, dx: 1, dy: -1 },
+  "Kurigram": { fontSize: 6, dx: 2, dy: 0 },
+  "Sylhet": { fontSize: 6, dx: 0, dy: 0 },
+  "Moulvibazar": { fontSize: 5.5, dx: 1, dy: 1 }
 };
 
 const bangladeshDivisions = [
@@ -104,6 +104,7 @@ export default function MyBangladeshPage() {
   
   const mapCardRef = useRef(null);
 
+  // 🔴 ইমেজ ক্রপিংয়ের জন্য প্রয়োজনীয় স্টেটস (Zero Storage Logic)
   const fileInputRef = useRef(null);
   const [rawImage, setRawImage] = useState(null);
   const [croppedAvatar, setCroppedAvatar] = useState(null);
@@ -189,6 +190,7 @@ export default function MyBangladeshPage() {
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.3, 3));
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.3, 1));
 
+  // 🔴 ফাইল সিলেক্ট করা হলে লোকাল ব্রাউজারে রিড করা (কোনো আপলোড নয়)
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const reader = new FileReader();
@@ -201,6 +203,7 @@ export default function MyBangladeshPage() {
     setCroppedAreaPixels(croppedAreaPixels);
   };
 
+  // 🔴 ক্যানভাস ব্যবহার করে গোলাকৃতি করে ইমেজ ক্রপ করা
   const generateCroppedImage = async () => {
     try {
       const image = new Image();
@@ -212,11 +215,13 @@ export default function MyBangladeshPage() {
       canvas.height = croppedAreaPixels.height;
       const ctx = canvas.getContext("2d");
 
+      // বৃত্তাকার শেপ তৈরি করা
       ctx.beginPath();
       ctx.arc(canvas.width / 2, canvas.height / 2, canvas.width / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
 
+      // অরিজিনাল ইমেজ থেকে ক্রপ করা অংশ ক্যানভাসে ড্র করা
       ctx.drawImage(
         image,
         croppedAreaPixels.x,
@@ -229,8 +234,9 @@ export default function MyBangladeshPage() {
         canvas.height
       );
       
+      // DataURL হিসেবে লোকাল স্টেটে সেভ করা
       setCroppedAvatar(canvas.toDataURL("image/png"));
-      setRawImage(null);
+      setRawImage(null); // ক্রপার বন্ধ করা
     } catch (e) {
       console.error(e);
       alert("ছবি ক্রপ করতে সমস্যা হয়েছে।");
@@ -247,7 +253,7 @@ export default function MyBangladeshPage() {
 
       const canvas = await html2canvas(mapCardRef.current, {
         backgroundColor: bgColor, 
-        scale: 4, // 🔴 সুপার হাই-রেজুলেশন 4K Quality
+        scale: 4, 
         useCORS: true,
         logging: false
       });
@@ -296,18 +302,18 @@ export default function MyBangladeshPage() {
     cardBg: isLight ? "#ffffff" : "#0a1c13",
     textColor: isLight ? "#1e293b" : "#ffffff",
     subTextColor: isLight ? "#64748b" : "#9ca3af",
-    borderColor: isLight ? "rgba(0,0,0,0.1)" : "rgba(255, 255, 255, 0.1)",
-    statBoxBg: isLight ? "rgba(255,255,255,0.8)" : "rgba(0, 0, 0, 0.5)",
+    borderColor: isLight ? "#e2e8f0" : "rgba(255, 255, 255, 0.1)",
+    statBoxBg: isLight ? "#f8fafc" : "rgba(0, 0, 0, 0.4)",
     mapBg: isLight ? "#f1f5f9" : "rgba(0, 0, 0, 0.4)",
     unvisitedFill: isLight ? "#cbd5e1" : "#1e293b",
     mapStroke: isLight ? "#ffffff" : "#050b08",
-    nameLabelColor: isLight ? "#0f172a" : "#ffffff",
-    glassBg: isLight ? "rgba(255, 255, 255, 0.6)" : "rgba(0, 0, 0, 0.4)"
+    nameLabelColor: isLight ? "#0f172a" : "#ffffff"
   };
 
   return (
     <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       
+      {/* 🔴 Full Screen Cropper Modal (যখন ইউজার ছবি সিলেক্ট করবে) */}
       {rawImage && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col">
           <div className="relative flex-1">
@@ -341,7 +347,14 @@ export default function MyBangladeshPage() {
         </div>
       )}
 
-      <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+      {/* Hidden File Input */}
+      <input 
+        type="file" 
+        accept="image/*" 
+        ref={fileInputRef} 
+        onChange={handleFileChange} 
+        className="hidden" 
+      />
 
       <div className="absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
       <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
@@ -392,17 +405,110 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* 🔴 আলটিমেট ৪:৫ রেশিও ডাউনলোড কার্ড (ওভারলে ডিজাইন) */}
         <div 
           ref={mapCardRef} 
-          className="rounded-[2rem] shadow-2xl relative flex flex-col mx-auto w-full max-w-[460px] aspect-[4/5] overflow-hidden" 
+          className="rounded-[2rem] p-4 sm:p-6 shadow-2xl relative flex flex-col mx-auto w-full max-w-2xl" 
           style={{ backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.borderColor}` }}
           data-aos="zoom-in"
         >
-          {/* 🔴 ম্যাপ ব্যাকগ্রাউন্ড (পুরো কার্ড জুড়ে ১০০% সাইজে থাকবে) */}
-          <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none" style={{ backgroundColor: themeStyles.mapBg }}>
+          <div className="flex justify-between items-center mb-5 border-b pb-4" style={{ borderColor: themeStyles.borderColor }}>
+            
+            {/* 🔴 হেডার সেকশন: প্রোফাইল পিকচার এবং টাইটেল একসাথে */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              
+              {/* 🔴 প্রোফাইল পিকচার / ক্যামেরা আইকন */}
+              <div 
+                onClick={() => fileInputRef.current.click()} 
+                className="relative group cursor-pointer w-12 h-12 sm:w-16 sm:h-16 shrink-0"
+                title="আপনার ছবি যুক্ত করুন"
+              >
+                {croppedAvatar ? (
+                  <>
+                    <img 
+                      src={croppedAvatar} 
+                      className="w-full h-full rounded-full border-[3px] object-cover shadow-md transition-transform group-hover:scale-105" 
+                      style={{ borderColor: selectedColor }} 
+                      alt="Avatar" 
+                    />
+                    {/* ডিলিট অপশন (শুধুমাত্র ওয়েবসাইটে দেখাবে, ডাউনলোডে আসবে না) */}
+                    <div data-html2canvas-ignore="true" onClick={(e) => { e.stopPropagation(); setCroppedAvatar(null); }} className="absolute -bottom-1 -right-1 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] shadow-lg hover:bg-red-600">
+                      <i className="fa-solid fa-times"></i>
+                    </div>
+                  </>
+                ) : (
+                  /* ছবি না থাকলে ক্যামেরা আইকন দেখাবে (ডাউনলোডের সময় এটি গায়েব হয়ে যাবে) */
+                  <div data-html2canvas-ignore="true" className="w-full h-full rounded-full border-2 border-dashed flex items-center justify-center transition-colors hover:border-gray-300 hover:bg-white/5" style={{ borderColor: themeStyles.subTextColor, backgroundColor: isLight ? '#f1f5f9' : 'rgba(0,0,0,0.2)' }}>
+                    <i className="fa-solid fa-camera text-lg" style={{ color: themeStyles.subTextColor }}></i>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2" style={{ color: themeStyles.textColor }}>
+                  {displayName.trim() === "গেস্ট এক্সপ্লোরার" || !displayName.trim() 
+                    ? "আমার বাংলাদেশ ভ্রমণ" 
+                    : `${displayName} এর বাংলাদেশ ভ্রমণ`}
+                </h2>
+                <div data-html2canvas-ignore="true" className="flex items-end gap-2 mt-1">
+                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest pb-1" style={{ color: themeStyles.subTextColor }}>অভিযাত্রী:</p>
+                  <input 
+                    type="text" 
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:border-gray-400 focus:outline-none text-sm sm:text-base font-black w-32 sm:w-48 px-1 py-1 leading-normal transition-colors"
+                    style={{ color: selectedColor }}
+                    title="আপনার নাম পরিবর্তন করতে এখানে ক্লিক করুন"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="text-right hidden sm:block">
+              <h2 className="text-xl font-black" style={{ color: themeStyles.textColor }}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
+              <p className="text-[9px] font-black tracking-widest uppercase mt-0.5" style={{ color: themeStyles.subTextColor }}>Adventure Society</p>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 sm:gap-4 mb-4">
+            <div className="flex-1 py-2 px-3 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
+              <h3 className="text-xl sm:text-2xl font-black" style={{ color: selectedColor }}>
+                {e2b(validCount)} <span className="text-xs" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
+              </h3>
+            </div>
+            <div className="flex-1 py-2 px-3 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
+              <h3 className="text-xl sm:text-2xl font-black" style={{ color: themeStyles.textColor }}>
+                {e2b(64 - validCount)} <span className="text-[10px]" style={{ color: themeStyles.subTextColor }}>জেলা</span>
+              </h3>
+            </div>
+            <div className="flex-1 py-2 px-3 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>সম্পন্ন হয়েছে</p>
+              <h3 className="text-xl sm:text-2xl font-black" style={{ color: selectedColor }}>
+                {e2b(percentage)}%
+              </h3>
+            </div>
+          </div>
+
+          <div className="w-full aspect-[4/5] sm:aspect-square rounded-2xl overflow-hidden flex items-center justify-center relative select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
+
+            <div data-html2canvas-ignore="true" className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+              <button onClick={handleZoomIn} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
+                <i className="fa-solid fa-plus"></i>
+              </button>
+              <button onClick={handleZoomOut} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
+                <i className="fa-solid fa-minus"></i>
+              </button>
+            </div>
+
+            {hoveredDistrict && (
+              <div data-html2canvas-ignore="true" className="absolute top-4 left-4 z-20 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg border border-white/10" style={{ color: selectedColor }}>
+                📍 {hoveredDistrict}
+              </div>
+            )}
+
             <div 
-              className="w-full h-full transition-transform duration-300 ease-out pointer-events-auto"
+              className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
               style={{ transform: `scale(${zoomLevel})`, transformOrigin: "center" }}
             >
               <ComposableMap
@@ -449,7 +555,7 @@ export default function MyBangladeshPage() {
                         
                         const centroid = geoCentroid(geo);
                         const bengaliName = districtBn[districtName] || districtName;
-                        const config = districtConfigs[districtName] || { fontSize: 5, dx: 0, dy: 0 }; 
+                        const config = districtConfigs[districtName] || { fontSize: 7, dx: 0, dy: 0 }; 
 
                         return (
                           <Marker key={`${geo.rsmKey}-label`} coordinates={centroid}>
@@ -495,102 +601,6 @@ export default function MyBangladeshPage() {
               </ComposableMap>
             </div>
           </div>
-
-          {/* 🔴 ভাসমান হেডার (Top Overlay) */}
-          <div className="relative z-10 flex justify-between items-start p-4 sm:p-5 pointer-events-none mb-auto">
-            <div 
-              className="flex items-center gap-3 p-2.5 pr-4 rounded-[1.25rem] backdrop-blur-md shadow-lg pointer-events-auto"
-              style={{ backgroundColor: themeStyles.glassBg, border: `1px solid ${themeStyles.borderColor}` }}
-            >
-              <div 
-                onClick={() => fileInputRef.current.click()} 
-                className="relative group cursor-pointer w-10 h-10 sm:w-12 sm:h-12 shrink-0"
-                title="আপনার ছবি যুক্ত করুন"
-              >
-                {croppedAvatar ? (
-                  <>
-                    <img 
-                      src={croppedAvatar} 
-                      className="w-full h-full rounded-full border-2 object-cover shadow-sm transition-transform group-hover:scale-105" 
-                      style={{ borderColor: selectedColor }} 
-                      alt="Avatar" 
-                    />
-                    <div data-html2canvas-ignore="true" onClick={(e) => { e.stopPropagation(); setCroppedAvatar(null); }} className="absolute -bottom-1 -right-1 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] shadow-lg hover:bg-red-600">
-                      <i className="fa-solid fa-times"></i>
-                    </div>
-                  </>
-                ) : (
-                  <div data-html2canvas-ignore="true" className="w-full h-full rounded-full border border-dashed flex items-center justify-center transition-colors hover:border-gray-300" style={{ borderColor: themeStyles.subTextColor, backgroundColor: isLight ? '#f1f5f9' : 'rgba(0,0,0,0.4)' }}>
-                    <i className="fa-solid fa-camera text-xs" style={{ color: themeStyles.subTextColor }}></i>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col justify-center pt-0.5">
-                <h2 className="text-[13px] sm:text-[15px] font-black tracking-tight leading-none" style={{ color: themeStyles.textColor }}>
-                  {displayName.trim() === "গেস্ট এক্সপ্লোরার" || !displayName.trim() 
-                    ? "আমার বাংলাদেশ ভ্রমণ" 
-                    : `${displayName} এর বাংলাদেশ ভ্রমণ`}
-                </h2>
-                
-                {/* 🔴 ডাউনলোড করার সময় ইনপুট ফিল্ডটি মুছে যাবে (data-html2canvas-ignore) */}
-                <div data-html2canvas-ignore="true" className="flex items-center gap-1.5 mt-1.5">
-                  <p className="text-[8px] font-bold uppercase tracking-widest text-gray-500">অভিযাত্রী:</p>
-                  <input 
-                    type="text" 
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    className="bg-transparent border-b border-dashed border-gray-500/50 focus:outline-none text-[10px] font-black w-24 px-0.5 py-0.5"
-                    style={{ color: selectedColor }}
-                    title="নাম পরিবর্তন করুন"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="text-right bg-black/40 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 shadow-lg">
-              <h2 className="text-sm font-black" style={{ color: themeStyles.textColor }}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
-              <p className="text-[7px] font-black tracking-widest uppercase mt-0.5 text-gray-400">Adventure Society</p>
-            </div>
-          </div>
-          
-          {/* 🔴 ভাসমান স্ট্যাটিস্টিক্স (Bottom Overlay) */}
-          <div className="relative z-10 flex gap-2 sm:gap-3 p-4 sm:p-5 pointer-events-none">
-            <div className="flex-1 py-2 px-2 rounded-[1rem] text-center shadow-lg backdrop-blur-md" style={{ backgroundColor: themeStyles.glassBg, border: `1px solid ${themeStyles.borderColor}` }}>
-              <p className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
-              <h3 className="text-lg sm:text-xl font-black" style={{ color: selectedColor }}>
-                {e2b(validCount)} <span className="text-[10px]" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
-              </h3>
-            </div>
-            <div className="flex-1 py-2 px-2 rounded-[1rem] text-center shadow-lg backdrop-blur-md" style={{ backgroundColor: themeStyles.glassBg, border: `1px solid ${themeStyles.borderColor}` }}>
-              <p className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
-              <h3 className="text-lg sm:text-xl font-black" style={{ color: themeStyles.textColor }}>
-                {e2b(64 - validCount)} <span className="text-[9px]" style={{ color: themeStyles.subTextColor }}>জেলা</span>
-              </h3>
-            </div>
-            <div className="flex-1 py-2 px-2 rounded-[1rem] text-center shadow-lg backdrop-blur-md" style={{ backgroundColor: themeStyles.glassBg, border: `1px solid ${themeStyles.borderColor}` }}>
-              <p className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>সম্পন্ন হয়েছে</p>
-              <h3 className="text-lg sm:text-xl font-black" style={{ color: selectedColor }}>
-                {e2b(percentage)}%
-              </h3>
-            </div>
-          </div>
-
-          <div data-html2canvas-ignore="true" className="absolute top-1/2 right-3 sm:right-4 -translate-y-1/2 z-20 flex flex-col gap-2">
-            <button onClick={handleZoomIn} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.glassBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
-              <i className="fa-solid fa-plus"></i>
-            </button>
-            <button onClick={handleZoomOut} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.glassBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
-              <i className="fa-solid fa-minus"></i>
-            </button>
-          </div>
-
-          {hoveredDistrict && (
-            <div data-html2canvas-ignore="true" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 bg-black/70 backdrop-blur-md px-4 py-2 rounded-xl text-sm font-bold shadow-2xl border border-white/10" style={{ color: selectedColor }}>
-              📍 {hoveredDistrict}
-            </div>
-          )}
-
         </div>
         
         <div className="mt-8 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl" data-aos="fade-up">
