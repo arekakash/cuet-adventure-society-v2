@@ -39,7 +39,6 @@ const districtBn = {
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
-// 🔴 ১০০% ওভারল্যাপ ফ্রি পজিশনিং কনফিগারেশন (খুব কাছাকাছি থাকা জেলাগুলোকে দূরে সরানো হয়েছে)
 const districtConfigs = {
   "Dhaka": { fontSize: 3.5, dx: 0, dy: -1.5 },
   "Narayanganj": { fontSize: 3.2, dx: 3, dy: 1.5 },
@@ -92,7 +91,9 @@ export default function MyBangladeshPage() {
   const [markerType, setMarkerType] = useState("name"); 
   const [displayName, setDisplayName] = useState("গেস্ট এক্সপ্লোরার");
   
+  const BASE_SCALE = 4200;
   const [zoomLevel, setZoomLevel] = useState(1);
+  
   const mapCardRef = useRef(null);
 
   useEffect(() => {
@@ -365,7 +366,7 @@ export default function MyBangladeshPage() {
             >
               <ComposableMap
                 projection="geoMercator"
-                projectionConfig={{ scale: 4200, center: [90.35, 23.8] }}
+                projectionConfig={{ scale: BASE_SCALE, center: [90.35, 23.8] }}
                 className="w-full h-full outline-none"
               >
                 <Geographies geography={geoUrl}>
@@ -407,8 +408,6 @@ export default function MyBangladeshPage() {
                         
                         const centroid = geoCentroid(geo);
                         const bengaliName = districtBn[districtName] || districtName;
-                        
-                        // 🔴 ওভারল্যাপ ফ্রি পজিশনিং ও ফন্ট সাইজ (ডিফল্ট ৪.২)
                         const config = districtConfigs[districtName] || { fontSize: 4.2, dx: 0, dy: 0 }; 
 
                         return (
@@ -457,36 +456,38 @@ export default function MyBangladeshPage() {
           </div>
         </div>
         
+        {/* 🔴 চেকলিস্টের ডিজাইন গ্রিড ভিউ এবং পিল স্টাইলে পরিবর্তন করা হয়েছে */}
         <div className="mt-8 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl" data-aos="fade-up">
-          <h3 className="text-xl sm:text-2xl font-black mb-8 text-white flex items-center gap-3 border-b border-white/10 pb-4">
+          <h3 className="text-xl sm:text-2xl font-black mb-6 text-white flex items-center gap-3 border-b border-white/10 pb-4">
             <i className="fa-solid fa-list-check" style={{ color: selectedColor }}></i> দ্রুত জেলা নির্বাচন করুন
           </h3>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {bangladeshDivisions.map((division) => {
               const divVisitedCount = division.districts.filter(d => visitedDistricts.includes(d)).length;
               
               return (
                 <div key={division.name} className="bg-black/30 rounded-2xl p-5 border border-white/5 shadow-sm">
                   <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-3">
-                    <h4 className="font-black text-white">{division.name}</h4>
+                    <h4 className="font-black text-white text-lg">{division.name}</h4>
                     <span className="text-xs font-bold px-2 py-1 rounded-md bg-white/5 text-gray-300">
                       <span style={{ color: divVisitedCount > 0 ? selectedColor : '' }}>{e2b(divVisitedCount)}</span> / {e2b(division.districts.length)}
                     </span>
                   </div>
                   
-                  <div className="space-y-1.5 max-h-56 overflow-y-auto pr-2 custom-scrollbar">
+                  {/* 🔴 ফ্লেক্স র‍্যাপ (Pill / Chip style) ব্যবহার করে জেলার নামগুলো সাজানো হয়েছে */}
+                  <div className="flex flex-wrap gap-2 mt-2">
                     {division.districts.map(dist => {
                       const isChecked = visitedDistricts.includes(dist);
                       const bngName = districtBn[dist] || dist;
                       
                       return (
-                        <label key={dist} className={`flex items-center gap-3 cursor-pointer group p-2 rounded-lg transition-colors ${isChecked ? 'bg-white/10' : 'hover:bg-white/5'}`}>
+                        <label key={dist} className={`flex items-center gap-2 cursor-pointer group px-3 py-1.5 rounded-full border transition-all ${isChecked ? 'bg-white/10 border-white/20' : 'bg-black/20 border-white/5 hover:border-white/20'}`}>
                           <input type="checkbox" checked={isChecked} onChange={() => toggleDistrict(dist)} className="hidden" />
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'border-transparent' : 'border-gray-500'}`} style={{ backgroundColor: isChecked ? selectedColor : 'transparent' }}>
-                            {isChecked && <i className="fa-solid fa-check text-[10px] text-white"></i>}
+                          <div className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors ${isChecked ? 'border-transparent' : 'border-gray-500'}`} style={{ backgroundColor: isChecked ? selectedColor : 'transparent' }}>
+                            {isChecked && <i className="fa-solid fa-check text-[8px] text-white"></i>}
                           </div>
-                          <span className={`text-sm font-bold ${isChecked ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
+                          <span className={`text-xs font-bold ${isChecked ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
                             {bngName}
                           </span>
                         </label>
@@ -528,13 +529,6 @@ export default function MyBangladeshPage() {
         )}
 
       </div>
-      
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
-      `}</style>
     </div>
   );
 }
