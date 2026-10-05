@@ -4,8 +4,8 @@ import { supabase } from "@/lib/supabase";
 import html2canvas from "html2canvas";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 
-// 🔴 ১০০% নির্ভরযোগ্য এবং লাইটওয়েট ম্যাপ ডেটা সোর্স
-const GEO_URL = "https://raw.githubusercontent.com/nascenia/bangladesh-geojson/master/bangladesh.geojson";
+// 🔴 গ্লোবাল ও সবচেয়ে বিশ্বস্ত ম্যাপ লিংক (এটি ব্রাউজার ব্লক করবে না)
+const geoUrl = "https://raw.githubusercontent.com/deldersveld/topojson/master/countries/bangladesh/bangladesh-districts.json";
 
 export default function MyBangladesh() {
   const [user, setUser] = useState(null);
@@ -16,7 +16,7 @@ export default function MyBangladesh() {
   const mapRef = useRef(null);
 
   useEffect(() => {
-    const fetchUserHistory = async () => {
+    const fetchUserData = async () => {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -35,7 +35,7 @@ export default function MyBangladesh() {
       setLoading(false);
     };
 
-    fetchUserHistory();
+    fetchUserData();
   }, []);
 
   const toggleDistrict = async (districtId, districtName) => {
@@ -76,20 +76,22 @@ export default function MyBangladesh() {
     if (!mapRef.current) return;
     try {
       setSaving(true);
+      
       const canvas = await html2canvas(mapRef.current, { 
         scale: 3, 
         backgroundColor: '#030705',
-        useCORS: true
+        useCORS: true 
       });
       
       const dataUrl = canvas.toDataURL("image/png", 1.0);
+      
       const link = document.createElement('a');
       link.download = `my-bangladesh-explored-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
       
     } catch (error) {
-      console.error(error);
+      console.error('Oops!', error);
       alert("ছবি ডাউনলোড করতে সমস্যা হয়েছে!");
     } finally {
       setSaving(false);
@@ -120,10 +122,10 @@ export default function MyBangladesh() {
           </p>
         </div>
 
-        {/* Dashboard Actions */}
-        <div className="flex flex-col sm:flex-row justify-between items-center bg-[#0a1c13] p-4 rounded-2xl border border-white/10 mb-8 gap-4 shadow-lg">
+        {/* Dashboard / Stats Section */}
+        <div className="flex flex-col sm:flex-row justify-between items-center bg-[#0a1c13] p-4 rounded-2xl border border-white/10 mb-8 gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-black/40 border border-[#e76f51]/50 flex items-center justify-center shadow-[0_0_15px_rgba(231,111,81,0.3)]">
+            <div className="w-12 h-12 rounded-full bg-black/40 border border-[#e76f51]/50 flex items-center justify-center">
               <span className="text-[#e76f51] font-black text-lg">{visited.length}</span>
             </div>
             <div>
@@ -142,12 +144,12 @@ export default function MyBangladesh() {
           </button>
         </div>
 
-        {/* 🔴 Printable Area */}
+        {/* 🔴 Printable Map Area (যে অংশের ছবি উঠবে) */}
         <div 
           ref={mapRef} 
-          className="bg-[#030705] p-6 sm:p-10 rounded-3xl border border-white/5 relative overflow-hidden shadow-2xl"
+          className="bg-[#030705] p-6 sm:p-10 rounded-3xl border border-white/5 relative overflow-hidden"
         >
-          {/* Watermark */}
+          {/* Watermark for Downloaded Image */}
           <div className="absolute top-6 left-6 opacity-30 pointer-events-none z-10">
             <h2 className="text-3xl font-black tracking-widest text-white">
               <span className="text-[#e76f51]">C</span>UET <span className="text-[#e76f51]">A</span>S
@@ -155,29 +157,31 @@ export default function MyBangladesh() {
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Adventure Society</p>
           </div>
 
-          {/* Dynamic Score */}
+          {/* User Stats on Map */}
           {user && (
              <div className="absolute top-6 right-6 text-right pointer-events-none z-10">
-               <p className="text-[#e76f51] font-black text-xl">{visited.length} <span className="text-gray-500 text-sm">/ 64</span></p>
-               <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Districts Explored</p>
+               <p className="text-[#e76f51] font-black text-xl">{visited.length} / 64</p>
+               <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Districts Explored</p>
              </div>
           )}
 
-          {/* 🔴 Auto-fetching Interactive Map */}
-          <div className="w-full max-w-lg mx-auto aspect-[3/4] relative mt-16 sm:mt-8 flex items-center justify-center">
+          {/* 🔴 Interactive SVG Map via react-simple-maps */}
+          <div className="w-full max-w-lg mx-auto aspect-[3/4] relative mt-16 sm:mt-8">
             <ComposableMap
               projection="geoMercator"
               projectionConfig={{
-                scale: 4500,
-                center: [90.2, 23.8] // সেন্টার পয়েন্ট (বাংলাদেশ)
+                scale: 4500, // ম্যাপের জুম লেভেল
+                center: [90.2, 24.2] // বাংলাদেশের সঠিক সেন্ট্রাল কোঅর্ডিনেটস
               }}
               className="w-full h-full drop-shadow-2xl"
             >
-              <Geographies geography={GEO_URL}>
+              <Geographies geography={geoUrl}>
                 {({ geographies }) =>
                   geographies.map((geo) => {
-                    const name = geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || "Unknown";
-                    const districtId = name.toLowerCase().replace(/\s+/g, '-');
+                    // ম্যাপ ডেটা থেকে জেলার নাম বের করা (NAME_2 বা NAME_1)
+                    const name = geo.properties.NAME_2 || geo.properties.NAME_1 || "Unknown";
+                    // নামটিকে ID হিসেবে তৈরি করা (যেমন: Cox's Bazar -> coxs-bazar)
+                    const districtId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
                     const isVisited = visited.includes(districtId);
 
                     return (
