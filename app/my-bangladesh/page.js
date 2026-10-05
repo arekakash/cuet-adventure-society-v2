@@ -28,7 +28,6 @@ export default function MyBangladeshPage() {
   const [hoveredDistrict, setHoveredDistrict] = useState("");
   
   const [selectedColor, setSelectedColor] = useState(colorPalette[0].value);
-  // নতুন স্টেট: ডাউনলোড থিম (ডার্ক বা লাইট)
   const [downloadTheme, setDownloadTheme] = useState("dark"); 
   
   const mapCardRef = useRef(null);
@@ -102,7 +101,9 @@ export default function MyBangladeshPage() {
     setDownloading(true);
     
     try {
-      // থিম অনুযায়ী ব্যাকগ্রাউন্ড কালার সেট করা
+      // থিম চেঞ্জ হওয়ার পর DOM আপডেট হওয়ার জন্য 300ms এর একটি ছোট্ট ডিলে (Zero Blank Screen Bug)
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       const bgColor = downloadTheme === "light" ? "#f8fafc" : "#050b08";
 
       const canvas = await html2canvas(mapCardRef.current, {
@@ -138,16 +139,18 @@ export default function MyBangladeshPage() {
 
   const percentage = Math.round((visitedDistricts.length / 64) * 100);
 
-  // থিম অনুযায়ী কালার ভেরিয়েবল
+  // 🔴 html2canvas এর জন্য বুলেটপ্রুফ Inline Styles ভেরিয়েবল
   const isLight = downloadTheme === "light";
-  const cardBg = isLight ? "bg-white" : "bg-[#0a1c13]";
-  const textColor = isLight ? "text-slate-800" : "text-white";
-  const subTextColor = isLight ? "text-slate-500" : "text-gray-400";
-  const borderColor = isLight ? "border-slate-200" : "border-white/10";
-  const statBoxBg = isLight ? "bg-slate-50" : "bg-black/40";
-  const mapBg = isLight ? "bg-slate-100" : "bg-black/40";
-  const unvisitedFill = isLight ? "#e2e8f0" : "#1e293b";
-  const mapStroke = isLight ? "#ffffff" : "#050b08";
+  const themeStyles = {
+    cardBg: isLight ? "#ffffff" : "#0a1c13",
+    textColor: isLight ? "#1e293b" : "#ffffff",
+    subTextColor: isLight ? "#64748b" : "#9ca3af",
+    borderColor: isLight ? "#e2e8f0" : "rgba(255, 255, 255, 0.1)",
+    statBoxBg: isLight ? "#f8fafc" : "rgba(0, 0, 0, 0.4)",
+    mapBg: isLight ? "#f1f5f9" : "rgba(0, 0, 0, 0.4)",
+    unvisitedFill: isLight ? "#cbd5e1" : "#1e293b",
+    mapStroke: isLight ? "#ffffff" : "#050b08",
+  };
 
   return (
     <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
@@ -217,54 +220,55 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* 🔴 ডাউনলোড কার্ড (Refined Layout) */}
+        {/* 🔴 ডাউনলোড কার্ড (Inline styles for flawless html2canvas rendering) */}
         <div 
           ref={mapCardRef} 
-          className={`border ${borderColor} rounded-[2rem] p-6 sm:p-8 shadow-2xl relative transition-colors duration-500 ${cardBg}`} 
+          className="rounded-[2rem] p-6 sm:p-8 shadow-2xl relative" 
+          style={{ backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.borderColor}` }}
           data-aos="zoom-in"
         >
           {/* Header */}
-          <div className={`flex justify-between items-end border-b ${borderColor} pb-4 mb-6`}>
+          <div className="flex justify-between items-end pb-4 mb-6" style={{ borderBottom: `1px solid ${themeStyles.borderColor}` }}>
             <div>
-              <h2 className={`text-2xl sm:text-4xl font-black ${textColor} tracking-tight mb-1`}>আমার বাংলাদেশ ভ্রমণ</h2>
-              <p className={`text-xs sm:text-sm font-bold ${subTextColor} uppercase tracking-widest`}>
-                অভিযাত্রী: <span style={{ color: selectedColor }} className="text-base sm:text-lg font-black ml-1 transition-colors duration-500">{userProfile?.full_name || 'Guest Explorer'}</span>
+              <h2 className="text-2xl sm:text-4xl font-black tracking-tight mb-1" style={{ color: themeStyles.textColor }}>আমার বাংলাদেশ ভ্রমণ</h2>
+              <p className="text-xs sm:text-sm font-bold uppercase tracking-widest" style={{ color: themeStyles.subTextColor }}>
+                অভিযাত্রী: <span style={{ color: selectedColor }} className="text-base sm:text-lg font-black ml-1">{userProfile?.full_name || 'Guest Explorer'}</span>
               </p>
             </div>
             <div className="text-right hidden sm:block">
-              <h2 className={`text-xl font-black ${textColor}`}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
-              <p className={`text-[9px] ${subTextColor} font-black tracking-widest uppercase mt-0.5`}>Adventure Society</p>
+              <h2 className="text-xl font-black" style={{ color: themeStyles.textColor }}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
+              <p className="text-[9px] font-black tracking-widest uppercase mt-0.5" style={{ color: themeStyles.subTextColor }}>Adventure Society</p>
             </div>
           </div>
           
-          {/* Stats Section (Horizontal Layout - Smaller) */}
+          {/* Stats Section */}
           <div className="flex gap-3 sm:gap-6 mb-6">
-            <div className={`flex-1 ${statBoxBg} p-3 sm:p-4 rounded-xl border ${borderColor} text-center shadow-sm`}>
-              <p className={`text-[9px] sm:text-[10px] ${subTextColor} font-bold uppercase tracking-wider mb-1`}>মোট ভ্রমণ</p>
-              <h3 className="text-xl sm:text-3xl font-black transition-colors duration-500" style={{ color: selectedColor }}>
-                {visitedDistricts.length} <span className={`text-xs sm:text-sm ${subTextColor}`}>/ ৬৪</span>
+            <div className="flex-1 p-3 sm:p-4 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
+              <h3 className="text-xl sm:text-3xl font-black" style={{ color: selectedColor }}>
+                {visitedDistricts.length} <span className="text-xs sm:text-sm" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
               </h3>
             </div>
-            <div className={`flex-1 ${statBoxBg} p-3 sm:p-4 rounded-xl border ${borderColor} text-center shadow-sm`}>
-              <p className={`text-[9px] sm:text-[10px] ${subTextColor} font-bold uppercase tracking-wider mb-1`}>বাকি আছে</p>
-              <h3 className={`text-xl sm:text-3xl font-black ${textColor}`}>
-                {64 - visitedDistricts.length} <span className={`text-[10px] sm:text-xs ${subTextColor}`}>জেলা</span>
+            <div className="flex-1 p-3 sm:p-4 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
+              <h3 className="text-xl sm:text-3xl font-black" style={{ color: themeStyles.textColor }}>
+                {64 - visitedDistricts.length} <span className="text-[10px] sm:text-xs" style={{ color: themeStyles.subTextColor }}>জেলা</span>
               </h3>
             </div>
-            <div className={`flex-1 ${statBoxBg} p-3 sm:p-4 rounded-xl border ${borderColor} text-center shadow-sm`}>
-              <p className={`text-[9px] sm:text-[10px] ${subTextColor} font-bold uppercase tracking-wider mb-1`}>সম্পন্ন হয়েছে</p>
-              <h3 className="text-xl sm:text-3xl font-black transition-colors duration-500" style={{ color: selectedColor }}>
+            <div className="flex-1 p-3 sm:p-4 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>সম্পন্ন হয়েছে</p>
+              <h3 className="text-xl sm:text-3xl font-black" style={{ color: selectedColor }}>
                 {percentage}%
               </h3>
             </div>
           </div>
 
-          {/* Map Container (Bigger) */}
-          <div className={`w-full h-[60vh] sm:h-[65vh] md:h-[70vh] ${mapBg} rounded-3xl border ${borderColor} overflow-hidden flex items-center justify-center relative`}>
+          {/* Map Container */}
+          <div className="w-full h-[60vh] sm:h-[65vh] md:h-[70vh] rounded-3xl overflow-hidden flex items-center justify-center relative" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
             
             {/* Hover Tooltip */}
             {hoveredDistrict && (
-              <div className="absolute top-4 left-4 z-20 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg border border-white/10 transition-colors duration-300" style={{ color: selectedColor }}>
+              <div className="absolute top-4 left-4 z-20 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg border border-white/10" style={{ color: selectedColor }}>
                 📍 {hoveredDistrict}
               </div>
             )}
@@ -297,9 +301,9 @@ export default function MyBangladeshPage() {
                           onMouseLeave={() => setHoveredDistrict("")}
                           style={{
                             default: {
-                              fill: isVisited ? selectedColor : unvisitedFill,
+                              fill: isVisited ? selectedColor : themeStyles.unvisitedFill,
                               outline: "none",
-                              stroke: mapStroke,
+                              stroke: themeStyles.mapStroke,
                               strokeWidth: isLight ? 1 : 0.8,
                               filter: isVisited && !isLight ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
                               transition: "all 0.3s ease"
