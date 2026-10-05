@@ -193,46 +193,46 @@ export default function BloodBankPage() {
   });
 
   if (loading) {
-    return <div className="min-h-screen bg-[#050b08] flex items-center justify-center"><i className="fa-solid fa-droplet fa-spin text-4xl text-red-500"></i></div>
+    return <div className="min-h-screen bg-pastel-bg dark:bg-[#050b08] flex items-center justify-center transition-colors duration-500"><i className="fa-solid fa-droplet fa-spin text-4xl text-red-500"></i></div>
   }
 
   return (
-    <div className="min-h-screen bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 relative text-gray-300">
+    <div className="min-h-screen bg-pastel-bg dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 relative text-gray-800 dark:text-gray-300 transition-colors duration-500">
       <div className="max-w-6xl mx-auto space-y-12">
         
-        {/* HEADER & EMERGENCY SOS BANNER */}
-        <div className="text-center bg-gradient-to-b from-red-950/40 to-[#0a1c13] border border-red-500/30 rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden" data-aos="fade-down">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-600/10 via-transparent to-transparent pointer-events-none"></div>
+        {/* 🔴 HEADER & EMERGENCY SOS BANNER (Light & Dark Support) */}
+        <div className="text-center bg-red-50 dark:bg-gradient-to-b dark:from-red-950/40 dark:to-[#0a1c13] border border-red-200 dark:border-red-500/30 rounded-3xl p-8 sm:p-12 shadow-soft dark:shadow-2xl relative overflow-hidden transition-colors duration-500" data-aos="fade-down">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-200/50 via-transparent to-transparent dark:from-red-600/10 pointer-events-none"></div>
           
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/20 mb-4 border border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.3)]">
-            <i className="fa-solid fa-droplet text-3xl text-red-500 animate-pulse"></i>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-500/20 mb-4 border border-red-300 dark:border-red-500/40 shadow-sm dark:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-colors">
+            <i className="fa-solid fa-droplet text-3xl text-red-600 dark:text-red-500 animate-pulse"></i>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-black text-white mb-4 tracking-tight">
-            সিএএস <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-rose-400">ব্লাড ব্যাংক</span>
+          <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white mb-4 tracking-tight transition-colors">
+            সিএএস <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-red-400 dark:from-red-500 dark:to-rose-400">ব্লাড ব্যাংক</span>
           </h1>
-          <p className="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto mb-8 leading-relaxed">
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-8 leading-relaxed transition-colors">
             চুয়েটিয়ানদের নিয়ে গঠিত আমাদের নিরাপদ ও নির্ভরযোগ্য রক্তের বন্ধন। আপনার এক ফোঁটা রক্ত ফিরিয়ে দিতে পারে একটি অমূল্য জীবন।
           </p>
 
           <div className="flex flex-wrap justify-center gap-4">
             <button 
               onClick={() => setShowSosModal(true)}
-              className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-wider transition-all shadow-[0_0_25px_rgba(220,38,38,0.5)] flex items-center gap-3 hover:scale-105"
+              className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-wider transition-all shadow-md dark:shadow-[0_0_25px_rgba(220,38,38,0.5)] flex items-center gap-3 hover:-translate-y-1"
             >
               <i className="fa-solid fa-bullhorn animate-bounce"></i> ইমার্জেন্সি ব্লাড রিকোয়েস্ট (SOS)
             </button>
           </div>
         </div>
 
-        {/* 1. TOP SECTION: LIVE INVENTORY & COMFORT ZONE */}
+        {/* 🔴 1. TOP SECTION: LIVE INVENTORY & COMFORT ZONE */}
         <div className="space-y-6" data-aos="fade-up">
-          <div className="flex justify-between items-end border-b border-white/10 pb-3">
+          <div className="flex justify-between items-end border-b border-gray-200 dark:border-white/10 pb-3 transition-colors">
             <div>
-              <h2 className="text-xl font-black text-white flex items-center gap-2">
-                <i className="fa-solid fa-chart-pie text-emerald-400"></i> লাইভ ব্লাড স্টক প্রিভিউ
+              <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 transition-colors">
+                <i className="fa-solid fa-chart-pie text-emerald-600 dark:text-emerald-400"></i> লাইভ ব্লাড স্টক প্রিভিউ
               </h2>
-              <p className="text-xs text-gray-400 mt-0.5">বর্তমানে যারা রক্ত দেওয়ার জন্য সম্পূর্ণ প্রস্তুত (১২০ দিন অতিক্রমকারী)</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">বর্তমানে যারা রক্ত দেওয়ার জন্য সম্পূর্ণ প্রস্তুত (১২০ দিন অতিক্রমকারী)</p>
             </div>
           </div>
 
@@ -241,122 +241,122 @@ export default function BloodBankPage() {
               <div 
                 key={bg} 
                 onClick={() => setSelectedGroupFilter(selectedGroupFilter === bg ? 'ALL' : bg)}
-                className={`bg-[#0a1c13] border p-4 rounded-2xl text-center cursor-pointer transition-all hover:-translate-y-1 ${selectedGroupFilter === bg ? 'border-red-500 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'border-white/10 hover:border-white/30'}`}
+                className={`bg-white dark:bg-[#0a1c13] border p-4 rounded-2xl text-center cursor-pointer transition-all hover:-translate-y-1 shadow-sm dark:shadow-none ${selectedGroupFilter === bg ? 'border-red-500 bg-red-50 dark:bg-red-500/10 dark:shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/30'}`}
               >
-                <span className="text-xl font-black text-white block mb-1">{bg}</span>
-                <span className="text-2xl font-black text-emerald-400">{bloodCounts[bg] || 0}</span>
-                <span className="text-[9px] text-gray-500 uppercase tracking-widest block mt-1">জন প্রস্তুত</span>
+                <span className="text-xl font-black text-gray-900 dark:text-white block mb-1 transition-colors">{bg}</span>
+                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 transition-colors">{bloodCounts[bg] || 0}</span>
+                <span className="text-[9px] text-gray-500 uppercase tracking-widest block mt-1 transition-colors">জন প্রস্তুত</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* USER DONOR STATUS TOGGLE BAR (OPT-OUT STRATEGY) */}
+        {/* 🔴 USER DONOR STATUS TOGGLE BAR */}
         {currentUser && (
-          <div className="bg-[#0a1c13] border border-white/10 p-6 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl" data-aos="fade-up">
+          <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 p-6 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-soft dark:shadow-xl transition-colors duration-500" data-aos="fade-up">
             <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${currentUser.is_donor ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-red-500/20 border-red-500/50 text-red-400'}`}>
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center border transition-colors ${currentUser.is_donor ? 'bg-emerald-100 dark:bg-emerald-500/20 border-emerald-300 dark:border-emerald-500/50 text-emerald-600 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-500/20 border-red-300 dark:border-red-500/50 text-red-600 dark:text-red-400'}`}>
                 <i className={`fa-solid ${currentUser.is_donor ? 'fa-shield-heart text-xl' : 'fa-triangle-exclamation text-xl'}`}></i>
               </div>
               <div>
-                <h4 className="text-white font-bold text-sm">আপনার ডোনার স্ট্যাটাস: <span className={currentUser.is_donor ? 'text-emerald-400' : 'text-red-400'}>{currentUser.is_donor ? 'সক্রিয় (সুপারহিরো)' : 'নিষ্ক্রিয়'}</span></h4>
-                <p className="text-xs text-gray-400 mt-0.5">আপনি ডিফল্টভাবে আমাদের ডোনার তালিকায় যুক্ত আছেন।</p>
+                <h4 className="text-gray-900 dark:text-white font-bold text-sm transition-colors">আপনার ডোনার স্ট্যাটাস: <span className={currentUser.is_donor ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>{currentUser.is_donor ? 'সক্রিয় (সুপারহিরো)' : 'নিষ্ক্রিয়'}</span></h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">আপনি ডিফল্টভাবে আমাদের ডোনার তালিকায় যুক্ত আছেন।</p>
               </div>
             </div>
 
             <button 
               disabled={isUpdatingStatus}
               onClick={() => handleToggleAttempt(currentUser.is_donor)}
-              className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${currentUser.is_donor ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40' : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg'}`}
+              className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm dark:shadow-none ${currentUser.is_donor ? 'bg-red-50 dark:bg-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/40' : 'bg-emerald-500 hover:bg-emerald-600 text-white dark:shadow-lg'}`}
             >
               {isUpdatingStatus ? <i className="fa-solid fa-spinner fa-spin"></i> : (currentUser.is_donor ? 'স্ট্যাটাস বন্ধ করতে চান?' : 'ডোনার হিসেবে যুক্ত হোন')}
             </button>
           </div>
         )}
 
-        {/* 2. MIDDLE SECTION: KNOWLEDGE HUB (3 MOTIVATIONAL TABS) */}
-        <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-xl" data-aos="fade-up">
-          <h3 className="text-lg font-black text-white mb-6 flex items-center gap-2">
+        {/* 🔴 2. MIDDLE SECTION: KNOWLEDGE HUB */}
+        <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 rounded-3xl p-6 sm:p-8 shadow-soft dark:shadow-xl transition-colors duration-500" data-aos="fade-up">
+          <h3 className="text-lg font-black text-gray-900 dark:text-white mb-6 flex items-center gap-2 transition-colors">
             <i className="fa-solid fa-book-medical text-[#e76f51]"></i> রক্তদান জ্ঞান ও অনুপ্রেরণা
           </h3>
 
-          {/* 3 Interactive Buttons */}
+          {/* Interactive Buttons */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
             <button 
               onClick={() => setActiveTab('why')}
-              className={`p-4 rounded-2xl font-bold text-xs sm:text-sm text-left transition-all border ${activeTab === 'why' ? 'bg-[#e76f51]/20 border-[#e76f51] text-white shadow-glow' : 'bg-black/40 border-white/5 text-gray-400 hover:bg-white/5'}`}
+              className={`p-4 rounded-2xl font-bold text-xs sm:text-sm text-left transition-all border shadow-sm dark:shadow-none ${activeTab === 'why' ? 'bg-orange-50 dark:bg-[#e76f51]/20 border-orange-400 dark:border-[#e76f51] text-orange-900 dark:text-white dark:shadow-glow' : 'bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'}`}
             >
               <i className="fa-solid fa-heart-pulse text-[#e76f51] mr-2 text-base"></i> ১. কেন রক্ত দেব? (মাহাত্ম্য)
             </button>
 
             <button 
               onClick={() => setActiveTab('eligibility')}
-              className={`p-4 rounded-2xl font-bold text-xs sm:text-sm text-left transition-all border ${activeTab === 'eligibility' ? 'bg-emerald-500/20 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-black/40 border-white/5 text-gray-400 hover:bg-white/5'}`}
+              className={`p-4 rounded-2xl font-bold text-xs sm:text-sm text-left transition-all border shadow-sm dark:shadow-none ${activeTab === 'eligibility' ? 'bg-emerald-50 dark:bg-emerald-500/20 border-emerald-400 dark:border-emerald-500 text-emerald-900 dark:text-white dark:shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'}`}
             >
-              <i className="fa-solid fa-user-check text-emerald-400 mr-2 text-base"></i> ২. আমার যোগ্যতা (প্রস্তুত?)
+              <i className="fa-solid fa-user-check text-emerald-500 dark:text-emerald-400 mr-2 text-base"></i> ২. আমার যোগ্যতা (প্রস্তুত?)
             </button>
 
             <button 
               onClick={() => setActiveTab('restrictions')}
-              className={`p-4 rounded-2xl font-bold text-xs sm:text-sm text-left transition-all border ${activeTab === 'restrictions' ? 'bg-blue-500/20 border-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'bg-black/40 border-white/5 text-gray-400 hover:bg-white/5'}`}
+              className={`p-4 rounded-2xl font-bold text-xs sm:text-sm text-left transition-all border shadow-sm dark:shadow-none ${activeTab === 'restrictions' ? 'bg-blue-50 dark:bg-blue-500/20 border-blue-400 dark:border-blue-500 text-blue-900 dark:text-white dark:shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'}`}
             >
-              <i className="fa-solid fa-circle-pause text-blue-400 mr-2 text-base"></i> ৩. সাময়িক বিরতি (সতর্কতা)
+              <i className="fa-solid fa-circle-pause text-blue-500 dark:text-blue-400 mr-2 text-base"></i> ৩. সাময়িক বিরতি (সতর্কতা)
             </button>
           </div>
 
           {/* Tab Content Display */}
-          <div className="bg-black/40 border border-white/5 p-6 rounded-2xl text-sm leading-relaxed text-gray-300 space-y-4">
+          <div className="bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/5 p-6 rounded-2xl text-sm leading-relaxed text-gray-700 dark:text-gray-300 space-y-4 transition-colors duration-500 shadow-inner dark:shadow-none">
             {activeTab === 'why' && (
               <>
-                <h4 className="font-bold text-base text-white">রক্তদান—একটি জীবন বাঁচানোর সর্বশ্রেষ্ঠ ইবাদত ও মানবিক দায়িত্ব</h4>
+                <h4 className="font-bold text-base text-gray-900 dark:text-white transition-colors">রক্তদান—একটি জীবন বাঁচানোর সর্বশ্রেষ্ঠ ইবাদত ও মানবিক দায়িত্ব</h4>
                 <p>পৃথিবীতে এমন কোনো কৃত্রিম আবিষ্কার নেই যা মানুষের রক্তের বিকল্প হতে পারে। একমাত্র মানুষের রক্তই মানুষের প্রাণ বাঁচাতে পারে। আপনি যখন রক্তদান করেন, তখন:</p>
-                <ul className="list-disc pl-5 space-y-1 text-gray-400">
+                <ul className="list-disc pl-5 space-y-1 text-gray-600 dark:text-gray-400 transition-colors">
                   <li>একজন মৃত্যুর মুখোমুখি হওয়া রোগীকে আপনি নতুন জীবন ফিরিয়ে দেন।</li>
                   <li>আপনার শরীরের অতিরিক্ত আয়রন দূর হয়, যা হার্ট অ্যাটাকের ঝুঁকি উল্লেখযোগ্যভাবে কমিয়ে দেয়।</li>
                   <li>নিয়মিত রক্তদান শরীরের নতুন রক্ত কণিকা তৈরিতে (Bone Marrow Stimulation) সাহায্য করে।</li>
                 </ul>
-                <p className="text-emerald-400 font-bold">সুপারহিরো হওয়ার জন্য ক্যাপ বা মুখোশের প্রয়োজন হয় না, এক ব্যাগ রক্তই যথেষ্ট!</p>
+                <p className="text-emerald-600 dark:text-emerald-400 font-bold transition-colors">সুপারহিরো হওয়ার জন্য ক্যাপ বা মুখোশের প্রয়োজন হয় না, এক ব্যাগ রক্তই যথেষ্ট!</p>
               </>
             )}
 
             {activeTab === 'eligibility' && (
               <>
-                <h4 className="font-bold text-base text-white">আমি কি রক্ত দেওয়ার উপযুক্ত?</h4>
+                <h4 className="font-bold text-base text-gray-900 dark:text-white transition-colors">আমি কি রক্ত দেওয়ার উপযুক্ত?</h4>
                 <p>খুব সাধারণ কিছু শর্ত পূরণ করলেই আপনি একজন গর্বিত রক্তদাতা হতে পারেন:</p>
-                <ul className="list-disc pl-5 space-y-1 text-gray-400">
+                <ul className="list-disc pl-5 space-y-1 text-gray-600 dark:text-gray-400 transition-colors">
                   <li><strong>বয়স:</strong> ১৮ থেকে ৬০ বছরের মধ্যে যে কেউ।</li>
                   <li><strong>ওজন:</strong> ন্যূনতম ৫০ কেজি বা তার বেশি।</li>
                   <li><strong>স্বাস্থ্য:</strong> শরীর সম্পূর্ণ সুস্থ ও সবল থাকতে হবে, কোনো সংক্রামক ব্যাধি থাকা চলবে না।</li>
                   <li><strong>বিরতি:</strong> পুরুষদের ক্ষেত্রে প্রতি ৩ মাস (১২০ দিন) পর এবং নারীদের ক্ষেত্রে ৪ মাস পর পুনরায় রক্ত দেওয়া যায়।</li>
                 </ul>
-                <p className="text-emerald-400 font-bold">যদি আপনার এই সাধারণ গুণগুলো থাকে, তবে আপনি আজই একজন জীবনরক্ষাকারী!</p>
+                <p className="text-emerald-600 dark:text-emerald-400 font-bold transition-colors">যদি আপনার এই সাধারণ গুণগুলো থাকে, তবে আপনি আজই একজন জীবনরক্ষাকারী!</p>
               </>
             )}
 
             {activeTab === 'restrictions' && (
               <>
-                <h4 className="font-bold text-base text-white">কখন সাময়িকভাবে রক্ত দেওয়া থেকে বিরত থাকা উচিত?</h4>
+                <h4 className="font-bold text-base text-gray-900 dark:text-white transition-colors">কখন সাময়িকভাবে রক্ত দেওয়া থেকে বিরত থাকা উচিত?</h4>
                 <p>রোগী ও আপনার নিজের নিরাপত্তার স্বার্থে কিছু নির্দিষ্ট সময়ে রক্তদান থেকে সাময়িক বিরতি নিতে হয়:</p>
-                <ul className="list-disc pl-5 space-y-1 text-gray-400">
+                <ul className="list-disc pl-5 space-y-1 text-gray-600 dark:text-gray-400 transition-colors">
                   <li>যদি শরীরে বর্তমানে কোনো ধরনের অ্যান্টিবায়োটিক বা ভারী কোর্স medication চলতে থাকে।</li>
                   <li>সম্প্রতি কোনো বড় অপারেশন বা সার্জারি হয়ে থাকলে।</li>
                   <li>গত ৪ মাসের মধ্যে ট্যাটু (Tattoo) বা বডি পিয়ার্সিং করানো হয়ে থাকলে।</li>
                   <li>জ্বর, সর্দি বা কাশির মতো সাময়িক অসুস্থতায় আক্রান্ত থাকলে সম্পূর্ণ সুস্থ হওয়ার পর।</li>
                 </ul>
-                <p className="text-blue-400 font-bold">এই ছোট সতর্কাতাগুলো আমাদের ব্লাড ব্যাংককে শতভাগ নিরাপদ রাখে।</p>
+                <p className="text-blue-600 dark:text-blue-400 font-bold transition-colors">এই ছোট সতর্কাতাগুলো আমাদের ব্লাড ব্যাংককে শতভাগ নিরাপদ রাখে।</p>
               </>
             )}
           </div>
         </div>
 
-        {/* 3. BOTTOM SECTION: PRIVACY-FOCUSED DONOR DIRECTORY */}
+        {/* 🔴 3. BOTTOM SECTION: PRIVACY-FOCUSED DONOR DIRECTORY */}
         <div className="space-y-6" data-aos="fade-up">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/10 pb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-200 dark:border-white/10 pb-4 transition-colors">
             <div>
-              <h3 className="text-xl font-black text-white flex items-center gap-2">
+              <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 transition-colors">
                 <i className="fa-solid fa-users-line text-[#e76f51]"></i> ডোনার কমিউনিটি ডিরেক্টরি
               </h3>
-              <p className="text-xs text-gray-400 mt-0.5">প্রাইভেসি সুরক্ষার জন্য ফোন নম্বর গোপন রাখা হয়েছে। সরাসরি ইনবক্সে যোগাযোগ করুন।</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">প্রাইভেসি সুরক্ষার জন্য ফোন নম্বর গোপন রাখা হয়েছে। সরাসরি ইনবক্সে যোগাযোগ করুন।</p>
             </div>
 
             {/* Filters */}
@@ -364,7 +364,7 @@ export default function BloodBankPage() {
               <select 
                 value={selectedGroupFilter} 
                 onChange={(e) => setSelectedGroupFilter(e.target.value)}
-                className="bg-black/50 border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#e76f51]"
+                className="bg-white dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl px-4 py-2 text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#e76f51] shadow-sm dark:shadow-none transition-colors"
               >
                 <option value="ALL">সকল ব্লাড গ্রুপ</option>
                 {bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
@@ -372,7 +372,7 @@ export default function BloodBankPage() {
 
               <button 
                 onClick={() => setOnlyAvailable(!onlyAvailable)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${onlyAvailable ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-black/50 border-white/10 text-gray-400'}`}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border shadow-sm dark:shadow-none ${onlyAvailable ? 'bg-emerald-50 dark:bg-emerald-500/20 border-emerald-400 dark:border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'bg-white dark:bg-black/50 border-gray-300 dark:border-white/10 text-gray-600 dark:text-gray-400'}`}
               >
                 <i className="fa-solid fa-check mr-1"></i> শুধু প্রস্তুত ডোনার
               </button>
@@ -381,7 +381,7 @@ export default function BloodBankPage() {
 
           {/* Donors Grid */}
           {filteredDonors.length === 0 ? (
-            <div className="bg-[#0a1c13] border border-white/10 rounded-3xl p-12 text-center text-gray-500">
+            <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 rounded-3xl p-12 text-center text-gray-400 dark:text-gray-500 shadow-soft dark:shadow-none transition-colors duration-500">
               <i className="fa-solid fa-ghost text-5xl mb-3 opacity-40"></i>
               <p className="text-sm font-bold">কোনো ডোনার পাওয়া যায়নি!</p>
             </div>
@@ -390,21 +390,21 @@ export default function BloodBankPage() {
               {filteredDonors.map(donor => {
                 const eligible = isEligible(donor.last_donation_date);
                 return (
-                  <div key={donor.id} className="bg-[#0a1c13] border border-white/10 hover:border-[#e76f51]/40 p-5 rounded-2xl flex flex-col justify-between transition-all shadow-xl">
+                  <div key={donor.id} className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 hover:border-orange-300 dark:hover:border-[#e76f51]/40 p-5 rounded-2xl flex flex-col justify-between transition-all shadow-soft dark:shadow-xl">
                     <div>
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h4 className="font-bold text-white text-base">{donor.full_name}</h4>
-                          <p className="text-[10px] text-gray-400 font-mono mt-0.5">Batch: {donor.batch || 'N/A'} | {donor.department || 'N/A'}</p>
+                          <h4 className="font-bold text-gray-900 dark:text-white text-base transition-colors">{donor.full_name}</h4>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 font-mono mt-0.5 transition-colors">Batch: {donor.batch || 'N/A'} | {donor.department || 'N/A'}</p>
                         </div>
-                        <span className="bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1 rounded-xl text-sm font-black">
+                        <span className="bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 px-3 py-1 rounded-xl text-sm font-black transition-colors">
                           {donor.blood_group || 'N/A'}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-2 my-4">
                         <span className={`w-2.5 h-2.5 rounded-full ${eligible ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
-                        <span className={`text-xs font-bold ${eligible ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        <span className={`text-xs font-bold transition-colors ${eligible ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
                           {eligible ? 'রক্ত দেওয়ার জন্য প্রস্তুত (Available)' : 'বিশ্রামে আছে (On Rest)'}
                         </span>
                       </div>
@@ -412,7 +412,7 @@ export default function BloodBankPage() {
 
                     <button 
                       onClick={() => handleStartChatWithDonor(donor)}
-                      className="w-full bg-white/5 hover:bg-[#e76f51] text-gray-300 hover:text-white border border-white/10 hover:border-[#e76f51] py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                      className="w-full bg-gray-50 dark:bg-white/5 hover:bg-[#e76f51] dark:hover:bg-[#e76f51] text-gray-700 dark:text-gray-300 hover:text-white border border-gray-200 dark:border-white/10 hover:border-transparent dark:hover:border-[#e76f51] py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-sm dark:shadow-none"
                     >
                       <i className="fa-regular fa-paper-plane"></i> ইনবক্সে মেসেজ পাঠান
                     </button>
@@ -427,28 +427,28 @@ export default function BloodBankPage() {
 
       {/* 🔴 EMOTIONAL BLACKMAIL WARNING MODAL FOR TOGGLE */}
       {showWarningModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-          <div className="bg-[#0a1c13] border border-red-500/40 p-6 sm:p-8 rounded-3xl w-full max-w-md relative z-10 text-center shadow-2xl">
-            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/40 text-red-500 text-2xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 dark:bg-black/80 backdrop-blur-md animate-[fadeIn_0.2s_ease-out] transition-colors duration-500">
+          <div className="bg-white dark:bg-[#0a1c13] border border-red-200 dark:border-red-500/40 p-6 sm:p-8 rounded-3xl w-full max-w-md relative z-10 text-center shadow-2xl transition-colors duration-500">
+            <div className="w-16 h-16 bg-red-50 dark:bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-200 dark:border-red-500/40 text-red-500 text-2xl transition-colors">
               <i className="fa-solid fa-heart-crack animate-pulse"></i>
             </div>
 
-            <h3 className="text-xl font-black text-white mb-2">আপনি কি সত্যিই নিশ্চিত?</h3>
-            <p className="text-sm text-gray-300 leading-relaxed mb-6">
+            <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2 transition-colors">আপনি কি সত্যিই নিশ্চিত?</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-6 transition-colors">
               আপনার একটি রক্তকণিকা হয়তো এই মুহূর্তে হাসপাতালের বেডে থাকা কোনো মুমূর্ষু রোগীর শেষ ভরসা হতে পারে। আপনি নিজেকে নিষ্ক্রিয় করে ফেললে একজন অসহায় মানুষ হয়তো রক্তের জন্য বড় বিপদে পড়তে পারে। সুপারহিরো হওয়ার এই মহৎ সুযোগটি কি আসলেই হাতছাড়া করতে চান?
             </p>
 
             <div className="flex flex-col gap-3">
               <button 
                 onClick={() => setShowWarningModal(false)}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-black uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-black uppercase tracking-wider transition-all shadow-md dark:shadow-[0_0_15px_rgba(16,185,129,0.4)]"
               >
                 <i className="fa-solid fa-shield-heart mr-2"></i> না, আমি সুপারহিরোই থাকতে চাই!
               </button>
               
               <button 
                 onClick={() => updateDonorStatus(false)}
-                className="w-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-red-400 py-2.5 rounded-xl text-xs font-bold transition-colors border border-white/5"
+                className="w-full bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 py-2.5 rounded-xl text-xs font-bold transition-colors border border-gray-200 dark:border-white/5"
               >
                 হ্যাঁ, তবুও সাময়িকভাবে বন্ধ রাখুন
               </button>
@@ -459,55 +459,55 @@ export default function BloodBankPage() {
 
       {/* 🔴 EMERGENCY SOS BROADCAST MODAL */}
       {showSosModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#0a1c13] border border-red-500/40 p-6 sm:p-8 rounded-3xl w-full max-w-lg relative z-10 shadow-2xl">
-            <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-              <h3 className="text-xl font-black text-white flex items-center gap-2">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 dark:bg-black/80 backdrop-blur-md transition-colors duration-500">
+          <div className="bg-white dark:bg-[#0a1c13] border border-red-200 dark:border-red-500/40 p-6 sm:p-8 rounded-3xl w-full max-w-lg relative z-10 shadow-2xl transition-colors duration-500">
+            <div className="flex justify-between items-center mb-6 border-b border-gray-200 dark:border-white/10 pb-4 transition-colors">
+              <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 transition-colors">
                 <i className="fa-solid fa-bullhorn text-red-500"></i> ইমার্জেন্সি ব্লাড রিকোয়েস্ট (SOS)
               </h3>
-              <button onClick={() => setShowSosModal(false)} className="text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
+              <button onClick={() => setShowSosModal(false)} className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
             </div>
 
             <form onSubmit={handleSendSos} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-400 mb-1">কোন রক্তের গ্রুপ প্রয়োজন? *</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 transition-colors">কোন রক্তের গ্রুপ প্রয়োজন? *</label>
                 <select 
                   value={sosData.bloodGroup} 
                   onChange={(e) => setSosData({...sosData, bloodGroup: e.target.value})}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 font-bold"
+                  className="w-full bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-red-500 font-bold transition-colors shadow-sm dark:shadow-none appearance-none"
                 >
                   {bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-400 mb-1">হাসপাতাল বা লোকেশন *</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 transition-colors">হাসপাতাল বা লোকেশন *</label>
                 <input 
                   required
                   type="text" 
                   value={sosData.hospital} 
                   onChange={(e) => setSosData({...sosData, hospital: e.target.value})}
                   placeholder="যেমন: সিএমসিএইচ, চট্টগ্রাম" 
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500" 
+                  className="w-full bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-red-500 transition-colors shadow-sm dark:shadow-none" 
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-400 mb-1">রোগীর বিবরণ ও যোগাযোগের ফোন নম্বর *</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 transition-colors">রোগীর বিবরণ ও যোগাযোগের ফোন নম্বর *</label>
                 <textarea 
                   required
                   rows="3"
                   value={sosData.details} 
                   onChange={(e) => setSosData({...sosData, details: e.target.value})}
                   placeholder="বিস্তারিত লিখুন এবং আপনার ফোন নম্বর দিন..." 
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 resize-none" 
+                  className="w-full bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-red-500 resize-none transition-colors shadow-sm dark:shadow-none" 
                 />
               </div>
 
               <button 
                 disabled={isSendingSos}
                 type="submit" 
-                className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(220,38,38,0.5)] flex items-center justify-center gap-2 mt-4"
+                className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-md dark:shadow-[0_0_20px_rgba(220,38,38,0.5)] flex items-center justify-center gap-2 mt-4 hover:-translate-y-1"
               >
                 {isSendingSos ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-paper-plane"></i>}
                 {isSendingSos ? 'ডোনারদের কাছে পাঠানো হচ্ছে...' : 'সকল যোগ্য ডোনারকে অ্যালার্ট পাঠান'}
