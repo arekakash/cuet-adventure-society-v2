@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps"; // 🔴 ZoomableGroup সম্পূর্ণ রিমুভ করা হয়েছে
+import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps"; // 🔴 ZoomableGroup বাদ দেওয়া হয়েছে
 import { geoCentroid } from "d3-geo";
 import Link from "next/link";
 import html2canvas from "html2canvas";
@@ -21,38 +21,41 @@ const colorPalette = [
   { name: "Teal", value: "#2dd4bf" }
 ];
 
-const districtBn = {
-  "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
-  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Bramhanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Chittagong": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Coxs Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
-  "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
-  "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
-  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Netrakona": "নেত্রকোনা", "Sherpur": "শেরপুর",
-  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Chapainababganj": "চাঁপাইনবাবগঞ্জ", "Nawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
-  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Panchagar": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
-  "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
-};
+const e2b = (num) => String(num).replace(/[0-9]/g, d => '০১২৩৪৫৬৭৮৯'[d]);
 
 const standardMap = {
   "Chapainababganj": "Chapainawabganj", "Nawabganj": "Chapainawabganj", "Netrakona": "Netrokona",
   "Panchagar": "Panchagarh", "Bramhanbaria": "Brahmanbaria", "Chittagong": "Chattogram", "Coxs Bazar": "Cox's Bazar"
 };
 
+const districtBn = {
+  "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
+  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
+  "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
+  "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
+  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Sherpur": "শেরপুর",
+  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
+  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
+  "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
+};
+
+// 🔴 ওভারল্যাপিং এড়ানোর জন্য ছোট জেলাগুলোর ফন্ট সাইজ এবং পজিশন
 const districtConfigs = {
-  "Dhaka": { fontSize: 4.5, dx: 0, dy: -2 },
-  "Narayanganj": { fontSize: 4, dx: 2, dy: 2 },
-  "Munshiganj": { fontSize: 4, dx: 0, dy: 4 },
-  "Madaripur": { fontSize: 4.5, dx: 0, dy: 0 },
-  "Shariatpur": { fontSize: 4.5, dx: 0, dy: 0 },
-  "Jhalokati": { fontSize: 4.5, dx: 0, dy: 0 },
-  "Feni": { fontSize: 4.5, dx: 0, dy: 0 },
-  "Meherpur": { fontSize: 4.5, dx: 0, dy: 0 },
-  "Narail": { fontSize: 4.5, dx: 0, dy: 0 },
-  "Magura": { fontSize: 4.5, dx: 0, dy: 0 },
-  "Rajbari": { fontSize: 4.5, dx: 0, dy: 0 },
-  "Chapainababganj": { fontSize: 4.5, dx: -2, dy: 0 },
-  "Chapainawabganj": { fontSize: 4.5, dx: -2, dy: 0 },
-  "Brahmanbaria": { fontSize: 5, dx: 0, dy: 0 },
-  "Lalmonirhat": { fontSize: 4.5, dx: 0, dy: 0 },
+  "Dhaka": { fontSize: 9, dx: 0, dy: -3 },
+  "Narayanganj": { fontSize: 8, dx: 5, dy: 3 },
+  "Munshiganj": { fontSize: 9, dx: 0, dy: 4 },
+  "Madaripur": { fontSize: 10, dx: 0, dy: 0 },
+  "Shariatpur": { fontSize: 10, dx: 0, dy: 0 },
+  "Jhalokati": { fontSize: 10, dx: 0, dy: 0 },
+  "Feni": { fontSize: 11, dx: 0, dy: 0 },
+  "Meherpur": { fontSize: 11, dx: 0, dy: 0 },
+  "Narail": { fontSize: 11, dx: 0, dy: 0 },
+  "Magura": { fontSize: 11, dx: 0, dy: 0 },
+  "Rajbari": { fontSize: 11, dx: 0, dy: 0 },
+  "Chapainawabganj": { fontSize: 11, dx: -2, dy: 0 },
+  "Brahmanbaria": { fontSize: 11, dx: 0, dy: 0 },
+  "Lalmonirhat": { fontSize: 10, dx: 0, dy: 0 },
+  "Jashore": { fontSize: 12, dx: 0, dy: 0 },
 };
 
 const bangladeshDivisions = [
@@ -66,8 +69,6 @@ const bangladeshDivisions = [
   { name: "ময়মনসিংহ", districts: ["Jamalpur", "Mymensingh", "Netrokona", "Sherpur"] }
 ];
 
-const e2b = (num) => String(num).replace(/[0-9]/g, d => '০১২৩৪৫৬৭৮৯'[d]);
-
 export default function MyBangladeshPage() {
   const [visitedDistricts, setVisitedDistricts] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
@@ -78,13 +79,13 @@ export default function MyBangladeshPage() {
   
   const [selectedColor, setSelectedColor] = useState(colorPalette[0].value);
   const [downloadTheme, setDownloadTheme] = useState("dark"); 
+  
+  // 🔴 নতুন স্টেট: লেবেলের ধরন (নাম / পিন আইকন / বিন্দু / ফাঁকা)
+  const [markerType, setMarkerType] = useState("name"); 
   const [displayName, setDisplayName] = useState("গেস্ট এক্সপ্লোরার");
   
-  // 🔴 নতুন স্টেট: মার্কার স্টাইল (নাম, বিন্দু, আইকন, ফাঁকা)
-  const [markerType, setMarkerType] = useState("name"); 
-  
-  const BASE_SCALE = 4200;
-  const [zoomScale, setZoomScale] = useState(BASE_SCALE);
+  // 🔴 CSS Zoom Level State (Touch Conflict Free)
+  const [zoomLevel, setZoomLevel] = useState(1);
   
   const mapCardRef = useRef(null);
 
@@ -110,7 +111,7 @@ export default function MyBangladeshPage() {
     if (data && !error) {
       const validSet = new Set(bangladeshDivisions.flatMap(div => div.districts));
       let rawDistricts = data.visited_districts || [];
-      let cleaned = rawDistricts.map(d => standardMap[d] || d);
+      let cleaned = rawDistricts.map(d => standardMap[d] || d); 
       cleaned = [...new Set(cleaned)].filter(d => validSet.has(d));
 
       setUserProfile(data);
@@ -163,9 +164,9 @@ export default function MyBangladeshPage() {
     toggleDistrict(rawName);
   };
 
-  // 🔴 সিম্পল জুম ইন/আউট
-  const handleZoomIn = () => setZoomScale(prev => Math.min(prev * 1.3, BASE_SCALE * 3));
-  const handleZoomOut = () => setZoomScale(prev => Math.max(prev / 1.3, BASE_SCALE));
+  // 🔴 CSS Zoom Handlers
+  const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.3, 3));
+  const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.3, 1));
 
   const handleDownloadMap = async (format) => {
     if (!mapCardRef.current) return;
@@ -263,46 +264,31 @@ export default function MyBangladeshPage() {
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-4 w-full md:w-auto">
+          <div className="flex flex-col items-end gap-3 w-full md:w-auto">
             {saving && (
               <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2" style={{ color: selectedColor }}>
                 <i className="fa-solid fa-circle-notch fa-spin"></i> সেভ হচ্ছে...
               </div>
             )}
             
-            {/* 🔴 নতুন মার্কার স্টাইল প্যানেল */}
-            <div className="flex flex-wrap gap-3 w-full sm:w-auto justify-end">
-              <div className="flex bg-black/40 rounded-xl p-1 border border-white/5">
-                {[
-                  { id: 'name', icon: 'fa-font', label: 'নাম' },
-                  { id: 'beacon', icon: 'fa-circle-dot', label: 'বিন্দু' },
-                  { id: 'icon', icon: 'fa-location-dot', label: 'আইকন' },
-                  { id: 'none', icon: 'fa-ban', label: 'ফাঁকা' }
-                ].map(opt => (
-                  <button 
-                    key={opt.id}
-                    onClick={() => setMarkerType(opt.id)}
-                    className={`px-3 py-2 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 ${markerType === opt.id ? 'bg-white/10 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}
-                    style={{ color: markerType === opt.id ? selectedColor : '' }}
-                  >
-                    <i className={`fa-solid ${opt.icon}`}></i> {opt.label}
-                  </button>
-                ))}
+            {/* 🔴 ম্যাপের লেবেল এবং থিম কন্ট্রোল প্যানেল */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <div className="flex bg-black/40 rounded-xl p-1 border border-white/5 w-full sm:w-auto justify-between">
+                <button onClick={() => setMarkerType("name")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'name' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>নাম</button>
+                <button onClick={() => setMarkerType("icon")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'icon' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>আইকন</button>
+                <button onClick={() => setMarkerType("dot")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'dot' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>বিন্দু</button>
+                <button onClick={() => setMarkerType("blank")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'blank' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>ফাঁকা</button>
               </div>
 
-              <div className="flex bg-black/40 rounded-xl p-1 border border-white/5">
-                <button onClick={() => setDownloadTheme("dark")} className={`px-4 py-2 rounded-lg text-[11px] font-bold transition-all ${!isLight ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>
-                  <i className="fa-solid fa-moon mr-1"></i> ডার্ক
-                </button>
-                <button onClick={() => setDownloadTheme("light")} className={`px-4 py-2 rounded-lg text-[11px] font-bold transition-all ${isLight ? 'bg-white text-black shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>
-                  <i className="fa-solid fa-sun mr-1"></i> লাইট
-                </button>
+              <div className="flex bg-black/40 rounded-xl p-1 border border-white/5 w-full sm:w-auto justify-between">
+                <button onClick={() => setDownloadTheme("dark")} className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${!isLight ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}><i className="fa-solid fa-moon mr-1"></i> ডার্ক</button>
+                <button onClick={() => setDownloadTheme("light")} className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${isLight ? 'bg-white text-black shadow-md' : 'text-gray-500 hover:text-gray-300'}`}><i className="fa-solid fa-sun mr-1"></i> লাইট</button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ডাউনলোড কার্ড */}
+        {/* 🔴 ডাউনলোড কার্ড */}
         <div 
           ref={mapCardRef} 
           className="rounded-[2rem] p-6 sm:p-8 shadow-2xl relative" 
@@ -370,61 +356,65 @@ export default function MyBangladeshPage() {
               </div>
             )}
 
-            <ComposableMap
-              projection="geoMercator"
-              // 🔴 সরাসরি zoomScale ব্যবহার করা হয়েছে (ZoomableGroup বাদ)
-              projectionConfig={{ scale: zoomScale, center: [90.35, 23.8] }}
-              className="w-full h-full outline-none transition-all duration-300 ease-in-out"
+            {/* 🔴 CSS Transform ব্যবহার করে জুম কন্ট্রোল (স্ক্রল কনফ্লিক্ট এড়াতে) */}
+            <div 
+              className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
+              style={{ transform: `scale(${zoomLevel})`, transformOrigin: "center" }}
             >
-              <Geographies geography={geoUrl}>
-                {({ geographies }) => (
-                  <>
-                    {geographies.map((geo) => {
-                      const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
-                      const districtName = standardMap[rawName] || rawName;
-                      const isVisited = visitedDistricts.includes(districtName);
+              <ComposableMap
+                projection="geoMercator"
+                projectionConfig={{ scale: 4200, center: [90.35, 23.8] }}
+                className="w-full h-full outline-none"
+              >
+                <Geographies geography={geoUrl}>
+                  {({ geographies }) => (
+                    <>
+                      {geographies.map((geo) => {
+                        const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
+                        const districtName = standardMap[rawName] || rawName;
+                        const isVisited = visitedDistricts.includes(districtName);
 
-                      return (
-                        <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          onClick={() => handleMapClick(geo)}
-                          onMouseEnter={() => setHoveredDistrict(districtBn[districtName] || districtName)}
-                          onMouseLeave={() => setHoveredDistrict("")}
-                          style={{
-                            default: {
-                              fill: isVisited ? selectedColor : themeStyles.unvisitedFill,
-                              outline: "none",
-                              stroke: themeStyles.mapStroke,
-                              strokeWidth: isLight ? 1 : 0.8,
-                              filter: isVisited && !isLight ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
-                              transition: "all 0.3s ease"
-                            },
-                            hover: { fill: isVisited ? selectedColor : "#3b82f6", outline: "none", stroke: isLight ? "#000" : "#ffffff", strokeWidth: 1.5, cursor: "pointer" }
-                          }}
-                        />
-                      );
-                    })}
-                    
-                    {/* 🔴 ডায়নামিক মার্কার রেন্ডারিং */}
-                    {geographies.map((geo) => {
-                      const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
-                      const districtName = standardMap[rawName] || rawName;
-                      const isVisited = visitedDistricts.includes(districtName);
+                        return (
+                          <Geography
+                            key={geo.rsmKey}
+                            geography={geo}
+                            onClick={() => handleMapClick(geo)}
+                            onMouseEnter={() => setHoveredDistrict(districtBn[districtName] || districtName)}
+                            onMouseLeave={() => setHoveredDistrict("")}
+                            style={{
+                              default: {
+                                fill: isVisited ? selectedColor : themeStyles.unvisitedFill,
+                                outline: "none",
+                                stroke: themeStyles.mapStroke,
+                                strokeWidth: isLight ? 1 : 0.8,
+                                filter: isVisited && !isLight ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
+                                transition: "all 0.3s ease"
+                              },
+                              hover: { fill: isVisited ? selectedColor : "#3b82f6", outline: "none", stroke: isLight ? "#000" : "#ffffff", strokeWidth: 1.5, cursor: "pointer" }
+                            }}
+                          />
+                        );
+                      })}
                       
-                      if (!isVisited || markerType === 'none') return null;
-                      const centroid = geoCentroid(geo);
-                      const bengaliName = districtBn[districtName] || districtName;
-                      const config = districtConfigs[districtName] || { fontSize: 6, dx: 0, dy: 0 };
-                      const markerFill = isLight ? '#0f172a' : '#ffffff';
+                      {geographies.map((geo) => {
+                        const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
+                        const districtName = standardMap[rawName] || rawName;
+                        const isVisited = visitedDistricts.includes(districtName);
+                        
+                        // যদি জেলা সিলেক্ট না থাকে বা ইউজার "ফাঁকা" অপশন বেছে নেয়
+                        if (!isVisited || markerType === "blank") return null;
+                        
+                        const centroid = geoCentroid(geo);
+                        const bengaliName = districtBn[districtName] || districtName;
+                        const config = districtConfigs[districtName] || { fontSize: 13, dx: 0, dy: 0 }; // 🔴 ডিফল্ট ফন্ট সাইজ ১৩
 
-                      return (
-                        <Marker key={`${geo.rsmKey}-marker`} coordinates={centroid}>
-                          <g transform={`translate(${config.dx}, ${config.dy})`}>
-                            {markerType === 'name' && (
+                        return (
+                          <Marker key={`${geo.rsmKey}-label`} coordinates={centroid}>
+                            {markerType === "name" && (
                               <text
-                                y="2"
-                                fontSize={config.fontSize}
+                                x={config.dx}
+                                y={config.dy + 2}
+                                fontSize={config.fontSize} 
                                 fontFamily="'Noto Sans Bengali', sans-serif"
                                 textAnchor="middle"
                                 alignmentBaseline="middle"
@@ -435,37 +425,35 @@ export default function MyBangladeshPage() {
                                 {bengaliName}
                               </text>
                             )}
-
-                            {markerType === 'beacon' && (
-                              <g className="pointer-events-none">
-                                <circle cx={0} cy={0} r={1.5} fill={markerFill} />
-                                <circle cx={0} cy={0} r={3} fill="none" stroke={markerFill} strokeWidth={0.5} opacity={0.6} />
-                              </g>
+                            
+                            {markerType === "dot" && (
+                              <circle 
+                                cx={0} cy={0} r={4} 
+                                fill={themeStyles.nameLabelColor} 
+                                className="pointer-events-none"
+                                style={{ filter: isLight ? 'drop-shadow(0px 1px 1px rgba(255,255,255,0.8))' : 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }} 
+                              />
                             )}
 
-                            {markerType === 'icon' && (
-                              <g transform="translate(0, -3)" className="pointer-events-none">
+                            {markerType === "icon" && (
+                              <g transform="translate(-6, -16) scale(0.035)" className="pointer-events-none" style={{ filter: isLight ? 'drop-shadow(0px 30px 30px rgba(255,255,255,0.8))' : 'drop-shadow(0px 30px 30px rgba(0,0,0,0.8))' }}>
                                 <path 
-                                  d="M0,4 C-2,1 -3,-1 -3,-3 A3,3 0 1,1 3,-3 C3,-1 2,1 0,4 Z" 
-                                  fill={selectedColor} 
-                                  stroke={isLight ? '#fff' : '#000'} 
-                                  strokeWidth={0.5} 
+                                  d="M256 0C161.9 0 85.3 76.6 85.3 170.7c0 119.5 170.7 341.3 170.7 341.3s170.7-221.8 170.7-341.3C426.7 76.6 350.1 0 256 0zm0 256c-47.1 0-85.3-38.2-85.3-85.3S208.9 85.3 256 85.3s85.3 38.2 85.3 85.3S303.1 256 256 256z" 
+                                  fill={themeStyles.nameLabelColor} 
                                 />
-                                <circle cx={0} cy={-3} r={1} fill={isLight ? '#fff' : '#000'} />
                               </g>
                             )}
-                          </g>
-                        </Marker>
-                      );
-                    })}
-                  </>
-                )}
-              </Geographies>
-            </ComposableMap>
+                          </Marker>
+                        );
+                      })}
+                    </>
+                  )}
+                </Geographies>
+              </ComposableMap>
+            </div>
           </div>
         </div>
         
-        {/* চেকলিস্ট */}
         <div className="mt-8 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl" data-aos="fade-up">
           <h3 className="text-xl sm:text-2xl font-black mb-8 text-white flex items-center gap-3 border-b border-white/10 pb-4">
             <i className="fa-solid fa-list-check" style={{ color: selectedColor }}></i> দ্রুত জেলা নির্বাচন করুন
@@ -508,7 +496,7 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* ডাউনলোড প্যানেল (সবার নিচে) */}
+        {/* 🔴 ডাউনলোড প্যানেল (সবার নিচে) */}
         {visitedDistricts.length > 0 && (
           <div className="mt-8 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center" data-aos="fade-up">
             <h3 className="text-xl font-black text-white mb-2">আপনার ম্যাপ প্রস্তুত!</h3>
