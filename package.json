@@ -9,7 +9,6 @@
   "dependencies": {
     "@supabase/supabase-js": "latest",
     "aos": "^2.3.4",
-    "bangladesh-geojson": "^1.0.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
