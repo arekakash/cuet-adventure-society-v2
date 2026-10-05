@@ -40,7 +40,6 @@ const districtBn = {
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
-// 🔴 স্মার্ট ওভারল্যাপ ফ্রি টাইপোগ্রাফি (বড় ফন্ট, কিন্তু ১০০% নিখুঁত পজিশন)
 const districtConfigs = {
   "Dhaka": { fontSize: 5, dx: 0, dy: -1.5 },
   "Gazipur": { fontSize: 5.5, dx: 0, dy: -2.5 },
@@ -99,12 +98,11 @@ export default function MyBangladeshPage() {
   const [markerType, setMarkerType] = useState("name"); 
   const [displayName, setDisplayName] = useState("গেস্ট এক্সপ্লোরার");
   
-  const BASE_SCALE = 4800; 
+  const BASE_SCALE = 5200; // 🔴 ম্যাপের সাইজ আগের চেয়ে অনেক বড় করা হয়েছে
   const [zoomLevel, setZoomLevel] = useState(1);
   
   const mapCardRef = useRef(null);
 
-  // 🔴 ইমেজ ক্রপিংয়ের জন্য প্রয়োজনীয় স্টেটস (Zero Storage Logic)
   const fileInputRef = useRef(null);
   const [rawImage, setRawImage] = useState(null);
   const [croppedAvatar, setCroppedAvatar] = useState(null);
@@ -308,7 +306,6 @@ export default function MyBangladeshPage() {
   return (
     <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       
-      {/* 🔴 Full Screen Cropper Modal */}
       {rawImage && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col">
           <div className="relative flex-1">
@@ -342,14 +339,7 @@ export default function MyBangladeshPage() {
         </div>
       )}
 
-      {/* Hidden File Input */}
-      <input 
-        type="file" 
-        accept="image/*" 
-        ref={fileInputRef} 
-        onChange={handleFileChange} 
-        className="hidden" 
-      />
+      <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
 
       <div className="absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
       <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
@@ -360,7 +350,6 @@ export default function MyBangladeshPage() {
             <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors font-bold mb-4 text-sm">
               <i className="fa-solid fa-arrow-left"></i> হোমে ফিরে যান
             </Link>
-            
             <div className="bg-[#0a1c13] border border-white/10 px-5 py-4 rounded-2xl shadow-lg">
               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-3">আপনার প্রিয় থিম কালার বেছে নিন:</p>
               <div className="flex flex-wrap gap-3">
@@ -400,97 +389,95 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* 🔴 ডাউনলোড কার্ড (Perfect 4:5 Aspect Ratio - No glassmorphism inside) */}
+        {/* 🔴 Perfect 4:5 Download Card */}
         <div 
           ref={mapCardRef} 
-          className="rounded-[2rem] p-4 sm:p-5 shadow-2xl relative flex flex-col mx-auto w-full max-w-[500px] aspect-[4/5] overflow-hidden" 
+          className="rounded-[2rem] p-4 sm:p-5 shadow-2xl relative flex flex-col mx-auto w-full max-w-[480px] aspect-[4/5] overflow-hidden" 
           style={{ backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.borderColor}` }}
           data-aos="zoom-in"
         >
-          {/* 🔴 কম্প্যাক্ট হেডার সেকশন */}
-          <div className="flex justify-between items-center mb-3 sm:mb-4 border-b pb-2 sm:pb-3 shrink-0" style={{ borderColor: themeStyles.borderColor }}>
-            <div className="flex items-center gap-3 sm:gap-4">
-              
-              {/* 🔴 প্রোফাইল পিকচার (আগের চেয়ে বড় করা হয়েছে: w-16 / w-20) */}
-              <div 
-                onClick={() => fileInputRef.current.click()} 
-                className="relative group cursor-pointer w-16 h-16 sm:w-20 sm:h-20 shrink-0"
-                title="আপনার ছবি যুক্ত করুন"
-              >
-                {croppedAvatar ? (
-                  <>
-                    <img 
-                      src={croppedAvatar} 
-                      className="w-full h-full rounded-full border-[3px] object-cover shadow-md transition-transform group-hover:scale-105" 
-                      style={{ borderColor: selectedColor }} 
-                      alt="Avatar" 
-                    />
-                    <div data-html2canvas-ignore="true" onClick={(e) => { e.stopPropagation(); setCroppedAvatar(null); }} className="absolute -bottom-1 -right-1 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] shadow-lg hover:bg-red-600">
-                      <i className="fa-solid fa-times"></i>
-                    </div>
-                  </>
-                ) : (
-                  <div data-html2canvas-ignore="true" className="w-full h-full rounded-full border-2 border-dashed flex items-center justify-center transition-colors hover:border-gray-300 hover:bg-white/5" style={{ borderColor: themeStyles.subTextColor, backgroundColor: isLight ? '#f1f5f9' : 'rgba(0,0,0,0.2)' }}>
-                    <i className="fa-solid fa-camera text-xl" style={{ color: themeStyles.subTextColor }}></i>
+          {/* 🔴 কম্প্যাক্ট হেডার: Avatar, Title এবং Stats একসাথে */}
+          <div className="flex items-center gap-3 sm:gap-4 mb-3 shrink-0 relative z-10 w-full">
+            
+            {/* 🔴 ইউজারের বড় ছবি (w-20 h-20 / w-24 h-24) */}
+            <div 
+              onClick={() => fileInputRef.current.click()} 
+              className="relative group cursor-pointer w-20 h-20 sm:w-24 sm:h-24 shrink-0"
+              title="আপনার ছবি যুক্ত করুন"
+            >
+              {croppedAvatar ? (
+                <>
+                  <img 
+                    src={croppedAvatar} 
+                    className="w-full h-full rounded-full border-[3px] object-cover shadow-md transition-transform group-hover:scale-105" 
+                    style={{ borderColor: selectedColor }} 
+                    alt="Avatar" 
+                  />
+                  <div data-html2canvas-ignore="true" onClick={(e) => { e.stopPropagation(); setCroppedAvatar(null); }} className="absolute bottom-0 right-0 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] shadow-lg hover:bg-red-600">
+                    <i className="fa-solid fa-times"></i>
                   </div>
-                )}
+                </>
+              ) : (
+                <div data-html2canvas-ignore="true" className="w-full h-full rounded-full border-2 border-dashed flex items-center justify-center transition-colors hover:border-gray-300 hover:bg-white/5" style={{ borderColor: themeStyles.subTextColor, backgroundColor: isLight ? '#f1f5f9' : 'rgba(0,0,0,0.2)' }}>
+                  <i className="fa-solid fa-camera text-xl" style={{ color: themeStyles.subTextColor }}></i>
+                </div>
+              )}
+            </div>
+
+            {/* 🔴 টাইটেল এবং ছোট স্ট্যাটিস্টিক্স ব্যাজ */}
+            <div className="flex-1 flex flex-col justify-center min-w-0">
+              <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-tight truncate" style={{ color: themeStyles.textColor }}>
+                {displayName.trim() === "গেস্ট এক্সপ্লোরার" || !displayName.trim() 
+                  ? "আমার বাংলাদেশ ভ্রমণ" 
+                  : `${displayName} এর বাংলাদেশ ভ্রমণ`}
+              </h2>
+              
+              <div data-html2canvas-ignore="true" className="flex items-end gap-1.5 mt-0.5 mb-1.5">
+                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest pb-1" style={{ color: themeStyles.subTextColor }}>অভিযাত্রী:</p>
+                <input 
+                  type="text" 
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:outline-none text-xs font-black w-24 sm:w-32 px-0.5 py-0.5 leading-normal transition-colors"
+                  style={{ color: selectedColor }}
+                  title="আপনার নাম পরিবর্তন করতে এখানে ক্লিক করুন"
+                />
               </div>
 
-              <div>
-                {/* 🔴 টাইটেল সাইজ একটু কম্প্যাক্ট করা হয়েছে */}
-                <h2 className="text-xl sm:text-2xl font-black tracking-tight mb-1" style={{ color: themeStyles.textColor }}>
-                  {displayName.trim() === "গেস্ট এক্সপ্লোরার" || !displayName.trim() 
-                    ? "আমার বাংলাদেশ ভ্রমণ" 
-                    : `${displayName} এর বাংলাদেশ ভ্রমণ`}
-                </h2>
-                
-                {/* 🔴 ইনপুট ফিল্ড যা ডাউনলোডের সময় গায়েব হয়ে যাবে */}
-                <div data-html2canvas-ignore="true" className="flex items-end gap-1.5 mt-1">
-                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest pb-1" style={{ color: themeStyles.subTextColor }}>অভিযাত্রী:</p>
-                  <input 
-                    type="text" 
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:border-gray-400 focus:outline-none text-sm font-black w-32 sm:w-40 px-1 py-0.5 leading-normal transition-colors"
-                    style={{ color: selectedColor }}
-                    title="আপনার নাম পরিবর্তন করতে এখানে ক্লিক করুন"
-                  />
+              {/* স্ট্যাটিস্টিক্স ব্যাজ (অনেক জায়গা বাঁচাবে) */}
+              <div className="flex gap-1.5 sm:gap-2 w-full mt-1">
+                <div className="flex-1 py-1 px-1.5 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+                  <p className="text-[7px] sm:text-[8px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
+                  <h3 className="text-xs sm:text-sm font-black" style={{ color: selectedColor }}>
+                    {e2b(validCount)} <span className="text-[8px]" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
+                  </h3>
+                </div>
+                <div className="flex-1 py-1 px-1.5 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+                  <p className="text-[7px] sm:text-[8px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
+                  <h3 className="text-xs sm:text-sm font-black" style={{ color: themeStyles.textColor }}>
+                    {e2b(64 - validCount)} <span className="text-[8px]" style={{ color: themeStyles.subTextColor }}>জেলা</span>
+                  </h3>
+                </div>
+                <div className="flex-1 py-1 px-1.5 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+                  <p className="text-[7px] sm:text-[8px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>সম্পন্ন</p>
+                  <h3 className="text-xs sm:text-sm font-black" style={{ color: selectedColor }}>
+                    {e2b(percentage)}%
+                  </h3>
                 </div>
               </div>
             </div>
-
-            <div className="text-right hidden sm:block">
-              <h2 className="text-lg font-black" style={{ color: themeStyles.textColor }}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
-              <p className="text-[8px] font-black tracking-widest uppercase mt-0.5" style={{ color: themeStyles.subTextColor }}>Adventure Society</p>
-            </div>
-          </div>
-          
-          {/* 🔴 কম্প্যাক্ট স্ট্যাটিস্টিক্স */}
-          <div className="flex gap-2 sm:gap-3 mb-3 sm:mb-4 shrink-0">
-            <div className="flex-1 py-1.5 sm:py-2 px-2 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
-              <h3 className="text-lg sm:text-xl font-black" style={{ color: selectedColor }}>
-                {e2b(validCount)} <span className="text-[10px]" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
-              </h3>
-            </div>
-            <div className="flex-1 py-1.5 sm:py-2 px-2 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
-              <h3 className="text-lg sm:text-xl font-black" style={{ color: themeStyles.textColor }}>
-                {e2b(64 - validCount)} <span className="text-[9px]" style={{ color: themeStyles.subTextColor }}>জেলা</span>
-              </h3>
-            </div>
-            <div className="flex-1 py-1.5 sm:py-2 px-2 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>সম্পন্ন হয়েছে</p>
-              <h3 className="text-lg sm:text-xl font-black" style={{ color: selectedColor }}>
-                {e2b(percentage)}%
-              </h3>
-            </div>
           </div>
 
-          {/* 🔴 ম্যাপ কন্টেইনার (বাকি সব জায়গা ফ্লেক্স করে নিয়ে নেবে) */}
+          {/* 🔴 ম্যাপ কন্টেইনার (বাকি সমস্ত জায়গা নিয়ে নেবে) */}
           <div className="w-full flex-1 rounded-2xl overflow-hidden flex items-center justify-center relative select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
 
-            <div data-html2canvas-ignore="true" className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+            {/* 🔴 CUET AS ওয়াটারমার্ক ম্যাপের ভেতরে কোণায় */}
+            <div className="absolute bottom-3 right-4 z-10 text-right opacity-60">
+              <h2 className="text-lg font-black" style={{ color: themeStyles.textColor }}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
+              <p className="text-[7px] font-black tracking-widest uppercase mt-0.5" style={{ color: themeStyles.subTextColor }}>Adventure Society</p>
+            </div>
+
+            <div data-html2canvas-ignore="true" className="absolute top-3 right-3 z-20 flex flex-col gap-2">
               <button onClick={handleZoomIn} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
                 <i className="fa-solid fa-plus"></i>
               </button>
@@ -498,12 +485,6 @@ export default function MyBangladeshPage() {
                 <i className="fa-solid fa-minus"></i>
               </button>
             </div>
-
-            {hoveredDistrict && (
-              <div data-html2canvas-ignore="true" className="absolute top-4 left-4 z-20 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg border border-white/10" style={{ color: selectedColor }}>
-                📍 {hoveredDistrict}
-              </div>
-            )}
 
             <div 
               className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
