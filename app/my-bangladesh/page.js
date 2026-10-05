@@ -39,32 +39,39 @@ const districtBn = {
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
+// 🔴 স্মার্ট ওভারল্যাপ ফ্রি টাইপোগ্রাফি (বড় ফন্ট, কিন্তু ১০০% নিখুঁত পজিশন)
 const districtConfigs = {
-  "Dhaka": { fontSize: 3.5, dx: 0, dy: -1.5 },
-  "Narayanganj": { fontSize: 3.2, dx: 3, dy: 1.5 },
-  "Munshiganj": { fontSize: 3.2, dx: 0, dy: 3 },
-  "Madaripur": { fontSize: 3.5, dx: -1, dy: 1 },
-  "Shariatpur": { fontSize: 3.5, dx: 1.5, dy: 0 },
-  "Jhalokati": { fontSize: 3.5, dx: 1.5, dy: -1 },
-  "Pirojpur": { fontSize: 3.5, dx: -1.5, dy: 0 },
-  "Feni": { fontSize: 3.5, dx: 2, dy: 0 },
-  "Meherpur": { fontSize: 3.2, dx: -2, dy: 0 },
-  "Chuadanga": { fontSize: 3.5, dx: -1, dy: 1.5 },
-  "Kushtia": { fontSize: 3.8, dx: 1, dy: -1 },
-  "Jhenaidah": { fontSize: 3.8, dx: 1, dy: 1 },
-  "Narail": { fontSize: 3.5, dx: -1, dy: 0 },
-  "Magura": { fontSize: 3.5, dx: -1, dy: 0 },
-  "Rajbari": { fontSize: 3.5, dx: -1, dy: -1.5 },
-  "Chapainawabganj": { fontSize: 3.5, dx: -2, dy: 0 },
-  "Brahmanbaria": { fontSize: 3.8, dx: 1.5, dy: 0 },
-  "Lalmonirhat": { fontSize: 3.5, dx: 0, dy: -1 },
-  "Joypurhat": { fontSize: 3.5, dx: 0, dy: 0 },
-  "Narsingdi": { fontSize: 3.2, dx: 2, dy: -1 },
-  "Manikganj": { fontSize: 3.5, dx: -1.5, dy: 0 },
-  "Gazipur": { fontSize: 3.8, dx: 0, dy: -1.5 },
-  "Sirajganj": { fontSize: 3.8, dx: 1, dy: 0 },
-  "Lakshmipur": { fontSize: 3.8, dx: -1.5, dy: 0 },
-  "Noakhali": { fontSize: 3.8, dx: -1, dy: 1.5 }
+  "Dhaka": { fontSize: 5, dx: 0, dy: -1.5 },
+  "Gazipur": { fontSize: 5.5, dx: 0, dy: -2.5 },
+  "Narayanganj": { fontSize: 4.5, dx: 3.5, dy: 1.5 },
+  "Munshiganj": { fontSize: 4.5, dx: 0, dy: 3.5 },
+  "Narsingdi": { fontSize: 4.5, dx: 3.5, dy: -1.5 },
+  "Manikganj": { fontSize: 5, dx: -2.5, dy: 0 },
+  "Faridpur": { fontSize: 6, dx: -1, dy: 0 },
+  "Rajbari": { fontSize: 5, dx: -1.5, dy: -1.5 },
+  "Madaripur": { fontSize: 5, dx: -1, dy: 1 },
+  "Shariatpur": { fontSize: 5, dx: 2, dy: 1 },
+  "Magura": { fontSize: 5, dx: -1.5, dy: 0 },
+  "Narail": { fontSize: 5, dx: -1.5, dy: 1 },
+  "Jhenaidah": { fontSize: 5.5, dx: 0, dy: 0 },
+  "Chuadanga": { fontSize: 5, dx: -2, dy: 0 },
+  "Meherpur": { fontSize: 5, dx: -2, dy: -1 },
+  "Kushtia": { fontSize: 5.5, dx: 0, dy: -1.5 },
+  "Pabna": { fontSize: 6, dx: 0, dy: 0 },
+  "Sirajganj": { fontSize: 5.5, dx: 1.5, dy: 0 },
+  "Bogura": { fontSize: 6, dx: 0, dy: 0 },
+  "Joypurhat": { fontSize: 5, dx: 0, dy: -1 },
+  "Chapainawabganj": { fontSize: 5, dx: -3, dy: -1 },
+  "Jhalokati": { fontSize: 5, dx: 2, dy: -1 },
+  "Pirojpur": { fontSize: 5.5, dx: -2, dy: 0 },
+  "Feni": { fontSize: 5, dx: 3, dy: -1 },
+  "Noakhali": { fontSize: 6, dx: -1, dy: 2 },
+  "Lakshmipur": { fontSize: 5.5, dx: -2, dy: 0 },
+  "Brahmanbaria": { fontSize: 5.5, dx: 2, dy: 0 },
+  "Lalmonirhat": { fontSize: 5.5, dx: 1, dy: -1 },
+  "Kurigram": { fontSize: 6, dx: 2, dy: 0 },
+  "Sylhet": { fontSize: 6, dx: 0, dy: 0 },
+  "Moulvibazar": { fontSize: 5.5, dx: 1, dy: 1 }
 };
 
 const bangladeshDivisions = [
@@ -91,7 +98,7 @@ export default function MyBangladeshPage() {
   const [markerType, setMarkerType] = useState("name"); 
   const [displayName, setDisplayName] = useState("গেস্ট এক্সপ্লোরার");
   
-  const BASE_SCALE = 4200;
+  const BASE_SCALE = 4800; // স্কেল বাড়িয়ে ম্যাপকে বড় করা হয়েছে
   const [zoomLevel, setZoomLevel] = useState(1);
   
   const mapCardRef = useRef(null);
@@ -293,63 +300,65 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
+        {/* 🔴 ডাউনলোড কার্ড - Social Media Optimized Aspect Ratio (4:5 or 1:1) */}
         <div 
           ref={mapCardRef} 
-          className="rounded-[2rem] p-6 sm:p-8 shadow-2xl relative" 
+          className="rounded-[2rem] p-4 sm:p-6 shadow-2xl relative flex flex-col mx-auto w-full max-w-2xl" 
           style={{ backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.borderColor}` }}
           data-aos="zoom-in"
         >
-          <div className="flex justify-between items-end pb-4 mb-6" style={{ borderBottom: `1px solid ${themeStyles.borderColor}` }}>
+          {/* কম্প্যাক্ট হেডার */}
+          <div className="flex justify-between items-center mb-4 border-b pb-2" style={{ borderColor: themeStyles.borderColor }}>
             <div>
-              <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-2" style={{ color: themeStyles.textColor }}>আমার বাংলাদেশ ভ্রমণ</h2>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-0.5" style={{ color: themeStyles.textColor }}>আমার বাংলাদেশ ভ্রমণ</h2>
               <div className="flex items-center gap-2">
-                <p className="text-xs sm:text-sm font-bold uppercase tracking-widest" style={{ color: themeStyles.subTextColor }}>
-                  অভিযাত্রী: 
-                </p>
+                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest" style={{ color: themeStyles.subTextColor }}>অভিযাত্রী:</p>
                 <input 
                   type="text" 
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:border-gray-400 focus:outline-none text-lg font-black w-40 sm:w-56 px-1 transition-colors"
+                  className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:border-gray-400 focus:outline-none text-sm font-black w-32 sm:w-48 px-1 transition-colors"
                   style={{ color: selectedColor }}
                   title="আপনার নাম পরিবর্তন করতে এখানে ক্লিক করুন"
                 />
               </div>
             </div>
             <div className="text-right hidden sm:block">
-              <h2 className="text-2xl font-black" style={{ color: themeStyles.textColor }}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
-              <p className="text-[10px] font-black tracking-widest uppercase mt-0.5" style={{ color: themeStyles.subTextColor }}>Adventure Society</p>
+              <h2 className="text-xl font-black" style={{ color: themeStyles.textColor }}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
+              <p className="text-[9px] font-black tracking-widest uppercase mt-0.5" style={{ color: themeStyles.subTextColor }}>Adventure Society</p>
             </div>
           </div>
           
-          <div className="flex gap-3 sm:gap-6 mb-6">
-            <div className="flex-1 p-3 sm:p-4 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-              <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
-              <h3 className="text-2xl sm:text-4xl font-black" style={{ color: selectedColor }}>
-                {e2b(validCount)} <span className="text-sm" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
+          {/* কম্প্যাক্ট স্ট্যাটিস্টিক্স */}
+          <div className="flex gap-2 sm:gap-4 mb-4">
+            <div className="flex-1 py-2 px-3 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>মোট ভ্রমণ</p>
+              <h3 className="text-xl sm:text-2xl font-black" style={{ color: selectedColor }}>
+                {e2b(validCount)} <span className="text-xs" style={{ color: themeStyles.subTextColor }}>/ ৬৪</span>
               </h3>
             </div>
-            <div className="flex-1 p-3 sm:p-4 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-              <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
-              <h3 className="text-2xl sm:text-4xl font-black" style={{ color: themeStyles.textColor }}>
-                {e2b(64 - validCount)} <span className="text-xs" style={{ color: themeStyles.subTextColor }}>জেলা</span>
+            <div className="flex-1 py-2 px-3 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>বাকি আছে</p>
+              <h3 className="text-xl sm:text-2xl font-black" style={{ color: themeStyles.textColor }}>
+                {e2b(64 - validCount)} <span className="text-[10px]" style={{ color: themeStyles.subTextColor }}>জেলা</span>
               </h3>
             </div>
-            <div className="flex-1 p-3 sm:p-4 rounded-xl text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
-              <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1" style={{ color: themeStyles.subTextColor }}>সম্পন্ন হয়েছে</p>
-              <h3 className="text-2xl sm:text-4xl font-black" style={{ color: selectedColor }}>
+            <div className="flex-1 py-2 px-3 rounded-lg text-center shadow-sm" style={{ backgroundColor: themeStyles.statBoxBg, border: `1px solid ${themeStyles.borderColor}` }}>
+              <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: themeStyles.subTextColor }}>সম্পন্ন হয়েছে</p>
+              <h3 className="text-xl sm:text-2xl font-black" style={{ color: selectedColor }}>
                 {e2b(percentage)}%
               </h3>
             </div>
           </div>
 
-          <div className="w-full h-[65vh] sm:h-[75vh] rounded-3xl overflow-hidden flex items-center justify-center relative select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
+          {/* 🔴 ম্যাপ কন্টেইনার - aspect ratio 4:5 ব্যবহার করা হয়েছে যাতে লম্বাটে না হয়ে যায় */}
+          <div className="w-full aspect-[4/5] sm:aspect-square rounded-2xl overflow-hidden flex items-center justify-center relative select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
 
             <div data-html2canvas-ignore="true" className="absolute top-4 right-4 z-20 flex flex-col gap-2">
-              <button onClick={handleZoomIn} className="w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
+              <button onClick={handleZoomIn} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
                 <i className="fa-solid fa-plus"></i>
               </button>
-              <button onClick={handleZoomOut} className="w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
+              <button onClick={handleZoomOut} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
                 <i className="fa-solid fa-minus"></i>
               </button>
             </div>
@@ -408,7 +417,8 @@ export default function MyBangladeshPage() {
                         
                         const centroid = geoCentroid(geo);
                         const bengaliName = districtBn[districtName] || districtName;
-                        const config = districtConfigs[districtName] || { fontSize: 4.2, dx: 0, dy: 0 }; 
+                        // 🔴 ডিফল্ট ফন্ট সাইজ 7 দেওয়া হয়েছে (বড় ও স্পষ্ট)
+                        const config = districtConfigs[districtName] || { fontSize: 7, dx: 0, dy: 0 }; 
 
                         return (
                           <Marker key={`${geo.rsmKey}-label`} coordinates={centroid}>
@@ -456,7 +466,6 @@ export default function MyBangladeshPage() {
           </div>
         </div>
         
-        {/* 🔴 চেকলিস্টের ডিজাইন গ্রিড ভিউ এবং পিল স্টাইলে পরিবর্তন করা হয়েছে */}
         <div className="mt-8 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl" data-aos="fade-up">
           <h3 className="text-xl sm:text-2xl font-black mb-6 text-white flex items-center gap-3 border-b border-white/10 pb-4">
             <i className="fa-solid fa-list-check" style={{ color: selectedColor }}></i> দ্রুত জেলা নির্বাচন করুন
@@ -475,7 +484,6 @@ export default function MyBangladeshPage() {
                     </span>
                   </div>
                   
-                  {/* 🔴 ফ্লেক্স র‍্যাপ (Pill / Chip style) ব্যবহার করে জেলার নামগুলো সাজানো হয়েছে */}
                   <div className="flex flex-wrap gap-2 mt-2">
                     {division.districts.map(dist => {
                       const isChecked = visitedDistricts.includes(dist);
