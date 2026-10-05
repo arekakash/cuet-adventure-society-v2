@@ -2,12 +2,12 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import html2canvas from "html2canvas";
-import { fetchDistrictsData } from "./districtData";
+import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 
 export default function MyBangladesh() {
   const [user, setUser] = useState(null);
   const [visited, setVisited] = useState([]);
-  const [districts, setDistricts] = useState([]); 
+  const [geoData, setGeoData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -17,11 +17,26 @@ export default function MyBangladesh() {
     const initializeData = async () => {
       setLoading(true);
       
-      // ১. ৬৪ জেলার ম্যাপ ডেটা ফেচ করা
-      const mapData = await fetchDistrictsData();
-      setDistricts(mapData);
+      // ১. মাল্টিপল সোর্স থেকে ম্যাপ ডেটা ফেচ করার চেষ্টা (একটি ডাউন থাকলেও অন্যটি কাজ করবে)
+      const urls = [
+        "https://raw.githubusercontent.com/nascenia/bangladesh-geojson/master/bangladesh.geojson",
+        "https://raw.githubusercontent.com/sk-zillur-rahman/bangladesh-geojson/master/bangladesh.geojson"
+      ];
+      
+      for (const url of urls) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            const data = await res.json();
+            setGeoData(data);
+            break; // ডেটা পেয়ে গেলে লুপ থেকে বেরিয়ে যাবে
+          }
+        } catch (e) {
+          console.warn(`Failed to fetch from ${url}`);
+        }
+      }
 
-      // ২. ইউজারের ডেটা ফেচ করা
+      // ২. ইউজারের ভিজিট করা জেলার ডেটা ফেচ করা
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setUser(session.user);
@@ -35,6 +50,7 @@ export default function MyBangladesh() {
           setVisited(data.visited_districts);
         }
       }
+      
       setLoading(false);
     };
 
@@ -43,7 +59,8 @@ export default function MyBangladesh() {
 
   const toggleDistrict = async (districtId, districtName) => {
     if (!user) return alert("ম্যাপ আপডেট করতে আগে লগইন করুন!");
-    
+    if (!districtId) return;
+
     const isAlreadyVisited = visited.includes(districtId);
     
     // নতুন লিস্ট তৈরি (থাকলে রিমুভ, না থাকলে অ্যাড)
@@ -54,7 +71,7 @@ export default function MyBangladesh() {
     setVisited(newVisited);
     setSaving(true);
 
-    // মোবাইলের ইউজারের জন্য ছোট্ট অ্যালার্ট (যাতে বুঝতে পারে কোন জেলায় ক্লিক পড়েছে)
+    // মোবাইলের ইউজারের জন্য নোটিফিকেশন
     if (!isAlreadyVisited) {
        alert(`✅ ${districtName} আপনার ট্রাভেল লিস্টে যুক্ত হয়েছে!`);
     } else {
@@ -81,7 +98,6 @@ export default function MyBangladesh() {
     try {
       setSaving(true);
       
-      // html2canvas ব্যবহার করে হাই রেজুলেশন ছবি তৈরি (scale: 3)
       const canvas = await html2canvas(mapRef.current, { 
         scale: 3, 
         backgroundColor: '#030705',
@@ -90,7 +106,6 @@ export default function MyBangladesh() {
       
       const dataUrl = canvas.toDataURL("image/png", 1.0);
       
-      // ক্লায়েন্ট-সাইডেই ছবি ডাউনলোডের ব্যবস্থা
       const link = document.createElement('a');
       link.download = `my-bangladesh-explored-${Date.now()}.png`;
       link.href = dataUrl;
@@ -142,7 +157,7 @@ export default function MyBangladesh() {
 
           <button 
             onClick={handleDownloadMap} 
-            disabled={saving}
+            disabled={saving || !geoData}
             className="w-full sm:w-auto bg-[#e76f51] hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(231,111,81,0.4)] flex items-center justify-center gap-2"
           >
             {saving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-download"></i>}
@@ -150,7 +165,7 @@ export default function MyBangladesh() {
           </button>
         </div>
 
-        {/* 🔴 Printable Map Area (এই অংশের ছবি উঠবে) */}
+        {/* 🔴 Printable Map Area */}
         <div 
           ref={mapRef} 
           className="bg-[#030705] p-6 sm:p-10 rounded-3xl border border-white/5 relative overflow-hidden"
@@ -171,36 +186,60 @@ export default function MyBangladesh() {
              </div>
           )}
 
-          {/* Interactive SVG Map */}
-          <div className="w-full max-w-lg mx-auto aspect-[3/4] relative mt-16 sm:mt-8">
-            {districts.length > 0 ? (
-              <svg 
-                viewBox="0 0 550 750" // বাংলাদেশের অরিজিনাল GeoJSON টু SVG এর সাধারণত এই ভিউবক্স থাকে (প্রয়োজনে অ্যাডজাস্ট করা যাবে)
+          {/* 🔴 Interactive SVG Map via react-simple-maps */}
+          <div className="w-full max-w-lg mx-auto aspect-[3/4] relative mt-16 sm:mt-8 flex items-center justify-center">
+            {geoData ? (
+              <ComposableMap
+                projection="geoMercator"
+                projectionConfig={{
+                  scale: 4500,
+                  center: [90.2, 23.8] // বাংলাদেশের সেন্টার কোঅর্ডিনেটস
+                }}
                 className="w-full h-full drop-shadow-2xl"
-                xmlns="http://www.w3.org/2000/svg"
               >
-                {districts.map((district) => {
-                  const isVisited = visited.includes(district.id);
-                  return (
-                    <path
-                      key={district.id}
-                      d={district.d}
-                      onClick={() => toggleDistrict(district.id, district.nameBn || district.name)}
-                      className={`cursor-pointer transition-all duration-300 stroke-[#050b08] stroke-[1px] outline-none ${
-                        isVisited 
-                          ? 'fill-[#e76f51] drop-shadow-[0_0_8px_rgba(231,111,81,0.8)]' // গ্লোয়িং কালার
-                          : 'fill-gray-700/50 hover:fill-gray-500' // ডিম কালার
-                      }`}
-                    >
-                      <title>{district.nameBn || district.name}</title>
-                    </path>
-                  );
-                })}
-              </svg>
+                <Geographies geography={geoData}>
+                  {({ geographies }) =>
+                    geographies.map((geo) => {
+                      // GeoJSON থেকে জেলার নাম বের করা (সোর্স অনুযায়ী প্রপার্টি ভিন্ন হতে পারে)
+                      const name = geo.properties.NAME_2 || geo.properties.NAME_1 || geo.properties.name || geo.properties.ADM2_EN || "Unknown";
+                      const districtId = name.toLowerCase().replace(/\s+/g, '-');
+                      const isVisited = visited.includes(districtId);
+
+                      return (
+                        <Geography
+                          key={geo.rsmKey}
+                          geography={geo}
+                          onClick={() => toggleDistrict(districtId, name)}
+                          style={{
+                            default: {
+                              fill: isVisited ? "#e76f51" : "#1f2937",
+                              stroke: "#030705",
+                              strokeWidth: 0.5,
+                              outline: "none",
+                              transition: "all 300ms",
+                            },
+                            hover: {
+                              fill: isVisited ? "#f97316" : "#4b5563",
+                              stroke: "#030705",
+                              strokeWidth: 0.5,
+                              outline: "none",
+                              cursor: "pointer",
+                            },
+                            pressed: {
+                              fill: "#fb923c",
+                              outline: "none",
+                            }
+                          }}
+                        >
+                          <title>{name}</title>
+                        </Geography>
+                      );
+                    })
+                  }
+                </Geographies>
+              </ComposableMap>
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                 <p className="text-gray-500 font-bold animate-pulse">ম্যাপ লোড হচ্ছে...</p>
-              </div>
+              <p className="text-red-400 font-bold text-center">ম্যাপ ডেটা লোড করতে সমস্যা হয়েছে! ইন্টারনেট সংযোগ চেক করুন।</p>
             )}
           </div>
         </div>
