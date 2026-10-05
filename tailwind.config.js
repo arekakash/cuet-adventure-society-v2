@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: 'class',
+  darkMode: 'class', // 🔴 ডার্ক মোড ম্যানুয়ালি টগল করার জন্য
   content: [
     "./app/**/*.{js,ts,jsx,tsx}",
     "./components/**/*.{js,ts,jsx,tsx}",
@@ -8,6 +8,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // ডার্ক মোডের কালার (তোমার আগেরগুলো)
         darkForest: '#050b08',
         moss: '#0a1c13',
         trail: '#2d6a4f',
@@ -18,12 +19,22 @@ module.exports = {
         mistText: '#1e293b',
         gold: '#FFD700',
         silver: '#C0C0C0',
-        bronze: '#CD7F32'
+        bronze: '#CD7F32',
+
+        // 🔴 লাইট/প্যাস্টেল মোডের জন্য নতুন সফট কালার প্যালেট
+        pastel: {
+          bg: '#fdfbf7',       // চোখের জন্য আরামদায়ক সফট ক্রিম/প্যাস্টেল ব্যাকগ্রাউন্ড
+          card: '#ffffff',     // কার্ডের জন্য ক্লিন হোয়াইট
+          text: '#374151',     // সফট ডার্ক গ্রে (কড়া কালো নয়, যাতে চোখে না লাগে)
+          border: '#f3f4f6',   // খুব হালকা সফট বর্ডার
+          muted: '#8c98a9'     // সাব-টেক্সট বা ছোট লেখার জন্য মিউটেড কালার
+        }
       },
       boxShadow: {
         'glow': '0 0 20px rgba(231, 111, 81, 0.4)',
         'glow-sm': '0 0 10px rgba(231, 111, 81, 0.2)',
-        'glow-gold': '0 0 25px rgba(255, 215, 0, 0.4)'
+        'glow-gold': '0 0 25px rgba(255, 215, 0, 0.4)',
+        'soft': '0 10px 40px -10px rgba(0,0,0,0.05)' // 🔴 লাইট মোডের কার্ডগুলোর জন্য একদম সফট একটি শ্যাডো
       },
       animation: {
         'float': 'float 6s ease-in-out infinite',
