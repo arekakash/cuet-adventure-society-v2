@@ -4,13 +4,13 @@ import { supabase } from "@/lib/supabase";
 import html2canvas from "html2canvas";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 
-// 🔴 জাদুকরী লাইন! ইন্টারনেট থেকে আর ডাটা টানবে না। 
-// প্যাকেজ থেকে সরাসরি ৩০,০০০ লাইনের ম্যাপ ডেটা তোমার প্রজেক্টে লোকালি চলে আসবে!
-import geoData from "bangladesh-geojson/src/data/bangladesh.geojson";
+// 🔴 গ্লোবাল ও সবচেয়ে স্ট্রং TopoJSON সোর্স (কখনো ডাউন হবে না)
+const GEO_URL = "https://unpkg.com/bangladesh-geojson@1.0.0/src/data/bangladesh.geojson";
 
 export default function MyBangladesh() {
   const [user, setUser] = useState(null);
   const [visited, setVisited] = useState([]);
+  const [mapError, setMapError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -19,6 +19,8 @@ export default function MyBangladesh() {
   useEffect(() => {
     const fetchUserData = async () => {
       setLoading(true);
+      setMapError(null);
+      
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
@@ -92,7 +94,7 @@ export default function MyBangladesh() {
       link.click();
       
     } catch (error) {
-      console.error('Oops!', error);
+      console.error('Download Error:', error);
       alert("ছবি ডাউনলোড করতে সমস্যা হয়েছে!");
     } finally {
       setSaving(false);
@@ -148,9 +150,9 @@ export default function MyBangladesh() {
         {/* Printable Map Area */}
         <div 
           ref={mapRef} 
-          className="bg-[#030705] p-6 sm:p-10 rounded-3xl border border-white/5 relative overflow-hidden"
+          className="bg-[#030705] p-6 sm:p-10 rounded-3xl border border-white/5 relative overflow-hidden min-h-[400px] flex items-center justify-center"
         >
-          {/* Watermark for Downloaded Image */}
+          {/* Watermark */}
           <div className="absolute top-6 left-6 opacity-30 pointer-events-none z-10">
             <h2 className="text-3xl font-black tracking-widest text-white">
               <span className="text-[#e76f51]">C</span>UET <span className="text-[#e76f51]">A</span>S
@@ -166,7 +168,7 @@ export default function MyBangladesh() {
              </div>
           )}
 
-          {/* Interactive SVG Map (Local Data completely offline) */}
+          {/* Interactive SVG Map (Fetching from unpkg CDN directly) */}
           <div className="w-full max-w-lg mx-auto aspect-[3/4] relative mt-16 sm:mt-8">
             <ComposableMap
               projection="geoMercator"
@@ -176,7 +178,7 @@ export default function MyBangladesh() {
               }}
               className="w-full h-full drop-shadow-2xl"
             >
-              <Geographies geography={geoData}>
+              <Geographies geography={GEO_URL}>
                 {({ geographies }) =>
                   geographies.map((geo) => {
                     const name = geo.properties.shapeName || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || "Unknown";
