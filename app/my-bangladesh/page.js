@@ -94,13 +94,11 @@ export default function MyBangladeshPage() {
   const [hoveredDistrict, setHoveredDistrict] = useState("");
   
   const [selectedColor, setSelectedColor] = useState(colorPalette[0].value);
-  // 🔴 ডিফল্ট থিম লাইট করা হলো
   const [downloadTheme, setDownloadTheme] = useState("light"); 
   const [markerType, setMarkerType] = useState("name"); 
   const [displayName, setDisplayName] = useState("গেস্ট এক্সপ্লোরার");
   
   const BASE_SCALE = 5200; 
-  // 🔴 ডিফল্ট জুম লেভেল ১.৩ করা হলো (একবার জুম-ইন প্রেস করার সমান)
   const [zoomLevel, setZoomLevel] = useState(1.3);
   
   const mapCardRef = useRef(null);
@@ -244,7 +242,7 @@ export default function MyBangladeshPage() {
     
     try {
       await new Promise(resolve => setTimeout(resolve, 300)); 
-      const bgColor = downloadTheme === "light" ? "#f8fafc" : "#050b08";
+      const bgColor = downloadTheme === "light" ? "#fdfbf7" : "#050b08"; // লাইট মোডের জন্য ডাউনলোড ব্যাকগ্রাউন্ড প্যাস্টেল করা হলো
 
       const canvas = await html2canvas(mapCardRef.current, {
         backgroundColor: bgColor, 
@@ -283,7 +281,7 @@ export default function MyBangladeshPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-[#050b08]">
+      <div className="min-h-screen flex justify-center items-center bg-[#fcf9f2] dark:bg-[#050b08] transition-colors duration-500">
         <i className="fa-solid fa-compass fa-spin text-4xl" style={{ color: selectedColor }}></i>
       </div>
     );
@@ -293,20 +291,22 @@ export default function MyBangladeshPage() {
   const percentage = Math.round((validCount / 64) * 100);
 
   const isLight = downloadTheme === "light";
+  // 🔴 ডাউনলোড কার্ডের নিজস্ব থিম স্টাইল (Tailwind এর ডার্ক মোডের বাইরে স্বাধীনভাবে কাজ করবে)
   const themeStyles = {
     cardBg: isLight ? "#ffffff" : "#0a1c13",
     textColor: isLight ? "#1e293b" : "#ffffff",
     subTextColor: isLight ? "#64748b" : "#9ca3af",
     borderColor: isLight ? "#e2e8f0" : "rgba(255, 255, 255, 0.1)",
-    statBoxBg: isLight ? "#f8fafc" : "rgba(0, 0, 0, 0.4)",
-    mapBg: isLight ? "#f1f5f9" : "rgba(0, 0, 0, 0.4)",
-    unvisitedFill: isLight ? "#cbd5e1" : "#1e293b",
+    statBoxBg: isLight ? "#fdfbf7" : "rgba(0, 0, 0, 0.4)",
+    mapBg: isLight ? "#fcf9f2" : "rgba(0, 0, 0, 0.4)",
+    unvisitedFill: isLight ? "#e2e8f0" : "#1e293b",
     mapStroke: isLight ? "#ffffff" : "#050b08",
     nameLabelColor: isLight ? "#0f172a" : "#ffffff"
   };
 
   return (
-    <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+    // 🔴 মেইন ব্যাকগ্রাউন্ড সফট প্যাস্টেল হলুদ (fcf9f2)
+    <div className="min-h-screen bg-[#fcf9f2] dark:bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden transition-colors duration-500">
       
       {rawImage && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col">
@@ -343,23 +343,26 @@ export default function MyBangladeshPage() {
 
       <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
 
-      <div className="absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
-      <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
+      {/* 🔴 ব্যাকগ্রাউন্ড লাইট ইফেক্ট */}
+      <div className="absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-20 dark:opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
+      <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-20 dark:opacity-10 transition-colors duration-500" style={{ backgroundColor: selectedColor }}></div>
 
       <div className="max-w-5xl mx-auto z-10 relative">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-6" data-aos="fade-down">
           <div>
-            <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors font-bold mb-4 text-sm">
+            <Link href="/" className="inline-flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors font-bold mb-4 text-sm">
               <i className="fa-solid fa-arrow-left"></i> হোমে ফিরে যান
             </Link>
-            <div className="bg-[#0a1c13] border border-white/10 px-5 py-4 rounded-2xl shadow-lg">
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-3">আপনার প্রিয় থিম কালার বেছে নিন:</p>
+            
+            {/* 🔴 থিম পিকার কার্ড (ডেপথ শ্যাডো) */}
+            <div className="bg-white dark:bg-[#0a1c13] border border-gray-100 dark:border-white/10 px-5 py-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-lg transition-colors duration-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider mb-3">আপনার প্রিয় থিম কালার বেছে নিন:</p>
               <div className="flex flex-wrap gap-3">
                 {colorPalette.map((color) => (
                   <button
                     key={color.value}
                     onClick={() => setSelectedColor(color.value)}
-                    className={`w-8 h-8 rounded-full shadow-lg transition-all duration-300 ${selectedColor === color.value ? 'scale-125 ring-2 ring-white ring-offset-2 ring-offset-[#0a1c13]' : 'hover:scale-110 opacity-70 hover:opacity-100'}`}
+                    className={`w-8 h-8 rounded-full shadow-md transition-all duration-300 ${selectedColor === color.value ? 'scale-125 ring-2 ring-gray-400 dark:ring-white ring-offset-2 ring-offset-[#fcf9f2] dark:ring-offset-[#0a1c13]' : 'hover:scale-110 opacity-70 hover:opacity-100'}`}
                     style={{ backgroundColor: color.value }}
                     title={color.name}
                   />
@@ -370,30 +373,32 @@ export default function MyBangladeshPage() {
 
           <div className="flex flex-col items-end gap-3 w-full md:w-auto">
             {saving && (
-              <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2" style={{ color: selectedColor }}>
+              <div className="bg-white/80 dark:bg-white/5 border border-gray-100 dark:border-white/10 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm dark:shadow-none transition-colors" style={{ color: selectedColor }}>
                 <i className="fa-solid fa-circle-notch fa-spin"></i> সেভ হচ্ছে...
               </div>
             )}
             
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <div className="flex bg-black/40 rounded-xl p-1 border border-white/5 w-full sm:w-auto justify-between">
-                <button onClick={() => setMarkerType("name")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'name' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>নাম</button>
-                <button onClick={() => setMarkerType("icon")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'icon' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>আইকন</button>
-                <button onClick={() => setMarkerType("dot")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'dot' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>বিন্দু</button>
-                <button onClick={() => setMarkerType("blank")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'blank' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>ফাঁকা</button>
+              {/* 🔴 ফিল্টার টগল বাটনস */}
+              <div className="flex bg-gray-100 dark:bg-black/40 rounded-xl p-1 border border-gray-200 dark:border-white/5 w-full sm:w-auto justify-between transition-colors duration-500 shadow-inner dark:shadow-none">
+                <button onClick={() => setMarkerType("name")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'name' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm dark:shadow-md' : 'text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}>নাম</button>
+                <button onClick={() => setMarkerType("icon")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'icon' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm dark:shadow-md' : 'text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}>আইকন</button>
+                <button onClick={() => setMarkerType("dot")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'dot' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm dark:shadow-md' : 'text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}>বিন্দু</button>
+                <button onClick={() => setMarkerType("blank")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${markerType === 'blank' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm dark:shadow-md' : 'text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}>ফাঁকা</button>
               </div>
 
-              <div className="flex bg-black/40 rounded-xl p-1 border border-white/5 w-full sm:w-auto justify-between">
-                <button onClick={() => setDownloadTheme("dark")} className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${!isLight ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}><i className="fa-solid fa-moon mr-1"></i> ডার্ক</button>
-                <button onClick={() => setDownloadTheme("light")} className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${isLight ? 'bg-white text-black shadow-md' : 'text-gray-500 hover:text-gray-300'}`}><i className="fa-solid fa-sun mr-1"></i> লাইট</button>
+              <div className="flex bg-gray-100 dark:bg-black/40 rounded-xl p-1 border border-gray-200 dark:border-white/5 w-full sm:w-auto justify-between transition-colors duration-500 shadow-inner dark:shadow-none">
+                <button onClick={() => setDownloadTheme("dark")} className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${!isLight ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm dark:shadow-md' : 'text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}><i className="fa-solid fa-moon mr-1"></i> ডার্ক</button>
+                <button onClick={() => setDownloadTheme("light")} className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${isLight ? 'bg-white dark:bg-white text-gray-900 dark:text-black shadow-sm dark:shadow-md' : 'text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}><i className="fa-solid fa-sun mr-1"></i> লাইট</button>
               </div>
             </div>
           </div>
         </div>
 
+        {/* 🔴 Perfect 4:5 Download Card - এর ব্যাকগ্রাউন্ড themeStyles অনুযায়ী হবে, তাই Tailwind Dark Mode ক্লাস দেওয়া হয়নি */}
         <div 
           ref={mapCardRef} 
-          className="rounded-[2rem] p-4 sm:p-5 shadow-2xl relative flex flex-col mx-auto w-full max-w-[480px] aspect-[4/5] overflow-hidden" 
+          className="rounded-[2rem] p-4 sm:p-5 shadow-[0_15px_50px_-12px_rgba(0,0,0,0.1)] dark:shadow-2xl relative flex flex-col mx-auto w-full max-w-[480px] aspect-[4/5] overflow-hidden transition-all duration-500" 
           style={{ backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.borderColor}` }}
           data-aos="zoom-in"
         >
@@ -418,14 +423,13 @@ export default function MyBangladeshPage() {
                 </>
               ) : (
                 <>
-                  <div data-html2canvas-ignore="true" className="w-full h-full rounded-full border-2 border-dashed flex items-center justify-center transition-colors hover:border-gray-300 hover:bg-white/5" style={{ borderColor: themeStyles.subTextColor, backgroundColor: isLight ? '#f1f5f9' : 'rgba(0,0,0,0.2)' }}>
+                  <div data-html2canvas-ignore="true" className="w-full h-full rounded-full border-2 border-dashed flex items-center justify-center transition-colors hover:border-gray-400 dark:hover:border-gray-300 hover:bg-black/5 dark:hover:bg-white/5" style={{ borderColor: themeStyles.subTextColor, backgroundColor: isLight ? '#fdfbf7' : 'rgba(0,0,0,0.2)' }}>
                     <i className="fa-solid fa-camera text-xl" style={{ color: themeStyles.subTextColor }}></i>
                   </div>
                   
-                  {/* 🔴 গ্লোয়িং পপ-আপ নির্দেশনা (শুধু ছবি আপলোডের আগ পর্যন্ত দেখাবে) */}
                   <div 
                     data-html2canvas-ignore="true" 
-                    className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-white text-[8px] sm:text-[9px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap animate-pulse z-20 pointer-events-none"
+                    className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-white text-[8px] sm:text-[9px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap animate-pulse z-20 pointer-events-none shadow-md"
                     style={{ backgroundColor: selectedColor, boxShadow: `0 0 15px ${selectedColor}` }}
                   >
                     আপনার ছবি যুক্ত করুন
@@ -447,7 +451,7 @@ export default function MyBangladeshPage() {
                   type="text" 
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:outline-none text-xs font-black flex-1 min-w-0 px-0.5 py-0.5 leading-normal transition-colors"
+                  className="bg-transparent border-b border-dashed border-gray-400 dark:border-gray-500/50 hover:border-gray-600 dark:hover:border-gray-400 focus:outline-none text-xs font-black flex-1 min-w-0 px-0.5 py-0.5 leading-normal transition-colors"
                   style={{ color: selectedColor }}
                   title="আপনার নাম পরিবর্তন করতে এখানে ক্লিক করুন"
                 />
@@ -476,19 +480,19 @@ export default function MyBangladeshPage() {
             </div>
           </div>
 
-          <div className="w-full flex-1 rounded-2xl overflow-hidden flex items-center justify-center relative select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
+          <div className="w-full flex-1 rounded-2xl overflow-hidden flex items-center justify-center relative select-none shadow-inner" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
 
-            <div className="absolute bottom-1 left-3 z-10 opacity-40 pointer-events-none">
+            <div className="absolute bottom-1 left-3 z-10 opacity-50 dark:opacity-40 pointer-events-none">
               <p className="text-[7px] font-bold tracking-wider uppercase" style={{ color: themeStyles.subTextColor }}>
                 Map generated by CUET Adventure Society
               </p>
             </div>
 
             <div data-html2canvas-ignore="true" className="absolute top-3 right-3 z-20 flex flex-col gap-2">
-              <button onClick={handleZoomIn} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
+              <button onClick={handleZoomIn} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 hover:brightness-95 dark:hover:brightness-125" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
                 <i className="fa-solid fa-plus"></i>
               </button>
-              <button onClick={handleZoomOut} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
+              <button onClick={handleZoomOut} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 hover:brightness-95 dark:hover:brightness-125" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
                 <i className="fa-solid fa-minus"></i>
               </button>
             </div>
@@ -526,7 +530,7 @@ export default function MyBangladeshPage() {
                                 filter: isVisited && !isLight ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
                                 transition: "all 0.3s ease"
                               },
-                              hover: { fill: isVisited ? selectedColor : "#3b82f6", outline: "none", stroke: isLight ? "#000" : "#ffffff", strokeWidth: 1.5, cursor: "pointer" }
+                              hover: { fill: isVisited ? selectedColor : (isLight ? "#cbd5e1" : "#3b82f6"), outline: "none", stroke: isLight ? "#94a3b8" : "#ffffff", strokeWidth: 1.5, cursor: "pointer" }
                             }}
                           />
                         );
@@ -589,8 +593,9 @@ export default function MyBangladeshPage() {
           </div>
         </div>
         
-        <div className="mt-8 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl" data-aos="fade-up">
-          <h3 className="text-xl sm:text-2xl font-black mb-6 text-white flex items-center gap-3 border-b border-white/10 pb-4">
+        {/* 🔴 Quick District Selection (লাইট/ডার্ক সাপোর্ট এবং ডেপথ শ্যাডো) */}
+        <div className="mt-8 bg-white dark:bg-[#0a1c13] border border-yellow-200 dark:border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] dark:shadow-2xl transition-colors duration-500" data-aos="fade-up">
+          <h3 className="text-xl sm:text-2xl font-black mb-6 text-gray-900 dark:text-white flex items-center gap-3 border-b border-gray-100 dark:border-white/10 pb-4 transition-colors">
             <i className="fa-solid fa-list-check" style={{ color: selectedColor }}></i> দ্রুত জেলা নির্বাচন করুন
           </h3>
           
@@ -599,10 +604,10 @@ export default function MyBangladeshPage() {
               const divVisitedCount = division.districts.filter(d => visitedDistricts.includes(d)).length;
               
               return (
-                <div key={division.name} className="bg-black/30 rounded-2xl p-5 border border-white/5 shadow-sm">
-                  <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-3">
-                    <h4 className="font-black text-white text-lg">{division.name}</h4>
-                    <span className="text-xs font-bold px-2 py-1 rounded-md bg-white/5 text-gray-300">
+                <div key={division.name} className="bg-yellow-50/50 dark:bg-black/30 rounded-2xl p-5 border border-yellow-100 dark:border-white/5 shadow-sm transition-colors duration-500">
+                  <div className="flex justify-between items-center mb-4 border-b border-yellow-200/50 dark:border-white/10 pb-3 transition-colors">
+                    <h4 className="font-black text-gray-800 dark:text-white text-lg transition-colors">{division.name}</h4>
+                    <span className="text-xs font-bold px-2 py-1 rounded-md bg-white dark:bg-white/5 text-gray-600 dark:text-gray-300 shadow-sm dark:shadow-none transition-colors">
                       <span style={{ color: divVisitedCount > 0 ? selectedColor : '' }}>{e2b(divVisitedCount)}</span> / {e2b(division.districts.length)}
                     </span>
                   </div>
@@ -613,12 +618,12 @@ export default function MyBangladeshPage() {
                       const bngName = districtBn[dist] || dist;
                       
                       return (
-                        <label key={dist} className={`flex items-center gap-2 cursor-pointer group px-3 py-1.5 rounded-full border transition-all ${isChecked ? 'bg-white/10 border-white/20' : 'bg-black/20 border-white/5 hover:border-white/20'}`}>
+                        <label key={dist} className={`flex items-center gap-2 cursor-pointer group px-3 py-1.5 rounded-full border transition-all duration-300 ${isChecked ? 'bg-white dark:bg-white/10 border-yellow-400 dark:border-white/20 shadow-sm dark:shadow-none' : 'bg-white dark:bg-black/20 border-gray-200 dark:border-white/5 hover:border-yellow-400 dark:hover:border-white/20 shadow-sm dark:shadow-none'}`}>
                           <input type="checkbox" checked={isChecked} onChange={() => toggleDistrict(dist)} className="hidden" />
-                          <div className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors ${isChecked ? 'border-transparent' : 'border-gray-500'}`} style={{ backgroundColor: isChecked ? selectedColor : 'transparent' }}>
+                          <div className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors ${isChecked ? 'border-transparent' : 'border-gray-300 dark:border-gray-500'}`} style={{ backgroundColor: isChecked ? selectedColor : 'transparent' }}>
                             {isChecked && <i className="fa-solid fa-check text-[8px] text-white"></i>}
                           </div>
-                          <span className={`text-xs font-bold ${isChecked ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
+                          <span className={`text-xs font-bold transition-colors ${isChecked ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200'}`}>
                             {bngName}
                           </span>
                         </label>
@@ -631,17 +636,18 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
+        {/* 🔴 Download Section */}
         {visitedDistricts.length > 0 && (
-          <div className="mt-8 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center" data-aos="fade-up">
-            <h3 className="text-xl font-black text-white mb-2">আপনার ম্যাপ প্রস্তুত!</h3>
-            <p className="text-gray-400 text-sm mb-6">কোন ফরম্যাটে ডাউনলোড করতে চান তা বেছে নিন</p>
+          <div className="mt-8 bg-white dark:bg-[#0a1c13] border border-yellow-200 dark:border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] dark:shadow-2xl flex flex-col items-center justify-center text-center transition-colors duration-500" data-aos="fade-up">
+            <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2 transition-colors">আপনার ম্যাপ প্রস্তুত!</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 transition-colors">কোন ফরম্যাটে ডাউনলোড করতে চান তা বেছে নিন</p>
             
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
               <button 
                 onClick={() => handleDownloadMap('jpg')} 
                 disabled={downloading}
-                className="w-full sm:w-auto text-white px-8 py-3.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-105"
-                style={{ backgroundColor: selectedColor, boxShadow: `0 0 20px ${selectedColor}60` }}
+                className="w-full sm:w-auto text-white px-8 py-3.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-105 shadow-md"
+                style={{ backgroundColor: selectedColor, boxShadow: `0 5px 20px ${selectedColor}40` }}
               >
                 {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-image"></i>}
                 {downloading ? "প্রসেসিং..." : "ডাউনলোড JPG"}
@@ -650,7 +656,7 @@ export default function MyBangladeshPage() {
               <button 
                 onClick={() => handleDownloadMap('pdf')} 
                 disabled={downloading}
-                className="w-full sm:w-auto text-white px-8 py-3.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-105 bg-red-500 hover:bg-red-600 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+                className="w-full sm:w-auto text-white px-8 py-3.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-105 bg-red-500 hover:bg-red-600 shadow-[0_5px_20px_rgba(239,68,68,0.3)]"
               >
                 {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-file-pdf"></i>}
                 {downloading ? "প্রসেসিং..." : "ডাউনলোড PDF"}
