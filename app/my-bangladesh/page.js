@@ -39,7 +39,6 @@ const districtBn = {
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
-// 🔴 স্মার্ট ওভারল্যাপ ফ্রি টাইপোগ্রাফি (বড় ফন্ট, কিন্তু ১০০% নিখুঁত পজিশন)
 const districtConfigs = {
   "Dhaka": { fontSize: 5, dx: 0, dy: -1.5 },
   "Gazipur": { fontSize: 5.5, dx: 0, dy: -2.5 },
@@ -191,7 +190,7 @@ export default function MyBangladeshPage() {
 
       const canvas = await html2canvas(mapCardRef.current, {
         backgroundColor: bgColor, 
-        scale: 2, 
+        scale: 4, // 🔴 রেজুলেশন ২ থেকে বাড়িয়ে ৪ করা হয়েছে (High Definition Quality)
         useCORS: true,
         logging: false
       });
@@ -300,29 +299,26 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
-        {/* 🔴 ডাউনলোড কার্ড */}
         <div 
           ref={mapCardRef} 
           className="rounded-[2rem] p-4 sm:p-6 shadow-2xl relative flex flex-col mx-auto w-full max-w-2xl" 
           style={{ backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.borderColor}` }}
           data-aos="zoom-in"
         >
-          {/* কম্প্যাক্ট হেডার (Fixed Input Clipping + Dynamic Title) */}
           <div className="flex justify-between items-center mb-5 border-b pb-3" style={{ borderColor: themeStyles.borderColor }}>
             <div>
-              {/* 🔴 ডায়নামিক টাইটেল লজিক */}
               <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2" style={{ color: themeStyles.textColor }}>
                 {displayName.trim() === "গেস্ট এক্সপ্লোরার" || !displayName.trim() 
                   ? "আমার বাংলাদেশ ভ্রমণ" 
                   : `${displayName} এর বাংলাদেশ ভ্রমণ`}
               </h2>
-              <div className="flex items-end gap-2">
+              {/* 🔴 ডাউনলোড করার সময় এই ফিল্ডটি গায়েব হয়ে যাবে (data-html2canvas-ignore) */}
+              <div data-html2canvas-ignore="true" className="flex items-end gap-2 mt-1">
                 <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest pb-1" style={{ color: themeStyles.subTextColor }}>অভিযাত্রী:</p>
                 <input 
                   type="text" 
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  // 🔴 py-1 এবং leading-normal যুক্ত করা হয়েছে যাতে বাংলা ফন্টের ওপরের অংশ না কাটে
                   className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:border-gray-400 focus:outline-none text-sm sm:text-base font-black w-40 sm:w-56 px-1 py-1 leading-normal transition-colors"
                   style={{ color: selectedColor }}
                   title="আপনার নাম পরিবর্তন করতে এখানে ক্লিক করুন"
