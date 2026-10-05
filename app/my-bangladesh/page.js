@@ -5,6 +5,7 @@ import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from "re
 import { geoCentroid } from "d3-geo";
 import Link from "next/link";
 import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import AOS from "aos";
 import "aos/dist/aos.css";
 
@@ -19,6 +20,18 @@ const colorPalette = [
   { name: "Rose", value: "#fb7185" },
   { name: "Teal", value: "#2dd4bf" }
 ];
+
+// ইংরেজি থেকে বাংলা জেলার নামের ম্যাপিং
+const districtBn = {
+  "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
+  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
+  "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
+  "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
+  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Sherpur": "শেরপুর",
+  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
+  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
+  "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
+};
 
 const bangladeshDivisions = [
   { name: "ঢাকা", districts: ["Dhaka", "Faridpur", "Gazipur", "Gopalganj", "Kishoreganj", "Madaripur", "Manikganj", "Munshiganj", "Narayanganj", "Narsingdi", "Rajbari", "Shariatpur", "Tangail"] },
@@ -41,9 +54,10 @@ export default function MyBangladeshPage() {
   
   const [selectedColor, setSelectedColor] = useState(colorPalette[0].value);
   const [downloadTheme, setDownloadTheme] = useState("dark"); 
-  
-  // 🔴 নতুন স্টেট: জুম কন্ট্রোল করার জন্য
   const [position, setPosition] = useState({ coordinates: [90.35, 23.8], zoom: 1 });
+  
+  // 🔴 ইউজারের কাস্টম নাম (এডিটেবল)
+  const [displayName, setDisplayName] = useState("গেস্ট এক্সপ্লোরার");
   
   const mapCardRef = useRef(null);
 
@@ -55,6 +69,7 @@ export default function MyBangladeshPage() {
   const fetchUserData = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
+      setUserProfile({ isGuest: true });
       setLoading(false);
       return;
     }
@@ -68,12 +83,14 @@ export default function MyBangladeshPage() {
     if (data && !error) {
       setUserProfile(data);
       setVisitedDistricts(data.visited_districts || []);
+      setDisplayName(data.full_name || "গেস্ট এক্সপ্লোরার");
+    } else {
+      setUserProfile({ isGuest: true });
     }
     setLoading(false);
   };
 
   const toggleDistrict = async (districtName) => {
-    if (!userProfile) return alert("ম্যাপ আপডেট করতে অনুগ্রহ করে প্রথমে লগইন করুন!");
     if (!districtName) return;
 
     setSaving(true);
@@ -87,52 +104,39 @@ export default function MyBangladeshPage() {
 
     setVisitedDistricts(updatedDistricts);
 
+    // 🔴 গেস্ট ইউজার হলে সার্ভারে সেভ হবে না
+    if (userProfile?.isGuest) {
+      setSaving(false);
+      return; 
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update({ visited_districts: updatedDistricts })
       .eq('id', userProfile.id);
 
-    if (error) {
-      console.error(error);
-      alert("সংরক্ষণ করতে সমস্যা হয়েছে: " + error.message);
-    }
+    if (error) console.error(error);
     setSaving(false);
   };
 
   const handleMapClick = (geo) => {
     const districtName = 
-      geo.properties.adm2_name || 
-      geo.properties.ADM2_EN || 
-      geo.properties.NAME_2 || 
-      geo.properties.name || 
-      geo.properties.Dist_Name ||
-      geo.properties.district;
-      
+      geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || 
+      geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
     toggleDistrict(districtName);
   };
 
-  // 🔴 জুম ইন, জুম আউট এবং প্যানিং হ্যান্ডলার
-  const handleZoomIn = () => {
-    if (position.zoom >= 4) return;
-    setPosition((pos) => ({ ...pos, zoom: pos.zoom * 1.5 }));
-  };
+  const handleZoomIn = () => position.zoom < 4 && setPosition(pos => ({ ...pos, zoom: pos.zoom * 1.5 }));
+  const handleZoomOut = () => position.zoom > 1 && setPosition(pos => ({ ...pos, zoom: pos.zoom / 1.5 }));
+  const handleMoveEnd = (newPosition) => setPosition(newPosition);
 
-  const handleZoomOut = () => {
-    if (position.zoom <= 1) return;
-    setPosition((pos) => ({ ...pos, zoom: pos.zoom / 1.5 }));
-  };
-
-  const handleMoveEnd = (newPosition) => {
-    setPosition(newPosition);
-  };
-
-  const handleDownloadMap = async () => {
+  // 🔴 ডাইনামিক ডাউনলোড ফাংশন (JPG / PDF)
+  const handleDownloadMap = async (format) => {
     if (!mapCardRef.current) return;
     setDownloading(true);
     
     try {
       await new Promise(resolve => setTimeout(resolve, 300)); 
-      
       const bgColor = downloadTheme === "light" ? "#f8fafc" : "#050b08";
 
       const canvas = await html2canvas(mapCardRef.current, {
@@ -142,13 +146,25 @@ export default function MyBangladeshPage() {
         logging: false
       });
       
-      const dataUrl = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = `My-Bangladesh-${userProfile?.full_name || 'Travel-Map'}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+      const fileName = `My-Bangladesh-${displayName.replace(/\s+/g, '-')}`;
+      
+      if (format === 'jpg') {
+        const link = document.createElement("a");
+        link.href = imgData;
+        link.download = `${fileName}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (format === 'pdf') {
+        const pdf = new jsPDF({
+          orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+          unit: 'px',
+          format: [canvas.width, canvas.height]
+        });
+        pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
+        pdf.save(`${fileName}.pdf`);
+      }
       
     } catch (error) {
       console.error("Download Error:", error);
@@ -167,7 +183,6 @@ export default function MyBangladeshPage() {
   }
 
   const percentage = Math.round((visitedDistricts.length / 64) * 100);
-
   const isLight = downloadTheme === "light";
   const themeStyles = {
     cardBg: isLight ? "#ffffff" : "#0a1c13",
@@ -216,38 +231,19 @@ export default function MyBangladeshPage() {
                 <i className="fa-solid fa-circle-notch fa-spin"></i> সেভ হচ্ছে...
               </div>
             )}
-            
-            {visitedDistricts.length > 0 && (
-              <div className="bg-[#0a1c13] border border-white/10 p-4 rounded-2xl shadow-lg w-full md:w-auto flex flex-col sm:flex-row items-center gap-4">
-                <div className="flex bg-black/40 rounded-xl p-1 border border-white/5">
-                  <button 
-                    onClick={() => setDownloadTheme("dark")}
-                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${!isLight ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}
-                  >
-                    <i className="fa-solid fa-moon mr-1"></i> ডার্ক
-                  </button>
-                  <button 
-                    onClick={() => setDownloadTheme("light")}
-                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${isLight ? 'bg-white text-black shadow-md' : 'text-gray-500 hover:text-gray-300'}`}
-                  >
-                    <i className="fa-solid fa-sun mr-1"></i> লাইট
-                  </button>
-                </div>
-
-                <button 
-                  onClick={handleDownloadMap} 
-                  disabled={downloading}
-                  className="w-full sm:w-auto text-white px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-105"
-                  style={{ backgroundColor: selectedColor, boxShadow: `0 0 20px ${selectedColor}60` }}
-                >
-                  {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-image"></i>}
-                  {downloading ? "প্রসেসিং..." : "ম্যাপ সেভ করুন"}
-                </button>
-              </div>
-            )}
+            {/* থিম টগল বাটন ওপরেই থাকল, শুধু ডাউনলোড বাটন নিচে নামানো হয়েছে */}
+            <div className="flex bg-black/40 rounded-xl p-1 border border-white/5">
+              <button onClick={() => setDownloadTheme("dark")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${!isLight ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>
+                <i className="fa-solid fa-moon mr-1"></i> ডার্ক
+              </button>
+              <button onClick={() => setDownloadTheme("light")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${isLight ? 'bg-white text-black shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>
+                <i className="fa-solid fa-sun mr-1"></i> লাইট
+              </button>
+            </div>
           </div>
         </div>
 
+        {/* 🔴 ডাউনলোড কার্ড */}
         <div 
           ref={mapCardRef} 
           className="rounded-[2rem] p-6 sm:p-8 shadow-2xl relative" 
@@ -256,10 +252,21 @@ export default function MyBangladeshPage() {
         >
           <div className="flex justify-between items-end pb-4 mb-6" style={{ borderBottom: `1px solid ${themeStyles.borderColor}` }}>
             <div>
-              <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-1" style={{ color: themeStyles.textColor }}>আমার বাংলাদেশ ভ্রমণ</h2>
-              <p className="text-xs sm:text-sm font-bold uppercase tracking-widest" style={{ color: themeStyles.subTextColor }}>
-                অভিযাত্রী: <span style={{ color: selectedColor }} className="text-lg font-black ml-1">{userProfile?.full_name || 'Guest Explorer'}</span>
-              </p>
+              <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-2" style={{ color: themeStyles.textColor }}>আমার বাংলাদেশ ভ্রমণ</h2>
+              <div className="flex items-center gap-2">
+                <p className="text-xs sm:text-sm font-bold uppercase tracking-widest" style={{ color: themeStyles.subTextColor }}>
+                  অভিযাত্রী: 
+                </p>
+                {/* 🔴 কাস্টম নেম ইনপুট (সবার জন্য এডিটেবল) */}
+                <input 
+                  type="text" 
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="bg-transparent border-b border-dashed border-gray-500/50 hover:border-gray-400 focus:border-gray-400 focus:outline-none text-lg font-black w-40 sm:w-56 px-1 transition-colors"
+                  style={{ color: selectedColor }}
+                  title="আপনার নাম পরিবর্তন করতে এখানে ক্লিক করুন"
+                />
+              </div>
             </div>
             <div className="text-right hidden sm:block">
               <h2 className="text-2xl font-black" style={{ color: themeStyles.textColor }}><span style={{ color: selectedColor }}>C</span>UET <span style={{ color: selectedColor }}>A</span>S</h2>
@@ -288,43 +295,23 @@ export default function MyBangladeshPage() {
             </div>
           </div>
 
-          <div className="w-full h-[65vh] sm:h-[75vh] rounded-3xl overflow-hidden flex items-center justify-center relative select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
+          <div className="w-full h-[65vh] sm:h-[75vh] rounded-3xl overflow-hidden flex items-center justify-center relative touch-none select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
 
-            {/* 🔴 Custom Zoom Buttons (Downloads-এ হাইড করার জন্য data-html2canvas-ignore="true") */}
             <div data-html2canvas-ignore="true" className="absolute top-4 right-4 z-20 flex flex-col gap-2">
-              <button 
-                onClick={handleZoomIn} 
-                className="w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95"
-                style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}
-              >
+              <button onClick={handleZoomIn} className="w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
                 <i className="fa-solid fa-plus"></i>
               </button>
-              <button 
-                onClick={handleZoomOut} 
-                className="w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95"
-                style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}
-              >
+              <button onClick={handleZoomOut} className="w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95" style={{ backgroundColor: themeStyles.cardBg, color: themeStyles.textColor, border: `1px solid ${themeStyles.borderColor}` }}>
                 <i className="fa-solid fa-minus"></i>
               </button>
             </div>
 
-            {hoveredDistrict && (
-              <div data-html2canvas-ignore="true" className="absolute top-4 left-4 z-20 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg border border-white/10" style={{ color: selectedColor }}>
-                📍 {hoveredDistrict}
-              </div>
-            )}
-
             <ComposableMap
               projection="geoMercator"
-              // 🔴 Scale কমিয়ে 4200 করা হয়েছে যাতে ম্যাপ কোনোভাবেই না কাটে
               projectionConfig={{ scale: 4200, center: [90.35, 23.8] }}
               className="w-full h-full outline-none"
             >
-              <ZoomableGroup 
-                zoom={position.zoom} 
-                center={position.coordinates} 
-                onMoveEnd={handleMoveEnd}
-              >
+              <ZoomableGroup zoom={position.zoom} center={position.coordinates} onMoveEnd={handleMoveEnd}>
                 <Geographies geography={geoUrl}>
                   {({ geographies }) => (
                     <>
@@ -337,7 +324,7 @@ export default function MyBangladeshPage() {
                             key={geo.rsmKey}
                             geography={geo}
                             onClick={() => handleMapClick(geo)}
-                            onMouseEnter={() => setHoveredDistrict(districtName || "")}
+                            onMouseEnter={() => setHoveredDistrict(districtBn[districtName] || districtName)}
                             onMouseLeave={() => setHoveredDistrict("")}
                             style={{
                               default: {
@@ -348,37 +335,34 @@ export default function MyBangladeshPage() {
                                 filter: isVisited && !isLight ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
                                 transition: "all 0.3s ease"
                               },
-                              hover: {
-                                fill: isVisited ? selectedColor : "#3b82f6",
-                                outline: "none",
-                                stroke: isLight ? "#000" : "#ffffff",
-                                strokeWidth: 1.5,
-                                cursor: "pointer",
-                              }
+                              hover: { fill: isVisited ? selectedColor : "#3b82f6", outline: "none", stroke: isLight ? "#000" : "#ffffff", strokeWidth: 1.5, cursor: "pointer" }
                             }}
                           />
                         );
                       })}
                       
+                      {/* 🔴 বাংলা নাম ও বড় ফন্ট সাইজ (Overlap রোধে ফন্ট সাইজ ৫ রাখা হয়েছে) */}
                       {geographies.map((geo) => {
                         const districtName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
                         const isVisited = visitedDistricts.includes(districtName);
                         
                         if (!isVisited) return null;
                         const centroid = geoCentroid(geo);
+                        const bengaliName = districtBn[districtName] || districtName;
 
                         return (
                           <Marker key={`${geo.rsmKey}-label`} coordinates={centroid}>
                             <text
                               y="2"
-                              fontSize={4.5}
+                              fontSize={5}
+                              fontFamily="'Noto Sans Bengali', sans-serif"
                               textAnchor="middle"
                               alignmentBaseline="middle"
                               fill={themeStyles.nameLabelColor}
                               className="font-bold pointer-events-none"
                               style={{ filter: isLight ? 'drop-shadow(0px 1px 1px rgba(255,255,255,0.8))' : 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }}
                             >
-                              {districtName}
+                              {bengaliName}
                             </text>
                           </Marker>
                         );
@@ -391,7 +375,8 @@ export default function MyBangladeshPage() {
           </div>
         </div>
         
-        <div className="mt-16 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl" data-aos="fade-up">
+        {/* 체কলিস্ট */}
+        <div className="mt-8 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl" data-aos="fade-up">
           <h3 className="text-xl sm:text-2xl font-black mb-8 text-white flex items-center gap-3 border-b border-white/10 pb-4">
             <i className="fa-solid fa-list-check" style={{ color: selectedColor }}></i> দ্রুত জেলা নির্বাচন করুন
           </h3>
@@ -412,23 +397,16 @@ export default function MyBangladeshPage() {
                   <div className="space-y-1.5 max-h-56 overflow-y-auto pr-2 custom-scrollbar">
                     {division.districts.map(dist => {
                       const isChecked = visitedDistricts.includes(dist);
+                      const bngName = districtBn[dist] || dist;
                       
                       return (
                         <label key={dist} className={`flex items-center gap-3 cursor-pointer group p-2 rounded-lg transition-colors ${isChecked ? 'bg-white/10' : 'hover:bg-white/5'}`}>
-                          <input 
-                            type="checkbox" 
-                            checked={isChecked}
-                            onChange={() => toggleDistrict(dist)}
-                            className="hidden" 
-                          />
-                          <div 
-                            className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'border-transparent' : 'border-gray-500'}`}
-                            style={{ backgroundColor: isChecked ? selectedColor : 'transparent' }}
-                          >
+                          <input type="checkbox" checked={isChecked} onChange={() => toggleDistrict(dist)} className="hidden" />
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'border-transparent' : 'border-gray-500'}`} style={{ backgroundColor: isChecked ? selectedColor : 'transparent' }}>
                             {isChecked && <i className="fa-solid fa-check text-[10px] text-white"></i>}
                           </div>
                           <span className={`text-sm font-bold ${isChecked ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
-                            {dist}
+                            {bngName}
                           </span>
                         </label>
                       );
@@ -440,23 +418,42 @@ export default function MyBangladeshPage() {
           </div>
         </div>
 
+        {/* 🔴 ডাউনলোড প্যানেল (সবার নিচে) */}
+        {visitedDistricts.length > 0 && (
+          <div className="mt-8 bg-[#0a1c13] border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center" data-aos="fade-up">
+            <h3 className="text-xl font-black text-white mb-2">আপনার ম্যাপ প্রস্তুত!</h3>
+            <p className="text-gray-400 text-sm mb-6">কোন ফরম্যাটে ডাউনলোড করতে চান তা বেছে নিন</p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <button 
+                onClick={() => handleDownloadMap('jpg')} 
+                disabled={downloading}
+                className="w-full sm:w-auto text-white px-8 py-3.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-105"
+                style={{ backgroundColor: selectedColor, boxShadow: `0 0 20px ${selectedColor}60` }}
+              >
+                {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-file-image"></i>}
+                {downloading ? "প্রসেসিং..." : "ডাউনলোড JPG"}
+              </button>
+
+              <button 
+                onClick={() => handleDownloadMap('pdf')} 
+                disabled={downloading}
+                className="w-full sm:w-auto text-white px-8 py-3.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-105 bg-red-500 hover:bg-red-600 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+              >
+                {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-file-pdf"></i>}
+                {downloading ? "প্রসেসিং..." : "ডাউনলোড PDF"}
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
       
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.2);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.4);
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
       `}</style>
     </div>
   );
