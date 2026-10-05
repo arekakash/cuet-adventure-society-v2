@@ -4,39 +4,23 @@ import { supabase } from "@/lib/supabase";
 import html2canvas from "html2canvas";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 
+// 🔴 জাদুকরী লাইন! ইন্টারনেট থেকে আর ডাটা টানবে না। 
+// প্যাকেজ থেকে সরাসরি ৩০,০০০ লাইনের ম্যাপ ডেটা তোমার প্রজেক্টে লোকালি চলে আসবে!
+import geoData from "bangladesh-geojson/src/data/bangladesh.geojson";
+
 export default function MyBangladesh() {
   const [user, setUser] = useState(null);
   const [visited, setVisited] = useState([]);
-  const [geoData, setGeoData] = useState(null);
-  const [mapError, setMapError] = useState(null); // 🔴 এরর ধরার জন্য নতুন স্টেট
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
   const mapRef = useRef(null);
 
   useEffect(() => {
-    const fetchAllData = async () => {
+    const fetchUserData = async () => {
       setLoading(true);
-      setMapError(null);
-      
-      try {
-        // 🔴 GitHub Raw-এর বদলে jsDelivr CDN ব্যবহার করা হয়েছে (যা কখনোই ব্লক হবে না)
-        const response = await fetch("https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/bangladesh/bangladesh-districts.json");
-        
-        if (!response.ok) {
-          throw new Error("ম্যাপের ডেটা সার্ভার থেকে আনা সম্ভব হয়নি।");
-        }
-        
-        const data = await response.json();
-        setGeoData(data);
-        
-      } catch (err) {
-        console.error("Map Fetch Error:", err);
-        setMapError(err.message); // এরর হলে স্ক্রিনে দেখাবে
-      }
-
-      // ইউজারের ডেটা ফেচ
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (session) {
         setUser(session.user);
         const { data } = await supabase
@@ -49,11 +33,10 @@ export default function MyBangladesh() {
           setVisited(data.visited_districts);
         }
       }
-      
       setLoading(false);
     };
 
-    fetchAllData();
+    fetchUserData();
   }, []);
 
   const toggleDistrict = async (districtId, districtName) => {
@@ -94,18 +77,22 @@ export default function MyBangladesh() {
     if (!mapRef.current) return;
     try {
       setSaving(true);
+      
       const canvas = await html2canvas(mapRef.current, { 
         scale: 3, 
         backgroundColor: '#030705',
         useCORS: true 
       });
+      
       const dataUrl = canvas.toDataURL("image/png", 1.0);
+      
       const link = document.createElement('a');
       link.download = `my-bangladesh-explored-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
+      
     } catch (error) {
-      console.error('Download Error:', error);
+      console.error('Oops!', error);
       alert("ছবি ডাউনলোড করতে সমস্যা হয়েছে!");
     } finally {
       setSaving(false);
@@ -136,7 +123,7 @@ export default function MyBangladesh() {
           </p>
         </div>
 
-        {/* Action Buttons */}
+        {/* Dashboard / Stats Section */}
         <div className="flex flex-col sm:flex-row justify-between items-center bg-[#0a1c13] p-4 rounded-2xl border border-white/10 mb-8 gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-black/40 border border-[#e76f51]/50 flex items-center justify-center">
@@ -150,8 +137,8 @@ export default function MyBangladesh() {
 
           <button 
             onClick={handleDownloadMap} 
-            disabled={saving || !geoData}
-            className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(231,111,81,0.4)] flex items-center justify-center gap-2 ${saving || !geoData ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-[#e76f51] hover:bg-orange-600 text-white'}`}
+            disabled={saving}
+            className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(231,111,81,0.4)] flex items-center justify-center gap-2 ${saving ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-[#e76f51] hover:bg-orange-600 text-white'}`}
           >
             {saving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-download"></i>}
             ম্যাপ ডাউনলোড করুন
@@ -161,9 +148,9 @@ export default function MyBangladesh() {
         {/* Printable Map Area */}
         <div 
           ref={mapRef} 
-          className="bg-[#030705] p-6 sm:p-10 rounded-3xl border border-white/5 relative overflow-hidden min-h-[400px] flex items-center justify-center"
+          className="bg-[#030705] p-6 sm:p-10 rounded-3xl border border-white/5 relative overflow-hidden"
         >
-          {/* Watermark */}
+          {/* Watermark for Downloaded Image */}
           <div className="absolute top-6 left-6 opacity-30 pointer-events-none z-10">
             <h2 className="text-3xl font-black tracking-widest text-white">
               <span className="text-[#e76f51]">C</span>UET <span className="text-[#e76f51]">A</span>S
@@ -171,68 +158,65 @@ export default function MyBangladesh() {
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Adventure Society</p>
           </div>
 
-          {/* 🔴 Error Message Display (যদি এরপরও কোনো সমস্যা হয়) */}
-          {mapError && (
-            <div className="text-center z-20">
-              <i className="fa-solid fa-triangle-exclamation text-4xl text-red-500 mb-3"></i>
-              <p className="text-red-400 font-bold">দুঃখিত, ম্যাপ লোড হয়নি!</p>
-              <p className="text-sm text-gray-500 mt-2">Error: {mapError}</p>
-            </div>
+          {/* User Stats on Map */}
+          {user && (
+             <div className="absolute top-6 right-6 text-right pointer-events-none z-10">
+               <p className="text-[#e76f51] font-black text-xl">{visited.length} / 64</p>
+               <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Districts Explored</p>
+             </div>
           )}
 
-          {/* Interactive SVG Map */}
-          {!mapError && geoData && (
-            <div className="w-full max-w-lg mx-auto aspect-[3/4] relative mt-8">
-              <ComposableMap
-                projection="geoMercator"
-                projectionConfig={{
-                  scale: 4500,
-                  center: [90.2, 24.2] 
-                }}
-                className="w-full h-full drop-shadow-2xl"
-              >
-                <Geographies geography={geoData}>
-                  {({ geographies }) =>
-                    geographies.map((geo) => {
-                      const name = geo.properties.NAME_2 || geo.properties.NAME_1 || geo.properties.name || "Unknown";
-                      const districtId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-                      const isVisited = visited.includes(districtId);
+          {/* Interactive SVG Map (Local Data completely offline) */}
+          <div className="w-full max-w-lg mx-auto aspect-[3/4] relative mt-16 sm:mt-8">
+            <ComposableMap
+              projection="geoMercator"
+              projectionConfig={{
+                scale: 4500,
+                center: [90.2, 24.2]
+              }}
+              className="w-full h-full drop-shadow-2xl"
+            >
+              <Geographies geography={geoData}>
+                {({ geographies }) =>
+                  geographies.map((geo) => {
+                    const name = geo.properties.shapeName || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || "Unknown";
+                    const districtId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                    const isVisited = visited.includes(districtId);
 
-                      return (
-                        <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          onClick={() => toggleDistrict(districtId, name)}
-                          style={{
-                            default: {
-                              fill: isVisited ? "#e76f51" : "#1f2937",
-                              stroke: "#030705",
-                              strokeWidth: 0.5,
-                              outline: "none",
-                              transition: "all 300ms",
-                            },
-                            hover: {
-                              fill: isVisited ? "#f97316" : "#4b5563",
-                              stroke: "#030705",
-                              strokeWidth: 0.5,
-                              outline: "none",
-                              cursor: "pointer",
-                            },
-                            pressed: {
-                              fill: "#fb923c",
-                              outline: "none",
-                            }
-                          }}
-                        >
-                          <title>{name}</title>
-                        </Geography>
-                      );
-                    })
-                  }
-                </Geographies>
-              </ComposableMap>
-            </div>
-          )}
+                    return (
+                      <Geography
+                        key={geo.rsmKey}
+                        geography={geo}
+                        onClick={() => toggleDistrict(districtId, name)}
+                        style={{
+                          default: {
+                            fill: isVisited ? "#e76f51" : "#1f2937",
+                            stroke: "#030705",
+                            strokeWidth: 0.5,
+                            outline: "none",
+                            transition: "all 300ms",
+                          },
+                          hover: {
+                            fill: isVisited ? "#f97316" : "#4b5563",
+                            stroke: "#030705",
+                            strokeWidth: 0.5,
+                            outline: "none",
+                            cursor: "pointer",
+                          },
+                          pressed: {
+                            fill: "#fb923c",
+                            outline: "none",
+                          }
+                        }}
+                      >
+                        <title>{name}</title>
+                      </Geography>
+                    );
+                  })
+                }
+              </Geographies>
+            </ComposableMap>
+          </div>
         </div>
 
       </div>
