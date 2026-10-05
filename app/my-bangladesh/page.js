@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from "react-simple-maps";
+import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 import { geoCentroid } from "d3-geo";
 import Link from "next/link";
 import html2canvas from "html2canvas";
@@ -277,7 +277,7 @@ export default function MyBangladeshPage() {
             </div>
           </div>
 
-          <div className="w-full h-[65vh] sm:h-[75vh] rounded-3xl overflow-hidden flex items-center justify-center relative touch-none select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
+          <div className="w-full h-[65vh] sm:h-[75vh] rounded-3xl overflow-hidden flex items-center justify-center relative select-none" style={{ backgroundColor: themeStyles.mapBg, border: `1px solid ${themeStyles.borderColor}` }}>
 
             
             {hoveredDistrict && (
@@ -288,76 +288,74 @@ export default function MyBangladeshPage() {
 
             <ComposableMap
               projection="geoMercator"
-              projectionConfig={{ scale: 5000, center: [90.35, 23.8] }}
+              projectionConfig={{ scale: 5200, center: [90.35, 23.8] }}
               className="w-full h-full outline-none"
             >
-              <ZoomableGroup zoom={1} minZoom={1} maxZoom={4}>
-                <Geographies geography={geoUrl}>
-                  {({ geographies }) => (
-                    <>
-                      {/* ম্যাপের জেলাগুলো রেন্ডার করা */}
-                      {geographies.map((geo) => {
-                        const districtName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
-                        const isVisited = visitedDistricts.includes(districtName);
+              <Geographies geography={geoUrl}>
+                {({ geographies }) => (
+                  <>
+                    {/* ম্যাপের জেলাগুলো রেন্ডার করা */}
+                    {geographies.map((geo) => {
+                      const districtName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
+                      const isVisited = visitedDistricts.includes(districtName);
 
-                        return (
-                          <Geography
-                            key={geo.rsmKey}
-                            geography={geo}
-                            onClick={() => handleMapClick(geo)}
-                            onMouseEnter={() => setHoveredDistrict(districtName || "")}
-                            onMouseLeave={() => setHoveredDistrict("")}
-                            style={{
-                              default: {
-                                fill: isVisited ? selectedColor : themeStyles.unvisitedFill,
-                                outline: "none",
-                                stroke: themeStyles.mapStroke,
-                                strokeWidth: isLight ? 1 : 0.8,
-                                filter: isVisited && !isLight ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
-                                transition: "all 0.3s ease"
-                              },
-                              hover: {
-                                fill: isVisited ? selectedColor : "#3b82f6",
-                                outline: "none",
-                                stroke: isLight ? "#000" : "#ffffff",
-                                strokeWidth: 1.5,
-                                cursor: "pointer",
-                              }
-                            }}
-                          />
-                        );
-                      })}
+                      return (
+                        <Geography
+                          key={geo.rsmKey}
+                          geography={geo}
+                          onClick={() => handleMapClick(geo)}
+                          onMouseEnter={() => setHoveredDistrict(districtName || "")}
+                          onMouseLeave={() => setHoveredDistrict("")}
+                          style={{
+                            default: {
+                              fill: isVisited ? selectedColor : themeStyles.unvisitedFill,
+                              outline: "none",
+                              stroke: themeStyles.mapStroke,
+                              strokeWidth: isLight ? 1 : 0.8,
+                              filter: isVisited && !isLight ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
+                              transition: "all 0.3s ease"
+                            },
+                            hover: {
+                              fill: isVisited ? selectedColor : "#3b82f6",
+                              outline: "none",
+                              stroke: isLight ? "#000" : "#ffffff",
+                              strokeWidth: 1.5,
+                              cursor: "pointer",
+                            }
+                          }}
+                        />
+                      );
+                    })}
+                    
+                    {/* 🔴 ম্যাপের ওপর সিলেক্ট করা জেলার নাম রেন্ডার করা */}
+                    {geographies.map((geo) => {
+                      const districtName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
+                      const isVisited = visitedDistricts.includes(districtName);
                       
-                      {/* 🔴 ম্যাপের ওপর সিলেক্ট করা জেলার নাম রেন্ডার করা */}
-                      {geographies.map((geo) => {
-                        const districtName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
-                        const isVisited = visitedDistricts.includes(districtName);
-                        
-                        if (!isVisited) return null;
-                        
-                        // জেলার ঠিক মাঝখানের পয়েন্ট (Centroid) বের করা
-                        const centroid = geoCentroid(geo);
+                      if (!isVisited) return null;
+                      
+                      // জেলার ঠিক মাঝখানের পয়েন্ট (Centroid) বের করা
+                      const centroid = geoCentroid(geo);
 
-                        return (
-                          <Marker key={`${geo.rsmKey}-label`} coordinates={centroid}>
-                            <text
-                              y="2"
-                              fontSize={4.5}
-                              textAnchor="middle"
-                              alignmentBaseline="middle"
-                              fill={themeStyles.nameLabelColor}
-                              className="font-bold pointer-events-none"
-                              style={{ filter: isLight ? 'drop-shadow(0px 1px 1px rgba(255,255,255,0.8))' : 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }}
-                            >
-                              {districtName}
-                            </text>
-                          </Marker>
-                        );
-                      })}
-                    </>
-                  )}
-                </Geographies>
-              </ZoomableGroup>
+                      return (
+                        <Marker key={`${geo.rsmKey}-label`} coordinates={centroid}>
+                          <text
+                            y="2"
+                            fontSize={4.5}
+                            textAnchor="middle"
+                            alignmentBaseline="middle"
+                            fill={themeStyles.nameLabelColor}
+                            className="font-bold pointer-events-none"
+                            style={{ filter: isLight ? 'drop-shadow(0px 1px 1px rgba(255,255,255,0.8))' : 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }}
+                          >
+                            {districtName}
+                          </text>
+                        </Marker>
+                      );
+                    })}
+                  </>
+                )}
+              </Geographies>
             </ComposableMap>
           </div>
         </div>
