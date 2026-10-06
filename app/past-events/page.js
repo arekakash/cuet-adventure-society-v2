@@ -12,15 +12,15 @@ export default function PastEventsPage() {
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   
-  // 🔴 আপডেটেড ফিল্টারিং স্টেট (Sort & Month যুক্ত করা হয়েছে)
+  // ফিল্টারিং স্টেট 
   const [filters, setFilters] = useState({ 
       category: 'All', 
       year: 'All', 
       month: 'All', 
-      sortOrder: 'desc' // 'desc' = Newest First, 'asc' = Oldest First
+      sortOrder: 'desc' 
   })
 
-  // 🔴 2014 থেকে 2100 পর্যন্ত সাল
+  // 2014 থেকে 2100 পর্যন্ত সাল
   const allYears = Array.from({ length: 2100 - 2014 + 1 }, (_, i) => 2100 - i)
   
   const months = [
@@ -41,7 +41,7 @@ export default function PastEventsPage() {
   const [isCheckboxChecked, setIsCheckboxChecked] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deletingEventId, setDeletingEventId] = useState(null)
-  const [eventToDelete, setEventToDelete] = useState(null) // 🔴 ডিলিট করার সময় ইভেন্টের ডেটা ধরে রাখার জন্য
+  const [eventToDelete, setEventToDelete] = useState(null) 
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 })
@@ -71,7 +71,7 @@ export default function PastEventsPage() {
         .select('*')
         .eq('status', 'completed')
         .is('deleted_at', null)
-        .order('start_date', { ascending: false }) // Default DB sort
+        .order('start_date', { ascending: false }) 
 
       if (error) throw error
 
@@ -81,14 +81,12 @@ export default function PastEventsPage() {
 
         const totalExpeditions = data.length
         const totalExplorers = data.reduce((sum, ev) => {
-  // যদি booked_seats এর মান 0 এর চেয়ে বেশি থাকে, তবে সেটি ব্যবহার করবে। 
-  // না থাকলে total_seats থেকে available_seats বিয়োগ করে অভিযাত্রী সংখ্যা বের করবে।
-  const participants = ev.booked_seats > 0 
-    ? ev.booked_seats 
-    : Math.max(0, (ev.total_seats || 0) - (ev.available_seats || 0));
-    
-  return sum + participants;
-}, 0);
+          const participants = ev.booked_seats > 0 
+            ? ev.booked_seats 
+            : Math.max(0, (ev.total_seats || 0) - (ev.available_seats || 0));
+            
+          return sum + participants;
+        }, 0);
 
         const totalDistance = data.reduce((sum, ev) => sum + (ev.stats_meta?.distance || 0), 0)
 
@@ -101,26 +99,22 @@ export default function PastEventsPage() {
     }
   }
 
-  // 🔴 অ্যাডভান্সড ফিল্টার ও সর্টিং লজিক
+  // অ্যাডভান্সড ফিল্টার ও সর্টিং লজিক
   useEffect(() => {
-    let result = [...events] // Clone array for sorting mutation
+    let result = [...events] 
 
-    // ১. Category Filter
     if (filters.category !== 'All') {
       result = result.filter(ev => ev.category === filters.category)
     }
     
-    // ২. Year Filter
     if (filters.year !== 'All') {
       result = result.filter(ev => new Date(ev.start_date).getFullYear().toString() === filters.year.toString())
     }
 
-    // ৩. Month Filter
     if (filters.month !== 'All') {
       result = result.filter(ev => new Date(ev.start_date).getMonth().toString() === filters.month.toString())
     }
 
-    // 8. Sorting Logic
     result.sort((a, b) => {
         const dateA = new Date(a.start_date).getTime()
         const dateB = new Date(b.start_date).getTime()
@@ -130,17 +124,15 @@ export default function PastEventsPage() {
     setFilteredEvents(result)
   }, [filters, events])
 
-  // 🔴 সংশোধিত ડিলিট লজিক (Rollback সহ)
+  // ডিলিট লজিক (Rollback সহ)
   const handleMoveToTrash = async () => {
     try {
-      // ১. প্রথমে এই ইভেন্টের বুকিংগুলো খুঁজে বের করো
       const { data: bookings } = await supabase
         .from('bookings')
         .select('user_id')
         .eq('event_id', deletingEventId)
         .in('status', ['approved', 'free_booking'])
 
-      // ২. যদি বুকিং থাকে, তবে তাদের পয়েন্ট মাইনাস করো (Rollback)
       if (bookings && bookings.length > 0 && eventToDelete) {
         const statsMeta = eventToDelete.stats_meta || {}
         const category = (eventToDelete.category || "").toLowerCase().trim()
@@ -184,7 +176,6 @@ export default function PastEventsPage() {
         await Promise.all(rollbackPromises)
       }
 
-      // ৩. এরপর ইভেন্টটিকে ট্র্যাশ বিনে পাঠাও
       const { error } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
@@ -219,101 +210,114 @@ export default function PastEventsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050b08] text-gray-300 font-sans relative overflow-x-hidden pt-20 sm:pt-24 pb-16">
+    <div className="min-h-screen bg-pastel-bg dark:bg-darkForest text-gray-800 dark:text-gray-300 font-sans relative overflow-x-hidden pt-20 sm:pt-24 pb-16 transition-colors duration-500">
       
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-0 right-0 w-64 sm:w-96 h-64 sm:h-96 bg-[#e76f51]/5 rounded-full blur-[100px] sm:blur-[120px]"></div>
-        <div className="absolute bottom-0 left-0 w-64 sm:w-96 h-64 sm:h-96 bg-[#2d6a4f]/5 rounded-full blur-[100px] sm:blur-[120px]"></div>
+      {/* Background Glow Orbs */}
+      <div className="fixed inset-0 z-0 pointer-events-none transition-colors duration-500">
+        <div className="absolute top-0 right-0 w-64 sm:w-96 h-64 sm:h-96 bg-campfire/10 dark:bg-campfire/5 rounded-full blur-[100px] sm:blur-[120px] transition-colors"></div>
+        <div className="absolute bottom-0 left-0 w-64 sm:w-96 h-64 sm:h-96 bg-trail/10 dark:bg-trail/5 rounded-full blur-[100px] sm:blur-[120px] transition-colors"></div>
       </div>
 
       <div className="max-w-7xl mx-auto px-2 sm:px-6 relative z-10">
         
         <div className="text-center mb-8 sm:mb-12" data-aos="fade-down">
-          <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-[#e76f51] transition-colors bg-white/5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-xs font-bold uppercase border border-white/10 mb-4 sm:mb-6">
+          <Link href="/" className="inline-flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-campfire transition-colors bg-white dark:bg-white/5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-xs font-bold uppercase border border-gray-200 dark:border-white/10 mb-4 sm:mb-6 shadow-sm dark:shadow-none">
             <i className="fa-solid fa-arrow-left"></i> হোমপেজে ফিরে যান
           </Link>
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-white tracking-tight mb-2 sm:mb-4 drop-shadow-lg">
-            এক্সপেডিশন <span className="text-[#e76f51]">আর্কাইভ</span>
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight mb-2 sm:mb-4 drop-shadow-sm dark:drop-shadow-lg transition-colors">
+            এক্সপেডিশন <span className="text-campfire">আর্কাইভ</span>
           </h1>
-          <p className="text-gray-400 max-w-2xl mx-auto text-xs sm:text-sm md:text-base px-2">
+          <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-xs sm:text-sm md:text-base px-2 transition-colors">
             আমাদের অতীত অভিযান ও ক্যাম্পিংয়ের এক বিশাল সংগ্রহশালা।
           </p>
         </div>
 
         <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-8 sm:mb-12 px-2 sm:px-0" data-aos="fade-up" data-aos-delay="100">
-          <div className="bg-[#0a1c13]/80 backdrop-blur-md border border-[#2d6a4f]/30 p-2 sm:p-6 rounded-xl sm:rounded-3xl flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-5 shadow-lg text-center sm:text-left">
-            <div className="w-6 h-6 sm:w-14 sm:h-14 rounded-full bg-[#2d6a4f]/20 flex items-center justify-center text-[#2d6a4f] text-[10px] sm:text-2xl shrink-0">
+          <div className="bg-emerald-50 dark:bg-moss/80 backdrop-blur-md border border-emerald-200 dark:border-trail/30 p-2 sm:p-6 rounded-xl sm:rounded-3xl flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-5 shadow-soft dark:shadow-lg text-center sm:text-left transition-colors duration-500">
+            <div className="w-6 h-6 sm:w-14 sm:h-14 rounded-full bg-emerald-100 dark:bg-trail/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-[10px] sm:text-2xl shrink-0 transition-colors">
               <i className="fa-solid fa-route"></i>
             </div>
             <div>
-              <p className="text-sm sm:text-3xl font-black text-white leading-none">{globalStats.totalExpeditions}</p>
-              <p className="text-[7px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mt-1">সফল অভিযান</p>
+              <p className="text-sm sm:text-3xl font-black text-gray-900 dark:text-white leading-none transition-colors">{globalStats.totalExpeditions}</p>
+              <p className="text-[7px] sm:text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-widest mt-1 transition-colors">সফল অভিযান</p>
             </div>
           </div>
-          <div className="bg-[#0a1c13]/80 backdrop-blur-md border border-[#e76f51]/30 p-2 sm:p-6 rounded-xl sm:rounded-3xl flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-5 shadow-lg text-center sm:text-left">
-            <div className="w-6 h-6 sm:w-14 sm:h-14 rounded-full bg-[#e76f51]/20 flex items-center justify-center text-[#e76f51] text-[10px] sm:text-2xl shrink-0">
+          <div className="bg-orange-50 dark:bg-moss/80 backdrop-blur-md border border-orange-200 dark:border-campfire/30 p-2 sm:p-6 rounded-xl sm:rounded-3xl flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-5 shadow-soft dark:shadow-lg text-center sm:text-left transition-colors duration-500">
+            <div className="w-6 h-6 sm:w-14 sm:h-14 rounded-full bg-orange-100 dark:bg-campfire/20 flex items-center justify-center text-campfire text-[10px] sm:text-2xl shrink-0 transition-colors">
               <i className="fa-solid fa-users-viewfinder"></i>
             </div>
             <div>
-              <p className="text-sm sm:text-3xl font-black text-white leading-none">{globalStats.totalExplorers}</p>
-              <p className="text-[7px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mt-1">অভিযাত্রী</p>
+              <p className="text-sm sm:text-3xl font-black text-gray-900 dark:text-white leading-none transition-colors">{globalStats.totalExplorers}</p>
+              <p className="text-[7px] sm:text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-widest mt-1 transition-colors">অভিযাত্রী</p>
             </div>
           </div>
-          <div className="bg-[#0a1c13]/80 backdrop-blur-md border border-blue-500/30 p-2 sm:p-6 rounded-xl sm:rounded-3xl flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-5 shadow-lg text-center sm:text-left">
-            <div className="w-6 h-6 sm:w-14 sm:h-14 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 text-[10px] sm:text-2xl shrink-0">
+          <div className="bg-blue-50 dark:bg-moss/80 backdrop-blur-md border border-blue-200 dark:border-blue-500/30 p-2 sm:p-6 rounded-xl sm:rounded-3xl flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-5 shadow-soft dark:shadow-lg text-center sm:text-left transition-colors duration-500">
+            <div className="w-6 h-6 sm:w-14 sm:h-14 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 text-[10px] sm:text-2xl shrink-0 transition-colors">
               <i className="fa-solid fa-shoe-prints"></i>
             </div>
             <div>
-              <p className="text-sm sm:text-3xl font-black text-white leading-none">{globalStats.totalDistance} <span className="text-[8px] sm:text-lg font-normal">km+</span></p>
-              <p className="text-[7px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mt-1">মোট দূরত্ব</p>
+              <p className="text-sm sm:text-3xl font-black text-gray-900 dark:text-white leading-none transition-colors">{globalStats.totalDistance} <span className="text-[8px] sm:text-lg font-normal">km+</span></p>
+              <p className="text-[7px] sm:text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-widest mt-1 transition-colors">মোট দূরত্ব</p>
             </div>
           </div>
         </div>
 
-        {/* 🔴 আপডেটেড ফিল্টার সেকশন */}
-        <div className="bg-white/5 border border-white/10 p-3 sm:p-4 rounded-xl sm:rounded-2xl mb-8 sm:mb-10 backdrop-blur-sm mx-2 sm:mx-0" data-aos="fade-up" data-aos-delay="200">
+        {/* Filter Section */}
+        <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3 sm:p-4 rounded-xl sm:rounded-2xl mb-8 sm:mb-10 backdrop-blur-sm mx-2 sm:mx-0 shadow-sm dark:shadow-none transition-colors duration-500" data-aos="fade-up" data-aos-delay="200">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
             
-            <select 
-              value={filters.category} 
-              onChange={(e) => setFilters({...filters, category: e.target.value})}
-              className="bg-black/50 border border-white/10 text-white text-[10px] sm:text-sm rounded-lg px-2 sm:px-4 py-2 sm:py-2.5 outline-none focus:border-[#e76f51]"
-            >
-              <option value="All">সব ক্যাটাগরি</option>
-              <option value="Trekking">Trekking</option>
-              <option value="Camping">Camping</option>
-              <option value="Cycling">Cycling</option>
-              <option value="Swimming">Swimming</option>
-              <option value="Houseboat/Cruise">Houseboat/Cruise</option>
-              <option value="Day Tour">Day Tour</option>
-            </select>
+            <div className="relative">
+              <select 
+                value={filters.category} 
+                onChange={(e) => setFilters({...filters, category: e.target.value})}
+                className="w-full bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-white text-[10px] sm:text-sm rounded-lg px-2 sm:px-4 py-2 sm:py-2.5 outline-none focus:border-campfire appearance-none transition-colors shadow-inner dark:shadow-none"
+              >
+                <option value="All">সব ক্যাটাগরি</option>
+                <option value="Trekking">Trekking</option>
+                <option value="Camping">Camping</option>
+                <option value="Cycling">Cycling</option>
+                <option value="Swimming">Swimming</option>
+                <option value="Houseboat/Cruise">Houseboat/Cruise</option>
+                <option value="Day Tour">Day Tour</option>
+              </select>
+              <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 text-[8px] sm:text-[10px] pointer-events-none transition-colors"></i>
+            </div>
             
-            <select 
-              value={filters.year} 
-              onChange={(e) => setFilters({...filters, year: e.target.value})}
-              className="bg-black/50 border border-white/10 text-white text-[10px] sm:text-sm rounded-lg px-2 sm:px-4 py-2 sm:py-2.5 outline-none focus:border-[#e76f51]"
-            >
-              <option value="All">সব বছর</option>
-              {allYears.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+            <div className="relative">
+              <select 
+                value={filters.year} 
+                onChange={(e) => setFilters({...filters, year: e.target.value})}
+                className="w-full bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-white text-[10px] sm:text-sm rounded-lg px-2 sm:px-4 py-2 sm:py-2.5 outline-none focus:border-campfire appearance-none transition-colors shadow-inner dark:shadow-none"
+              >
+                <option value="All">সব বছর</option>
+                {allYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 text-[8px] sm:text-[10px] pointer-events-none transition-colors"></i>
+            </div>
 
-            <select 
-              value={filters.month} 
-              onChange={(e) => setFilters({...filters, month: e.target.value})}
-              className="bg-black/50 border border-white/10 text-white text-[10px] sm:text-sm rounded-lg px-2 sm:px-4 py-2 sm:py-2.5 outline-none focus:border-[#e76f51]"
-            >
-              <option value="All">সব মাস</option>
-              {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
+            <div className="relative">
+              <select 
+                value={filters.month} 
+                onChange={(e) => setFilters({...filters, month: e.target.value})}
+                className="w-full bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-white text-[10px] sm:text-sm rounded-lg px-2 sm:px-4 py-2 sm:py-2.5 outline-none focus:border-campfire appearance-none transition-colors shadow-inner dark:shadow-none"
+              >
+                <option value="All">সব মাস</option>
+                {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+              <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 text-[8px] sm:text-[10px] pointer-events-none transition-colors"></i>
+            </div>
 
-            <select 
-              value={filters.sortOrder} 
-              onChange={(e) => setFilters({...filters, sortOrder: e.target.value})}
-              className="bg-black/50 border border-white/10 text-white text-[10px] sm:text-sm rounded-lg px-2 sm:px-4 py-2 sm:py-2.5 outline-none focus:border-[#e76f51]"
-            >
-              <option value="desc">নতুন থেকে পুরনো</option>
-              <option value="asc">পুরনো থেকে নতুন</option>
-            </select>
+            <div className="relative">
+              <select 
+                value={filters.sortOrder} 
+                onChange={(e) => setFilters({...filters, sortOrder: e.target.value})}
+                className="w-full bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-white text-[10px] sm:text-sm rounded-lg px-2 sm:px-4 py-2 sm:py-2.5 outline-none focus:border-campfire appearance-none transition-colors shadow-inner dark:shadow-none"
+              >
+                <option value="desc">নতুন থেকে পুরনো</option>
+                <option value="asc">পুরনো থেকে নতুন</option>
+              </select>
+              <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 text-[8px] sm:text-[10px] pointer-events-none transition-colors"></i>
+            </div>
 
           </div>
         </div>
@@ -321,19 +325,19 @@ export default function PastEventsPage() {
         {/* Events Grid */}
         {loading ? (
           <div className="py-20 flex justify-center items-center">
-            <i className="fa-solid fa-compass fa-spin text-4xl sm:text-5xl text-[#e76f51]"></i>
+            <i className="fa-solid fa-compass fa-spin text-4xl sm:text-5xl text-campfire"></i>
           </div>
         ) : filteredEvents.length === 0 ? (
-          <div className="py-16 sm:py-20 text-center bg-white/5 border border-white/10 rounded-2xl mx-2 sm:mx-0">
-            <i className="fa-regular fa-folder-open text-4xl sm:text-6xl text-gray-600 mb-3 sm:mb-4"></i>
-            <h3 className="text-lg sm:text-xl font-bold text-gray-400">কোনো আর্কাইভ পাওয়া যায়নি</h3>
+          <div className="py-16 sm:py-20 text-center bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl mx-2 sm:mx-0 shadow-soft dark:shadow-none transition-colors duration-500">
+            <i className="fa-regular fa-folder-open text-4xl sm:text-6xl text-gray-400 dark:text-gray-600 mb-3 sm:mb-4 transition-colors"></i>
+            <h3 className="text-lg sm:text-xl font-bold text-gray-500 dark:text-gray-400 transition-colors">কোনো আর্কাইভ পাওয়া যায়নি</h3>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6 lg:gap-8 px-2 sm:px-0">
             {filteredEvents.map((ev, index) => (
               <div key={ev.id} className="relative group block" data-aos="fade-up" data-aos-delay={(index % 4) * 50}>
                 
-                {/* 🔴 Admin Edit & Delete Buttons */}
+                {/* Admin Edit & Delete Buttons */}
                 {isAdmin && (
                   <div className="absolute top-2 right-2 z-30 flex flex-col gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <Link 
@@ -347,7 +351,9 @@ export default function PastEventsPage() {
                       onClick={(e) => {
                         e.preventDefault()
                         setDeletingEventId(ev.id)
-                        setEventToDelete(ev) // 🔴 ডিলিট করার সময় ইভেন্টের ডেটা স্টেট-এ সেট করা হলো
+                        setEventToDelete(ev) 
+                        setIsCheckboxChecked(false) 
+                        setDeleteConfirmText('') 
                         setIsDeleteModalOpen(true)
                         setDeleteStep(1)
                       }}
@@ -359,31 +365,28 @@ export default function PastEventsPage() {
                   </div>
                 )}
 
-                <Link href={`/event-details?id=${ev.id}`} className="block h-full bg-[#0a1c13] rounded-xl sm:rounded-3xl border border-white/10 hover:border-[#e76f51]/50 overflow-hidden shadow-md flex flex-col">
-                    {/* 🔴 Image Container - Taller on mobile (h-32 instead of h-24) */}
+                <Link href={`/event-details?id=${ev.id}`} className="block h-full bg-white dark:bg-moss rounded-xl sm:rounded-3xl border border-gray-200 dark:border-white/10 hover:border-campfire/40 dark:hover:border-campfire/50 overflow-hidden shadow-soft dark:shadow-md flex flex-col transition-colors duration-500">
                     <div className="relative h-32 sm:h-48 w-full overflow-hidden shrink-0">
                       <img src={ev.cover_photo} alt={ev.title} className="w-full h-full object-cover transform sm:group-hover:scale-110 transition-transform duration-700" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0a1c13] via-transparent to-transparent"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-transparent to-transparent dark:from-moss dark:via-transparent dark:to-transparent transition-colors duration-500"></div>
                       
-                      {/* 🔴 Badges - Increased text size and padding for clarity */}
-                      <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-20 bg-emerald-500/90 backdrop-blur-sm text-white text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-2 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-lg border border-emerald-400/50">
+                      <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-20 bg-emerald-100/90 dark:bg-emerald-500/90 backdrop-blur-sm text-emerald-700 dark:text-white text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-2 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-sm dark:shadow-lg border border-emerald-300 dark:border-emerald-400/50 transition-colors">
                         <i className="fa-solid fa-check-double mr-0.5"></i> Mission Accomplished
                       </div>
 
-                      <div className="absolute bottom-2 left-2 sm:top-4 sm:right-4 sm:bottom-auto sm:left-auto z-20 bg-black/70 backdrop-blur-md text-[#e76f51] sm:text-white text-[9px] sm:text-[10px] font-bold uppercase tracking-widest px-2 py-1 sm:px-3 sm:py-1.5 rounded-full border border-white/10">
+                      <div className="absolute bottom-2 left-2 sm:top-4 sm:right-4 sm:bottom-auto sm:left-auto z-20 bg-white dark:bg-black/70 backdrop-blur-md text-campfire sm:text-gray-800 dark:sm:text-white text-[9px] sm:text-[10px] font-bold uppercase tracking-widest px-2 py-1 sm:px-3 sm:py-1.5 rounded-full border border-gray-300 dark:border-white/10 shadow-sm dark:shadow-none transition-colors">
                         <i className={getCategoryIcon(ev.category)}></i> <span className="hidden sm:inline">{ev.category}</span>
                       </div>
                     </div>
 
-                    {/* 🔴 Text Container - Increased padding, font sizes, and 2-line title */}
                     <div className="p-3 sm:p-5 relative flex-grow flex flex-col justify-center">
-                      <p className="text-[10px] sm:text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-widest">
+                      <p className="text-[10px] sm:text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-widest transition-colors">
                         {new Date(ev.start_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
                       </p>
-                      <h3 className="text-sm sm:text-lg font-black text-white mb-1 sm:mb-2 line-clamp-2 group-hover:text-[#e76f51] transition-colors leading-tight">
+                      <h3 className="text-sm sm:text-lg font-black text-gray-900 dark:text-white mb-1 sm:mb-2 line-clamp-2 group-hover:text-campfire transition-colors leading-tight">
                         {ev.title}
                       </h3>
-                      <p className="text-[11px] sm:text-sm text-gray-400 line-clamp-1 mt-1">
+                      <p className="text-[11px] sm:text-sm text-gray-500 dark:text-gray-400 line-clamp-1 mt-1 transition-colors">
                         <i className="fa-solid fa-location-dot mr-1"></i>{ev.destination}
                       </p>
                     </div>
@@ -394,20 +397,20 @@ export default function PastEventsPage() {
         )}
       </div>
 
-      {/* Delete Modal unchanged but compacted padding */}
+      {/* Delete Modal */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-[#0a1c13] border border-red-500/30 rounded-2xl p-6 max-w-sm w-full mx-auto relative shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 dark:bg-black/80 backdrop-blur-sm p-4 transition-colors duration-500">
+          <div className="bg-white dark:bg-moss border border-red-200 dark:border-red-500/30 rounded-2xl p-6 max-w-sm w-full mx-auto relative shadow-2xl dark:shadow-[0_0_30px_rgba(239,68,68,0.2)] transition-colors duration-500">
             {deleteStep === 1 && (
               <div className="text-center">
                 <i className="fa-solid fa-triangle-exclamation text-4xl text-red-500 mb-3 animate-pulse"></i>
-                <h3 className="text-xl font-black text-white mb-2">চরম সতর্কতা!</h3>
-                <p className="text-gray-400 text-xs mb-5">
-                  ইভেন্টটি ট্র্যাশ বিনে জমা হবে এবং <span className="text-red-400 font-bold">সকল ইউজারের পয়েন্ট মাইনাস হয়ে যাবে</span>। নিশ্চিত?
+                <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2 transition-colors">চরম সতর্কতা!</h3>
+                <p className="text-gray-600 dark:text-gray-400 text-xs mb-5 transition-colors">
+                  ইভেন্টটি ট্র্যাশ বিনে জমা হবে এবং <span className="text-red-500 dark:text-red-400 font-bold transition-colors">সকল ইউজারের পয়েন্ট মাইনাস হয়ে যাবে</span>। নিশ্চিত?
                 </p>
                 <div className="flex gap-3">
-                  <button onClick={() => setIsDeleteModalOpen(false)} className="w-1/2 bg-white/5 text-white py-2.5 rounded-lg text-xs font-bold transition-all">বাতিল</button>
-                  <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-red-500/20 text-red-500 border border-red-500/50 py-2.5 rounded-lg text-xs font-bold transition-all">পরবর্তী ধাপ</button>
+                  <button onClick={() => setIsDeleteModalOpen(false)} className="w-1/2 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm dark:shadow-none">বাতিল</button>
+                  <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-500 border border-red-200 dark:border-red-500/50 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm dark:shadow-none">পরবর্তী ধাপ</button>
                 </div>
               </div>
             )}
@@ -415,14 +418,14 @@ export default function PastEventsPage() {
             {deleteStep === 2 && (
               <div className="text-center">
                 <i className="fa-solid fa-clipboard-check text-4xl text-orange-500 mb-3"></i>
-                <h3 className="text-lg font-black text-white mb-3">দায়িত্ব স্বীকার</h3>
-                <label className="flex items-start gap-2 text-left bg-black/40 p-3 rounded-xl border border-white/5 mb-5 cursor-pointer">
+                <h3 className="text-lg font-black text-gray-900 dark:text-white mb-3 transition-colors">দায়িত্ব স্বীকার</h3>
+                <label className="flex items-start gap-2 text-left bg-gray-50 dark:bg-black/40 p-3 rounded-xl border border-gray-200 dark:border-white/5 mb-5 cursor-pointer transition-colors shadow-inner dark:shadow-none">
                   <input type="checkbox" className="mt-0.5 w-4 h-4 accent-red-500 shrink-0" checked={isCheckboxChecked} onChange={(e) => setIsCheckboxChecked(e.target.checked)} />
-                  <span className="text-[10px] text-gray-300">আমি নিজ দায়িত্বে এটি করছি।</span>
+                  <span className="text-[10px] text-gray-600 dark:text-gray-300 transition-colors">আমি নিজ দায়িত্বে এটি করছি।</span>
                 </label>
                 <div className="flex gap-3">
-                  <button onClick={() => setDeleteStep(1)} className="w-1/2 bg-white/5 text-white py-2.5 rounded-lg text-xs font-bold transition-all">পেছনে</button>
-                  <button disabled={!isCheckboxChecked} onClick={() => setDeleteStep(3)} className={`w-1/2 py-2.5 rounded-lg text-xs font-bold transition-all ${isCheckboxChecked ? 'bg-red-500 text-white' : 'bg-red-500/20 text-red-500/50'}`}>পরবর্তী ধাপ</button>
+                  <button onClick={() => setDeleteStep(1)} className="w-1/2 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm dark:shadow-none">পেছনে</button>
+                  <button disabled={!isCheckboxChecked} onClick={() => setDeleteStep(3)} className={`w-1/2 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm dark:shadow-none ${isCheckboxChecked ? 'bg-red-500 text-white' : 'bg-red-50 dark:bg-red-500/20 text-red-300 dark:text-red-500/50 border border-red-100 dark:border-transparent'}`}>পরবর্তী ধাপ</button>
                 </div>
               </div>
             )}
@@ -430,16 +433,16 @@ export default function PastEventsPage() {
             {deleteStep === 3 && (
               <div className="text-center">
                 <i className="fa-solid fa-skull-crossbones text-4xl text-red-600 mb-3"></i>
-                <h3 className="text-lg font-black text-white mb-2">চূড়ান্ত পদক্ষেপ</h3>
-                <input type="text" value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)} placeholder="DELETE" className="w-full bg-black/40 border border-red-500/30 text-white text-center font-black tracking-widest rounded-lg p-3 outline-none mb-5 uppercase text-sm" />
+                <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2 transition-colors">চূড়ান্ত পদক্ষেপ</h3>
+                <input type="text" value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)} placeholder="DELETE" className="w-full bg-gray-50 dark:bg-black/40 border border-red-300 dark:border-red-500/30 text-gray-900 dark:text-white text-center font-black tracking-widest rounded-lg p-3 outline-none mb-5 uppercase text-sm shadow-inner dark:shadow-none transition-colors" />
                 <div className="flex gap-3">
-                  <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-white/5 text-white py-2.5 rounded-lg text-xs font-bold transition-all">পেছনে</button>
-                  <button disabled={deleteConfirmText !== 'DELETE'} onClick={handleMoveToTrash} className={`w-1/2 py-2.5 rounded-lg text-xs font-black flex items-center justify-center gap-1 ${deleteConfirmText === 'DELETE' ? 'bg-red-600 text-white' : 'bg-red-500/20 text-red-500/50'}`}><i className="fa-solid fa-trash-can"></i> ডিলিট</button>
+                  <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm dark:shadow-none">পেছনে</button>
+                  <button disabled={deleteConfirmText !== 'DELETE'} onClick={handleMoveToTrash} className={`w-1/2 py-2.5 rounded-lg text-xs font-black flex items-center justify-center gap-1 shadow-sm dark:shadow-none ${deleteConfirmText === 'DELETE' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-50 dark:bg-red-500/20 text-red-300 dark:text-red-500/50 border border-red-100 dark:border-transparent'}`}><i className="fa-solid fa-trash-can"></i> ডিলিট</button>
                 </div>
               </div>
             )}
 
-            <button onClick={() => setIsDeleteModalOpen(false)} className="absolute -top-3 -right-3 w-8 h-8 bg-black border border-white/10 rounded-full flex items-center justify-center text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xs"></i></button>
+            <button onClick={() => setIsDeleteModalOpen(false)} className="absolute -top-3 -right-3 w-8 h-8 bg-gray-900 dark:bg-black border border-gray-700 dark:border-white/10 rounded-full flex items-center justify-center text-white dark:text-gray-400 hover:text-red-400 dark:hover:text-white shadow-lg transition-colors"><i className="fa-solid fa-xmark text-xs"></i></button>
           </div>
         </div>
       )}
