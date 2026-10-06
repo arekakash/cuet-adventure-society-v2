@@ -33,22 +33,39 @@ module.exports = {
       boxShadow: {
         'glow': '0 0 20px rgba(231, 111, 81, 0.4)',
         'glow-sm': '0 0 10px rgba(231, 111, 81, 0.2)',
+        'glow-lg': '0 0 40px rgba(231, 111, 81, 0.15)', // 🔴 চ্যাটবট এবং বড় কার্ডের সফট গ্লো-এর জন্য
         'glow-gold': '0 0 25px rgba(255, 215, 0, 0.4)',
         'soft': '0 10px 40px -10px rgba(0,0,0,0.05)' // লাইট মোডের কার্ডগুলোর জন্য একদম সফট একটি শ্যাডো
       },
       animation: {
         'float': 'float 6s ease-in-out infinite',
-        'fadeIn': 'fadeIn 0.3s ease-out forwards', // 🔴 নতুন যুক্ত করা Fade In অ্যানিমেশন
+        'fadeIn': 'fadeIn 0.3s ease-out forwards',
+        'fade-in-up': 'fadeInUp 0.3s ease-out forwards', // 🔴 চ্যাটবট পপ-আপ অ্যানিমেশন
+        'bounce-slow': 'bounceSlow 2s infinite',         // 🔴 চ্যাটবট টগল বাটনের বাউন্স অ্যানিমেশন
       },
       keyframes: {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-15px)' },
         },
-        // 🔴 নতুন যুক্ত করা Fade In কি-ফ্রেম (হালকা নিচ থেকে স্মুথলি ভেসে উঠবে)
         fadeIn: {
           'from': { opacity: '0', transform: 'translateY(10px)' },
           'to': { opacity: '1', transform: 'translateY(0)' },
+        },
+        // 🔴 নতুন যুক্ত করা কি-ফ্রেমগুলো
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        bounceSlow: {
+          '0%, 100%': { 
+            transform: 'translateY(-5%)', 
+            animationTimingFunction: 'cubic-bezier(0.8,0,1,1)' 
+          },
+          '50%': { 
+            transform: 'none', 
+            animationTimingFunction: 'cubic-bezier(0,0,0.2,1)' 
+          },
         }
       }
     },
