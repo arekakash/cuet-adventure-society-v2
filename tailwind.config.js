@@ -8,7 +8,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // ডার্ক মোডের কালার (তোমার আগেরগুলো)
+        // ডার্ক মোডের কালার
         darkForest: '#050b08',
         moss: '#0a1c13',
         trail: '#2d6a4f',
@@ -21,7 +21,7 @@ module.exports = {
         silver: '#C0C0C0',
         bronze: '#CD7F32',
 
-        // 🔴 লাইট/প্যাস্টেল মোডের জন্য নতুন সফট কালার প্যালেট
+        // লাইট/প্যাস্টেল মোডের জন্য সফট কালার প্যালেট
         pastel: {
           bg: '#fdfbf7',       // চোখের জন্য আরামদায়ক সফট ক্রিম/প্যাস্টেল ব্যাকগ্রাউন্ড
           card: '#ffffff',     // কার্ডের জন্য ক্লিন হোয়াইট
@@ -34,15 +34,21 @@ module.exports = {
         'glow': '0 0 20px rgba(231, 111, 81, 0.4)',
         'glow-sm': '0 0 10px rgba(231, 111, 81, 0.2)',
         'glow-gold': '0 0 25px rgba(255, 215, 0, 0.4)',
-        'soft': '0 10px 40px -10px rgba(0,0,0,0.05)' // 🔴 লাইট মোডের কার্ডগুলোর জন্য একদম সফট একটি শ্যাডো
+        'soft': '0 10px 40px -10px rgba(0,0,0,0.05)' // লাইট মোডের কার্ডগুলোর জন্য একদম সফট একটি শ্যাডো
       },
       animation: {
         'float': 'float 6s ease-in-out infinite',
+        'fadeIn': 'fadeIn 0.3s ease-out forwards', // 🔴 নতুন যুক্ত করা Fade In অ্যানিমেশন
       },
       keyframes: {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-15px)' },
+        },
+        // 🔴 নতুন যুক্ত করা Fade In কি-ফ্রেম (হালকা নিচ থেকে স্মুথলি ভেসে উঠবে)
+        fadeIn: {
+          'from': { opacity: '0', transform: 'translateY(10px)' },
+          'to': { opacity: '1', transform: 'translateY(0)' },
         }
       }
     },
