@@ -30,6 +30,7 @@ export default function Navbar() {
   const isActive = (path) => pathname === path;
 
   useEffect(() => {
+    // পেজ লোড হলে লোকাল স্টোরেজ থেকে থিম চেক করা
     const storedTheme = localStorage.getItem("theme");
     if (storedTheme === "dark") {
       setIsDarkMode(true);
@@ -136,13 +137,25 @@ export default function Navbar() {
             <button onClick={() => setIsSidebarOpen(true)} className="text-pastel-text dark:text-white text-xl sm:text-2xl hover:text-campfire dark:hover:text-campfire transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-campfire rounded-lg p-1">
               <i className="fa-solid fa-bars-staggered"></i>
             </button>
+            
             <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
-              {/* 🔴 Premium Spinning Glow Orb (Tailwind Theme Integrated & Motion Reduced) */}
-              <div className="relative inline-flex items-center justify-center p-1">
-                <div className="absolute inset-[-25%] rounded-full opacity-60 dark:opacity-80 group-hover:opacity-100 animate-[spin_6s_linear_infinite] will-change-transform motion-reduce:animate-none bg-[conic-gradient(from_0deg_at_50%_50%,transparent_0%,transparent_50%,theme(colors.rose.500)_60%,theme(colors.violet.500)_75%,theme(colors.campfire)_100%)]"></div>
-                <div className="absolute inset-[-25%] rounded-full opacity-40 dark:opacity-60 blur-md animate-[spin_6s_linear_infinite] will-change-transform motion-reduce:animate-none bg-[conic-gradient(from_0deg_at_50%_50%,transparent_0%,transparent_50%,theme(colors.rose.500)_60%,theme(colors.violet.500)_75%,theme(colors.campfire)_100%)]"></div>
+              {/* Premium Adventure Track (Tiny Humans Climbing the Logo) */}
+              <div className="relative inline-flex items-center justify-center w-14 h-14 sm:w-[60px] sm:h-[60px]">
                 
-                <div className="relative bg-white dark:bg-darkForest px-2.5 py-1 rounded-lg border border-pastel-border dark:border-white/10 shadow-sm z-10 transition-colors">
+                {/* 🔴 Circular Dashed Track (Added hover opacity, will-change-transform) */}
+                <div className="absolute inset-0 rounded-full border border-dashed border-gray-400/50 dark:border-gray-500/50 opacity-60 dark:opacity-80 group-hover:opacity-100 transition-opacity duration-300 animate-[spin_15s_linear_infinite] motion-reduce:animate-none will-change-transform z-0">
+                  {/* Trekker (Top) */}
+                  <i className="fa-solid fa-person-hiking absolute -top-1.5 sm:-top-2 left-1/2 -translate-x-1/2 text-[10px] sm:text-[12px] text-emerald-500 drop-shadow-sm"></i>
+                  {/* Cyclist (Right) */}
+                  <i className="fa-solid fa-bicycle absolute top-1/2 -right-1.5 sm:-right-2 -translate-y-1/2 rotate-90 text-[10px] sm:text-[12px] text-blue-500 drop-shadow-sm"></i>
+                  {/* Runner (Bottom) */}
+                  <i className="fa-solid fa-person-running absolute -bottom-1.5 sm:-bottom-2 left-1/2 -translate-x-1/2 rotate-180 text-[10px] sm:text-[12px] text-campfire drop-shadow-sm"></i>
+                  {/* 🔴 Swimmer (Left) - Thematic Mismatch Fixed */}
+                  <i className="fa-solid fa-person-swimming absolute top-1/2 -left-1.5 sm:-left-2 -translate-y-1/2 -rotate-90 text-[10px] sm:text-[12px] text-purple-500 drop-shadow-sm"></i>
+                </div>
+                
+                {/* CAS Logo Body */}
+                <div className="relative bg-white/90 dark:bg-darkForest/90 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-pastel-border dark:border-white/10 shadow-sm z-10 transition-colors">
                   <span className="font-black text-xl sm:text-2xl tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-campfire to-red-500 dark:from-yellow-400 dark:via-campfire dark:to-red-500">
                     CAS
                   </span>
@@ -166,7 +179,6 @@ export default function Navbar() {
             {!isLoggedIn ? (
               <div className="flex items-center gap-4 border-l border-pastel-border dark:border-white/10 pl-4 sm:pl-6 transition-colors duration-500">
                 <Link href="/login" className="hidden sm:block text-sm font-bold text-pastel-muted dark:text-gray-300 hover:text-campfire dark:hover:text-white transition-colors border-b border-transparent hover:border-campfire dark:hover:border-white pb-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-campfire rounded">লগইন</Link>
-                {/* 🔴 Account Khulun button hover color updated */}
                 <Link href="/signup" className="inline-flex items-center gap-2 bg-campfire hover:bg-[#d96247] text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-full font-bold text-xs sm:text-sm tracking-wide shadow-md dark:shadow-glow transition-all hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-campfire">
                   <i className="fa-solid fa-fire"></i> <span>অ্যাকাউন্ট খুলুন</span>
                 </Link>
@@ -196,7 +208,6 @@ export default function Navbar() {
                         </Link>
                       )}
 
-                      {/* 🔴 Missing Focus Rings Added */}
                       <button onClick={() => { setIsSettingsOpen(true); setIsProfileOpen(false); }} className="w-full text-left px-4 py-3 text-sm hover:bg-pastel-bg dark:hover:bg-white/5 hover:text-pastel-text dark:hover:text-white transition-colors flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-campfire rounded">
                         <i className="fa-solid fa-gear w-5 text-center text-blue-500 dark:text-blue-400"></i> <span>সেটিংস</span>
                       </button>
@@ -228,7 +239,6 @@ export default function Navbar() {
 
       {/* Sidebar Navigation */}
       <div className={`fixed inset-y-0 left-0 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-500 ease-in-out z-[70] w-72 sm:w-80 bg-pastel-bg dark:bg-darkForest border-r border-pastel-border dark:border-white/5 shadow-soft dark:shadow-2xl flex flex-col h-full overflow-y-auto`}>
-        {/* 🔴 Sidebar Header Visual Line Removed (Subtle Translucent Restored) */}
         <div className="p-6 flex justify-between items-center border-b border-pastel-border dark:border-white/5 bg-gray-50/50 dark:bg-black/20 shadow-sm dark:shadow-none transition-colors">
           <span className="font-black text-xl tracking-widest text-pastel-text dark:text-white"><span className="text-campfire">C</span>UET <span className="text-campfire">A</span>S</span>
           <button onClick={() => setIsSidebarOpen(false)} className="text-pastel-muted dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 text-2xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded p-1">
@@ -236,7 +246,6 @@ export default function Navbar() {
           </button>
         </div>
 
-        {/* 🔴 Sidebar Links (Consistent Active Background Hues) */}
         <div className="px-4 py-6 flex-grow space-y-3 text-pastel-muted dark:text-gray-300">
           <p className="text-[10px] font-black tracking-widest text-pastel-muted dark:text-gray-500 uppercase mb-2 px-2">আমাদের কার্যক্রম</p>
           
