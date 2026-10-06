@@ -33,11 +33,10 @@ export default function EditEvent() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
   const [showCropper, setShowCropper] = useState(false)
 
-  // 🔴 Dynamic States
+  // Dynamic States
   const [paymentMethods, setPaymentMethods] = useState([])
-  const [memoryLinks, setMemoryLinks] = useState([{ id: Date.now(), title: '', url: '' }]) // Memory Lane State
+  const [memoryLinks, setMemoryLinks] = useState([{ id: Date.now(), title: '', url: '' }])
 
-  // ফর্মের সাধারণ ডেটা
   const [formData, setFormData] = useState({
     title: '', category: 'Trekking', destination: '',
     startDate: '', endDate: '', reportingPlace: '', deadline: '',
@@ -48,12 +47,11 @@ export default function EditEvent() {
     metaTreks: 1, metaDistance: '', metaNights: 0
   })
 
-  // প্রি-ডিফাইনড চেকলিস্ট 
   const presetIncluded = [
     "চুয়েট-গন্তব্য আপ-ডাউন ভাড়া", "প্রতিদিন ৩ বেলা মূল খাবার (ভারী খাবার)",
     "রিসোর্ট/হোটেল/কটেজ শেয়ারিং রুম", "ক্যাম্পিং টেন্ট ও স্লিপিং গিয়ার সাপোর্ট",
     "লোকাল জিপ/চাঁদের গাড়ি/মহিন্দ্রা রিজার্ভ", "ট্রলার বা বোট ভাড়া (লাইফ জ্যাকেটসহ)",
-    "অভিজ্ঞ লোকাল ও ক্লাবের ট্রেইল গাইড", "বন বিভাগ ও স্থানীয় প্রশাসনের অনুমতি ফি",
+    "অভিজ্ঞ লোকাল ও ক্লাবের ট্রেইল গাইড", "বন বিভাগ ও স্থানীয় প্রশাসনের অনুমতি ফি",
     "পার্ক, ট্রেইল ও দর্শনীয় স্থানের এন্ট্রি ফি", "স্পেশাল বারবিকিউ ডিনার",
     "বিকেলের হালকা স্ন্যাঙ্কস ও পাহাড়ি চা", "ক্লাবের প্রাথমিক চিকিৎসা ও ফার্স্ট এইড কিট",
     "গ্রুপ মেম্বারদের জন্য অফিসিয়াল রিস্টব্যান্ড/ব্যাজ", "নিরাপত্তা ও রুট কো-অর্ডিনেশন",
@@ -114,7 +112,6 @@ export default function EditEvent() {
           metaTreks: data.stats_meta?.treks || 0, metaDistance: data.stats_meta?.distance || 0, metaNights: data.stats_meta?.nights || 0
         })
 
-        // 🔴 Payment Methods Parsing (Text to JSON Array Fallback)
         let parsedPayments = []
         if (typeof data.payment_methods === 'string') {
           try { parsedPayments = JSON.parse(data.payment_methods) } catch(e) {}
@@ -123,7 +120,6 @@ export default function EditEvent() {
         }
         setPaymentMethods(parsedPayments)
 
-        // 🔴 Memory Lane Parsing (Legacy string to Array Fallback)
         let parsedMemory = []
         if (typeof data.album_link === 'string') {
           if (data.album_link.trim().startsWith('[')) {
@@ -170,17 +166,14 @@ export default function EditEvent() {
     }
   }
 
-  // 🔴 Payment Method Handlers
   const addPaymentMethod = () => setPaymentMethods([...paymentMethods, { id: Date.now(), provider: 'bkash', bankName: '', accName: '', accNo: '', branch: '', routing: '', type: 'send_money', contactPerson: '', location: '' }])
   const updatePaymentMethod = (id, field, value) => setPaymentMethods(paymentMethods.map(p => p.id === id ? { ...p, [field]: value } : p))
   const removePaymentMethod = (id) => setPaymentMethods(paymentMethods.filter(p => p.id !== id))
 
-  // 🔴 Memory Lane Handlers
   const addMemoryLink = () => setMemoryLinks([...memoryLinks, { id: Date.now(), title: '', url: '' }])
   const updateMemoryLink = (id, field, value) => setMemoryLinks(memoryLinks.map(m => m.id === id ? { ...m, [field]: value } : m))
   const removeMemoryLink = (id) => setMemoryLinks(memoryLinks.filter(m => m.id !== id))
 
-  // Image Cropper Logic
   const handleImageSelect = (e) => {
     const file = e.target.files[0]
     if (file) {
@@ -245,7 +238,7 @@ export default function EditEvent() {
     setTags(prev => ({ ...prev, [category]: prev[category].filter((_, i) => i !== index) }))
   }
 
-    const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (paymentMethods.length === 0) {
       alert("অনুগ্রহ করে অন্তত একটি পেমেন্ট মেথড যুক্ত করুন!")
@@ -255,7 +248,6 @@ export default function EditEvent() {
     setLoading(true)
 
     try {
-      // 🔴 ১. ইভেন্ট আপডেট করার আগে ডেটাবেজ থেকে ইভেন্টের বর্তমান/পুরোনো ডেটা ফেচ করে আনা হচ্ছে
       const { data: oldEvent, error: fetchError } = await supabase
         .from('events')
         .select('status, stats_meta, category')
@@ -264,7 +256,6 @@ export default function EditEvent() {
 
       if (fetchError) throw fetchError
 
-      // ২. ছবি আপলোডের কাজ...
       let finalCoverPhotoUrl = existingImage
       if (imageFile) {
         const imgFormData = new FormData()
@@ -282,7 +273,6 @@ export default function EditEvent() {
 
       const validMemoryLinks = memoryLinks.filter(m => m.url.trim() !== '')
 
-      // নতুন ভ্যালুগুলো
       const newTreks = parseInt(formData.metaTreks) || 0;
       const newDistance = parseInt(formData.metaDistance) || 0;
 
@@ -323,21 +313,17 @@ export default function EditEvent() {
         }
       }
 
-      // 🔴 ৩. ইভেন্ট আপডেট করা হলো
       const { error } = await supabase.from('events').update(updateData).eq('id', eventId)
       if (error) throw error
 
-      // 🔴 ৪. লিডারবোর্ড সিঙ্ক লজিক (যদি ইভেন্টটি 'completed' অবস্থায় থাকে)
       if (oldEvent.status === 'completed') {
         const oldTreks = oldEvent.stats_meta?.treks || 0;
         const oldDistance = oldEvent.stats_meta?.distance || 0;
         const oldCategory = oldEvent.category?.toLowerCase() || '';
         const newCategory = formData.category.toLowerCase();
 
-        // যদি ক্যাটাগরি বা পয়েন্ট পরিবর্তন হয়ে থাকে
         if (oldTreks !== newTreks || oldDistance !== newDistance || oldCategory !== newCategory) {
           
-          // যারা এই ইভেন্টটি কমপ্লিট করেছে তাদের লিস্ট আনা হচ্ছে
           const { data: bookings } = await supabase
             .from('bookings')
             .select('user_id')
@@ -355,7 +341,6 @@ export default function EditEvent() {
               if (profile) {
                 let updates = {}
 
-                // ক) প্রথমে ইউজারের প্রোফাইল থেকে পুরনো ভ্যালু মাইনাস করে দেওয়া হলো
                 if (oldCategory === 'trekking') {
                   updates.total_treks = Math.max(0, (profile.total_treks || 0) - oldTreks)
                   updates.total_distance = Math.max(0, (profile.total_distance || 0) - oldDistance)
@@ -370,7 +355,6 @@ export default function EditEvent() {
                   updates.running_distance = Math.max(0, (profile.running_distance || 0) - oldDistance)
                 }
 
-                // খ) এরপর ইউজারের প্রোফাইলে নতুন ভ্যালু যোগ করা হলো
                 if (newCategory === 'trekking') {
                   updates.total_treks = (updates.total_treks !== undefined ? updates.total_treks : profile.total_treks || 0) + newTreks
                   updates.total_distance = (updates.total_distance !== undefined ? updates.total_distance : profile.total_distance || 0) + newDistance
@@ -385,7 +369,6 @@ export default function EditEvent() {
                   updates.running_distance = (updates.running_distance !== undefined ? updates.running_distance : profile.running_distance || 0) + newDistance
                 }
 
-                // প্রোফাইল আপডেট
                 await supabase.from('profiles').update(updates).eq('id', booking.user_id)
               }
             }
@@ -404,12 +387,10 @@ export default function EditEvent() {
     }
   }
 
-
-    const handleMoveToTrash = async () => {
+  const handleMoveToTrash = async () => {
     try {
       setLoading(true)
 
-      // 🔴 ১. প্রথমে চেক করতে হবে ইভেন্টটি 'completed' কিনা এবং survival_iq যোগ হয়েছিল কিনা
       const { data: currentEvent, error: fetchError } = await supabase
         .from('events')
         .select('status')
@@ -418,13 +399,12 @@ export default function EditEvent() {
 
       if (fetchError) throw fetchError
 
-      // 🔴 ২. যদি ইভেন্টটি 'completed' হয়ে থাকে, তবেই রোলব্যাক লজিক কাজ করবে
       if (currentEvent.status === 'completed') {
         const { data: bookings, error: bookingError } = await supabase
           .from('bookings')
           .select('user_id')
           .eq('event_id', eventId)
-          .eq('status', 'approved') // 🔴 শুধুমাত্র approved ইউজারদের পয়েন্ট মাইনাস হবে
+          .eq('status', 'approved')
 
         if (bookingError) throw bookingError
 
@@ -464,7 +444,6 @@ export default function EditEvent() {
         }
       }
 
-      // 🔴 ৩. এরপর ইভেন্টটিকে ট্র্যাশ বিনে পাঠানো হবে (সকল ইভেন্টের ক্ষেত্রে প্রযোজ্য)
       const { error } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
@@ -483,51 +462,49 @@ export default function EditEvent() {
     }
   }
 
-
   if (fetching) {
     return (
-      <div className="min-h-screen bg-[#050b08] flex items-center justify-center">
-        <i className="fa-solid fa-circle-notch fa-spin text-4xl text-[#e76f51]"></i>
+      <div className="min-h-screen bg-gray-50 dark:bg-darkForest flex items-center justify-center transition-colors">
+        <i className="fa-solid fa-circle-notch fa-spin text-4xl text-campfire"></i>
       </div>
     )
   }
 
-  // Smart Category Variables
   const isDayEvent = formData.category === 'Day Tour' || formData.category === 'Workshop'
   const isCycling = formData.category === 'Cycling'
   const isSwimming = formData.category === 'Swimming' || formData.category === 'Houseboat/Cruise'
   const isRunning = formData.category === 'Running'
 
   return (
-    <div className="min-h-screen bg-[#050b08] pb-12 px-4 sm:px-6 relative text-gray-300 pt-24">
+    <div className="min-h-screen bg-gray-50 dark:bg-darkForest pb-12 px-4 sm:px-6 relative text-gray-800 dark:text-gray-300 pt-24 transition-colors">
       <div className="max-w-7xl mx-auto">
         
         <div className="flex items-center gap-4 mb-8">
-            <Link href="/admin/events" className="text-gray-400 hover:text-white bg-white/5 p-3 rounded-xl transition-colors">
+            <Link href="/admin/events" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-200 dark:bg-white/5 p-3 rounded-xl transition-colors">
                 <i className="fa-solid fa-arrow-left"></i>
             </Link>
             <div>
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">এডিট ইভেন্ট ইঞ্জিন</h1>
-                <p className="text-sm text-gray-400">বিদ্যমান ইভেন্টের তথ্য আপডেট করুন</p>
+                <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight transition-colors">এডিট ইভেন্ট ইঞ্জিন</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400 transition-colors">বিদ্যমান ইভেন্টের তথ্য আপডেট করুন</p>
             </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-[#0a1c13] border border-white/10 rounded-3xl p-6 sm:p-8 space-y-12">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-moss border border-gray-200 dark:border-white/10 rounded-3xl p-6 sm:p-8 space-y-12 transition-colors shadow-sm dark:shadow-none">
             
             {/* সেকশন ১: বেসিক ইনফো */}
             <div>
-                <h3 className="font-bold text-[#e76f51] mb-6 text-lg flex items-center gap-2 border-b border-[#e76f51]/20 pb-2">
+                <h3 className="font-bold text-campfire mb-6 text-lg flex items-center gap-2 border-b border-campfire/20 pb-2 transition-colors">
                     <i className="fa-solid fa-compass"></i> ১. বেসিক ইনফরমেশন
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ইভেন্টের শিরোনাম *</label>
-                        <input type="text" id="title" required value={formData.title} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-[#e76f51] text-white font-bold" />
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">ইভেন্টের শিরোনাম *</label>
+                        <input type="text" id="title" required value={formData.title} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl outline-none focus:border-campfire text-gray-900 dark:text-white font-bold transition-colors" />
                     </div>
                     
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">কভার ছবি (স্বেচ্ছাধীন সাইজ ক্রপ)</label>
-                        <div className="relative w-full h-48 sm:h-64 rounded-2xl border-2 border-dashed border-gray-600 overflow-hidden bg-black/20 flex items-center justify-center hover:border-[#e76f51] transition-colors">
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">কভার ছবি (স্বেচ্ছাধীন সাইজ ক্রপ)</label>
+                        <div className="relative w-full h-48 sm:h-64 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 overflow-hidden bg-gray-100 dark:bg-black/20 flex items-center justify-center hover:border-campfire transition-colors">
                             {imagePreview ? (
                                 <>
                                   <img src={imagePreview} className="absolute inset-0 w-full h-full object-cover" alt="Preview" />
@@ -537,8 +514,8 @@ export default function EditEvent() {
                                 </>
                             ) : (
                                 <div className="text-center p-6 pointer-events-none">
-                                    <i className="fa-solid fa-image text-4xl text-gray-500 mb-3"></i>
-                                    <p className="text-sm font-bold text-gray-400">ক্লিক করে ছবি নির্বাচন করুন</p>
+                                    <i className="fa-solid fa-image text-4xl text-gray-400 dark:text-gray-500 mb-3 transition-colors"></i>
+                                    <p className="text-sm font-bold text-gray-500 dark:text-gray-400 transition-colors">ক্লিক করে ছবি নির্বাচন করুন</p>
                                 </div>
                             )}
                             <input type="file" accept="image/*" onChange={handleImageSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
@@ -546,12 +523,12 @@ export default function EditEvent() {
                     </div>
                     
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ক্যাটাগরি *</label>
-                        <select id="category" value={formData.category} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-[#e76f51] text-white font-bold">
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">ক্যাটাগরি *</label>
+                        <select id="category" value={formData.category} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl outline-none focus:border-campfire text-gray-900 dark:text-white font-bold transition-colors">
                             <option value="Trekking">Trekking (ট্রেকিং)</option>
                             <option value="Camping">Camping (ক্যাম্পিং)</option>
                             <option value="Cycling">Cycling (সাইক্লিং)</option>
-                            <option value="Running">Running (রানিং)</option> {/* 🔴 Added Running */}
+                            <option value="Running">Running (রানিং)</option>
                             <option value="Swimming">Swimming (সাঁতার)</option>
                             <option value="Houseboat/Cruise">Houseboat/Cruise</option>
                             <option value="Expedition">Expedition (অভিযান)</option>
@@ -560,67 +537,66 @@ export default function EditEvent() {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">মূল গন্তব্য *</label>
-                        <input type="text" id="destination" required value={formData.destination} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-[#e76f51] text-white" />
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">মূল গন্তব্য *</label>
+                        <input type="text" id="destination" required value={formData.destination} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl outline-none focus:border-campfire text-gray-900 dark:text-white transition-colors" />
                     </div>
                 </div>
             </div>
 
             {/* সেকশন ২: সময়সূচী */}
             <div>
-                <h3 className="font-bold text-blue-400 mb-6 text-lg flex items-center gap-2 border-b border-blue-400/20 pb-2">
+                <h3 className="font-bold text-blue-600 dark:text-blue-400 mb-6 text-lg flex items-center gap-2 border-b border-blue-600/20 dark:border-blue-400/20 pb-2 transition-colors">
                     <i className="fa-solid fa-clock"></i> ২. সময়সূচী ও ডেডলাইন
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">যাত্রা শুরু *</label>
-                        <input type="datetime-local" id="startDate" required value={formData.startDate} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-400 text-white" />
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">যাত্রা শুরু *</label>
+                        <input type="datetime-local" id="startDate" required value={formData.startDate} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl outline-none focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-white transition-colors dark:[color-scheme:dark]" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">{isDayEvent ? 'ইভেন্ট সমাপ্তি' : 'ফিরে আসা'} *</label>
-                        <input type="datetime-local" id="endDate" required value={formData.endDate} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-400 text-white" />
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">{isDayEvent ? 'ইভেন্ট সমাপ্তি' : 'ফিরে আসা'} *</label>
+                        <input type="datetime-local" id="endDate" required value={formData.endDate} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl outline-none focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-white transition-colors dark:[color-scheme:dark]" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">রিপোর্টিং প্লেস *</label>
-                        <input type="text" id="reportingPlace" required value={formData.reportingPlace} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-400 text-white" />
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">রিপোর্টিং প্লেস *</label>
+                        <input type="text" id="reportingPlace" required value={formData.reportingPlace} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl outline-none focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-white transition-colors" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-red-400 mb-2 uppercase">রেজিস্ট্রেশন ডেডলাইন *</label>
-                        <input type="datetime-local" id="deadline" required value={formData.deadline} onChange={handleInputChange} className="w-full bg-black/40 border border-red-500/50 p-4 rounded-xl outline-none focus:border-red-500 text-white" />
+                        <label className="block text-xs font-bold text-red-600 dark:text-red-400 mb-2 uppercase transition-colors">রেজিস্ট্রেশন ডেডলাইন *</label>
+                        <input type="datetime-local" id="deadline" required value={formData.deadline} onChange={handleInputChange} className="w-full bg-red-50 dark:bg-black/40 border border-red-300 dark:border-red-500/50 p-4 rounded-xl outline-none focus:border-red-500 text-gray-900 dark:text-white transition-colors dark:[color-scheme:dark]" />
                     </div>
                 </div>
             </div>
 
-            {/* 🔴 সেকশন ৩: ফিন্যান্সিয়াল ইঞ্জিন (Restored Dynamic Payment Builder) */}
+            {/* সেকশন ৩: ফিন্যান্সিয়াল ইঞ্জিন */}
             <div>
-                <h3 className="font-bold text-emerald-400 mb-6 text-lg flex items-center gap-2 border-b border-emerald-400/20 pb-2">
+                <h3 className="font-bold text-emerald-600 dark:text-emerald-400 mb-6 text-lg flex items-center gap-2 border-b border-emerald-600/20 dark:border-emerald-400/20 pb-2 transition-colors">
                     <i className="fa-solid fa-wallet"></i> ৩. ফিন্যান্সিয়াল ইঞ্জিন ও পেমেন্ট
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
-                        <label className="block text-xs font-bold text-emerald-400 mb-2 uppercase">বুকিং ফি (Advance) *</label>
-                        <input type="number" id="bookingFee" required value={formData.bookingFee} onChange={handleInputChange} className="w-full bg-black/40 border border-emerald-500/30 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
+                        <label className="block text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-2 uppercase transition-colors">বুকিং ফি (Advance) *</label>
+                        <input type="number" id="bookingFee" required value={formData.bookingFee} onChange={handleInputChange} className="w-full bg-emerald-50 dark:bg-black/40 border border-emerald-300 dark:border-emerald-500/30 p-4 rounded-xl outline-none focus:border-emerald-500 text-gray-900 dark:text-white transition-colors" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">টোটাল প্যাকেজ ফি *</label>
-                          <input type="number" id="totalFee" required value={formData.totalFee} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
+                          <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">টোটাল প্যাকেজ ফি *</label>
+                          <input type="number" id="totalFee" required value={formData.totalFee} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-gray-900 dark:text-white transition-colors" />
                       </div>
                       <div>
-                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">মোট সিট সংখ্যা *</label>
-                          <input type="number" id="totalSeats" required value={formData.totalSeats} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-white" />
+                          <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">মোট সিট সংখ্যা *</label>
+                          <input type="number" id="totalSeats" required value={formData.totalSeats} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl outline-none focus:border-emerald-500 text-gray-900 dark:text-white transition-colors" />
                       </div>
                     </div>
                 </div>
 
-                {/* Dynamic Payment Methods Builder */}
-                <div className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-white/5 to-transparent">
+                <div className="border border-gray-200 dark:border-white/10 rounded-2xl p-5 bg-gradient-to-br from-gray-50 dark:from-white/5 to-transparent transition-colors">
                   <div className="flex justify-between items-center mb-4">
                     <div>
-                      <h4 className="text-sm font-bold text-white flex items-center gap-2">গ্রহণযোগ্য পেমেন্ট মাধ্যমসমূহ</h4>
-                      <p className="text-[10px] text-gray-400 mt-1">ইউজাররা কোন কোন নাম্বারে বা ব্যাংকে পেমেন্ট করতে পারবে তা যুক্ত করুন</p>
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2 transition-colors">গ্রহণযোগ্য পেমেন্ট মাধ্যমসমূহ</h4>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 transition-colors">ইউজাররা কোন কোন নাম্বারে বা ব্যাংকে পেমেন্ট করতে পারবে তা যুক্ত করুন</p>
                     </div>
-                    <button type="button" onClick={addPaymentMethod} className="bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-emerald-500/30">
+                    <button type="button" onClick={addPaymentMethod} className="bg-emerald-100 dark:bg-emerald-500/20 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-emerald-200 dark:border-emerald-500/30">
                       <i className="fa-solid fa-plus mr-1"></i> মেথড যোগ করুন
                     </button>
                   </div>
@@ -628,16 +604,17 @@ export default function EditEvent() {
                   {paymentMethods.length > 0 ? (
                     <div className="space-y-4">
                       {paymentMethods.map((pm) => (
-                        <div key={pm.id} className="bg-black/40 border border-white/10 rounded-xl p-4 relative flex flex-col gap-3">
-                          <button type="button" onClick={() => removePaymentMethod(pm.id)} className="absolute top-3 right-3 text-red-400 hover:text-red-300 transition-colors">
+                        <div key={pm.id} className="bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl p-4 relative flex flex-col gap-3 transition-colors shadow-sm dark:shadow-none">
+                          <button type="button" onClick={() => removePaymentMethod(pm.id)} className="absolute top-3 right-3 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors">
                             <i className="fa-solid fa-trash-can"></i>
                           </button>
                           
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pr-6">
                             <div>
-                              <label className="block text-[10px] text-gray-400 mb-1">প্লাটফর্ম</label>
-                              <select value={pm.provider} onChange={(e) => updatePaymentMethod(pm.id, 'provider', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none focus:border-emerald-500">
+                              <label className="block text-[10px] text-gray-600 dark:text-gray-400 mb-1 transition-colors">প্লাটফর্ম</label>
+                              <select value={pm.provider} onChange={(e) => updatePaymentMethod(pm.id, 'provider', e.target.value)} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-2 text-gray-900 dark:text-white text-xs outline-none focus:border-emerald-500 transition-colors">
                                 <option value="bkash">বিকাশ (bKash)</option>
+                                {/* 🔴 বাগ ফিক্স: ম্যানুয়ালি টাইপ করা ফ্রেশ অপশন */}
                                 <option value="nagad">নগদ (Nagad)</option>
                                 <option value="rocket">রকেট (Rocket)</option>
                                 <option value="bank">ব্যাংক ট্রান্সফার (Bank)</option>
@@ -648,28 +625,28 @@ export default function EditEvent() {
                             {pm.provider === 'bank' && (
                               <>
                                 <div>
-                                  <label className="block text-[10px] text-gray-400 mb-1">ব্যাংক সিলেক্ট করুন</label>
-                                  <select value={pm.bankName} onChange={(e) => updatePaymentMethod(pm.id, 'bankName', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none">
+                                  <label className="block text-[10px] text-gray-600 dark:text-gray-400 mb-1 transition-colors">ব্যাংক সিলেক্ট করুন</label>
+                                  <select value={pm.bankName} onChange={(e) => updatePaymentMethod(pm.id, 'bankName', e.target.value)} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-2 text-gray-900 dark:text-white text-xs outline-none transition-colors">
                                     <option value="">ব্যাংক নির্বাচন করুন...</option>
                                     {BD_BANKS.map((b, i) => <option key={i} value={b}>{b}</option>)}
                                   </select>
                                 </div>
                                 <div className="sm:col-span-2 grid grid-cols-2 gap-4">
                                   <div>
-                                    <label className="block text-[10px] text-gray-400 mb-1">অ্যাকাউন্ট নেম</label>
-                                    <input type="text" value={pm.accName} onChange={(e) => updatePaymentMethod(pm.id, 'accName', e.target.value)} placeholder="Account Name" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                    <label className="block text-[10px] text-gray-600 dark:text-gray-400 mb-1 transition-colors">অ্যাকাউন্ট নেম</label>
+                                    <input type="text" value={pm.accName} onChange={(e) => updatePaymentMethod(pm.id, 'accName', e.target.value)} placeholder="Account Name" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-2 text-gray-900 dark:text-white text-xs outline-none transition-colors" />
                                   </div>
                                   <div>
-                                    <label className="block text-[10px] text-gray-400 mb-1">অ্যাকাউন্ট নম্বর</label>
-                                    <input type="text" value={pm.accNo} onChange={(e) => updatePaymentMethod(pm.id, 'accNo', e.target.value)} placeholder="Account Number" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                    <label className="block text-[10px] text-gray-600 dark:text-gray-400 mb-1 transition-colors">অ্যাকাউন্ট নম্বর</label>
+                                    <input type="text" value={pm.accNo} onChange={(e) => updatePaymentMethod(pm.id, 'accNo', e.target.value)} placeholder="Account Number" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-2 text-gray-900 dark:text-white text-xs outline-none transition-colors" />
                                   </div>
                                   <div>
-                                    <label className="block text-[10px] text-gray-400 mb-1">ব্রাঞ্চ (Branch)</label>
-                                    <input type="text" value={pm.branch} onChange={(e) => updatePaymentMethod(pm.id, 'branch', e.target.value)} placeholder="Branch Name" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                    <label className="block text-[10px] text-gray-600 dark:text-gray-400 mb-1 transition-colors">ব্রাঞ্চ (Branch)</label>
+                                    <input type="text" value={pm.branch} onChange={(e) => updatePaymentMethod(pm.id, 'branch', e.target.value)} placeholder="Branch Name" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-2 text-gray-900 dark:text-white text-xs outline-none transition-colors" />
                                   </div>
                                   <div>
-                                    <label className="block text-[10px] text-gray-400 mb-1">রাউটিং নম্বর (ঐচ্ছিক)</label>
-                                    <input type="text" value={pm.routing} onChange={(e) => updatePaymentMethod(pm.id, 'routing', e.target.value)} placeholder="Routing Number" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                    <label className="block text-[10px] text-gray-600 dark:text-gray-400 mb-1 transition-colors">রাউটিং নম্বর (ঐচ্ছিক)</label>
+                                    <input type="text" value={pm.routing} onChange={(e) => updatePaymentMethod(pm.id, 'routing', e.target.value)} placeholder="Routing Number" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-2 text-gray-900 dark:text-white text-xs outline-none transition-colors" />
                                   </div>
                                 </div>
                               </>
@@ -679,12 +656,12 @@ export default function EditEvent() {
                               <>
                                 <div className="sm:col-span-2 grid grid-cols-2 gap-4">
                                   <div>
-                                    <label className="block text-[10px] text-gray-400 mb-1">কন্টাক্ট পার্সন (নাম ও নাম্বার)</label>
-                                    <input type="text" value={pm.contactPerson} onChange={(e) => updatePaymentMethod(pm.id, 'contactPerson', e.target.value)} placeholder="Name - 017XXXXXXX" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                    <label className="block text-[10px] text-gray-600 dark:text-gray-400 mb-1 transition-colors">কন্টাক্ট পার্সন (নাম ও নাম্বার)</label>
+                                    <input type="text" value={pm.contactPerson} onChange={(e) => updatePaymentMethod(pm.id, 'contactPerson', e.target.value)} placeholder="Name - 017XXXXXXX" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-2 text-gray-900 dark:text-white text-xs outline-none transition-colors" />
                                   </div>
                                   <div>
-                                    <label className="block text-[10px] text-gray-400 mb-1">লোকেশন / স্থান</label>
-                                    <input type="text" value={pm.location} onChange={(e) => updatePaymentMethod(pm.id, 'location', e.target.value)} placeholder="e.g. CUET Campus" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                    <label className="block text-[10px] text-gray-600 dark:text-gray-400 mb-1 transition-colors">লোকেশন / স্থান</label>
+                                    <input type="text" value={pm.location} onChange={(e) => updatePaymentMethod(pm.id, 'location', e.target.value)} placeholder="e.g. CUET Campus" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-2 text-gray-900 dark:text-white text-xs outline-none transition-colors" />
                                   </div>
                                 </div>
                               </>
@@ -693,19 +670,19 @@ export default function EditEvent() {
                             {(pm.provider === 'bkash' || pm.provider === 'nagad' || pm.provider === 'rocket') && (
                               <>
                                 <div>
-                                  <label className="block text-[10px] text-gray-400 mb-1">অ্যাকাউন্ট নম্বর</label>
-                                  <input type="text" value={pm.accNo} onChange={(e) => updatePaymentMethod(pm.id, 'accNo', e.target.value)} placeholder="017XXXXXXX" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs outline-none" />
+                                  <label className="block text-[10px] text-gray-600 dark:text-gray-400 mb-1 transition-colors">অ্যাকাউন্ট নম্বর</label>
+                                  <input type="text" value={pm.accNo} onChange={(e) => updatePaymentMethod(pm.id, 'accNo', e.target.value)} placeholder="017XXXXXXX" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-2 text-gray-900 dark:text-white text-xs outline-none transition-colors" />
                                 </div>
                                 <div className="sm:col-span-2">
-                                  <label className="block text-[10px] text-gray-400 mb-1">ট্রানজেকশন টাইপ</label>
+                                  <label className="block text-[10px] text-gray-600 dark:text-gray-400 mb-1 transition-colors">ট্রানজেকশন টাইপ</label>
                                   <div className="flex gap-4">
-                                    <label className="text-xs text-gray-300 flex items-center gap-1.5 cursor-pointer">
+                                    <label className="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-1.5 cursor-pointer transition-colors">
                                       <input type="radio" checked={pm.type === 'send_money'} onChange={() => updatePaymentMethod(pm.id, 'type', 'send_money')} className="accent-emerald-500" /> Send Money
                                     </label>
-                                    <label className="text-xs text-gray-300 flex items-center gap-1.5 cursor-pointer">
+                                    <label className="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-1.5 cursor-pointer transition-colors">
                                       <input type="radio" checked={pm.type === 'payment'} onChange={() => updatePaymentMethod(pm.id, 'type', 'payment')} className="accent-emerald-500" /> Payment
                                     </label>
-                                    <label className="text-xs text-gray-300 flex items-center gap-1.5 cursor-pointer">
+                                    <label className="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-1.5 cursor-pointer transition-colors">
                                       <input type="radio" checked={pm.type === 'cash_in'} onChange={() => updatePaymentMethod(pm.id, 'type', 'cash_in')} className="accent-emerald-500" /> Cash In
                                     </label>
                                   </div>
@@ -717,22 +694,22 @@ export default function EditEvent() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-red-400 italic py-2">বুকিং কনফার্ম করার জন্য অন্তত একটি পেমেন্ট মেথড যুক্ত করা বাধ্যতামূলক।</p>
+                    <p className="text-xs text-red-500 dark:text-red-400 italic py-2 transition-colors">বুকিং কনফার্ম করার জন্য অন্তত একটি পেমেন্ট মেথড যুক্ত করা বাধ্যতামূলক।</p>
                   )}
                 </div>
             </div>
 
-            {/* সেকশন ৪: স্মার্ট লজিস্টিকস & 🔴 Memory Lane */}
+            {/* সেকশন ৪: স্মার্ট লজিস্টিকস & মেমোরি লেন */}
             <div>
-                <h3 className="font-bold text-purple-400 mb-6 text-lg flex items-center gap-2 border-b border-purple-400/20 pb-2">
+                <h3 className="font-bold text-purple-600 dark:text-purple-400 mb-6 text-lg flex items-center gap-2 border-b border-purple-600/20 dark:border-purple-400/20 pb-2 transition-colors">
                     <i className="fa-solid fa-campground"></i> ৪. লজিস্টিকস ও মেমোরি লেন
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     
                     {formData.category !== 'Workshop' && (
                       <div>
-                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ডিফিকাল্টি লেভেল *</label>
-                          <select id="difficulty" value={formData.difficulty} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white">
+                          <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">ডিফিকাল্টি লেভেল *</label>
+                          <select id="difficulty" value={formData.difficulty} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl text-gray-900 dark:text-white transition-colors outline-none focus:border-purple-500 dark:focus:border-purple-400">
                               <option value="Beginner">Beginner (সহজ)</option>
                               <option value="Moderate">Moderate (মাঝারি)</option>
                               <option value="Hard">Hard (কঠিন)</option>
@@ -743,8 +720,8 @@ export default function EditEvent() {
 
                     {!isDayEvent && (
                       <div>
-                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">থাকার ব্যবস্থা *</label>
-                          <select id="stayType" value={formData.stayType} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white">
+                          <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">থাকার ব্যবস্থা *</label>
+                          <select id="stayType" value={formData.stayType} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl text-gray-900 dark:text-white transition-colors outline-none focus:border-purple-500 dark:focus:border-purple-400">
                               <option value="Resort/Hotel Shared">রিসোর্ট/হোটেল শেয়ারিং</option>
                               <option value="Tent Camping">টেন্ট ক্যাম্পিং</option>
                               <option value="Houseboat">হাউজবোট</option>
@@ -755,54 +732,61 @@ export default function EditEvent() {
                     )}
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">টিম লিডার *</label>
-                        <input type="text" id="teamLeader" required value={formData.teamLeader} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">টিম লিডার *</label>
+                        <input type="text" id="teamLeader" required value={formData.teamLeader} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl text-gray-900 dark:text-white transition-colors outline-none focus:border-purple-500 dark:focus:border-purple-400" />
                     </div>
                     
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">লিডার ফোন নম্বর *</label>
-                        <input type="tel" id="leaderPhone" required value={formData.leaderPhone} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">লিডার ফোন নম্বর *</label>
+                        <input type="tel" id="leaderPhone" required value={formData.leaderPhone} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl text-gray-900 dark:text-white transition-colors outline-none focus:border-purple-500 dark:focus:border-purple-400" />
                     </div>
 
                     <div className="md:col-span-3">
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">সংক্ষিপ্ত বিবরণ *</label>
-                        <textarea id="description" required rows="3" value={formData.description} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white resize-none"></textarea>
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">সংক্ষিপ্ত বিবরণ *</label>
+                        <textarea 
+                          id="description" 
+                          required 
+                          rows="12" 
+                          value={formData.description} 
+                          onChange={handleInputChange} 
+                          className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl text-gray-900 dark:text-white resize-y outline-none focus:border-purple-500 dark:focus:border-purple-400 transition-colors"
+                        ></textarea>
                     </div>
 
-                    {/* 🔴 Dynamic Memory Lane Builder */}
-                    <div className="md:col-span-3 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-5 rounded-2xl border border-indigo-500/20">
+                    {/* Dynamic Memory Lane Builder */}
+                    <div className="md:col-span-3 bg-gradient-to-br from-indigo-50 dark:from-indigo-500/10 to-purple-50 dark:to-purple-500/10 p-5 rounded-2xl border border-indigo-200 dark:border-indigo-500/20 transition-colors">
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                         <div>
-                          <label className="block text-sm font-bold text-indigo-400 flex items-center gap-2 uppercase tracking-widest"><i className="fa-solid fa-film"></i> মেমোরি লেন (ফটো/ভিডিও ফোল্ডার)</label>
-                          <p className="text-[10px] text-gray-400 mt-1">ইভেন্ট সম্পন্ন হওয়ার পর ইউজারদের ছবি ও ভিডিও দেখার জন্য একাধিক লিংক যোগ করতে পারবেন।</p>
+                          <label className="block text-sm font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2 uppercase tracking-widest transition-colors"><i className="fa-solid fa-film"></i> মেমোরি লেন (ফটো/ভিডিও ফোল্ডার)</label>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 transition-colors">ইভেন্ট সম্পন্ন হওয়ার পর ইউজারদের ছবি ও ভিডিও দেখার জন্য একাধিক লিংক যোগ করতে পারবেন।</p>
                         </div>
-                        <button type="button" onClick={addMemoryLink} className="bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-indigo-500/30 whitespace-nowrap">
+                        <button type="button" onClick={addMemoryLink} className="bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-indigo-200 dark:border-indigo-500/30 whitespace-nowrap">
                           <i className="fa-solid fa-plus mr-1"></i> নতুন লিংক যোগ করুন
                         </button>
                       </div>
 
                       <div className="space-y-3">
                         {memoryLinks.map((link) => (
-                          <div key={link.id} className="flex flex-col sm:flex-row gap-3 bg-black/40 p-3 rounded-xl border border-white/5">
+                          <div key={link.id} className="flex flex-col sm:flex-row gap-3 bg-white dark:bg-black/40 p-3 rounded-xl border border-gray-200 dark:border-white/5 transition-colors shadow-sm dark:shadow-none">
                             <input 
                               type="text" 
                               placeholder="লিংকের টাইটেল (e.g. Day 1 Photos, Aftermovie)" 
                               value={link.title} 
                               onChange={(e) => updateMemoryLink(link.id, 'title', e.target.value)} 
-                              className="flex-1 bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-xs outline-none focus:border-indigo-400" 
+                              className="flex-1 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-2.5 text-gray-900 dark:text-white text-xs outline-none focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors" 
                             />
                             <input 
                               type="url" 
                               placeholder="URL Link (https://...)" 
                               value={link.url} 
                               onChange={(e) => updateMemoryLink(link.id, 'url', e.target.value)} 
-                              className="flex-[2] bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-xs outline-none focus:border-indigo-400" 
+                              className="flex-[2] bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-2.5 text-gray-900 dark:text-white text-xs outline-none focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors" 
                             />
                             {memoryLinks.length > 1 && (
                               <button 
                                 type="button" 
                                 onClick={() => removeMemoryLink(link.id)} 
-                                className="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white w-full sm:w-10 h-10 rounded-lg flex items-center justify-center transition-colors shrink-0"
+                                className="bg-red-100 dark:bg-red-500/10 text-red-500 dark:text-red-400 hover:bg-red-500 hover:text-white w-full sm:w-10 h-10 rounded-lg flex items-center justify-center transition-colors shrink-0"
                               >
                                 <i className="fa-solid fa-trash-can"></i>
                               </button>
@@ -816,44 +800,44 @@ export default function EditEvent() {
 
             {/* সেকশন ৫: স্মার্ট ডায়নামিক চেকলিস্ট */}
             <div>
-                <h3 className="font-bold text-yellow-500 mb-6 text-lg flex items-center gap-2 border-b border-yellow-500/20 pb-2">
+                <h3 className="font-bold text-yellow-600 dark:text-yellow-500 mb-6 text-lg flex items-center gap-2 border-b border-yellow-600/20 dark:border-yellow-500/20 pb-2 transition-colors">
                     <i className="fa-solid fa-list-check"></i> ৫. রুলস ও চেকলিস্ট
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     
-                    <div className="bg-black/20 p-5 rounded-2xl border border-emerald-500/20">
-                        <label className="block text-xs font-bold text-emerald-400 mb-3 uppercase">যা যা ইনক্লুডেড (Included)</label>
-                        <select onChange={(e) => { if(e.target.value) { handleTagAdd('included', e.target.value); e.target.value = "" } }} className="w-full bg-black/40 border border-emerald-500/30 p-3 rounded-lg text-sm text-gray-300 mb-3 outline-none cursor-pointer">
+                    <div className="bg-gray-50 dark:bg-black/20 p-5 rounded-2xl border border-emerald-200 dark:border-emerald-500/20 transition-colors">
+                        <label className="block text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-3 uppercase transition-colors">যা যা ইনক্লুডেড (Included)</label>
+                        <select onChange={(e) => { if(e.target.value) { handleTagAdd('included', e.target.value); e.target.value = "" } }} className="w-full bg-white dark:bg-black/40 border border-emerald-200 dark:border-emerald-500/30 p-3 rounded-lg text-sm text-gray-700 dark:text-gray-300 mb-3 outline-none cursor-pointer transition-colors focus:border-emerald-500">
                           <option value="">-- সাজেশন থেকে নির্বাচন করুন --</option>
                           {presetIncluded.map(item => <option key={item} value={item}>{item}</option>)}
                         </select>
                         <div className="flex gap-2 mb-3">
-                            <input type="text" placeholder="অথবা নিজে টাইপ করে যোগ করুন..." value={tagInputs.included} onChange={(e) => setTagInputs({...tagInputs, included: e.target.value})} className="bg-black/40 border border-white/10 flex-grow p-2.5 rounded-lg text-sm text-white" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd('included'))} />
-                            <button type="button" onClick={() => handleTagAdd('included')} className="bg-emerald-500 text-white px-4 rounded-lg font-bold">Add</button>
+                            <input type="text" placeholder="অথবা নিজে টাইপ করে যোগ করুন..." value={tagInputs.included} onChange={(e) => setTagInputs({...tagInputs, included: e.target.value})} className="bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 flex-grow p-2.5 rounded-lg text-sm text-gray-900 dark:text-white transition-colors outline-none focus:border-emerald-500" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd('included'))} />
+                            <button type="button" onClick={() => handleTagAdd('included')} className="bg-emerald-500 text-white px-4 rounded-lg font-bold hover:bg-emerald-600 transition-colors">Add</button>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {tags.included.map((tag, idx) => (
-                                <span key={idx} className="bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full text-xs flex items-center gap-2 text-emerald-400">
-                                  {tag} <i className="fa-solid fa-xmark text-red-400 cursor-pointer hover:text-red-500" onClick={() => handleTagRemove('included', idx)}></i>
+                                <span key={idx} className="bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-3 py-1 rounded-full text-xs flex items-center gap-2 text-emerald-700 dark:text-emerald-400 transition-colors">
+                                  {tag} <i className="fa-solid fa-xmark text-red-500 dark:text-red-400 cursor-pointer hover:text-red-700 dark:hover:text-red-500 transition-colors" onClick={() => handleTagRemove('included', idx)}></i>
                                 </span>
                             ))}
                         </div>
                     </div>
 
-                    <div className="bg-black/20 p-5 rounded-2xl border border-gray-500/30">
-                        <label className="block text-xs font-bold text-gray-400 mb-3 uppercase">যা ইনক্লুডেড নয় (Excluded)</label>
-                        <select onChange={(e) => { if(e.target.value) { handleTagAdd('excluded', e.target.value); e.target.value = "" } }} className="w-full bg-black/40 border border-gray-500/30 p-3 rounded-lg text-sm text-gray-300 mb-3 outline-none cursor-pointer">
+                    <div className="bg-gray-50 dark:bg-black/20 p-5 rounded-2xl border border-gray-300 dark:border-gray-500/30 transition-colors">
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-3 uppercase transition-colors">যা ইনক্লুডেড নয় (Excluded)</label>
+                        <select onChange={(e) => { if(e.target.value) { handleTagAdd('excluded', e.target.value); e.target.value = "" } }} className="w-full bg-white dark:bg-black/40 border border-gray-300 dark:border-gray-500/30 p-3 rounded-lg text-sm text-gray-700 dark:text-gray-300 mb-3 outline-none cursor-pointer transition-colors focus:border-gray-500">
                           <option value="">-- সাজেশন থেকে নির্বাচন করুন --</option>
                           {presetExcluded.map(item => <option key={item} value={item}>{item}</option>)}
                         </select>
                         <div className="flex gap-2 mb-3">
-                            <input type="text" placeholder="অথবা নিজে টাইপ করে যোগ করুন..." value={tagInputs.excluded} onChange={(e) => setTagInputs({...tagInputs, excluded: e.target.value})} className="bg-black/40 border border-white/10 flex-grow p-2.5 rounded-lg text-sm text-white" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd('excluded'))} />
-                            <button type="button" onClick={() => handleTagAdd('excluded')} className="bg-gray-600 text-white px-4 rounded-lg font-bold">Add</button>
+                            <input type="text" placeholder="অথবা নিজে টাইপ করে যোগ করুন..." value={tagInputs.excluded} onChange={(e) => setTagInputs({...tagInputs, excluded: e.target.value})} className="bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 flex-grow p-2.5 rounded-lg text-sm text-gray-900 dark:text-white transition-colors outline-none focus:border-gray-500" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd('excluded'))} />
+                            <button type="button" onClick={() => handleTagAdd('excluded')} className="bg-gray-500 dark:bg-gray-600 text-white px-4 rounded-lg font-bold hover:bg-gray-600 dark:hover:bg-gray-700 transition-colors">Add</button>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {tags.excluded.map((tag, idx) => (
-                                <span key={idx} className="bg-white/10 px-3 py-1 rounded-full text-xs flex items-center gap-2 text-gray-300">
-                                  {tag} <i className="fa-solid fa-xmark text-red-400 cursor-pointer hover:text-red-500" onClick={() => handleTagRemove('excluded', idx)}></i>
+                                <span key={idx} className="bg-gray-200 dark:bg-white/10 px-3 py-1 rounded-full text-xs flex items-center gap-2 text-gray-700 dark:text-gray-300 transition-colors">
+                                  {tag} <i className="fa-solid fa-xmark text-red-500 dark:text-red-400 cursor-pointer hover:text-red-700 dark:hover:text-red-500 transition-colors" onClick={() => handleTagRemove('excluded', idx)}></i>
                                 </span>
                             ))}
                         </div>
@@ -864,64 +848,64 @@ export default function EditEvent() {
 
             {/* সেকশন ৬: ডে-টু-ডে প্ল্যানার */}
             <div>
-                <div className="flex justify-between items-center mb-6 border-b border-[#2d6a4f]/30 pb-2">
-                    <h3 className="font-bold text-[#2d6a4f] text-lg flex items-center gap-2">
+                <div className="flex justify-between items-center mb-6 border-b border-trail/30 pb-2 transition-colors">
+                    <h3 className="font-bold text-trail text-lg flex items-center gap-2">
                         <i className="fa-solid fa-map-location-dot"></i> ৬. ডে-টু-ডে প্ল্যানার
                     </h3>
                     <div className="flex items-center gap-2">
-                        <label className="text-xs font-bold text-gray-400">মোট দিন:</label>
-                        <input type="number" id="totalDays" min="1" max="10" value={formData.totalDays} onChange={handleInputChange} className="bg-black/40 border border-white/10 w-16 p-2 text-center rounded-lg font-bold text-[#e76f51] outline-none" />
+                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 transition-colors">মোট দিন:</label>
+                        <input type="number" id="totalDays" min="1" max="10" value={formData.totalDays} onChange={handleInputChange} className="bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 w-16 p-2 text-center rounded-lg font-bold text-campfire outline-none transition-colors focus:border-campfire" />
                     </div>
                 </div>
                 <div className="space-y-4">
                     {itinerary.map((day, idx) => (
-                        <div key={idx} className="p-4 bg-black/30 rounded-xl border border-white/5">
-                            <h4 className="font-bold text-[#e76f51] mb-3 uppercase text-sm"><i className="fa-regular fa-calendar"></i> Day {day.day}</h4>
+                        <div key={idx} className="p-4 bg-gray-50 dark:bg-black/30 rounded-xl border border-gray-200 dark:border-white/5 transition-colors shadow-sm dark:shadow-none">
+                            <h4 className="font-bold text-campfire mb-3 uppercase text-sm"><i className="fa-regular fa-calendar"></i> Day {day.day}</h4>
                             <div className="space-y-3">
                                 <input type="text" required placeholder="দিনের মূল আকর্ষণ (Title)" value={day.title} onChange={(e) => {
                                     const newItin = [...itinerary]; newItin[idx].title = e.target.value; setItinerary(newItin);
-                                }} className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-sm font-bold text-white outline-none" />
+                                }} className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-lg text-sm font-bold text-gray-900 dark:text-white outline-none focus:border-campfire transition-colors" />
                                 <textarea required rows="2" placeholder="সারাদিনের কার্যক্রম ও পরিকল্পনা..." value={day.desc} onChange={(e) => {
                                     const newItin = [...itinerary]; newItin[idx].desc = e.target.value; setItinerary(newItin);
-                                }} className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-sm resize-none text-white outline-none"></textarea>
+                                }} className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-lg text-sm resize-none text-gray-900 dark:text-white outline-none focus:border-campfire transition-colors"></textarea>
                             </div>
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* 🔴 সেকশন ৭: ডায়নামিক ইউজার রিওয়ার্ড পয়েন্ট (Running Support) */}
+            {/* সেকশন ৭: ডায়নামিক ইউজার রিওয়ার্ড পয়েন্ট */}
             <div>
-                <h3 className="font-bold text-amber-500 mb-2 text-lg flex items-center gap-2 border-b border-amber-500/20 pb-2">
+                <h3 className="font-bold text-amber-600 dark:text-amber-500 mb-2 text-lg flex items-center gap-2 border-b border-amber-600/20 dark:border-amber-500/20 pb-2 transition-colors">
                     <i className="fa-solid fa-medal"></i> ৭. ইউজার প্রোফাইল পয়েন্ট ও রিওয়ার্ড
                 </h3>
-                <p className="text-xs text-gray-400 mb-6">ইভেন্টটি সাফল্যের সাথে সম্পন্ন হলে অংশগ্রহণকারী এক্সপ্লোরারের প্রোফাইলে এই রেকর্ডগুলো স্বয়ংক্রিয়ভাবে যোগ হবে।</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 transition-colors">ইভেন্টটি সাফল্যের সাথে সম্পন্ন হলে অংশগ্রহণকারী এক্সপ্লোরারের প্রোফাইলে এই রেকর্ডগুলো স্বয়ংক্রিয়ভাবে যোগ হবে।</p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">
                           {isCycling ? 'মোট রাইডের সংখ্যা' : isSwimming ? 'সাঁতার সেশন সংখ্যা' : isRunning ? 'মোট দৌড়ের সংখ্যা' : 'ট্রেকের সংখ্যা (কাউন্ট)'}
                         </label>
-                        <input type="number" id="metaTreks" required value={formData.metaTreks} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
+                        <input type="number" id="metaTreks" required value={formData.metaTreks} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl text-gray-900 dark:text-white transition-colors outline-none focus:border-amber-500" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">
                           {isCycling ? 'মোট রাইডিং দূরত্ব (কি.মি.)' : isSwimming ? 'মোট সাঁতারের দূরত্ব (মিটার)' : isRunning ? 'মোট দৌড়ের দূরত্ব (কি.মি.)' : 'মোট হাঁটার দূরত্ব (কি.মি.)'}
                         </label>
-                        <input type="number" id="metaDistance" required value={formData.metaDistance} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
+                        <input type="number" id="metaDistance" required value={formData.metaDistance} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl text-gray-900 dark:text-white transition-colors outline-none focus:border-amber-500" />
                     </div>
                     
                     {!isDayEvent && !isRunning && (
                       <div>
-                          <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">ক্যাম্পিং রাত সংখ্যা</label>
-                          <input type="number" id="metaNights" required value={formData.metaNights} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
+                          <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">ক্যাম্পিং রাত সংখ্যা</label>
+                          <input type="number" id="metaNights" required value={formData.metaNights} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl text-gray-900 dark:text-white transition-colors outline-none focus:border-amber-500" />
                       </div>
                     )}
                 </div>
             </div>
 
             {/* আপডেট ও ডিলিট বাটন */}
-            <div className="pt-6 mt-4 border-t border-white/10 flex flex-col sm:flex-row gap-4">
+            <div className="pt-6 mt-4 border-t border-gray-200 dark:border-white/10 flex flex-col sm:flex-row gap-4 transition-colors">
                 <button type="submit" disabled={loading} className="w-full sm:w-2/3 bg-blue-500 hover:bg-blue-600 text-white font-black text-lg py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(59,130,246,0.4)] flex items-center justify-center gap-3">
                     {loading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-pen-to-square"></i>}
                     <span>{loading ? 'আপডেট হচ্ছে...' : 'ইভেন্ট আপডেট করুন'}</span>
@@ -929,7 +913,7 @@ export default function EditEvent() {
                 <button 
                     type="button" 
                     onClick={() => { setIsDeleteModalOpen(true); setDeleteStep(1); setIsCheckboxChecked(false); setDeleteConfirmText(''); }}
-                    className="w-full sm:w-1/3 bg-red-500/20 border border-red-500/50 hover:bg-red-500 hover:text-white text-red-500 font-black text-lg py-4 rounded-xl transition-all flex items-center justify-center gap-3"
+                    className="w-full sm:w-1/3 bg-red-100 dark:bg-red-500/20 border border-red-200 dark:border-red-500/50 hover:bg-red-500 hover:text-white text-red-600 dark:text-red-500 font-black text-lg py-4 rounded-xl transition-all flex items-center justify-center gap-3"
                 >
                     <i className="fa-solid fa-trash"></i>
                     <span>ডিলিট করুন</span>
@@ -940,39 +924,40 @@ export default function EditEvent() {
 
         {/* ফ্রি-ফর্ম ক্রপার মডাল */}
         {showCropper && (
-          <div className="fixed inset-0 z-[70] flex flex-col bg-black/90 backdrop-blur-md">
+          <div className="fixed inset-0 z-[70] flex flex-col bg-black/80 dark:bg-black/90 backdrop-blur-md transition-colors">
             <div className="relative flex-grow">
               <Cropper
                 image={imageSrc}
                 crop={crop}
                 zoom={zoom}
+                aspect={16 / 9}
                 onCropChange={setCrop}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}
               />
             </div>
-            <div className="h-24 bg-[#0a1c13] flex items-center justify-between px-6 border-t border-white/10">
-              <button onClick={() => setShowCropper(false)} className="text-red-400 font-bold hover:bg-red-500/20 px-5 py-2.5 rounded-xl transition-colors">বাতিল</button>
-              <button onClick={getCroppedImg} className="bg-[#e76f51] hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-glow">ক্রপ সম্পূর্ণ করুন</button>
+            <div className="h-24 bg-white dark:bg-moss flex items-center justify-between px-6 border-t border-gray-200 dark:border-white/10 transition-colors">
+              <button onClick={() => setShowCropper(false)} className="text-red-500 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-500/20 px-5 py-2.5 rounded-xl transition-colors">বাতিল</button>
+              <button onClick={getCroppedImg} className="bg-campfire hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-glow">ক্রপ সম্পূর্ণ করুন</button>
             </div>
           </div>
         )}
 
         {/* 3-STEP DELETE MODAL */}
         {isDeleteModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <div className="bg-[#0a1c13] border border-red-500/30 rounded-3xl p-8 max-w-md w-full mx-4 relative shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 dark:bg-black/90 backdrop-blur-sm transition-colors">
+            <div className="bg-white dark:bg-moss border border-red-200 dark:border-red-500/30 rounded-3xl p-8 max-w-md w-full mx-4 relative shadow-[0_0_30px_rgba(239,68,68,0.2)] transition-colors">
               {/* Step 1: Extreme Warning */}
               {deleteStep === 1 && (
                 <div className="text-center">
                   <i className="fa-solid fa-triangle-exclamation text-5xl text-red-500 mb-4 animate-pulse"></i>
-                  <h3 className="text-2xl font-black text-white mb-2">চরম সতর্কতা!</h3>
-                  <p className="text-gray-400 text-sm mb-6">
-                    আপনি একটি ইভেন্ট ডিলিট করতে যাচ্ছেন। এটি ট্র্যাশ বিনে জমা হবে এবং <span className="text-red-400 font-bold">৩০ দিন পর চিরতরে মুছে যাবে</span>। আপনি কি নিশ্চিত?
+                  <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2 transition-colors">চরম সতর্কতা!</h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-6 transition-colors">
+                    আপনি একটি ইভেন্ট ডিলিট করতে যাচ্ছেন। এটি ট্র্যাশ বিনে জমা হবে এবং <span className="text-red-500 dark:text-red-400 font-bold">৩০ দিন পর চিরতরে মুছে যাবে</span>। আপনি কি নিশ্চিত?
                   </p>
                   <div className="flex gap-4">
-                    <button onClick={() => setIsDeleteModalOpen(false)} className="w-1/2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all">বাতিল করুন</button>
-                    <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/50 py-3 rounded-xl font-bold transition-all">পরবর্তী ধাপ</button>
+                    <button onClick={() => setIsDeleteModalOpen(false)} className="w-1/2 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-900 dark:text-white py-3 rounded-xl font-bold transition-all">বাতিল করুন</button>
+                    <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-500 hover:bg-red-500 hover:text-white border border-red-200 dark:border-red-500/50 py-3 rounded-xl font-bold transition-all">পরবর্তী ধাপ</button>
                   </div>
                 </div>
               )}
@@ -980,22 +965,22 @@ export default function EditEvent() {
               {deleteStep === 2 && (
                 <div className="text-center">
                   <i className="fa-solid fa-clipboard-check text-5xl text-orange-500 mb-4"></i>
-                  <h3 className="text-xl font-black text-white mb-4">দায়িত্ব স্বীকার</h3>
-                  <label className="flex items-start gap-3 text-left bg-black/40 p-4 rounded-xl border border-white/5 mb-6 cursor-pointer">
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white mb-4 transition-colors">দায়িত্ব স্বীকার</h3>
+                  <label className="flex items-start gap-3 text-left bg-gray-50 dark:bg-black/40 p-4 rounded-xl border border-gray-200 dark:border-white/5 mb-6 cursor-pointer transition-colors">
                     <input 
                       type="checkbox" 
                       className="mt-1 w-5 h-5 accent-red-500" 
                       checked={isCheckboxChecked}
                       onChange={(e) => setIsCheckboxChecked(e.target.checked)}
                     />
-                    <span className="text-sm text-gray-300">আমি বুঝতে পারছি যে এই ইভেন্ট ডিলিট করলে এর সাথে যুক্ত সকল ইউজারের বুকিং স্ট্যাটাস প্রভাবিত হতে পারে এবং লিডারবোর্ড থেকে তাদের পয়েন্ট মুছে যাবে। আমি নিজ দায়িত্বে এটি করছি।</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors">আমি বুঝতে পারছি যে এই ইভেন্ট ডিলিট করলে এর সাথে যুক্ত সকল ইউজারের বুকিং স্ট্যাটাস প্রভাবিত হতে পারে এবং লিডারবোর্ড থেকে তাদের পয়েন্ট মুছে যাবে। আমি নিজ দায়িত্বে এটি করছি।</span>
                   </label>
                   <div className="flex gap-4">
-                    <button onClick={() => setDeleteStep(1)} className="w-1/2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all">পেছনে যান</button>
+                    <button onClick={() => setDeleteStep(1)} className="w-1/2 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-900 dark:text-white py-3 rounded-xl font-bold transition-all">পেছনে যান</button>
                     <button 
                       disabled={!isCheckboxChecked}
                       onClick={() => setDeleteStep(3)} 
-                      className={`w-1/2 py-3 rounded-xl font-bold transition-all ${isCheckboxChecked ? 'bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'bg-red-500/20 text-red-500/50 cursor-not-allowed'}`}
+                      className={`w-1/2 py-3 rounded-xl font-bold transition-all ${isCheckboxChecked ? 'bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'bg-red-100 dark:bg-red-500/20 text-red-300 dark:text-red-500/50 cursor-not-allowed'}`}
                     >পরবর্তী ধাপ</button>
                   </div>
                 </div>
@@ -1004,21 +989,21 @@ export default function EditEvent() {
               {deleteStep === 3 && (
                 <div className="text-center">
                   <i className="fa-solid fa-skull-crossbones text-5xl text-red-600 mb-4"></i>
-                  <h3 className="text-xl font-black text-white mb-2">চূড়ান্ত পদক্ষেপ</h3>
-                  <p className="text-gray-400 text-xs mb-4">ট্র্যাশ বিনে পাঠাতে নিচের বক্সে ইংরেজিতে বড় হাতের অক্ষরে <span className="font-bold text-white select-none">DELETE</span> টাইপ করুন।</p>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2 transition-colors">চূড়ান্ত পদক্ষেপ</h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-xs mb-4 transition-colors">ট্র্যাশ বিনে পাঠাতে নিচের বক্সে ইংরেজিতে বড় হাতের অক্ষরে <span className="font-bold text-gray-900 dark:text-white select-none">DELETE</span> টাইপ করুন।</p>
                   <input 
                     type="text" 
                     value={deleteConfirmText}
                     onChange={(e) => setDeleteConfirmText(e.target.value)}
                     placeholder="DELETE" 
-                    className="w-full bg-black/40 border border-red-500/30 text-white text-center font-black tracking-widest rounded-xl p-4 focus:border-red-500 outline-none mb-6 uppercase"
+                    className="w-full bg-gray-100 dark:bg-black/40 border border-red-300 dark:border-red-500/30 text-gray-900 dark:text-white text-center font-black tracking-widest rounded-xl p-4 focus:border-red-500 outline-none mb-6 uppercase transition-colors"
                   />
                   <div className="flex gap-4">
-                    <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all">পেছনে যান</button>
+                    <button onClick={() => setDeleteStep(2)} className="w-1/2 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-900 dark:text-white py-3 rounded-xl font-bold transition-all">পেছনে যান</button>
                     <button 
                       disabled={deleteConfirmText !== 'DELETE' || loading}
                       onClick={handleMoveToTrash} 
-                      className={`w-1/2 py-3 rounded-xl font-black transition-all flex items-center justify-center gap-2 ${deleteConfirmText === 'DELETE' ? 'bg-red-600 hover:bg-red-700 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)]' : 'bg-red-500/20 text-red-500/50 cursor-not-allowed'}`}
+                      className={`w-1/2 py-3 rounded-xl font-black transition-all flex items-center justify-center gap-2 ${deleteConfirmText === 'DELETE' ? 'bg-red-600 hover:bg-red-700 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)]' : 'bg-red-100 dark:bg-red-500/20 text-red-300 dark:text-red-500/50 cursor-not-allowed'}`}
                     >
                       {loading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-trash-can"></i>}
                       {loading ? 'প্রক্রিয়াজাত হচ্ছে...' : 'ট্র্যাশে পাঠান'}
@@ -1028,7 +1013,7 @@ export default function EditEvent() {
               )}
 
               {/* Close Button */}
-              <button onClick={() => setIsDeleteModalOpen(false)} className="absolute -top-4 -right-4 w-10 h-10 bg-black border border-white/10 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+              <button onClick={() => setIsDeleteModalOpen(false)} className="absolute -top-4 -right-4 w-10 h-10 bg-white dark:bg-moss border border-gray-200 dark:border-white/10 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white shadow-md dark:shadow-none transition-colors">
                 <i className="fa-solid fa-xmark"></i>
               </button>
             </div>
