@@ -7,7 +7,6 @@ import ProductCard from "@/components/store/ProductCard";
 import SlideCart from "@/components/store/SlideCart";
 import { useCartStore } from "./useCartStore";
 
-// Helper: sizes/colors input থেকে ভ্যারিয়েশন কম্বিনেশন বানিয়ে আগের স্টক ভ্যালু ধরে রাখা
 const recomputeVariantStock = (sizesInput, colorsInput, prevStock) => {
   const sizes = (sizesInput || "").split(",").map(s => s.trim()).filter(Boolean);
   const colors = (colorsInput || "").split(",").map(c => c.trim()).filter(Boolean);
@@ -28,7 +27,6 @@ const recomputeVariantStock = (sizesInput, colorsInput, prevStock) => {
   return newStock;
 };
 
-// Auto-Slideshow Component for Details Modal
 const ProductSlider = ({ images, altText }) => {
   const [currentIdx, setCurrentIdx] = useState(0);
 
@@ -46,7 +44,7 @@ const ProductSlider = ({ images, altText }) => {
     <img 
       src={images[currentIdx].url || images[currentIdx]} 
       alt={altText} 
-      className="w-full h-full object-contain transition-opacity duration-1000 ease-in-out" 
+      className="w-full h-full object-contain transition-opacity duration-1000 ease-in-out mix-blend-multiply dark:mix-blend-normal" 
     />
   );
 };
@@ -93,7 +91,6 @@ export default function AdventureStore() {
     checkAuth();
   }, []);
 
-  // Cart persistence effect based on specific user key
   useEffect(() => {
     const savedCart = localStorage.getItem(cartStorageKey);
     if (savedCart) {
@@ -463,33 +460,33 @@ export default function AdventureStore() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-pastel-bg dark:bg-darkForest pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans relative overflow-x-hidden transition-colors duration-500">
       <div className="max-w-7xl mx-auto relative z-10">
         
         {/* Header */}
         <div className="text-center mb-8 sm:mb-12 relative" data-aos="fade-down">
-          <h1 className="text-4xl sm:text-6xl font-black text-white mb-4 tracking-tight drop-shadow-lg uppercase">
-            অ্যাডভেঞ্চার <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#e76f51] to-yellow-500">স্টোর</span>
+          <h1 className="text-4xl sm:text-6xl font-black text-gray-900 dark:text-white mb-4 tracking-tight drop-shadow-sm dark:drop-shadow-lg uppercase transition-colors">
+            অ্যাডভেঞ্চার <span className="text-transparent bg-clip-text bg-gradient-to-r from-campfire to-yellow-500">স্টোর</span>
           </h1>
-          {isAdmin && <span className="bg-emerald-500 text-white text-xs px-3 py-1 rounded-full animate-pulse">Admin Mode Active</span>}
+          {isAdmin && <span className="bg-emerald-500 text-white text-xs px-3 py-1 rounded-full animate-pulse shadow-sm">Admin Mode Active</span>}
         </div>
 
         {/* Tabs & View Mode Toggle */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 sm:mb-12 relative z-20" data-aos="fade-up">
           <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-            <button onClick={() => setActiveTab("merch")} className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 rounded-full font-bold text-xs sm:text-sm transition-all ${activeTab === "merch" ? "bg-[#e76f51] text-white shadow-glow scale-105" : "bg-white/5 text-gray-400 hover:text-white"}`}>
+            <button onClick={() => setActiveTab("merch")} className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 rounded-full font-bold text-xs sm:text-sm transition-all shadow-sm dark:shadow-none ${activeTab === "merch" ? "bg-campfire text-white shadow-md dark:shadow-glow sm:scale-105" : "bg-white dark:bg-white/5 border border-gray-200 dark:border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"}`}>
               <i className="fa-solid fa-shirt mr-1 sm:mr-2"></i> মার্চেন্ডাইজ
             </button>
-            <button onClick={() => setActiveTab("gear")} className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 rounded-full font-bold text-xs sm:text-sm transition-all ${activeTab === "gear" ? "bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-105" : "bg-white/5 text-gray-400 hover:text-white"}`}>
+            <button onClick={() => setActiveTab("gear")} className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 rounded-full font-bold text-xs sm:text-sm transition-all shadow-sm dark:shadow-none ${activeTab === "gear" ? "bg-emerald-500 text-white shadow-md dark:shadow-[0_0_15px_rgba(16,185,129,0.4)] sm:scale-105" : "bg-white dark:bg-white/5 border border-gray-200 dark:border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"}`}>
               <i className="fa-solid fa-campground mr-1 sm:mr-2"></i> গিয়ার
             </button>
           </div>
           
-          <div className="flex bg-black/40 rounded-lg p-1 border border-white/5 shrink-0 self-end sm:self-auto">
-            <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'}`}>
+          <div className="flex bg-gray-100 dark:bg-black/40 rounded-lg p-1 border border-gray-200 dark:border-white/5 shrink-0 self-end sm:self-auto transition-colors shadow-inner dark:shadow-none">
+            <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm dark:shadow-none' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>
               <i className="fa-solid fa-grid-2"></i>
             </button>
-            <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'}`}>
+            <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm dark:shadow-none' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>
               <i className="fa-solid fa-list"></i>
             </button>
           </div>
@@ -497,7 +494,7 @@ export default function AdventureStore() {
 
         {/* Product Grid / List Container */}
         {loading ? (
-          <div className="flex justify-center items-center py-32"><i className="fa-solid fa-compass fa-spin text-5xl text-[#e76f51]"></i></div>
+          <div className="flex justify-center items-center py-32"><i className="fa-solid fa-compass fa-spin text-5xl text-campfire"></i></div>
         ) : (
           <div className={viewMode === 'grid' ? "grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6" : "flex flex-col gap-4"}>
             {filteredProducts.map((product, index) => (
@@ -529,54 +526,53 @@ export default function AdventureStore() {
       {/* All Modals Wrapper */}
       {activeModal && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setActiveModal(null)}></div>
+          <div className="absolute inset-0 bg-black/40 dark:bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setActiveModal(null)}></div>
           
-          {/* Product Details Modal (🔴 FIXED HEIGHT & CLOSE BUTTON POSITION) */}
+          {/* Product Details Modal */}
           {activeModal === 'details' && selectedProduct && (
-            <div className="bg-[#0a1c13] border border-[#e76f51]/30 rounded-3xl w-full max-w-2xl h-[85vh] sm:h-[80vh] flex flex-col relative z-10 shadow-2xl animate-[zoomIn_0.2s_ease-out] mt-10 sm:m-auto">
+            <div className="bg-white dark:bg-moss border border-gray-200 dark:border-campfire/30 rounded-3xl w-full max-w-2xl h-[85vh] sm:h-[80vh] flex flex-col relative z-10 shadow-soft dark:shadow-2xl animate-[fadeIn_0.2s_ease-out] mt-10 sm:m-auto transition-colors duration-500">
               
-              {/* 🔴 FIXED CLOSE BUTTON */}
-              <button onClick={() => setActiveModal(null)} className="absolute top-3 right-3 sm:top-4 sm:right-4 z-[60] bg-black hover:bg-red-500 text-white w-9 h-9 rounded-full transition-colors flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/20">
+              <button onClick={() => setActiveModal(null)} className="absolute top-3 right-3 sm:top-4 sm:right-4 z-[60] bg-gray-100 hover:bg-red-100 dark:bg-black dark:hover:bg-red-500 text-gray-600 hover:text-red-500 dark:text-white w-9 h-9 rounded-full transition-colors flex items-center justify-center shadow-sm dark:shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-gray-200 dark:border-white/20">
                 <i className="fa-solid fa-xmark"></i>
               </button>
               
               <div className="overflow-y-auto custom-scrollbar flex-grow">
-                <div className="relative h-60 sm:h-80 bg-white/5 shrink-0">
+                <div className="relative h-60 sm:h-80 bg-gray-50 dark:bg-white/5 shrink-0 transition-colors">
                   <ProductSlider images={selectedProduct.gallery || [selectedProduct.image_url]} altText={selectedProduct.name} />
-                  {selectedProduct.discount_price > 0 && <div className="absolute top-4 left-4 bg-red-500 text-white font-black px-4 py-1 rounded-full shadow-lg">Sale!</div>}
+                  {selectedProduct.discount_price > 0 && <div className="absolute top-4 left-4 bg-red-500 text-white font-black px-4 py-1 rounded-full shadow-md">Sale!</div>}
                 </div>
 
                 <div className="p-6 sm:p-8">
-                  <h2 className="text-2xl font-black text-white mb-2">{selectedProduct.name}</h2>
+                  <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2 transition-colors">{selectedProduct.name}</h2>
                   <div className="flex flex-wrap gap-4 items-center mb-6">
                     {selectedProduct.sale_price > 0 && (
-                       <div className="bg-[#e76f51]/10 px-4 py-2 rounded-xl border border-[#e76f51]/20">
-                         <p className="text-[10px] text-gray-400 uppercase tracking-widest">কেনা মূল্য</p>
-                         <p className="text-xl font-black text-[#e76f51]">
+                       <div className="bg-orange-50 dark:bg-campfire/10 px-4 py-2 rounded-xl border border-orange-200 dark:border-campfire/20 transition-colors shadow-sm dark:shadow-none">
+                         <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest transition-colors">কেনা মূল্য</p>
+                         <p className="text-xl font-black text-campfire transition-colors">
                            ৳{selectedProduct.discount_price > 0 ? selectedProduct.discount_price : selectedProduct.sale_price}
                            {selectedProduct.discount_price > 0 && <span className="text-sm text-gray-500 line-through ml-2 font-normal">৳{selectedProduct.sale_price}</span>}
                          </p>
                        </div>
                     )}
                     {selectedProduct.rent_price > 0 && (
-                       <div className="bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20">
-                         <p className="text-[10px] text-gray-400 uppercase tracking-widest">ভাড়া মূল্য</p>
-                         <p className="text-xl font-black text-emerald-400">৳{selectedProduct.rent_price} <span className="text-sm font-normal">/দিন</span></p>
+                       <div className="bg-emerald-50 dark:bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-200 dark:border-emerald-500/20 transition-colors shadow-sm dark:shadow-none">
+                         <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest transition-colors">ভাড়া মূল্য</p>
+                         <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 transition-colors">৳{selectedProduct.rent_price} <span className="text-sm font-normal">/দিন</span></p>
                        </div>
                     )}
                   </div>
 
-                  <p className="text-gray-300 text-sm leading-relaxed mb-6 bg-white/5 p-4 rounded-xl border border-white/5 whitespace-pre-line">
+                  <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed mb-6 bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-100 dark:border-white/5 whitespace-pre-line transition-colors shadow-inner dark:shadow-none">
                     {selectedProduct.description || "এই পণ্যটির কোনো বিস্তারিত বিবরণ দেওয়া নেই।"}
                   </p>
 
                   {selectedProduct.sizes?.length > 0 && (
                     <div className="mb-4">
-                      <span className="text-xs text-gray-400 block mb-2 font-bold uppercase tracking-widest">এভেইলেবল সাইজ:</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 block mb-2 font-bold uppercase tracking-widest transition-colors">এভেইলেবল সাইজ:</span>
                       <div className="flex gap-2 flex-wrap">
                         {selectedProduct.sizes.map(s => {
                           const outOfStock = isVariantOutOfStock(selectedProduct, s, null);
-                          return <span key={s} className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${outOfStock ? 'bg-black/20 border-white/5 text-gray-600 line-through' : 'bg-white/10 border-white/10 text-white'}`}>{s}</span>;
+                          return <span key={s} className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${outOfStock ? 'bg-gray-100 dark:bg-black/20 border-gray-200 dark:border-white/5 text-gray-400 dark:text-gray-600 line-through' : 'bg-gray-50 dark:bg-white/10 border-gray-200 dark:border-white/10 text-gray-800 dark:text-white shadow-sm dark:shadow-none'}`}>{s}</span>;
                         })}
                       </div>
                     </div>
@@ -584,11 +580,11 @@ export default function AdventureStore() {
                   
                   {selectedProduct.colors?.length > 0 && (
                     <div className="mb-6">
-                      <span className="text-xs text-gray-400 block mb-2 font-bold uppercase tracking-widest">এভেইলেবল কালার:</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 block mb-2 font-bold uppercase tracking-widest transition-colors">এভেইলেবল কালার:</span>
                       <div className="flex gap-2 flex-wrap">
                         {selectedProduct.colors.map(c => {
                           const outOfStock = isVariantOutOfStock(selectedProduct, null, c);
-                          return <span key={c} className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${outOfStock ? 'bg-black/20 border-white/5 text-gray-600 line-through' : 'bg-white/10 border-white/10 text-white'}`}>{c}</span>;
+                          return <span key={c} className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${outOfStock ? 'bg-gray-100 dark:bg-black/20 border-gray-200 dark:border-white/5 text-gray-400 dark:text-gray-600 line-through' : 'bg-gray-50 dark:bg-white/10 border-gray-200 dark:border-white/10 text-gray-800 dark:text-white shadow-sm dark:shadow-none'}`}>{c}</span>;
                         })}
                       </div>
                     </div>
@@ -596,13 +592,13 @@ export default function AdventureStore() {
                 </div>
               </div>
 
-              <div className="p-4 sm:p-6 bg-black/60 border-t border-white/10 shrink-0 rounded-b-3xl">
+              <div className="p-4 sm:p-6 bg-gray-50 dark:bg-black/60 border-t border-gray-200 dark:border-white/10 shrink-0 rounded-b-3xl transition-colors">
                 <div className="flex gap-3">
                   {selectedProduct.rent_price > 0 && (
                     <button 
                       onClick={(e) => handleProductAction(e, selectedProduct, 'rent')}
                       disabled={isVariantOutOfStock(selectedProduct) && !isAdmin}
-                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md dark:shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:-translate-y-0.5"
                     >
                       <i className="fa-solid fa-calendar-check"></i> ভাড়া নিন
                     </button>
@@ -612,7 +608,7 @@ export default function AdventureStore() {
                     <button 
                       onClick={(e) => handleProductAction(e, selectedProduct, 'buy_now')}
                       disabled={isVariantOutOfStock(selectedProduct) && !isAdmin}
-                      className="flex-1 bg-[#e76f51] hover:bg-orange-600 text-white py-3 rounded-xl font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-glow"
+                      className="flex-1 bg-campfire hover:bg-orange-600 text-white py-3 rounded-xl font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md dark:shadow-glow hover:-translate-y-0.5"
                     >
                       <i className="fa-solid fa-bag-shopping"></i> কিনুন
                     </button>
@@ -625,13 +621,13 @@ export default function AdventureStore() {
 
           {/* Options (Size/Color) Selection Modal */}
           {activeModal === 'options' && selectedProduct && (
-            <div className="bg-[#0a1c13] border border-white/10 p-6 rounded-3xl w-full max-w-sm relative z-10 shadow-2xl animate-[zoomIn_0.2s_ease-out]">
-              <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
-              <h3 className="text-lg font-black text-white mb-4">ভ্যারিয়েশন সিলেক্ট করুন</h3>
+            <div className="bg-white dark:bg-moss border border-gray-200 dark:border-white/10 p-6 rounded-3xl w-full max-w-sm relative z-10 shadow-soft dark:shadow-2xl animate-[fadeIn_0.2s_ease-out] transition-colors duration-500">
+              <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
+              <h3 className="text-lg font-black text-gray-900 dark:text-white mb-4 transition-colors">ভ্যারিয়েশন সিলেক্ট করুন</h3>
               
               {selectedProduct.sizes?.length > 0 && (
                 <div className="mb-4">
-                  <label className="block text-xs text-gray-400 mb-2 font-bold">সাইজ:</label>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2 font-bold transition-colors">সাইজ:</label>
                   <div className="flex flex-wrap gap-2">
                     {selectedProduct.sizes.map(size => {
                       const outOfStock = isVariantOutOfStock(selectedProduct, size, selectedColor);
@@ -639,7 +635,7 @@ export default function AdventureStore() {
                         <button 
                           key={size} disabled={outOfStock} onClick={() => setSelectedSize(size)} 
                           className={`px-4 py-2 rounded-xl font-bold border transition-all relative ${
-                            selectedSize === size ? 'bg-[#e76f51] border-[#e76f51] text-white shadow-glow' : outOfStock ? 'bg-black/40 border-white/5 text-gray-600 line-through cursor-not-allowed opacity-50' : 'bg-white/5 border-white/10 text-gray-300 hover:border-white/30 hover:bg-white/10'
+                            selectedSize === size ? 'bg-campfire border-campfire text-white shadow-md dark:shadow-glow' : outOfStock ? 'bg-gray-100 dark:bg-black/40 border-gray-200 dark:border-white/5 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed opacity-50 shadow-inner dark:shadow-none' : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-white/30 hover:bg-gray-100 dark:hover:bg-white/10 shadow-sm dark:shadow-none'
                           }`}
                         >
                           {size}
@@ -652,7 +648,7 @@ export default function AdventureStore() {
 
               {selectedProduct.colors?.length > 0 && (
                 <div className="mb-6">
-                  <label className="block text-xs text-gray-400 mb-2 font-bold">কালার:</label>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2 font-bold transition-colors">কালার:</label>
                   <div className="flex flex-wrap gap-2">
                     {selectedProduct.colors.map(color => {
                       const outOfStock = isVariantOutOfStock(selectedProduct, selectedSize, color);
@@ -660,7 +656,7 @@ export default function AdventureStore() {
                         <button 
                           key={color} disabled={outOfStock} onClick={() => setSelectedColor(color)} 
                           className={`px-4 py-2 rounded-xl font-bold border transition-all ${
-                            selectedColor === color ? 'bg-purple-500 border-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : outOfStock ? 'bg-black/40 border-white/5 text-gray-600 line-through cursor-not-allowed opacity-50' : 'bg-white/5 border-white/10 text-gray-300 hover:border-white/30 hover:bg-white/10'
+                            selectedColor === color ? 'bg-purple-500 border-purple-500 text-white shadow-md dark:shadow-[0_0_15px_rgba(168,85,247,0.4)]' : outOfStock ? 'bg-gray-100 dark:bg-black/40 border-gray-200 dark:border-white/5 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed opacity-50 shadow-inner dark:shadow-none' : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-white/30 hover:bg-gray-100 dark:hover:bg-white/10 shadow-sm dark:shadow-none'
                           }`}
                         >
                           {color}
@@ -677,7 +673,7 @@ export default function AdventureStore() {
                 if(isVariantOutOfStock(selectedProduct, selectedSize, selectedColor)) return alert('এই ভ্যারিয়েন্টটি স্টকে নেই!');
                 const currentPrice = selectedProduct.discount_price > 0 ? selectedProduct.discount_price : selectedProduct.sale_price;
                 processAddToCart(selectedProduct, 'buy', currentPrice, { size: selectedSize, color: selectedColor }, intendedAction);
-              }} className="w-full bg-[#e76f51] hover:bg-orange-600 transition-colors text-white py-3.5 rounded-xl font-black uppercase tracking-widest mt-2">
+              }} className="w-full bg-campfire hover:bg-orange-600 transition-colors text-white py-3.5 rounded-xl font-black uppercase tracking-widest mt-2 shadow-md">
                 নিশ্চিত করুন
               </button>
             </div>
@@ -685,33 +681,33 @@ export default function AdventureStore() {
 
           {/* Rental Dates Calendar Modal */}
           {activeModal === 'rent' && selectedProduct && (
-            <div className="bg-[#0a1c13] border border-white/10 p-6 rounded-3xl w-full max-w-md relative z-10 shadow-2xl animate-[zoomIn_0.2s_ease-out]">
-              <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
-              <h3 className="text-xl font-black text-white mb-2 flex items-center gap-2"><i className="fa-solid fa-calendar-days text-emerald-400"></i> ভাড়ার তারিখ নির্ধারণ</h3>
-              <p className="text-xs text-gray-400 mb-6">কয়দিনের জন্য ভাড়া নিতে চান তা সিলেক্ট করুন।</p>
+            <div className="bg-white dark:bg-moss border border-gray-200 dark:border-white/10 p-6 rounded-3xl w-full max-w-md relative z-10 shadow-soft dark:shadow-2xl animate-[fadeIn_0.2s_ease-out] transition-colors duration-500">
+              <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2 flex items-center gap-2 transition-colors"><i className="fa-solid fa-calendar-days text-emerald-500 dark:text-emerald-400"></i> ভাড়ার তারিখ নির্ধারণ</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 transition-colors">কয়দিনের জন্য ভাড়া নিতে চান তা সিলেক্ট করুন।</p>
               
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-1">পিক-আপ ডেট</label>
-                  <input type="date" value={rentDates.start} min={new Date().toISOString().split('T')[0]} onChange={(e) => setRentDates({...rentDates, start: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 [color-scheme:dark]" />
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 transition-colors">পিক-আপ ডেট</label>
+                  <input type="date" value={rentDates.start} min={new Date().toISOString().split('T')[0]} onChange={(e) => setRentDates({...rentDates, start: e.target.value})} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-emerald-500 dark:[color-scheme:dark] transition-colors shadow-inner dark:shadow-none" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-1">রিটার্ন ডেট</label>
-                  <input type="date" value={rentDates.end} min={rentDates.start || new Date().toISOString().split('T')[0]} onChange={(e) => setRentDates({...rentDates, end: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 [color-scheme:dark]" />
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 transition-colors">রিটার্ন ডেট</label>
+                  <input type="date" value={rentDates.end} min={rentDates.start || new Date().toISOString().split('T')[0]} onChange={(e) => setRentDates({...rentDates, end: e.target.value})} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-emerald-500 dark:[color-scheme:dark] transition-colors shadow-inner dark:shadow-none" />
                 </div>
               </div>
 
               {rentDates.start && rentDates.end && (
-                <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl mb-6 text-center">
-                  <span className="block text-sm text-gray-300">ভাড়ার মেয়াদ: <strong className="text-emerald-400">{calculateDays(rentDates.start, rentDates.end)} দিন</strong></span>
-                  <span className="block text-xl font-black text-white mt-1">মোট ভাড়া: ৳{calculateDays(rentDates.start, rentDates.end) * selectedProduct.rent_price}</span>
+                <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 p-4 rounded-xl mb-6 text-center transition-colors shadow-sm dark:shadow-none">
+                  <span className="block text-sm text-gray-700 dark:text-gray-300 transition-colors">ভাড়ার মেয়াদ: <strong className="text-emerald-600 dark:text-emerald-400">{calculateDays(rentDates.start, rentDates.end)} দিন</strong></span>
+                  <span className="block text-xl font-black text-gray-900 dark:text-white mt-1 transition-colors">মোট ভাড়া: ৳{calculateDays(rentDates.start, rentDates.end) * selectedProduct.rent_price}</span>
                 </div>
               )}
 
               <button onClick={() => {
                 if(!rentDates.start || !rentDates.end) return alert("দয়া করে তারিখ সিলেক্ট করুন!");
                 processAddToCart(selectedProduct, 'rent', selectedProduct.rent_price, { start: rentDates.start, end: rentDates.end, days: calculateDays(rentDates.start, rentDates.end) }, 'rent');
-              }} className="w-full bg-emerald-500 text-white py-3.5 rounded-xl font-black uppercase tracking-widest hover:bg-emerald-600 transition-colors">
+              }} className="w-full bg-emerald-500 text-white py-3.5 rounded-xl font-black uppercase tracking-widest hover:bg-emerald-600 transition-colors shadow-md">
                 কার্টে যোগ করুন
               </button>
             </div>
@@ -719,42 +715,42 @@ export default function AdventureStore() {
 
           {/* Checkout Modal */}
           {activeModal === 'checkout' && (
-            <div className="bg-[#0a1c13] border border-[#e76f51]/30 p-6 sm:p-8 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto relative z-10 shadow-[0_0_50px_rgba(231,111,81,0.15)]">
-              <button onClick={() => {setActiveModal(null); setIsCartOpen(true);}} className="absolute top-4 right-4 text-gray-400 hover:text-white"><i className="fa-solid fa-arrow-left text-xl"></i></button>
-              <h3 className="text-2xl font-black text-white mb-6 border-b border-white/10 pb-4 flex items-center gap-2"><i className="fa-solid fa-money-check-dollar text-[#e76f51]"></i> পেমেন্ট ও চেকআউট</h3>
+            <div className="bg-white dark:bg-moss border border-orange-200 dark:border-campfire/30 p-6 sm:p-8 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto relative z-10 shadow-soft dark:shadow-[0_0_50px_rgba(231,111,81,0.15)] transition-colors duration-500">
+              <button onClick={() => {setActiveModal(null); setIsCartOpen(true);}} className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"><i className="fa-solid fa-arrow-left text-xl"></i></button>
+              <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-6 border-b border-gray-200 dark:border-white/10 pb-4 flex items-center gap-2 transition-colors"><i className="fa-solid fa-money-check-dollar text-campfire"></i> পেমেন্ট ও চেকআউট</h3>
               
-              <div className="bg-black/40 p-5 rounded-2xl border border-white/5 mb-6 text-center">
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">সর্বমোট পে করতে হবে</p>
-                <p className="text-4xl font-black text-[#e76f51] mt-2">৳{cartTotal}</p>
+              <div className="bg-gray-50 dark:bg-black/40 p-5 rounded-2xl border border-gray-200 dark:border-white/5 mb-6 text-center transition-colors shadow-inner dark:shadow-none">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold transition-colors">সর্বমোট পে করতে হবে</p>
+                <p className="text-4xl font-black text-campfire mt-2 transition-colors">৳{cartTotal}</p>
               </div>
 
               <div className="mb-8">
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-3">যেকোনো একটি মাধ্যম বেছে নিন:</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mb-3 transition-colors">যেকোনো একটি মাধ্যম বেছে নিন:</p>
                 <div className="space-y-3">
                   {getUniquePaymentMethods().map((pm, i) => (
                     <div 
                       key={i} 
                       onClick={() => setSelectedPaymentIdx(i)}
-                      className={`cursor-pointer border p-4 rounded-xl flex items-center justify-between transition-all ${selectedPaymentIdx === i ? 'border-[#e76f51] bg-[#e76f51]/10 shadow-[0_0_15px_rgba(231,111,81,0.2)]' : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10'}`}
+                      className={`cursor-pointer border p-4 rounded-xl flex items-center justify-between transition-all shadow-sm dark:shadow-none ${selectedPaymentIdx === i ? 'border-campfire bg-orange-50 dark:bg-campfire/10 dark:shadow-[0_0_15px_rgba(231,111,81,0.2)]' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30 hover:bg-gray-50 dark:hover:bg-white/10'}`}
                     >
                       <div className="flex items-center gap-3 sm:gap-4">
-                        <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${selectedPaymentIdx === i ? 'border-[#e76f51]' : 'border-gray-500'}`}>
-                          {selectedPaymentIdx === i && <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#e76f51]"></div>}
+                        <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${selectedPaymentIdx === i ? 'border-campfire' : 'border-gray-400 dark:border-gray-500'}`}>
+                          {selectedPaymentIdx === i && <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-campfire"></div>}
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-white font-bold text-sm sm:text-base">{pm.provider.toUpperCase()} {pm.bankName ? `(${pm.bankName})` : ''}</span>
-                          <span className="text-gray-400 text-xs tracking-widest mt-0.5">{pm.accNo}</span>
+                          <span className="text-gray-900 dark:text-white font-bold text-sm sm:text-base transition-colors">{pm.provider.toUpperCase()} {pm.bankName ? `(${pm.bankName})` : ''}</span>
+                          <span className="text-gray-500 dark:text-gray-400 text-xs tracking-widest mt-0.5 transition-colors">{pm.accNo}</span>
                         </div>
                       </div>
-                      <span className={`text-[10px] px-2 py-1.5 rounded font-bold uppercase tracking-wider ${pm.type === 'send_money' ? 'bg-pink-500/20 text-pink-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                      <span className={`text-[10px] px-2 py-1.5 rounded font-bold uppercase tracking-wider transition-colors ${pm.type === 'send_money' ? 'bg-pink-100 dark:bg-pink-500/20 text-pink-600 dark:text-pink-400' : 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'}`}>
                         {pm.type.replace('_', ' ')}
                       </span>
                     </div>
                   ))}
                   {getUniquePaymentMethods().length === 0 && (
-                    <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 rounded-xl flex items-start gap-2">
-                      <i className="fa-solid fa-triangle-exclamation text-yellow-500 mt-1"></i>
-                      <p className="text-xs text-yellow-400 leading-relaxed">অ্যাডমিন নির্দিষ্ট পেমেন্ট মেথড সেট করেনি।</p>
+                    <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/30 p-3 rounded-xl flex items-start gap-2 transition-colors shadow-sm dark:shadow-none">
+                      <i className="fa-solid fa-triangle-exclamation text-yellow-600 dark:text-yellow-500 mt-1 transition-colors"></i>
+                      <p className="text-xs text-yellow-700 dark:text-yellow-400 leading-relaxed transition-colors">অ্যাডমিন নির্দিষ্ট পেমেন্ট মেথড সেট করেনি।</p>
                     </div>
                   )}
                 </div>
@@ -762,10 +758,10 @@ export default function AdventureStore() {
 
               <form onSubmit={handleCheckoutSubmit}>
                 <div className="mb-6">
-                  <label className="block text-xs font-bold text-gray-400 mb-2">TrxID (ট্রানজেকশন আইডি) সাবমিট করুন *</label>
-                  <input required type="text" value={trxId} onChange={(e) => setTrxId(e.target.value)} placeholder="e.g. 9F8A7B6C5D" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-[#e76f51] font-mono uppercase transition-colors" />
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">TrxID (ট্রানজেকশন আইডি) সাবমিট করুন *</label>
+                  <input required type="text" value={trxId} onChange={(e) => setTrxId(e.target.value)} placeholder="e.g. 9F8A7B6C5D" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3.5 text-gray-900 dark:text-white focus:outline-none focus:border-campfire font-mono uppercase transition-colors shadow-inner dark:shadow-none" />
                 </div>
-                <button disabled={isSubmitting} type="submit" className={`w-full py-4 rounded-xl font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-[#e76f51] hover:bg-orange-600 text-white shadow-glow'}`}>
+                <button disabled={isSubmitting} type="submit" className={`w-full py-4 rounded-xl font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2 shadow-md ${isSubmitting ? 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' : 'bg-campfire hover:bg-orange-600 text-white dark:shadow-glow hover:-translate-y-0.5'}`}>
                   {isSubmitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check-double"></i>}
                   {isSubmitting ? 'অর্ডার প্রসেস হচ্ছে...' : 'অর্ডার কনফার্ম করুন'}
                 </button>
@@ -775,16 +771,16 @@ export default function AdventureStore() {
 
           {/* Admin Discount Modal */}
           {activeModal === 'discount' && selectedProduct && (
-             <div className="bg-[#0a1c13] border border-blue-500/30 p-6 rounded-3xl w-full max-w-sm relative z-10 shadow-2xl">
-               <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
-               <h3 className="text-xl font-black text-white mb-2 text-center"><i className="fa-solid fa-tags text-blue-400 mr-2"></i>ডিসকাউন্ট সেট করুন</h3>
-               <p className="text-sm text-gray-400 text-center mb-6 border-b border-white/10 pb-4">বর্তমান রেগুলার দাম: <strong className="text-white">৳{selectedProduct.sale_price}</strong></p>
+             <div className="bg-white dark:bg-moss border border-blue-200 dark:border-blue-500/30 p-6 rounded-3xl w-full max-w-sm relative z-10 shadow-soft dark:shadow-2xl transition-colors duration-500">
+               <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
+               <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2 text-center transition-colors"><i className="fa-solid fa-tags text-blue-500 dark:text-blue-400 mr-2"></i>ডিসকাউন্ট সেট করুন</h3>
+               <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6 border-b border-gray-200 dark:border-white/10 pb-4 transition-colors">বর্তমান রেগুলার দাম: <strong className="text-gray-900 dark:text-white transition-colors">৳{selectedProduct.sale_price}</strong></p>
                
                <div className="mb-6">
-                 <label className="block text-xs font-bold text-gray-400 mb-2">নতুন ডিসকাউন্ট মূল্য লিখুন (৳)</label>
-                 <input type="number" value={discountInput} onChange={e => setDiscountInput(e.target.value)} placeholder={`৳${selectedProduct.sale_price} এর চেয়ে কম`} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-lg font-black focus:outline-none focus:border-blue-500 transition-colors text-center" />
+                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">নতুন ডিসকাউন্ট মূল্য লিখুন (৳)</label>
+                 <input type="number" value={discountInput} onChange={e => setDiscountInput(e.target.value)} placeholder={`৳${selectedProduct.sale_price} এর চেয়ে কম`} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white text-lg font-black focus:outline-none focus:border-blue-500 transition-colors text-center shadow-inner dark:shadow-none" />
                </div>
-               <button onClick={handleAdminDiscount} disabled={isSubmitting} className="w-full bg-blue-600 hover:bg-blue-500 transition-colors text-white py-3.5 rounded-xl font-black uppercase tracking-widest flex justify-center items-center gap-2">
+               <button onClick={handleAdminDiscount} disabled={isSubmitting} className="w-full bg-blue-600 hover:bg-blue-500 transition-colors text-white py-3.5 rounded-xl font-black uppercase tracking-widest flex justify-center items-center gap-2 shadow-md">
                  {isSubmitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>} সেভ করুন
                </button>
              </div>
@@ -792,75 +788,75 @@ export default function AdventureStore() {
 
           {/* Admin Product Edit Modal */}
           {activeModal === 'edit' && editFormData && selectedProduct && (
-            <div className="bg-[#0a1c13] border border-purple-500/30 p-6 sm:p-8 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto relative z-10 shadow-2xl">
-              <button onClick={() => { setActiveModal(null); setEditFormData(null); }} className="absolute top-4 right-4 text-gray-400 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
-              <h3 className="text-xl font-black text-white mb-6 border-b border-white/10 pb-4"><i className="fa-solid fa-pen text-purple-400 mr-2"></i>পণ্যের তথ্য এডিট করুন</h3>
+            <div className="bg-white dark:bg-moss border border-purple-200 dark:border-purple-500/30 p-6 sm:p-8 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto relative z-10 shadow-soft dark:shadow-2xl transition-colors duration-500">
+              <button onClick={() => { setActiveModal(null); setEditFormData(null); }} className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white mb-6 border-b border-gray-200 dark:border-white/10 pb-4 transition-colors"><i className="fa-solid fa-pen text-purple-500 dark:text-purple-400 mr-2"></i>পণ্যের তথ্য এডিট করুন</h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-1">নাম *</label>
-                  <input type="text" value={editFormData.name} onChange={e => setEditFormData({ ...editFormData, name: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-500" />
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 transition-colors">নাম *</label>
+                  <input type="text" value={editFormData.name} onChange={e => setEditFormData({ ...editFormData, name: e.target.value })} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-purple-500 shadow-inner dark:shadow-none transition-colors" />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-1">বিস্তারিত বিবরণ</label>
-                  <textarea rows="3" value={editFormData.description} onChange={e => setEditFormData({ ...editFormData, description: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 resize-none" />
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 transition-colors">বিস্তারিত বিবরণ</label>
+                  <textarea rows="3" value={editFormData.description} onChange={e => setEditFormData({ ...editFormData, description: e.target.value })} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-purple-500 resize-none shadow-inner dark:shadow-none transition-colors" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">বিক্রয় মূল্য (৳)</label>
-                    <input type="number" value={editFormData.sale_price} onChange={e => setEditFormData({ ...editFormData, sale_price: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-500" />
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 transition-colors">বিক্রয় মূল্য (৳)</label>
+                    <input type="number" value={editFormData.sale_price} onChange={e => setEditFormData({ ...editFormData, sale_price: e.target.value })} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-purple-500 shadow-inner dark:shadow-none transition-colors" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">ডিসকাউন্ট মূল্য (৳)</label>
-                    <input type="number" value={editFormData.discount_price} onChange={e => setEditFormData({ ...editFormData, discount_price: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-500" />
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 transition-colors">ডিসকাউন্ট মূল্য (৳)</label>
+                    <input type="number" value={editFormData.discount_price} onChange={e => setEditFormData({ ...editFormData, discount_price: e.target.value })} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-purple-500 shadow-inner dark:shadow-none transition-colors" />
                   </div>
                 </div>
 
                 {selectedProduct?.category === 'gear' && (
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">ভাড়ার মূল্য / দিন (৳)</label>
-                    <input type="number" value={editFormData.rent_price} onChange={e => setEditFormData({ ...editFormData, rent_price: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-500" />
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 transition-colors">ভাড়ার মূল্য / দিন (৳)</label>
+                    <input type="number" value={editFormData.rent_price} onChange={e => setEditFormData({ ...editFormData, rent_price: e.target.value })} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-purple-500 shadow-inner dark:shadow-none transition-colors" />
                   </div>
                 )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">সাইজ ভ্যারিয়েশন</label>
-                    <input type="text" value={editFormData.sizesInput} onChange={e => handleEditVariantInput('sizesInput', e.target.value)} placeholder="M, L, XL" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-purple-500" />
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 transition-colors">সাইজ ভ্যারিয়েশন</label>
+                    <input type="text" value={editFormData.sizesInput} onChange={e => handleEditVariantInput('sizesInput', e.target.value)} placeholder="M, L, XL" className="w-full bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-purple-500 shadow-inner dark:shadow-none transition-colors" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">কালার ভ্যারিয়েশন</label>
-                    <input type="text" value={editFormData.colorsInput} onChange={e => handleEditVariantInput('colorsInput', e.target.value)} placeholder="Black, Navy" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-purple-500" />
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 transition-colors">কালার ভ্যারিয়েশন</label>
+                    <input type="text" value={editFormData.colorsInput} onChange={e => handleEditVariantInput('colorsInput', e.target.value)} placeholder="Black, Navy" className="w-full bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-purple-500 shadow-inner dark:shadow-none transition-colors" />
                   </div>
                 </div>
 
                 {Object.keys(editFormData.variantStock).length > 0 ? (
-                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                    <label className="block text-xs font-bold text-purple-400 mb-3 uppercase tracking-widest"><i className="fa-solid fa-layer-group mr-1"></i>ভ্যারিয়েশন অনুযায়ী স্টক</label>
+                  <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-200 dark:border-white/5 transition-colors shadow-inner dark:shadow-none">
+                    <label className="block text-xs font-bold text-purple-600 dark:text-purple-400 mb-3 uppercase tracking-widest transition-colors"><i className="fa-solid fa-layer-group mr-1"></i>ভ্যারিয়েশন অনুযায়ী স্টক</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {Object.keys(editFormData.variantStock).map(combo => (
-                        <div key={combo} className="bg-black/30 p-2 rounded-lg border border-white/5">
-                          <label className="block text-[10px] text-gray-300 font-bold mb-1 truncate" title={combo}>{combo}</label>
-                          <input type="number" min="0" value={editFormData.variantStock[combo]} onChange={e => handleEditVariantStockChange(combo, e.target.value)} className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-purple-500" />
+                        <div key={combo} className="bg-white dark:bg-black/30 p-2 rounded-lg border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none transition-colors">
+                          <label className="block text-[10px] text-gray-600 dark:text-gray-300 font-bold mb-1 truncate transition-colors" title={combo}>{combo}</label>
+                          <input type="number" min="0" value={editFormData.variantStock[combo]} onChange={e => handleEditVariantStockChange(combo, e.target.value)} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-2 py-1.5 text-gray-900 dark:text-white text-xs focus:outline-none focus:border-purple-500 shadow-inner dark:shadow-none transition-colors" />
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 pt-3 border-t border-white/10 flex justify-between items-center">
-                      <span className="text-xs text-gray-400 font-bold uppercase">মোট স্টক (স্বয়ংক্রিয়):</span>
-                      <span className="text-lg font-black text-white">{Object.values(editFormData.variantStock).reduce((a, c) => a + (parseInt(c) || 0), 0)}</span>
+                    <div className="mt-4 pt-3 border-t border-gray-200 dark:border-white/10 flex justify-between items-center transition-colors">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase transition-colors">মোট স্টক (স্বয়ংক্রিয়):</span>
+                      <span className="text-lg font-black text-gray-900 dark:text-white transition-colors">{Object.values(editFormData.variantStock).reduce((a, c) => a + (parseInt(c) || 0), 0)}</span>
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">স্টক সংখ্যা</label>
-                    <input type="number" min="0" value={editFormData.stock_quantity} onChange={e => setEditFormData({ ...editFormData, stock_quantity: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-500" />
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 transition-colors">স্টক সংখ্যা</label>
+                    <input type="number" min="0" value={editFormData.stock_quantity} onChange={e => setEditFormData({ ...editFormData, stock_quantity: e.target.value })} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-purple-500 shadow-inner dark:shadow-none transition-colors" />
                   </div>
                 )}
               </div>
 
-              <button onClick={handleAdminEditSave} disabled={isSubmitting} className={`w-full mt-8 py-4 rounded-xl font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'bg-gray-600 text-gray-400' : 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]'}`}>
+              <button onClick={handleAdminEditSave} disabled={isSubmitting} className={`w-full mt-8 py-4 rounded-xl font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md ${isSubmitting ? 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-500 text-white dark:shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:-translate-y-0.5'}`}>
                 {isSubmitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-floppy-disk"></i> পরিবর্তন সেভ করুন</>}
               </button>
             </div>
@@ -868,43 +864,43 @@ export default function AdventureStore() {
 
           {/* Admin 3-Step Delete Warning Modal */}
           {activeModal === 'delete' && selectedProduct && (
-            <div className="bg-[#0a1c13] border border-red-500/50 p-6 sm:p-8 rounded-3xl w-full max-w-sm relative z-10 text-center shadow-2xl">
+            <div className="bg-white dark:bg-moss border border-red-200 dark:border-red-500/50 p-6 sm:p-8 rounded-3xl w-full max-w-sm relative z-10 text-center shadow-soft dark:shadow-2xl transition-colors duration-500">
               <i className="fa-solid fa-triangle-exclamation text-6xl text-red-500 mb-6 animate-bounce"></i>
               
               {deleteStep === 1 && (
                 <>
-                  <h3 className="text-xl font-black text-white mb-2">পণ্যটি ডিলিট করবেন?</h3>
-                  <p className="text-sm text-gray-400 mb-6">এই পণ্যটি স্টোর থেকে মুছে ফেলা হবে।</p>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2 transition-colors">পণ্যটি ডিলিট করবেন?</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 transition-colors">এই পণ্যটি স্টোর থেকে মুছে ফেলা হবে।</p>
                   <div className="flex gap-2">
-                    <button onClick={() => setActiveModal(null)} className="flex-1 bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-xl font-bold transition-colors">বাতিল</button>
-                    <button onClick={() => setDeleteStep(2)} className="flex-1 bg-red-600 hover:bg-red-500 text-white py-2.5 rounded-xl font-bold transition-colors">হ্যাঁ, ডিলিট করুন</button>
+                    <button onClick={() => setActiveModal(null)} className="flex-1 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-800 dark:text-white py-2.5 rounded-xl font-bold transition-colors shadow-sm dark:shadow-none">বাতিল</button>
+                    <button onClick={() => setDeleteStep(2)} className="flex-1 bg-red-600 hover:bg-red-500 text-white py-2.5 rounded-xl font-bold transition-colors shadow-sm dark:shadow-none">হ্যাঁ, ডিলিট করুন</button>
                   </div>
                 </>
               )}
 
               {deleteStep === 2 && (
                 <>
-                  <h3 className="text-xl font-black text-red-400 mb-2">চরম সতর্কতা!</h3>
-                  <p className="text-xs text-gray-400 mb-4">পণ্যটি ডেটাবেস থেকে স্থায়ীভাবে মুছে যাবে। এটি আর রিকভার করা সম্ভব নয়!</p>
-                  <label className="flex items-start gap-3 text-xs text-gray-300 cursor-pointer select-none mb-6 text-left bg-black/40 p-3 rounded-lg border border-white/5">
+                  <h3 className="text-xl font-black text-red-600 dark:text-red-400 mb-2 transition-colors">চরম সতর্কতা!</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 transition-colors">পণ্যটি ডেটাবেস থেকে স্থায়ীভাবে মুছে যাবে। এটি আর রিকভার করা সম্ভব নয়!</p>
+                  <label className="flex items-start gap-3 text-xs text-gray-600 dark:text-gray-300 cursor-pointer select-none mb-6 text-left bg-gray-50 dark:bg-black/40 p-3 rounded-lg border border-gray-200 dark:border-white/5 transition-colors shadow-inner dark:shadow-none">
                     <input type="checkbox" checked={deleteConfirmChecked} onChange={e => setDeleteConfirmChecked(e.target.checked)} className="w-5 h-5 shrink-0 mt-0.5 accent-red-500" />
                     <span className="leading-snug">আমি বুঝতে পেরেছি যে এই সিদ্ধান্তটি অপরিবর্তনীয়।</span>
                   </label>
                   <div className="flex gap-2">
-                    <button onClick={() => setDeleteStep(1)} className="flex-1 bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-xl font-bold transition-colors">ফিরে যান</button>
-                    <button onClick={() => setDeleteStep(3)} disabled={!deleteConfirmChecked} className="flex-1 bg-red-600 disabled:bg-gray-600 text-white py-2.5 rounded-xl font-bold transition-colors">আমি নিশ্চিত</button>
+                    <button onClick={() => setDeleteStep(1)} className="flex-1 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-800 dark:text-white py-2.5 rounded-xl font-bold transition-colors shadow-sm dark:shadow-none">ফিরে যান</button>
+                    <button onClick={() => setDeleteStep(3)} disabled={!deleteConfirmChecked} className="flex-1 bg-red-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white py-2.5 rounded-xl font-bold transition-colors shadow-sm dark:shadow-none">আমি নিশ্চিত</button>
                   </div>
                 </>
               )}
 
               {deleteStep === 3 && (
                 <>
-                  <h3 className="text-lg font-black text-white mb-2">ফাইনাল কনফার্মেশন</h3>
-                  <p className="text-[10px] text-gray-400 mb-4">ডিলিট করতে নিচের বক্সে <strong className="text-red-500">DELETE</strong> টাইপ করুন।</p>
-                  <input type="text" value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)} placeholder="DELETE" className="w-full bg-white/5 border border-red-500/30 rounded-xl px-4 py-3 text-white mb-6 text-center font-mono tracking-widest focus:outline-none focus:border-red-500" />
+                  <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2 transition-colors">ফাইনাল কনফার্মেশন</h3>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-4 transition-colors">ডিলিট করতে নিচের বক্সে <strong className="text-red-500">DELETE</strong> টাইপ করুন।</p>
+                  <input type="text" value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)} placeholder="DELETE" className="w-full bg-gray-50 dark:bg-white/5 border border-red-200 dark:border-red-500/30 rounded-xl px-4 py-3 text-gray-900 dark:text-white mb-6 text-center font-mono tracking-widest focus:outline-none focus:border-red-500 transition-colors shadow-inner dark:shadow-none" />
                   <div className="flex gap-2">
-                    <button onClick={() => setActiveModal(null)} className="flex-1 bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-xl font-bold transition-colors">বাতিল</button>
-                    <button onClick={handleAdminDelete} disabled={deleteConfirmText !== 'DELETE' || isSubmitting} className="flex-1 bg-red-700 disabled:bg-gray-600 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
+                    <button onClick={() => setActiveModal(null)} className="flex-1 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-800 dark:text-white py-2.5 rounded-xl font-bold transition-colors shadow-sm dark:shadow-none">বাতিল</button>
+                    <button onClick={handleAdminDelete} disabled={deleteConfirmText !== 'DELETE' || isSubmitting} className="flex-1 bg-red-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-sm dark:shadow-none">
                       {isSubmitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-trash-can"></i> ডিলিট করুন</>}
                     </button>
                   </div>
