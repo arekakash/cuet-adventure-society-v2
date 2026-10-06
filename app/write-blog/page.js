@@ -87,7 +87,6 @@ export default function WriteBlogPage() {
     if (data) setUserProfile(data);
   };
 
-  // তোমার পুরনো প্রজেক্টের স্টাইলে ভ্যানিলা কুইল ইনিশিয়ালাইজেশন
   const initQuill = () => {
     if (window.Quill && !quillInstance.current) {
       
@@ -199,7 +198,6 @@ export default function WriteBlogPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // ভ্যানিলা কুইল থেকে সরাসরি HTML নেওয়া
     const content = quillInstance.current ? quillInstance.current.root.innerHTML : "";
     
     if (!title.trim() || !content.trim() || content === "<p><br></p>") {
@@ -245,15 +243,14 @@ export default function WriteBlogPage() {
   };
 
   if (!userProfile) return (
-    <div className="min-h-screen flex justify-center items-center bg-[#050b08]">
-      <i className="fa-solid fa-compass fa-spin text-4xl text-[#e76f51]"></i>
+    <div className="min-h-screen flex justify-center items-center bg-pastel-bg dark:bg-darkForest transition-colors duration-500">
+      <i className="fa-solid fa-compass fa-spin text-4xl text-campfire"></i>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#050b08] pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-pastel-bg dark:bg-darkForest pt-24 pb-12 px-4 sm:px-6 lg:px-8 transition-colors duration-500">
       
-      {/* Quill এর অরিজিনাল CSS ও JS لوڈ করা হচ্ছে */}
       <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
       <Script 
         src="https://cdn.quilljs.com/1.3.6/quill.min.js" 
@@ -261,18 +258,18 @@ export default function WriteBlogPage() {
         onLoad={initQuill} 
       />
 
-      <div className="max-w-4xl mx-auto glass-panel rounded-[2rem] p-6 sm:p-10 border border-white/10 relative overflow-hidden" data-aos="fade-up">
+      <div className="max-w-4xl mx-auto bg-white/90 dark:bg-black/40 backdrop-blur-xl rounded-[2rem] p-6 sm:p-10 border border-gray-200 dark:border-white/10 relative overflow-hidden shadow-soft dark:shadow-2xl transition-colors duration-500" data-aos="fade-up">
         
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[#e76f51]/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-100 dark:bg-campfire/10 rounded-full blur-3xl pointer-events-none transition-colors"></div>
 
-        <div className="flex items-center gap-4 mb-8 border-b border-white/10 pb-6 relative z-10">
-          <Link href="/stories" className="text-gray-400 hover:text-white transition-colors w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-[#e76f51]/20">
+        <div className="flex items-center gap-4 mb-8 border-b border-gray-200 dark:border-white/10 pb-6 relative z-10 transition-colors">
+          <Link href="/stories" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/5 hover:bg-orange-50 dark:hover:bg-campfire/20 shadow-sm dark:shadow-none">
             <i className="fa-solid fa-arrow-left"></i>
           </Link>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white">আপনার অ্যাডভেঞ্চার শেয়ার করুন</h1>
-            <p className="text-sm text-gray-400 mt-1">
-              লেখক: <span className="text-[#e76f51] font-bold">{userProfile.full_name}</span> ({userProfile.department} - {userProfile.batch})
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white transition-colors">আপনার অ্যাডভেঞ্চার শেয়ার করুন</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 transition-colors">
+              লেখক: <span className="text-campfire font-bold">{userProfile.full_name}</span> ({userProfile.department} - {userProfile.batch})
             </p>
           </div>
         </div>
@@ -280,22 +277,22 @@ export default function WriteBlogPage() {
         <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
           
           <div data-aos="fade-up" data-aos-delay="100">
-            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">কভার ছবি (ঐচ্ছিক)</label>
-            <div className="relative border-2 border-dashed border-white/20 hover:border-[#e76f51]/50 rounded-2xl overflow-hidden bg-black/40 transition-colors group cursor-pointer">
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider transition-colors">কভার ছবি (ঐচ্ছিক)</label>
+            <div className="relative border-2 border-dashed border-gray-300 dark:border-white/20 hover:border-campfire/50 dark:hover:border-campfire/50 rounded-2xl overflow-hidden bg-gray-50 dark:bg-black/40 transition-colors group cursor-pointer shadow-inner dark:shadow-none">
               {imageProcessing ? (
-                <div className="w-full h-32 flex flex-col items-center justify-center text-[#e76f51]">
+                <div className="w-full h-32 flex flex-col items-center justify-center text-campfire">
                   <i className="fa-solid fa-circle-notch fa-spin text-3xl mb-2"></i>
                   <span className="text-sm font-bold">ছবি অপটিমাইজ হচ্ছে...</span>
                 </div>
               ) : previewImg ? (
                 <>
-                  <img src={previewImg} alt="Cover Preview" className="w-full h-48 sm:h-64 object-cover opacity-80" />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-white font-bold bg-black/60 px-4 py-2 rounded-lg backdrop-blur-sm"><i className="fa-solid fa-camera mr-2"></i> ছবি পরিবর্তন করুন</span>
+                  <img src={previewImg} alt="Cover Preview" className="w-full h-48 sm:h-64 object-cover opacity-90 dark:opacity-80 transition-opacity" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 dark:bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-white font-bold bg-black/50 dark:bg-black/60 px-4 py-2 rounded-lg backdrop-blur-sm shadow-md"><i className="fa-solid fa-camera mr-2"></i> ছবি পরিবর্তন করুন</span>
                   </div>
                 </>
               ) : (
-                <div className="w-full h-32 flex flex-col items-center justify-center text-gray-500 group-hover:text-[#e76f51] transition-colors">
+                <div className="w-full h-32 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 group-hover:text-campfire transition-colors">
                   <i className="fa-solid fa-image text-3xl mb-2"></i>
                   <span className="text-sm font-bold">ক্লিক করে কভার ছবি আপলোড করুন</span>
                   <span className="text-[10px] mt-1 text-gray-500">স্বয়ংক্রিয়ভাবে ১০০ কেবির নিচে অপটিমাইজ হয়ে যাবে</span>
@@ -306,73 +303,109 @@ export default function WriteBlogPage() {
           </div>
 
           <div data-aos="fade-up" data-aos-delay="200">
-            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">গল্পের শিরোনাম *</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider transition-colors">গল্পের শিরোনাম *</label>
             <input 
               type="text" 
               required 
               value={title} 
               onChange={(e) => setTitle(e.target.value)} 
               placeholder="রোমাঞ্চকর কোনো শিরোনাম দিন..." 
-              className="w-full text-lg sm:text-xl font-bold rounded-xl p-4 bg-black/40 border border-white/10 text-white focus:border-[#e76f51] outline-none transition-colors"
+              className="w-full text-lg sm:text-xl font-bold rounded-xl p-4 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-campfire outline-none transition-colors shadow-inner dark:shadow-none"
             />
           </div>
 
           <div data-aos="fade-up" data-aos-delay="300" className="write-blog-editor">
-            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">মূল গল্প (মাঝে ছবি দিতে Image আইকনে ক্লিক করুন) *</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider transition-colors">মূল গল্প (মাঝে ছবি দিতে Image আইকনে ক্লিক করুন) *</label>
             
-            {/* অরিজিনাল কুইল কন্টেইনার */}
-            <div className="bg-black/40 rounded-xl border border-white/10 overflow-hidden relative">
-              <div id="editor-container" className="text-gray-200"></div>
+            <div className="bg-gray-50 dark:bg-black/40 rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden relative transition-colors shadow-inner dark:shadow-none">
+              <div id="editor-container" className="text-gray-800 dark:text-gray-200 transition-colors"></div>
             </div>
             
+            {/* 🔴 Quill Editor Light/Dark Mode Supported CSS */}
             <style jsx global>{`
               .write-blog-editor .ql-toolbar {
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(0, 0, 0, 0.03);
                 border: none;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                border-bottom: 1px solid rgba(0, 0, 0, 0.1);
                 border-top-left-radius: 0.75rem;
                 border-top-right-radius: 0.75rem;
+                transition: background-color 0.5s ease, border-color 0.5s ease;
               }
+              .dark .write-blog-editor .ql-toolbar {
+                background: rgba(255, 255, 255, 0.05);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+              }
+              
               .write-blog-editor .ql-container {
                 border: none;
                 min-height: 350px;
                 font-size: 1.1rem;
                 font-family: inherit;
               }
+              
               .write-blog-editor .ql-editor {
                 padding: 1.5rem;
               }
+              
               .write-blog-editor .ql-editor p {
                 margin-bottom: 1rem;
                 line-height: 1.8;
               }
+              
               .write-blog-editor .ql-editor img {
                 border-radius: 12px;
                 margin: 1.5rem auto;
                 max-width: 100%;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
                 display: block;
+                transition: box-shadow 0.5s ease;
               }
+              .dark .write-blog-editor .ql-editor img {
+                box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+              }
+              
+              /* Toolbar Icons Coloring */
               .write-blog-editor .ql-stroke {
-                stroke: #9ca3af;
+                stroke: #4b5563; /* Light mode text-gray-600 */
+                transition: stroke 0.3s ease;
               }
+              .dark .write-blog-editor .ql-stroke {
+                stroke: #9ca3af; /* Dark mode text-gray-400 */
+              }
+              
               .write-blog-editor .ql-fill {
+                fill: #4b5563;
+                transition: fill 0.3s ease;
+              }
+              .dark .write-blog-editor .ql-fill {
                 fill: #9ca3af;
               }
-              .write-blog-editor .ql-toolbar button:hover .ql-stroke {
-                stroke: #e76f51;
+              
+              /* Hover state for icons */
+              .write-blog-editor .ql-toolbar button:hover .ql-stroke,
+              .write-blog-editor .ql-toolbar button.ql-active .ql-stroke {
+                stroke: #e76f51; /* Brand color */
               }
+              .write-blog-editor .ql-toolbar button:hover .ql-fill,
+              .write-blog-editor .ql-toolbar button.ql-active .ql-fill {
+                fill: #e76f51;
+              }
+              
               .write-blog-editor .ql-picker {
+                color: #4b5563;
+                transition: color 0.3s ease;
+              }
+              .dark .write-blog-editor .ql-picker {
                 color: #9ca3af;
               }
             `}</style>
           </div>
 
-          <div className="pt-6 border-t border-white/10 flex justify-end" data-aos="fade-up" data-aos-delay="400">
+          <div className="pt-6 border-t border-gray-200 dark:border-white/10 flex justify-end transition-colors" data-aos="fade-up" data-aos-delay="400">
             <button 
               type="submit" 
               disabled={loading || imageProcessing} 
-              className="bg-[#e76f51] hover:bg-orange-600 text-white font-black text-lg py-4 px-8 rounded-xl transition-all shadow-[0_0_20px_rgba(231,111,81,0.4)] flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+              className="bg-campfire hover:bg-orange-600 text-white font-black text-lg py-4 px-8 rounded-xl transition-all shadow-md dark:shadow-glow flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto hover:-translate-y-1"
             >
               {loading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-paper-plane"></i>}
               <span>{loading ? 'সাবমিট হচ্ছে...' : 'গল্পটি সাবমিট করুন'}</span>
