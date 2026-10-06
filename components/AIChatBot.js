@@ -21,7 +21,6 @@ export default function AIChatBot() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   
-  // 🔴 মডেল সিলেক্ট করার জন্য নতুন মেমোরি/স্টেট
   const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash-lite"); 
   
   const messagesEndRef = useRef(null);
@@ -48,7 +47,6 @@ export default function AIChatBot() {
         return;
       }
 
-      // 🔴 ডাইনামিক মডেল ইউআরএল (সিলেক্ট করা মডেল অনুযায়ী রিকোয়েস্ট যাবে)
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -89,18 +87,19 @@ export default function AIChatBot() {
   return (
     <div className="fixed bottom-6 right-6 z-[100] font-sans">
       {isOpen && (
-        <div className="bg-[#0a1c13]/95 backdrop-blur-xl border border-[#e76f51]/30 w-[320px] sm:w-[350px] h-[450px] mb-4 rounded-2xl shadow-[0_0_40px_rgba(231,111,81,0.15)] flex flex-col overflow-hidden animate-fade-in-up">
-          <div className="bg-gradient-to-r from-[#e76f51] to-orange-600 p-4 flex justify-between items-center text-white shadow-md">
+        <div className="bg-white/95 dark:bg-moss/95 backdrop-blur-xl border border-gray-200 dark:border-campfire/30 w-[320px] sm:w-[350px] h-[450px] mb-4 rounded-2xl shadow-2xl dark:shadow-[0_0_40px_rgba(231,111,81,0.15)] flex flex-col overflow-hidden animate-fade-in-up transition-colors duration-300">
+          
+          {/* Header - Bright Orange Accent Restored */}
+          <div className="bg-gradient-to-r from-campfire to-orange-500 p-4 flex justify-between items-center text-white shadow-md shrink-0">
             <div className="flex items-center gap-2">
               <i className="fa-solid fa-robot text-xl"></i>
               <div className="flex flex-col">
                 <h3 className="font-black text-sm leading-tight">ক্যাম্পফায়ার এআই</h3>
                 
-                {/* 🔴 ওয়েবসাইট থেকে মডেল চেঞ্জ করার ড্রপডাউন */}
                 <select 
                   value={selectedModel} 
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  className="text-[10px] bg-black/20 text-white border border-white/20 rounded mt-1 px-1 py-0.5 outline-none cursor-pointer hover:bg-black/30 transition-colors"
+                  className="text-[10px] bg-black/20 text-white border border-white/20 rounded mt-1 px-1 py-0.5 outline-none cursor-pointer hover:bg-black/30 transition-colors focus-visible:ring-2 focus-visible:ring-white"
                 >
                   <option value="gemini-3.5-flash-lite" className="text-black">Gemini 3.5 Lite (Fast)</option>
                   <option value="gemini-flash-latest" className="text-black">Gemini Flash (Latest)</option>
@@ -111,51 +110,71 @@ export default function AIChatBot() {
 
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 w-8 h-8 rounded-full transition-colors flex items-center justify-center">
+            <button 
+              onClick={() => setIsOpen(false)} 
+              className="hover:bg-white/20 w-8 h-8 rounded-full transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
               <i className="fa-solid fa-xmark"></i>
             </button>
           </div>
 
-          <div className="flex-grow overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[#050b08]/50">
+          {/* Chat Messages Area - Symmetric 80% Opacity */}
+          <div className="flex-grow overflow-y-auto p-4 space-y-4 custom-scrollbar bg-gray-50/80 dark:bg-darkForest/80 transition-colors duration-300">
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`p-3 rounded-2xl max-w-[85%] text-sm ${msg.role === "user" ? "bg-[#2d6a4f] text-white rounded-tr-sm" : "bg-white/10 text-gray-200 border border-white/5 rounded-tl-sm"}`}>
+                <div className={`p-3 rounded-2xl max-w-[85%] text-sm shadow-sm dark:shadow-none transition-colors duration-300 ${
+                  msg.role === "user" 
+                    ? "bg-emerald-600 dark:bg-trail text-white rounded-tr-sm" 
+                    : "bg-white dark:bg-white/10 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-white/5 rounded-tl-sm"
+                }`}>
                   <p className="whitespace-pre-wrap">{msg.text}</p>
                 </div>
               </div>
             ))}
+            
+            {/* Loading Dots */}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-white/10 border border-white/5 p-3 rounded-2xl rounded-tl-sm flex gap-1.5 items-center">
-                  <div className="w-2 h-2 bg-[#e76f51] rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-[#e76f51] rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-                  <div className="w-2 h-2 bg-[#e76f51] rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+                <div className="bg-white dark:bg-white/10 border border-gray-200 dark:border-white/5 p-3 rounded-2xl rounded-tl-sm shadow-sm dark:shadow-none flex gap-1.5 items-center transition-colors duration-300">
+                  <div className="w-2 h-2 bg-campfire rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-campfire rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                  <div className="w-2 h-2 bg-campfire rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={sendMessage} className="p-3 bg-[#0a1c13] border-t border-white/10 flex gap-2">
+          {/* Input Form Area */}
+          <form onSubmit={sendMessage} className="p-3 bg-white dark:bg-moss border-t border-gray-200 dark:border-white/10 flex gap-2 shrink-0 transition-colors duration-300">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="আপনার প্রশ্ন লিখুন..."
-              className="flex-grow bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-[#e76f51] transition-colors"
+              className="flex-grow bg-gray-100 dark:bg-black/50 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 outline-none focus:border-campfire dark:focus:border-campfire focus-visible:ring-1 focus-visible:ring-campfire transition-colors duration-300"
             />
-            <button type="submit" disabled={isLoading || !input.trim()} className="bg-[#e76f51] hover:bg-orange-600 disabled:opacity-50 text-white w-11 h-11 rounded-xl flex items-center justify-center transition-colors shrink-0">
+            <button 
+              type="submit" 
+              disabled={isLoading || !input.trim()} 
+              className="bg-campfire hover:bg-[#d96247] disabled:opacity-50 disabled:cursor-not-allowed text-white w-11 h-11 rounded-xl flex items-center justify-center transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-campfire focus-visible:ring-offset-2 dark:focus-visible:ring-offset-moss"
+            >
               <i className="fa-solid fa-paper-plane"></i>
             </button>
           </form>
         </div>
       )}
 
+      {/* Floating Toggle Button - Orange glow applied for both modes */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(231,111,81,0.4)] transition-transform duration-300 hover:scale-110 ${isOpen ? "bg-gray-800 text-gray-400" : "bg-[#e76f51] text-white animate-bounce-slow"}`}
+        className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(231,111,81,0.4)] transition-all duration-300 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-campfire focus-visible:ring-offset-2 dark:focus-visible:ring-offset-darkForest ${
+          isOpen 
+            ? "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400" 
+            : "bg-campfire text-white animate-bounce-slow"
+        }`}
       >
-        <i className={`fa-solid ${isOpen ? "fa-xmark text-xl" : "fa-robot text-2xl"}`}></i>
+        <i className={`fa-solid transition-transform duration-300 ${isOpen ? "fa-xmark text-xl rotate-90" : "fa-robot text-2xl rotate-0"}`}></i>
       </button>
     </div>
   );
