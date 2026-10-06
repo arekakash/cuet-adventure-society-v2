@@ -298,7 +298,7 @@ export default function MyBangladeshPage() {
     borderColor: isLight ? "#e2e8f0" : "rgba(255, 255, 255, 0.1)",
     statBoxBg: isLight ? "#fdfbf7" : "rgba(0, 0, 0, 0.4)",
     mapBg: isLight ? "#fcf9f2" : "rgba(0, 0, 0, 0.4)",
-    unvisitedFill: isLight ? "#e2e8f0" : "#1e293b",
+    unvisitedFill: isLight ? "#cbd5e1" : "#1e293b",
     mapStroke: isLight ? "#ffffff" : "#050b08",
     nameLabelColor: isLight ? "#0f172a" : "#ffffff"
   };
@@ -526,7 +526,7 @@ export default function MyBangladeshPage() {
                                 filter: isVisited && !isLight ? `drop-shadow(0px 0px 8px ${selectedColor}90)` : "none",
                                 transition: "all 0.3s ease"
                               },
-                              hover: { fill: isVisited ? selectedColor : (isLight ? "#cbd5e1" : "#3b82f6"), outline: "none", stroke: isLight ? "#94a3b8" : "#ffffff", strokeWidth: 1.5, cursor: "pointer" }
+                              hover: { fill: isVisited ? selectedColor : (isLight ? "#94a3b8" : "#3b82f6"), outline: "none", stroke: isLight ? "#94a3b8" : "#ffffff", strokeWidth: 1.5, cursor: "pointer" }
                             }}
                           />
                         );
