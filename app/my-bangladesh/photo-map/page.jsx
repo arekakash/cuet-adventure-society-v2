@@ -9,12 +9,16 @@ import Cropper from "react-easy-crop";
 
 const geoUrl = "/bd-districts.topo.json";
 
+// 🔴 নতুন আপডেট: আকর্ষণীয় গ্রেডিয়েন্ট ব্যাকগ্রাউন্ড
 const bgColors = [
-  { name: "মিনিমাল ঘিয়া", value: "#fcf9f2" },
-  { name: "ডার্ক ফরেস্ট", value: "#0a1c13" },
-  { name: "ডিপ ওশান", value: "#0f172a" },
-  { name: "পিওর হোয়াইট", value: "#ffffff" },
-  { name: "অ্যাডভেঞ্চার গ্রিন", value: "#14532d" },
+  { name: "ক্লাসিক হোয়াইট", value: "linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)", isDark: false },
+  { name: "ডার্ক ফরেস্ট", value: "linear-gradient(135deg, #0f3420 0%, #06180e 100%)", isDark: true },
+  { name: "ডিপ ওশান", value: "linear-gradient(135deg, #0f172a 0%, #020617 100%)", isDark: true },
+  { name: "সানসেট অরেঞ্জ", value: "linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)", isDark: false },
+  { name: "রয়্যাল ব্লু", value: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)", isDark: true },
+  { name: "চেরি রেড", value: "linear-gradient(135deg, #870000 0%, #190a05 100%)", isDark: true },
+  { name: "ম্যাজিক পার্পল", value: "linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%)", isDark: true },
+  { name: "ন্যাচার গ্রিন", value: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)", isDark: false },
 ];
 
 const unvisitedColors = [
@@ -44,7 +48,7 @@ const districtBn = {
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
-// 🔴 FIX: EXIF Orientation Handler Helper Function
+// EXIF Orientation Handler Helper Function
 const loadImageWithEXIF = async (file) => {
   try {
     const bitmap = await createImageBitmap(file, {
@@ -175,6 +179,9 @@ export default function PhotoMapPage() {
   const [districtOptionsModal, setDistrictOptionsModal] = useState(null); 
   const [mapZoom, setMapZoom] = useState(1);
 
+  // 🔴 ডাইনামিক লাইট/ডার্ক চেক 
+  const isDarkBg = bgColors.find(c => c.value === bgColor)?.isDark ?? true;
+
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
     
@@ -213,7 +220,6 @@ export default function PhotoMapPage() {
     setDistrictOptionsModal(null);
   };
 
-  // 🔴 FIX: Applied EXIF rotation logic using loadImageWithEXIF
   const handleFileChange = async (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
@@ -264,7 +270,6 @@ export default function PhotoMapPage() {
     const originalZoom = mapZoom; 
     setMapZoom(1); 
     
-    // 🔴 FIX: Increased wait time to 500ms to allow CSS transitions to finish fully
     await new Promise(resolve => setTimeout(resolve, 500)); 
     
     try {
@@ -283,7 +288,7 @@ export default function PhotoMapPage() {
 
       const imgData = await toJpeg(mapRef.current, {
         quality: 1.0,
-        backgroundColor: bgColor,
+        backgroundColor: "transparent", // Background handled by style
         pixelRatio: 4, 
         cacheBust: false,
       });
@@ -313,8 +318,6 @@ export default function PhotoMapPage() {
     setUnvisitedColor(unvisitedColors[0].value);
   };
 
-  const isDarkBg = bgColor === "#0a1c13" || bgColor === "#0f172a" || bgColor === "#14532d";
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans transition-colors duration-500">
       <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
@@ -332,7 +335,7 @@ export default function PhotoMapPage() {
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}
-              objectFit="contain" // Ensures cropper box displays perfectly
+              objectFit="contain"
             />
           </div>
           <div className="p-6 bg-gray-900 flex flex-wrap justify-between items-center gap-4 shadow-[0_-10px_20px_rgba(0,0,0,0.5)] z-10 border-t border-white/10">
@@ -391,7 +394,7 @@ export default function PhotoMapPage() {
                     key={color.value} 
                     onClick={() => setBgColor(color.value)} 
                     className={`w-8 h-8 rounded-full shadow-md transition-transform border-2 ${bgColor === color.value ? 'scale-125 border-gray-400 dark:border-white' : 'border-transparent hover:scale-110'}`} 
-                    style={{ backgroundColor: color.value }} 
+                    style={{ background: color.value }} 
                     title={color.name}
                   />
                 ))}
@@ -401,7 +404,6 @@ export default function PhotoMapPage() {
             <div>
               <div className="flex justify-between items-center mb-3">
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest"><i className="fa-solid fa-palette mr-1"></i> ফাঁকা জেলার রং (আনভিজিটেড):</p>
-                {/* 🔴 BONUS: Reset Colors Button */}
                 <button onClick={resetColors} className="text-[10px] font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center">
                   <i className="fa-solid fa-rotate-left mr-1"></i> রিসেট
                 </button>
@@ -424,7 +426,6 @@ export default function PhotoMapPage() {
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-grow flex justify-center relative">
             
-            {/* Zoom Controls Overlay */}
             <div className="absolute top-4 right-4 z-30 flex flex-col gap-2">
               <button onClick={handleZoomIn} className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white dark:bg-gray-800 text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700 hover:bg-gray-50">
                 <i className="fa-solid fa-plus"></i>
@@ -434,12 +435,17 @@ export default function PhotoMapPage() {
               </button>
             </div>
 
+            {/* 🔴 NEW: Gradient background and decorative glows */}
             <div 
               ref={mapRef} 
-              className="w-full max-w-[600px] aspect-[4/5] relative rounded-3xl overflow-hidden shadow-2xl transition-colors duration-500 flex flex-col"
-              style={{ backgroundColor: bgColor }}
+              className="w-full max-w-[600px] aspect-[4/5] relative rounded-3xl overflow-hidden shadow-2xl transition-all duration-500 flex flex-col"
+              style={{ background: bgColor }}
               data-aos="zoom-in"
             >
+              {/* Decorative Glow Effects */}
+              <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%)' }}></div>
+              <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0) 70%)' }}></div>
+
               <div className="absolute top-6 left-0 right-0 z-20 flex flex-col items-center pointer-events-none px-4">
                 <h2 className="text-3xl sm:text-4xl font-black tracking-tight" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
                   ৬৪ <span className="font-bold text-xl sm:text-2xl opacity-90">জেলা ভ্রমণ</span>
@@ -447,7 +453,7 @@ export default function PhotoMapPage() {
                 <div className="h-1 w-12 rounded-full mt-2" style={{ backgroundColor: isDarkBg ? '#10b981' : '#e76f51' }}></div>
               </div>
 
-              <div className="w-full h-full flex items-center justify-center flex-1 mt-10">
+              <div className="w-full h-full flex items-center justify-center flex-1 mt-10 z-10 relative">
                 <div 
                   className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
                   style={{ transform: `scale(${mapZoom})`, transformOrigin: "center" }}
