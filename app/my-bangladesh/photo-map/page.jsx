@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import Link from "next/link";
-import html2canvas from "html2canvas";
+import { toJpeg } from "html-to-image";
 import AOS from "aos";
 import "aos/dist/aos.css";
 import Cropper from "react-easy-crop";
@@ -44,7 +44,29 @@ const districtBn = {
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
-// 🔴 FIX 1: Light-weight ObjectURL is generated instantly. NO Base64 conversion during upload. Zero Flickering.
+// 🔴 FIX: EXIF Orientation Handler Helper Function
+const loadImageWithEXIF = async (file) => {
+  try {
+    const bitmap = await createImageBitmap(file, {
+      imageOrientation: 'from-image' 
+    });
+    
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0);
+    
+    return canvas.toDataURL("image/jpeg", 0.95);
+  } catch (err) {
+    console.warn("createImageBitmap not supported, using fallback", err);
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    });
+  }
+};
+
 const getCroppedImg = async (imageSrc, pixelCrop) => {
   const image = new Image();
   image.src = imageSrc;
@@ -53,8 +75,7 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
-  // Keep size optimal
-  const maxSize = 600; 
+  const maxSize = 1200; 
   let targetWidth = pixelCrop.width;
   let targetHeight = pixelCrop.height;
 
@@ -79,27 +100,30 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
     targetHeight
   );
 
-  // Return super-fast ObjectURL
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
       resolve(URL.createObjectURL(blob));
-    }, "image/jpeg", 0.9);
+    }, "image/jpeg", 0.92);
   });
 };
 
-// Utility to convert ObjectURL to Base64 ONLY when downloading
 const blobToBase64 = async (blobUrl) => {
-  const response = await fetch(blobUrl);
-  const blob = await response.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  try {
+    const response = await fetch(blobUrl);
+    if (!response.ok) throw new Error("Fetch failed for " + blobUrl);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.error("blobToBase64 error:", err);
+    return null;
+  }
 };
 
-// 🔴 FIX 2: React.memo with strictly typed props prevents map re-rendering
 const MemoizedGeography = memo(({ geo, districtName, hasPhoto, unvisitedColor, isDarkBg, onClick }) => {
   return (
     <Geography
@@ -124,16 +148,18 @@ const MemoizedGeography = memo(({ geo, districtName, hasPhoto, unvisitedColor, i
     />
   );
 }, (prevProps, nextProps) => {
-  return prevProps.hasPhoto === nextProps.hasPhoto && 
+  return prevProps.geo === nextProps.geo &&
+         prevProps.hasPhoto === nextProps.hasPhoto && 
          prevProps.unvisitedColor === nextProps.unvisitedColor && 
          prevProps.isDarkBg === nextProps.isDarkBg;
 });
 
 MemoizedGeography.displayName = 'MemoizedGeography';
 
-
 export default function PhotoMapPage() {
   const [districtPhotos, setDistrictPhotos] = useState({}); 
+  const photosRef = useRef(districtPhotos); 
+  
   const [bgColor, setBgColor] = useState(bgColors[0].value);
   const [unvisitedColor, setUnvisitedColor] = useState(unvisitedColors[0].value);
   
@@ -147,10 +173,21 @@ export default function PhotoMapPage() {
   
   const [downloading, setDownloading] = useState(false);
   const [districtOptionsModal, setDistrictOptionsModal] = useState(null); 
+  const [mapZoom, setMapZoom] = useState(1);
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
+    
+    return () => {
+      Object.values(photosRef.current).forEach(url => {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      });
+    };
   }, []);
+
+  useEffect(() => {
+    photosRef.current = districtPhotos;
+  }, [districtPhotos]);
 
   const handleMapClick = useCallback((geo, districtName) => {
     setDistrictOptionsModal(districtName);
@@ -164,23 +201,32 @@ export default function PhotoMapPage() {
 
   const removePhoto = () => {
     const updatedPhotos = { ...districtPhotos };
-    if (updatedPhotos[districtOptionsModal]) {
-      URL.revokeObjectURL(updatedPhotos[districtOptionsModal]); // Clean memory
+    const target = updatedPhotos[districtOptionsModal];
+
+    if (target) {
+      if (target.startsWith('blob:')) {
+        URL.revokeObjectURL(target);
+      }
       delete updatedPhotos[districtOptionsModal];
       setDistrictPhotos(updatedPhotos);
     }
     setDistrictOptionsModal(null);
   };
 
-  const handleFileChange = (e) => {
+  // 🔴 FIX: Applied EXIF rotation logic using loadImageWithEXIF
+  const handleFileChange = async (e) => {
     if (e.target.files && e.target.files.length > 0) {
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        setRawImage(reader.result);
-        setCrop({ x: 0, y: 0 });
-        setZoom(1);
-      });
-      reader.readAsDataURL(e.target.files[0]);
+      const file = e.target.files[0];
+      if (file.size > 8 * 1024 * 1024) {
+        alert("ফাইল সাইজ ৮ MB এর কম হতে হবে।");
+        e.target.value = null;
+        return;
+      }
+      
+      const correctedImage = await loadImageWithEXIF(file);
+      setRawImage(correctedImage);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
     }
     e.target.value = null; 
   };
@@ -193,8 +239,8 @@ export default function PhotoMapPage() {
     try {
       const blobUrl = await getCroppedImg(rawImage, croppedAreaPixels);
       
-      if (districtPhotos[activeDistrict]) {
-        URL.revokeObjectURL(districtPhotos[activeDistrict]); // Clean old photo
+      if (districtPhotos[activeDistrict] && districtPhotos[activeDistrict].startsWith('blob:')) {
+        URL.revokeObjectURL(districtPhotos[activeDistrict]); 
       }
 
       setDistrictPhotos(prev => ({
@@ -210,39 +256,38 @@ export default function PhotoMapPage() {
     }
   };
 
-  // 🔴 FIX 3: Magic Download Handler. Converts all active ObjectURLs to Base64 in the background right before capture.
   const handleDownload4K = async () => {
     if (!mapRef.current) return;
     setDownloading(true);
     
+    const originalUrls = { ...districtPhotos };
+    const originalZoom = mapZoom; 
+    setMapZoom(1); 
+    
+    // 🔴 FIX: Increased wait time to 500ms to allow CSS transitions to finish fully
+    await new Promise(resolve => setTimeout(resolve, 500)); 
+    
     try {
-      // 1. Temporarily swap all objectURLs to Base64 in the DOM
-      const originalUrls = { ...districtPhotos };
       const base64Photos = {};
-      
       for (const district in originalUrls) {
-        base64Photos[district] = await blobToBase64(originalUrls[district]);
+        if (originalUrls[district].startsWith('blob:')) {
+          const b64 = await blobToBase64(originalUrls[district]);
+          if (b64) base64Photos[district] = b64;
+        } else {
+          base64Photos[district] = originalUrls[district];
+        }
       }
       
-      // Update state to trigger re-render with Base64 strings
       setDistrictPhotos(base64Photos);
-      
-      // Wait for React to apply the Base64 strings to the DOM
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 800)); 
 
-      // 2. Capture the canvas
-      const canvas = await html2canvas(mapRef.current, {
-        backgroundColor: bgColor, 
-        scale: 4, 
-        useCORS: true,
-        allowTaint: true,
-        logging: false
+      const imgData = await toJpeg(mapRef.current, {
+        quality: 1.0,
+        backgroundColor: bgColor,
+        pixelRatio: 4, 
+        cacheBust: false,
       });
       
-      // 3. Revert back to fast ObjectURLs to save RAM
-      setDistrictPhotos(originalUrls);
-      
-      const imgData = canvas.toDataURL("image/jpeg", 1.0);
       const link = document.createElement("a");
       link.href = imgData;
       link.download = `My-Adventure-PhotoMap-CAS.jpg`;
@@ -253,11 +298,19 @@ export default function PhotoMapPage() {
     } catch (error) {
       console.error("Download Error:", error);
       alert("ম্যাপটি ডাউনলোড করতে সমস্যা হয়েছে।");
-      setDownloading(false);
     } finally {
-      // Ensure state is restored even if error occurs
+      setDistrictPhotos(originalUrls);
+      setMapZoom(originalZoom); 
       setDownloading(false);
     }
+  };
+
+  const handleZoomIn = () => setMapZoom(prev => Math.min(prev + 0.3, 3));
+  const handleZoomOut = () => setMapZoom(prev => Math.max(prev - 0.3, 1));
+
+  const resetColors = () => {
+    setBgColor(bgColors[0].value);
+    setUnvisitedColor(unvisitedColors[0].value);
   };
 
   const isDarkBg = bgColor === "#0a1c13" || bgColor === "#0f172a" || bgColor === "#14532d";
@@ -279,6 +332,7 @@ export default function PhotoMapPage() {
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}
+              objectFit="contain" // Ensures cropper box displays perfectly
             />
           </div>
           <div className="p-6 bg-gray-900 flex flex-wrap justify-between items-center gap-4 shadow-[0_-10px_20px_rgba(0,0,0,0.5)] z-10 border-t border-white/10">
@@ -317,10 +371,7 @@ export default function PhotoMapPage() {
       )}
 
       <div className="max-w-6xl mx-auto relative z-10">
-        
-        {/* Header & Settings Panel */}
         <div className="flex flex-col lg:flex-row gap-8 mb-8" data-aos="fade-down">
-          
           <div className="flex-1">
             <Link href="/my-bangladesh" className="inline-flex items-center gap-2 text-gray-500 hover:text-campfire font-bold mb-4 text-sm transition-colors">
               <i className="fa-solid fa-arrow-left"></i> কালার ম্যাপে ফিরে যান
@@ -331,7 +382,7 @@ export default function PhotoMapPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400">আপনার তোলা ছবি দিয়ে পুরো বাংলাদেশ সাজিয়ে নিন। ম্যাপে ক্লিক করে ছবি আপলোড করুন।</p>
           </div>
 
-          <div className="flex-1 bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex-1 bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 relative">
             <div className="mb-5">
               <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3"><i className="fa-solid fa-fill-drip mr-1"></i> ম্যাপের ব্যাকগ্রাউন্ড কালার:</p>
               <div className="flex flex-wrap gap-3">
@@ -348,7 +399,13 @@ export default function PhotoMapPage() {
             </div>
             
             <div>
-              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3"><i className="fa-solid fa-palette mr-1"></i> ফাঁকা জেলার রং (আনভিজিটেড):</p>
+              <div className="flex justify-between items-center mb-3">
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest"><i className="fa-solid fa-palette mr-1"></i> ফাঁকা জেলার রং (আনভিজিটেড):</p>
+                {/* 🔴 BONUS: Reset Colors Button */}
+                <button onClick={resetColors} className="text-[10px] font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center">
+                  <i className="fa-solid fa-rotate-left mr-1"></i> রিসেট
+                </button>
+              </div>
               <div className="flex flex-wrap gap-3">
                 {unvisitedColors.map(color => (
                   <button 
@@ -364,17 +421,25 @@ export default function PhotoMapPage() {
           </div>
         </div>
 
-        {/* THE 4K PHOTO MAP CONTAINER */}
         <div className="flex flex-col md:flex-row gap-6">
-          
-          <div className="flex-grow flex justify-center">
+          <div className="flex-grow flex justify-center relative">
+            
+            {/* Zoom Controls Overlay */}
+            <div className="absolute top-4 right-4 z-30 flex flex-col gap-2">
+              <button onClick={handleZoomIn} className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white dark:bg-gray-800 text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700 hover:bg-gray-50">
+                <i className="fa-solid fa-plus"></i>
+              </button>
+              <button onClick={handleZoomOut} className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white dark:bg-gray-800 text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700 hover:bg-gray-50">
+                <i className="fa-solid fa-minus"></i>
+              </button>
+            </div>
+
             <div 
               ref={mapRef} 
               className="w-full max-w-[600px] aspect-[4/5] relative rounded-3xl overflow-hidden shadow-2xl transition-colors duration-500 flex flex-col"
               style={{ backgroundColor: bgColor }}
               data-aos="zoom-in"
             >
-              
               <div className="absolute top-6 left-0 right-0 z-20 flex flex-col items-center pointer-events-none px-4">
                 <h2 className="text-3xl sm:text-4xl font-black tracking-tight" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
                   ৬৪ <span className="font-bold text-xl sm:text-2xl opacity-90">জেলা ভ্রমণ</span>
@@ -383,56 +448,60 @@ export default function PhotoMapPage() {
               </div>
 
               <div className="w-full h-full flex items-center justify-center flex-1 mt-10">
-                <ComposableMap
-                  projection="geoMercator"
-                  projectionConfig={{ scale: 6500, center: [90.35, 23.8] }}
-                  className="w-full h-[110%] outline-none"
+                <div 
+                  className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
+                  style={{ transform: `scale(${mapZoom})`, transformOrigin: "center" }}
                 >
-                  <defs>
-                    {/* 🔴 Perfectly aligned SVG Patterns */}
-                    {Object.entries(districtPhotos).map(([district, url]) => (
-                      <pattern 
-                        key={`pattern-${district}`} 
-                        id={`pattern-${district}`} 
-                        width="100%" 
-                        height="100%" 
-                        patternContentUnits="objectBoundingBox"
-                        preserveAspectRatio="xMidYMid slice"
-                      >
-                        <image 
-                          href={url} 
-                          preserveAspectRatio="xMidYMid slice" 
-                          width="1" 
-                          height="1" 
-                        />
-                      </pattern>
-                    ))}
-                  </defs>
+                  <ComposableMap
+                    projection="geoMercator"
+                    projectionConfig={{ scale: 6500, center: [90.35, 23.8] }}
+                    className="w-full h-[110%] outline-none"
+                  >
+                    <defs>
+                      {Object.entries(districtPhotos).map(([district, url]) => (
+                        <pattern 
+                          key={`pattern-${district}`} 
+                          id={`pattern-${district}`} 
+                          width="100%" 
+                          height="100%" 
+                          patternContentUnits="objectBoundingBox"
+                          preserveAspectRatio="xMidYMid slice"
+                        >
+                          <image 
+                            href={url} 
+                            preserveAspectRatio="xMidYMid slice" 
+                            width="1" 
+                            height="1" 
+                          />
+                        </pattern>
+                      ))}
+                    </defs>
 
-                  <Geographies geography={geoUrl}>
-                    {({ geographies }) => (
-                      <>
-                        {geographies.map((geo) => {
-                          const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
-                          const districtName = standardMap[rawName] || rawName;
-                          const hasPhoto = !!districtPhotos[districtName];
-                          
-                          return (
-                            <MemoizedGeography
-                              key={geo.rsmKey}
-                              geo={geo}
-                              districtName={districtName}
-                              hasPhoto={hasPhoto}
-                              unvisitedColor={unvisitedColor}
-                              isDarkBg={isDarkBg}
-                              onClick={handleMapClick}
-                            />
-                          );
-                        })}
-                      </>
-                    )}
-                  </Geographies>
-                </ComposableMap>
+                    <Geographies geography={geoUrl}>
+                      {({ geographies }) => (
+                        <>
+                          {geographies.map((geo) => {
+                            const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
+                            const districtName = standardMap[rawName] || rawName;
+                            const hasPhoto = !!districtPhotos[districtName];
+                            
+                            return (
+                              <MemoizedGeography
+                                key={geo.rsmKey}
+                                geo={geo}
+                                districtName={districtName}
+                                hasPhoto={hasPhoto}
+                                unvisitedColor={unvisitedColor}
+                                isDarkBg={isDarkBg}
+                                onClick={handleMapClick}
+                              />
+                            );
+                          })}
+                        </>
+                      )}
+                    </Geographies>
+                  </ComposableMap>
+                </div>
               </div>
 
               <div className="absolute bottom-6 left-6 right-6 z-20 pointer-events-none">
@@ -444,11 +513,9 @@ export default function PhotoMapPage() {
                   Generated by CUET Adventure Society
                 </p>
               </div>
-
             </div>
           </div>
 
-          {/* Right Action Panel */}
           <div className="w-full md:w-72 flex flex-col gap-4 shrink-0" data-aos="fade-left">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 text-center">
               <div className="w-16 h-16 bg-blue-50 dark:bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
@@ -464,14 +531,16 @@ export default function PhotoMapPage() {
               className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex justify-center items-center gap-2 transition-all shadow-md ${downloading || Object.keys(districtPhotos).length === 0 ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600 text-white hover:shadow-[0_5px_20px_rgba(16,185,129,0.4)] hover:-translate-y-0.5'}`}
             >
               {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-download"></i>}
-              {downloading ? "প্রসেসিং হচ্ছে..." : "৪কে (4K) ডাউনলোড"}
+              {downloading ? "প্রসেসিং হচ্ছে..." : "হাই-রেজোলিউশন ডাউনলোড"}
             </button>
 
             {Object.keys(districtPhotos).length > 0 && (
               <button 
                 onClick={() => {
                   if(window.confirm("আপনি কি নিশ্চিত যে সব ছবি মুছে ফেলতে চান?")) {
-                    Object.values(districtPhotos).forEach(url => URL.revokeObjectURL(url));
+                    Object.values(districtPhotos).forEach(url => {
+                      if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+                    });
                     setDistrictPhotos({});
                   }
                 }}
@@ -487,7 +556,6 @@ export default function PhotoMapPage() {
               </p>
             </div>
           </div>
-
         </div>
       </div>
     </div>
