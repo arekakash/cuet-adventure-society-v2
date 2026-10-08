@@ -352,7 +352,7 @@ export default function MyBangladeshPage() {
               <i className="fa-solid fa-arrow-left"></i> হোমে ফিরে যান
             </Link>
             
-            <div className="bg-white dark:bg-[#0a1c13] border border-gray-100 dark:border-white/10 px-5 py-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-lg">
+                        <div className="bg-white dark:bg-[#0a1c13] border border-gray-100 dark:border-white/10 px-5 py-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-lg">
               <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider mb-3">আপনার প্রিয় থিম কালার বেছে নিন:</p>
               <div className="flex flex-wrap gap-3">
                 {colorPalette.map((color) => (
@@ -366,7 +366,24 @@ export default function MyBangladeshPage() {
                 ))}
               </div>
             </div>
+
+            {/* 🔴 Photo Map Advertisement / CTA (নতুন যুক্ত করা হলো) */}
+            <div className="mt-5" data-aos="fade-up" data-aos-delay="100">
+              <Link href="/my-bangladesh/photo-map" className="group relative inline-flex items-center justify-center gap-4 w-full sm:w-auto bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-500 hover:from-emerald-600 hover:via-teal-600 hover:to-blue-600 text-white px-6 py-3.5 rounded-2xl shadow-[0_5px_20px_rgba(16,185,129,0.3)] hover:shadow-[0_8px_25px_rgba(16,185,129,0.4)] transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
+                <div className="relative z-10 flex items-center justify-center bg-white/20 w-10 h-10 rounded-full shrink-0">
+                  <i className="fa-solid fa-camera-retro text-lg animate-pulse"></i>
+                </div>
+                <div className="relative z-10 text-left">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-100 opacity-90 leading-none mb-1">নতুন ফিচার আনলক করুন!</p>
+                  <p className="text-sm font-bold leading-none">আপনার নিজস্ব <span className="text-yellow-300">"ফটো ম্যাপ"</span> তৈরি করুন</p>
+                </div>
+                <i className="fa-solid fa-arrow-right relative z-10 ml-1 group-hover:translate-x-1.5 transition-transform"></i>
+              </Link>
+            </div>
+            
           </div>
+
 
           <div className="flex flex-col items-end gap-3 w-full md:w-auto">
             {saving && (
