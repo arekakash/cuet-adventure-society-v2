@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
-import { geoBounds } from "d3-geo";
 import Link from "next/link";
 import html2canvas from "html2canvas";
 import AOS from "aos";
@@ -45,7 +44,7 @@ const districtBn = {
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
-// 🔴 FIX 1: Heavy Canvas processing moved to Base64 to prevent html2canvas pattern break
+// 🔴 FIX 1: Light-weight ObjectURL is generated instantly. NO Base64 conversion during upload. Zero Flickering.
 const getCroppedImg = async (imageSrc, pixelCrop) => {
   const image = new Image();
   image.src = imageSrc;
@@ -54,8 +53,8 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
-  // Keep size optimal to prevent memory crash but high enough for good quality
-  const maxSize = 400; 
+  // Keep size optimal
+  const maxSize = 600; 
   let targetWidth = pixelCrop.width;
   let targetHeight = pixelCrop.height;
 
@@ -80,77 +79,56 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
     targetHeight
   );
 
-  // Return base64 instead of Blob. html2canvas renders base64 perfectly during download.
-  return canvas.toDataURL("image/jpeg", 0.9);
+  // Return super-fast ObjectURL
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      resolve(URL.createObjectURL(blob));
+    }, "image/jpeg", 0.9);
+  });
 };
 
-// 🔴 FIX 2: React.memo prevents the entire map from flickering. Only the updated district re-renders.
-const MemoizedGeography = memo(({ geo, districtName, photoUrl, unvisitedColor, isDarkBg, onClick }) => {
-  const hasPhoto = !!photoUrl;
-  
-  // Calculate bounding box for the specific district to scale the image perfectly
-  const bounds = geoBounds(geo);
-  const [minLng, minLat] = bounds[0];
-  const [maxLng, maxLat] = bounds[1];
-  
-  // Estimate width and height in SVG coordinate space
-  const width = maxLng - minLng;
-  const height = maxLat - minLat;
+// Utility to convert ObjectURL to Base64 ONLY when downloading
+const blobToBase64 = async (blobUrl) => {
+  const response = await fetch(blobUrl);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
 
+// 🔴 FIX 2: React.memo with strictly typed props prevents map re-rendering
+const MemoizedGeography = memo(({ geo, districtName, hasPhoto, unvisitedColor, isDarkBg, onClick }) => {
   return (
-    <>
-      {hasPhoto && (
-        <defs>
-          <clipPath id={`clip-${districtName}`}>
-            {/* The exact path of the district */}
-            <path d={geo.svgPath} /> 
-          </clipPath>
-        </defs>
-      )}
-      
-      <g onClick={() => onClick(geo, districtName)} className="cursor-pointer transition-all duration-300 hover:brightness-95">
-        <Geography
-          geography={geo}
-          style={{
-            default: {
-              fill: hasPhoto ? "transparent" : unvisitedColor, // If photo, make geography transparent
-              outline: "none",
-              stroke: isDarkBg ? "rgba(255,255,255,0.4)" : "#ffffff",
-              strokeWidth: hasPhoto ? 1.5 : 1,
-            },
-            hover: {
-              fill: hasPhoto ? "transparent" : "#94a3b8",
-              outline: "none",
-              stroke: isDarkBg ? "#ffffff" : "#1e293b",
-              strokeWidth: 2,
-            }
-          }}
-        />
-        
-        {/* 🔴 FIX 3: Directly embedding the image inside the SVG and clipping it to the district path */}
-        {hasPhoto && (
-          <image
-            href={photoUrl}
-            x={minLng}
-            y={minLat}
-            width={width}
-            height={height}
-            preserveAspectRatio="xMidYMid slice"
-            clipPath={`url(#clip-${districtName})`}
-            style={{ pointerEvents: 'none' }} // Let clicks pass through to the Geography
-          />
-        )}
-      </g>
-    </>
+    <Geography
+      geography={geo}
+      onClick={() => onClick(geo, districtName)}
+      style={{
+        default: {
+          fill: hasPhoto ? `url(#pattern-${districtName})` : unvisitedColor,
+          outline: "none",
+          stroke: isDarkBg ? "rgba(255,255,255,0.4)" : "#ffffff",
+          strokeWidth: hasPhoto ? 1.5 : 1,
+          transition: "all 0.3s ease"
+        },
+        hover: {
+          fill: hasPhoto ? `url(#pattern-${districtName})` : "#94a3b8",
+          outline: "none",
+          stroke: isDarkBg ? "#ffffff" : "#1e293b",
+          strokeWidth: 2,
+          cursor: "pointer"
+        }
+      }}
+    />
   );
 }, (prevProps, nextProps) => {
-  // Only re-render if the photo or base colors change
-  return prevProps.photoUrl === nextProps.photoUrl && 
+  return prevProps.hasPhoto === nextProps.hasPhoto && 
          prevProps.unvisitedColor === nextProps.unvisitedColor && 
          prevProps.isDarkBg === nextProps.isDarkBg;
 });
 
-// Add display name for React DevTools
 MemoizedGeography.displayName = 'MemoizedGeography';
 
 
@@ -187,6 +165,7 @@ export default function PhotoMapPage() {
   const removePhoto = () => {
     const updatedPhotos = { ...districtPhotos };
     if (updatedPhotos[districtOptionsModal]) {
+      URL.revokeObjectURL(updatedPhotos[districtOptionsModal]); // Clean memory
       delete updatedPhotos[districtOptionsModal];
       setDistrictPhotos(updatedPhotos);
     }
@@ -212,12 +191,15 @@ export default function PhotoMapPage() {
 
   const handleSaveCrop = async () => {
     try {
-      // Get base64 string instead of Blob URL
-      const croppedBase64 = await getCroppedImg(rawImage, croppedAreaPixels);
+      const blobUrl = await getCroppedImg(rawImage, croppedAreaPixels);
       
+      if (districtPhotos[activeDistrict]) {
+        URL.revokeObjectURL(districtPhotos[activeDistrict]); // Clean old photo
+      }
+
       setDistrictPhotos(prev => ({
         ...prev,
-        [activeDistrict]: croppedBase64
+        [activeDistrict]: blobUrl
       }));
       
       setRawImage(null);
@@ -228,26 +210,37 @@ export default function PhotoMapPage() {
     }
   };
 
+  // 🔴 FIX 3: Magic Download Handler. Converts all active ObjectURLs to Base64 in the background right before capture.
   const handleDownload4K = async () => {
     if (!mapRef.current) return;
     setDownloading(true);
     
     try {
-      // 🔴 FIX 4: Optimize html2canvas config to properly render SVG clipping masks
+      // 1. Temporarily swap all objectURLs to Base64 in the DOM
+      const originalUrls = { ...districtPhotos };
+      const base64Photos = {};
+      
+      for (const district in originalUrls) {
+        base64Photos[district] = await blobToBase64(originalUrls[district]);
+      }
+      
+      // Update state to trigger re-render with Base64 strings
+      setDistrictPhotos(base64Photos);
+      
+      // Wait for React to apply the Base64 strings to the DOM
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 2. Capture the canvas
       const canvas = await html2canvas(mapRef.current, {
         backgroundColor: bgColor, 
         scale: 4, 
         useCORS: true,
         allowTaint: true,
-        logging: false,
-        onclone: (clonedDoc) => {
-          // Additional fix for safari/ios pattern rendering if needed
-          const svgElements = clonedDoc.querySelectorAll('svg');
-          svgElements.forEach(svg => {
-            svg.style.transform = 'translateZ(0)';
-          });
-        }
+        logging: false
       });
+      
+      // 3. Revert back to fast ObjectURLs to save RAM
+      setDistrictPhotos(originalUrls);
       
       const imgData = canvas.toDataURL("image/jpeg", 1.0);
       const link = document.createElement("a");
@@ -260,7 +253,9 @@ export default function PhotoMapPage() {
     } catch (error) {
       console.error("Download Error:", error);
       alert("ম্যাপটি ডাউনলোড করতে সমস্যা হয়েছে।");
+      setDownloading(false);
     } finally {
+      // Ensure state is restored even if error occurs
       setDownloading(false);
     }
   };
@@ -369,7 +364,7 @@ export default function PhotoMapPage() {
           </div>
         </div>
 
-        {/* 🔴 THE 4K PHOTO MAP CONTAINER */}
+        {/* THE 4K PHOTO MAP CONTAINER */}
         <div className="flex flex-col md:flex-row gap-6">
           
           <div className="flex-grow flex justify-center">
@@ -393,25 +388,41 @@ export default function PhotoMapPage() {
                   projectionConfig={{ scale: 6500, center: [90.35, 23.8] }}
                   className="w-full h-[110%] outline-none"
                 >
+                  <defs>
+                    {/* 🔴 Perfectly aligned SVG Patterns */}
+                    {Object.entries(districtPhotos).map(([district, url]) => (
+                      <pattern 
+                        key={`pattern-${district}`} 
+                        id={`pattern-${district}`} 
+                        width="100%" 
+                        height="100%" 
+                        patternContentUnits="objectBoundingBox"
+                        preserveAspectRatio="xMidYMid slice"
+                      >
+                        <image 
+                          href={url} 
+                          preserveAspectRatio="xMidYMid slice" 
+                          width="1" 
+                          height="1" 
+                        />
+                      </pattern>
+                    ))}
+                  </defs>
+
                   <Geographies geography={geoUrl}>
                     {({ geographies }) => (
                       <>
-                        {/* 🔴 Map through geographies using the Memoized Component */}
                         {geographies.map((geo) => {
                           const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
                           const districtName = standardMap[rawName] || rawName;
-                          
-                          // We pass the raw svg path to the geo object so the memoized component can use it for clipping
-                          geo.svgPath = geo.svgPath || undefined; // React-simple-maps handles path generation internally, but we can capture it during render if needed.
-                          // Actually, D3 geoPath handles the path generation. 
-                          // A safer approach for clipping in React-simple-maps is to render a <path> with the exact same props.
+                          const hasPhoto = !!districtPhotos[districtName];
                           
                           return (
                             <MemoizedGeography
                               key={geo.rsmKey}
                               geo={geo}
                               districtName={districtName}
-                              photoUrl={districtPhotos[districtName]}
+                              hasPhoto={hasPhoto}
                               unvisitedColor={unvisitedColor}
                               isDarkBg={isDarkBg}
                               onClick={handleMapClick}
@@ -437,6 +448,7 @@ export default function PhotoMapPage() {
             </div>
           </div>
 
+          {/* Right Action Panel */}
           <div className="w-full md:w-72 flex flex-col gap-4 shrink-0" data-aos="fade-left">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 text-center">
               <div className="w-16 h-16 bg-blue-50 dark:bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
@@ -459,6 +471,7 @@ export default function PhotoMapPage() {
               <button 
                 onClick={() => {
                   if(window.confirm("আপনি কি নিশ্চিত যে সব ছবি মুছে ফেলতে চান?")) {
+                    Object.values(districtPhotos).forEach(url => URL.revokeObjectURL(url));
                     setDistrictPhotos({});
                   }
                 }}
@@ -470,7 +483,7 @@ export default function PhotoMapPage() {
 
             <div className="bg-yellow-50 dark:bg-yellow-500/10 p-4 rounded-xl border border-yellow-200 dark:border-yellow-500/30 mt-auto">
               <p className="text-xs text-yellow-800 dark:text-yellow-500 font-medium leading-relaxed">
-                <i className="fa-solid fa-lightbulb text-yellow-500 mr-1"></i> <strong>টিপস:</strong> ম্যাপের যেকোনো জেলার উপর ক্লিক করে আপনার ওই জেলার সেরা ছবিটি আপলোড করুন। আপনার ডিভাইস রিস্টার্ট বা পেজ রিলোড দিলে ছবিগুলো মুছে যাবে।
+                <i className="fa-solid fa-lightbulb text-yellow-500 mr-1"></i> <strong>টিপস:</strong> ম্যাপের যেকোনো জেলার উপর ক্লিক করে আপনার ওই জেলার সেরা ছবিটি আপলোড করুন।
               </p>
             </div>
           </div>
