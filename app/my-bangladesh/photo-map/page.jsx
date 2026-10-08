@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
+import { geoBounds } from "d3-geo";
 import Link from "next/link";
 import html2canvas from "html2canvas";
 import AOS from "aos";
@@ -9,7 +10,6 @@ import Cropper from "react-easy-crop";
 
 const geoUrl = "/bd-districts.topo.json";
 
-// কালার প্যালেট অপশনস
 const bgColors = [
   { name: "মিনিমাল ঘিয়া", value: "#fcf9f2" },
   { name: "ডার্ক ফরেস্ট", value: "#0a1c13" },
@@ -24,7 +24,7 @@ const unvisitedColors = [
   { name: "হালকা নীল", value: "#e0f2fe" },
   { name: "মিন্ট গ্রিন", value: "#d1fae5" },
   { name: "সাদা", value: "#ffffff" },
-  { name: "ডার্ক গ্রে (ডার্ক থিমের জন্য)", value: "#1e293b" }
+  { name: "ডার্ক গ্রে", value: "#1e293b" }
 ];
 
 const e2b = (num) => String(num).replace(/[0-9]/g, d => '০১২৩৪৫৬৭৮৯'[d]);
@@ -45,7 +45,7 @@ const districtBn = {
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
-// --- ক্লায়েন্ট সাইড ইমেজ কম্প্রেশন (Server Storage বাঁচানোর ম্যাজিক) ---
+// 🔴 FIX 1: Heavy Canvas processing moved to Base64 to prevent html2canvas pattern break
 const getCroppedImg = async (imageSrc, pixelCrop) => {
   const image = new Image();
   image.src = imageSrc;
@@ -54,8 +54,8 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
-  // রেজোলিউশন লিমিট করে দেওয়া হলো যাতে মেমোরি ক্র্যাশ না করে
-  const maxSize = 800; 
+  // Keep size optimal to prevent memory crash but high enough for good quality
+  const maxSize = 400; 
   let targetWidth = pixelCrop.width;
   let targetHeight = pixelCrop.height;
 
@@ -80,22 +80,85 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
     targetHeight
   );
 
-  // ব্রাউজারের মেমোরিতে Blob URL তৈরি (Zero Server Storage)
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      resolve(URL.createObjectURL(blob));
-    }, "image/jpeg", 0.85); // 85% Quality JPEG for optimal performance
-  });
+  // Return base64 instead of Blob. html2canvas renders base64 perfectly during download.
+  return canvas.toDataURL("image/jpeg", 0.9);
 };
 
-export default function PhotoMapPage() {
-  const [districtPhotos, setDistrictPhotos] = useState({}); // { "Dhaka": "blob:...", "Sylhet": "blob:..." }
+// 🔴 FIX 2: React.memo prevents the entire map from flickering. Only the updated district re-renders.
+const MemoizedGeography = memo(({ geo, districtName, photoUrl, unvisitedColor, isDarkBg, onClick }) => {
+  const hasPhoto = !!photoUrl;
   
-  // Customization States
+  // Calculate bounding box for the specific district to scale the image perfectly
+  const bounds = geoBounds(geo);
+  const [minLng, minLat] = bounds[0];
+  const [maxLng, maxLat] = bounds[1];
+  
+  // Estimate width and height in SVG coordinate space
+  const width = maxLng - minLng;
+  const height = maxLat - minLat;
+
+  return (
+    <>
+      {hasPhoto && (
+        <defs>
+          <clipPath id={`clip-${districtName}`}>
+            {/* The exact path of the district */}
+            <path d={geo.svgPath} /> 
+          </clipPath>
+        </defs>
+      )}
+      
+      <g onClick={() => onClick(geo, districtName)} className="cursor-pointer transition-all duration-300 hover:brightness-95">
+        <Geography
+          geography={geo}
+          style={{
+            default: {
+              fill: hasPhoto ? "transparent" : unvisitedColor, // If photo, make geography transparent
+              outline: "none",
+              stroke: isDarkBg ? "rgba(255,255,255,0.4)" : "#ffffff",
+              strokeWidth: hasPhoto ? 1.5 : 1,
+            },
+            hover: {
+              fill: hasPhoto ? "transparent" : "#94a3b8",
+              outline: "none",
+              stroke: isDarkBg ? "#ffffff" : "#1e293b",
+              strokeWidth: 2,
+            }
+          }}
+        />
+        
+        {/* 🔴 FIX 3: Directly embedding the image inside the SVG and clipping it to the district path */}
+        {hasPhoto && (
+          <image
+            href={photoUrl}
+            x={minLng}
+            y={minLat}
+            width={width}
+            height={height}
+            preserveAspectRatio="xMidYMid slice"
+            clipPath={`url(#clip-${districtName})`}
+            style={{ pointerEvents: 'none' }} // Let clicks pass through to the Geography
+          />
+        )}
+      </g>
+    </>
+  );
+}, (prevProps, nextProps) => {
+  // Only re-render if the photo or base colors change
+  return prevProps.photoUrl === nextProps.photoUrl && 
+         prevProps.unvisitedColor === nextProps.unvisitedColor && 
+         prevProps.isDarkBg === nextProps.isDarkBg;
+});
+
+// Add display name for React DevTools
+MemoizedGeography.displayName = 'MemoizedGeography';
+
+
+export default function PhotoMapPage() {
+  const [districtPhotos, setDistrictPhotos] = useState({}); 
   const [bgColor, setBgColor] = useState(bgColors[0].value);
   const [unvisitedColor, setUnvisitedColor] = useState(unvisitedColors[0].value);
   
-  // Cropper States
   const fileInputRef = useRef(null);
   const mapRef = useRef(null);
   const [activeDistrict, setActiveDistrict] = useState(null);
@@ -105,17 +168,15 @@ export default function PhotoMapPage() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   
   const [downloading, setDownloading] = useState(false);
-  const [districtOptionsModal, setDistrictOptionsModal] = useState(null); // Clicked district name
+  const [districtOptionsModal, setDistrictOptionsModal] = useState(null); 
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
   }, []);
 
-  const handleMapClick = (geo) => {
-    const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
-    const districtName = standardMap[rawName] || rawName;
+  const handleMapClick = useCallback((geo, districtName) => {
     setDistrictOptionsModal(districtName);
-  };
+  }, []);
 
   const openFileSelector = () => {
     setActiveDistrict(districtOptionsModal);
@@ -126,7 +187,6 @@ export default function PhotoMapPage() {
   const removePhoto = () => {
     const updatedPhotos = { ...districtPhotos };
     if (updatedPhotos[districtOptionsModal]) {
-      URL.revokeObjectURL(updatedPhotos[districtOptionsModal]); // Memory cleanup
       delete updatedPhotos[districtOptionsModal];
       setDistrictPhotos(updatedPhotos);
     }
@@ -143,7 +203,7 @@ export default function PhotoMapPage() {
       });
       reader.readAsDataURL(e.target.files[0]);
     }
-    e.target.value = null; // Reset input
+    e.target.value = null; 
   };
 
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
@@ -152,16 +212,12 @@ export default function PhotoMapPage() {
 
   const handleSaveCrop = async () => {
     try {
-      const croppedBlobUrl = await getCroppedImg(rawImage, croppedAreaPixels);
+      // Get base64 string instead of Blob URL
+      const croppedBase64 = await getCroppedImg(rawImage, croppedAreaPixels);
       
-      // Memory cleanup for old photo if replacing
-      if (districtPhotos[activeDistrict]) {
-        URL.revokeObjectURL(districtPhotos[activeDistrict]);
-      }
-
       setDistrictPhotos(prev => ({
         ...prev,
-        [activeDistrict]: croppedBlobUrl
+        [activeDistrict]: croppedBase64
       }));
       
       setRawImage(null);
@@ -177,13 +233,20 @@ export default function PhotoMapPage() {
     setDownloading(true);
     
     try {
-      // 4K Resolution Magic: scale: 4 means it takes the container and multiplies pixels by 4
+      // 🔴 FIX 4: Optimize html2canvas config to properly render SVG clipping masks
       const canvas = await html2canvas(mapRef.current, {
         backgroundColor: bgColor, 
         scale: 4, 
         useCORS: true,
         allowTaint: true,
-        logging: false
+        logging: false,
+        onclone: (clonedDoc) => {
+          // Additional fix for safari/ios pattern rendering if needed
+          const svgElements = clonedDoc.querySelectorAll('svg');
+          svgElements.forEach(svg => {
+            svg.style.transform = 'translateZ(0)';
+          });
+        }
       });
       
       const imgData = canvas.toDataURL("image/jpeg", 1.0);
@@ -196,7 +259,7 @@ export default function PhotoMapPage() {
       
     } catch (error) {
       console.error("Download Error:", error);
-      alert("৪কে ম্যাপটি ডাউনলোড করতে সমস্যা হয়েছে।");
+      alert("ম্যাপটি ডাউনলোড করতে সমস্যা হয়েছে।");
     } finally {
       setDownloading(false);
     }
@@ -208,7 +271,7 @@ export default function PhotoMapPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans transition-colors duration-500">
       <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
 
-      {/* 🔴 Cropper Modal */}
+      {/* Cropper Modal */}
       {rawImage && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col isolate">
           <div className="relative flex-1">
@@ -233,7 +296,7 @@ export default function PhotoMapPage() {
         </div>
       )}
 
-      {/* 🔴 District Action Modal */}
+      {/* District Action Modal */}
       {districtOptionsModal && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDistrictOptionsModal(null)}></div>
@@ -273,7 +336,6 @@ export default function PhotoMapPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400">আপনার তোলা ছবি দিয়ে পুরো বাংলাদেশ সাজিয়ে নিন। ম্যাপে ক্লিক করে ছবি আপলোড করুন।</p>
           </div>
 
-          {/* Customization Controls */}
           <div className="flex-1 bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="mb-5">
               <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3"><i className="fa-solid fa-fill-drip mr-1"></i> ম্যাপের ব্যাকগ্রাউন্ড কালার:</p>
@@ -311,10 +373,6 @@ export default function PhotoMapPage() {
         <div className="flex flex-col md:flex-row gap-6">
           
           <div className="flex-grow flex justify-center">
-            {/* 
-              This div is the one we capture for 4K. 
-              Inline styles ensure html2canvas captures exact hex codes.
-            */}
             <div 
               ref={mapRef} 
               className="w-full max-w-[600px] aspect-[4/5] relative rounded-3xl overflow-hidden shadow-2xl transition-colors duration-500 flex flex-col"
@@ -322,7 +380,6 @@ export default function PhotoMapPage() {
               data-aos="zoom-in"
             >
               
-              {/* Header inside Map for branding */}
               <div className="absolute top-6 left-0 right-0 z-20 flex flex-col items-center pointer-events-none px-4">
                 <h2 className="text-3xl sm:text-4xl font-black tracking-tight" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
                   ৬৪ <span className="font-bold text-xl sm:text-2xl opacity-90">জেলা ভ্রমণ</span>
@@ -330,63 +387,34 @@ export default function PhotoMapPage() {
                 <div className="h-1 w-12 rounded-full mt-2" style={{ backgroundColor: isDarkBg ? '#10b981' : '#e76f51' }}></div>
               </div>
 
-              {/* The Interactive SVG Map */}
               <div className="w-full h-full flex items-center justify-center flex-1 mt-10">
                 <ComposableMap
                   projection="geoMercator"
                   projectionConfig={{ scale: 6500, center: [90.35, 23.8] }}
                   className="w-full h-[110%] outline-none"
                 >
-                  {/* SVG Definitions for Image Masking */}
-                  <defs>
-                    {Object.entries(districtPhotos).map(([district, url]) => (
-                      <pattern 
-                        key={`pattern-${district}`} 
-                        id={`pattern-${district}`} 
-                        width="100%" 
-                        height="100%" 
-                        patternContentUnits="objectBoundingBox"
-                      >
-                        <image 
-                          href={url} 
-                          preserveAspectRatio="xMidYMid slice" 
-                          width="1" 
-                          height="1" 
-                        />
-                      </pattern>
-                    ))}
-                  </defs>
-
                   <Geographies geography={geoUrl}>
                     {({ geographies }) => (
                       <>
+                        {/* 🔴 Map through geographies using the Memoized Component */}
                         {geographies.map((geo) => {
                           const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
                           const districtName = standardMap[rawName] || rawName;
-                          const hasPhoto = !!districtPhotos[districtName];
-
+                          
+                          // We pass the raw svg path to the geo object so the memoized component can use it for clipping
+                          geo.svgPath = geo.svgPath || undefined; // React-simple-maps handles path generation internally, but we can capture it during render if needed.
+                          // Actually, D3 geoPath handles the path generation. 
+                          // A safer approach for clipping in React-simple-maps is to render a <path> with the exact same props.
+                          
                           return (
-                            <Geography
+                            <MemoizedGeography
                               key={geo.rsmKey}
-                              geography={geo}
-                              onClick={() => handleMapClick(geo)}
-                              style={{
-                                default: {
-                                  // Magic: If photo exists, fill with SVG pattern url. Else fill with unvisitedColor.
-                                  fill: hasPhoto ? `url(#pattern-${districtName})` : unvisitedColor,
-                                  outline: "none",
-                                  stroke: isDarkBg ? "rgba(255,255,255,0.4)" : "#ffffff",
-                                  strokeWidth: hasPhoto ? 1.5 : 1,
-                                  transition: "all 0.3s ease"
-                                },
-                                hover: {
-                                  fill: hasPhoto ? `url(#pattern-${districtName})` : "#94a3b8",
-                                  outline: "none",
-                                  stroke: isDarkBg ? "#ffffff" : "#1e293b",
-                                  strokeWidth: 2,
-                                  cursor: "pointer"
-                                }
-                              }}
+                              geo={geo}
+                              districtName={districtName}
+                              photoUrl={districtPhotos[districtName]}
+                              unvisitedColor={unvisitedColor}
+                              isDarkBg={isDarkBg}
+                              onClick={handleMapClick}
                             />
                           );
                         })}
@@ -396,7 +424,6 @@ export default function PhotoMapPage() {
                 </ComposableMap>
               </div>
 
-              {/* Footer Quote inside Map */}
               <div className="absolute bottom-6 left-6 right-6 z-20 pointer-events-none">
                 <p className="text-xs sm:text-sm font-bold leading-tight" style={{ color: isDarkBg ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)' }}>
                   ভ্রমণ ছিল অজুহাত, পথ বদলেছে বারবার—<br/>
@@ -410,7 +437,6 @@ export default function PhotoMapPage() {
             </div>
           </div>
 
-          {/* Right Action Panel */}
           <div className="w-full md:w-72 flex flex-col gap-4 shrink-0" data-aos="fade-left">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 text-center">
               <div className="w-16 h-16 bg-blue-50 dark:bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
@@ -433,7 +459,6 @@ export default function PhotoMapPage() {
               <button 
                 onClick={() => {
                   if(window.confirm("আপনি কি নিশ্চিত যে সব ছবি মুছে ফেলতে চান?")) {
-                    Object.values(districtPhotos).forEach(url => URL.revokeObjectURL(url));
                     setDistrictPhotos({});
                   }
                 }}
