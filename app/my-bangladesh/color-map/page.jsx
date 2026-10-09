@@ -30,13 +30,13 @@ const standardMap = {
 };
 
 const districtBn = {
-  "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
-  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Coxs Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
-  "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
-  "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
-  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Sherpur": "শেরপুর",
-  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
-  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
+  "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
+  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Coxs Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
+  "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
+  "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
+  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Sherpur": "শেরপুর",
+  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
+  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
@@ -82,7 +82,7 @@ const bangladeshDivisions = [
   { name: "রাজশাহী", districts: ["Bogura", "Chapainawabganj", "Joypurhat", "Naogaon", "Natore", "Pabna", "Rajshahi", "Sirajganj"] },
   { name: "রংপুর", districts: ["Dinajpur", "Gaibandha", "Kurigram", "Lalmonirhat", "Nilphamari", "Panchagarh", "Rangpur", "Thakurgaon"] },
   { name: "বরিশাল", districts: ["Barguna", "Barishal", "Bhola", "Jhalokati", "Patuakhali", "Pirojpur"] },
-  { name: "ময়মনসিংহ", districts: ["Jamalpur", "Mymensingh", "Netrokona", "Sherpur"] }
+  { name: "ময়মনসিংহ", districts: ["Jamalpur", "Mymensingh", "Netrokona", "Sherpur"] }
 ];
 
 export default function MyBangladeshPage() {
@@ -91,7 +91,6 @@ export default function MyBangladeshPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [hoveredDistrict, setHoveredDistrict] = useState("");
   
   const [selectedColor, setSelectedColor] = useState(colorPalette[0].value);
   const [downloadTheme, setDownloadTheme] = useState("light"); 
@@ -232,7 +231,7 @@ export default function MyBangladeshPage() {
       setRawImage(null); 
     } catch (e) {
       console.error(e);
-      alert("ছবি ক্রপ করতে সমস্যা হয়েছে।");
+      alert("ছবি ক্রপ করতে সমস্যা হয়েছে।");
     }
   };
 
@@ -273,7 +272,7 @@ export default function MyBangladeshPage() {
       
     } catch (error) {
       console.error("Download Error:", error);
-      alert("ম্যাপটি ডাউনলোড করতে সমস্যা হয়েছে।");
+      alert("ম্যাপটি ডাউনলোড করতে সমস্যা হয়েছে।");
     } finally {
       setDownloading(false);
     }
@@ -348,12 +347,14 @@ export default function MyBangladeshPage() {
       <div className="max-w-5xl mx-auto z-10 relative">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-6" data-aos="fade-down">
           <div>
-            <Link href="/" className="inline-flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-bold mb-4 text-sm">
-              <i className="fa-solid fa-arrow-left"></i> হোমে ফিরে যান
+            {/* 🔴 Back link → Hub */}
+            <Link href="/my-bangladesh" className="inline-flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-bold mb-4 text-sm">
+              <i className="fa-solid fa-arrow-left"></i> My Bangladesh হোম
             </Link>
             
-                        <div className="bg-white dark:bg-[#0a1c13] border border-gray-100 dark:border-white/10 px-5 py-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-lg">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider mb-3">আপনার প্রিয় থিম কালার বেছে নিন:</p>
+            {/* 🔴 Color Palette — mt-4 added */}
+            <div className="mt-4 bg-white dark:bg-[#0a1c13] border border-gray-100 dark:border-white/10 px-5 py-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-lg">
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider mb-3">আপনার প্রিয় থিম কালার বেছে নিন:</p>
               <div className="flex flex-wrap gap-3">
                 {colorPalette.map((color) => (
                   <button
@@ -367,18 +368,28 @@ export default function MyBangladeshPage() {
               </div>
             </div>
 
-            {/* 🔴 Photo Map Advertisement / CTA (নতুন যুক্ত করা হলো) */}
-            <div className="mt-5" data-aos="fade-up" data-aos-delay="100">
-              <Link href="/my-bangladesh/photo-map" className="group relative inline-flex items-center justify-center gap-4 w-full sm:w-auto bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-500 hover:from-emerald-600 hover:via-teal-600 hover:to-blue-600 text-white px-6 py-3.5 rounded-2xl shadow-[0_5px_20px_rgba(16,185,129,0.3)] hover:shadow-[0_8px_25px_rgba(16,185,129,0.4)] transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+            {/* 🔴 Other Maps CTA — Photo + Family */}
+            <div className="mt-5 flex flex-col sm:flex-row gap-3" data-aos="fade-up" data-aos-delay="100">
+              <Link href="/my-bangladesh/photo-map" className="group relative inline-flex items-center justify-center gap-3 flex-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-500 hover:from-emerald-600 hover:via-teal-600 hover:to-blue-600 text-white px-5 py-3.5 rounded-2xl shadow-[0_5px_20px_rgba(16,185,129,0.3)] hover:shadow-[0_8px_25px_rgba(16,185,129,0.4)] transition-all duration-300 hover:-translate-y-1 overflow-hidden">
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
                 <div className="relative z-10 flex items-center justify-center bg-white/20 w-10 h-10 rounded-full shrink-0">
-                  <i className="fa-solid fa-camera-retro text-lg animate-pulse"></i>
+                  <i className="fa-solid fa-camera-retro text-lg"></i>
                 </div>
                 <div className="relative z-10 text-left">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-100 opacity-90 leading-none mb-1">নতুন ফিচার আনলক করুন!</p>
-                  <p className="text-sm font-bold leading-none">আপনার নিজস্ব <span className="text-yellow-300">"ফটো ম্যাপ"</span> তৈরি করুন</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-100 opacity-90 leading-none mb-1">নতুন ফিচার</p>
+                  <p className="text-sm font-bold leading-none">ফটো ম্যাপ</p>
                 </div>
-                <i className="fa-solid fa-arrow-right relative z-10 ml-1 group-hover:translate-x-1.5 transition-transform"></i>
+              </Link>
+
+              <Link href="/my-bangladesh/family-map" className="group relative inline-flex items-center justify-center gap-3 flex-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 text-white px-5 py-3.5 rounded-2xl shadow-[0_5px_20px_rgba(168,85,247,0.3)] hover:shadow-[0_8px_25px_rgba(168,85,247,0.4)] transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
+                <div className="relative z-10 flex items-center justify-center bg-white/20 w-10 h-10 rounded-full shrink-0">
+                  <i className="fa-solid fa-people-roof text-lg"></i>
+                </div>
+                <div className="relative z-10 text-left">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-pink-100 opacity-90 leading-none mb-1">নতুন ফিচার</p>
+                  <p className="text-sm font-bold leading-none">পরিবার ম্যাপ</p>
+                </div>
               </Link>
             </div>
             
@@ -531,8 +542,6 @@ export default function MyBangladeshPage() {
                             key={geo.rsmKey}
                             geography={geo}
                             onClick={() => handleMapClick(geo)}
-                            onMouseEnter={() => setHoveredDistrict(districtBn[districtName] || districtName)}
-                            onMouseLeave={() => setHoveredDistrict("")}
                             style={{
                               default: {
                                 fill: isVisited ? selectedColor : themeStyles.unvisitedFill,
