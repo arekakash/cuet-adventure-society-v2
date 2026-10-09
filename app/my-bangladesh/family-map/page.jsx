@@ -14,7 +14,6 @@ const geoUrl = "/bd-districts.topo.json";
 // LOCAL STORAGE
 // ============================================
 const STORAGE_KEY = "family-map-data-v1";
-const QUOTE_STORAGE_KEY = "family-map-quote-v1";
 const STORAGE_LIMIT_MB = 4.5;
 
 const loadFromStorage = () => {
@@ -56,32 +55,6 @@ const getStorageSize = () => {
     return new Blob([raw]).size / (1024 * 1024);
   } catch { return 0; }
 };
-
-const loadQuote = () => {
-  try {
-    if (typeof window === "undefined") return null;
-    const raw = localStorage.getItem(QUOTE_STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch { return null; }
-};
-
-const saveQuote = (data) => {
-  try {
-    localStorage.setItem(QUOTE_STORAGE_KEY, JSON.stringify(data));
-  } catch {}
-};
-
-// ============================================
-// QUOTE PRESETS
-// ============================================
-const quotePresets = [
-  { key: "default", text: "রক্তের বন্ধন ছড়িয়ে আছে প্রতিটা জেলায়, একটাই পরিবার!" },
-  { key: "roots", text: "শিকড় যেখানে, ভালোবাসা সেখানেই।" },
-  { key: "distance", text: "দূরত্ব যতই হোক, বন্ধন কখনো ছিন্ন হয় না।" },
-  { key: "home", text: "যেখানেই থাকি, পরিবারই আমার আসল ঘর।" },
-  { key: "memories", text: "একটা পরিবার, হাজারো স্মৃতি, অসংখ্য ভালোবাসা।" },
-];
 
 // ============================================
 // BACKGROUND COLORS
@@ -294,9 +267,6 @@ export default function FamilyMapPage() {
   const [unvisitedColor, setUnvisitedColor] = useState(unvisitedColors[0].value);
   const [viewMode, setViewMode] = useState("sides");
 
-  const [quoteOption, setQuoteOption] = useState("default");
-  const [customQuote, setCustomQuote] = useState("");
-
   const fileInputRef = useRef(null);
   const mapRef = useRef(null);
   const [mapZoom, setMapZoom] = useState(1);
@@ -327,12 +297,6 @@ export default function FamilyMapPage() {
       setFamilyData(saved);
       setStorageStatus({ size: getStorageSize(), error: null });
     }
-
-    const savedQuote = loadQuote();
-    if (savedQuote && typeof savedQuote === "object") {
-      setQuoteOption(savedQuote.option || "default");
-      setCustomQuote(savedQuote.custom || "");
-    }
   }, []);
 
   useEffect(() => {
@@ -354,10 +318,6 @@ export default function FamilyMapPage() {
     };
   }, [familyData]);
 
-  useEffect(() => {
-    saveQuote({ option: quoteOption, custom: customQuote });
-  }, [quoteOption, customQuote]);
-
   // ============ STATS ============
   const stats = (() => {
     let total = 0, paternal = 0, maternal = 0, own = 0, inLaw = 0;
@@ -375,11 +335,6 @@ export default function FamilyMapPage() {
   })();
 
   const percentage = Math.round((stats.districts / 64) * 100);
-
-  const displayQuote = (() => {
-    if (quoteOption === "custom") return customQuote.trim() || quotePresets[0].text;
-    return quotePresets.find(q => q.key === quoteOption)?.text || quotePresets[0].text;
-  })();
 
   // ============ MODAL ============
   const openDistrictModal = useCallback((districtName) => {
@@ -757,7 +712,7 @@ export default function FamilyMapPage() {
         {/* ============ MAP + SIDEBAR ============ */}
         <div className="flex flex-col md:flex-row gap-8 items-start" data-aos="fade-up">
 
-          {/* ============ MAP CARD — 3-section layout ============ */}
+          {/* ============ MAP CARD — Blended layout ============ */}
           <div className="flex-grow flex justify-center relative w-full">
             <div
               ref={mapRef}
@@ -765,23 +720,34 @@ export default function FamilyMapPage() {
               style={{ background: bgColor }}
             >
               {/* Decorative glows */}
-              <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)' }}></div>
-              <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 70%)' }}></div>
+              <div
+                className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0"
+                style={{ background: "radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)" }}
+              ></div>
+              <div
+                className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0"
+                style={{ background: "radial-gradient(circle, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 70%)" }}
+              ></div>
 
-              {/* ===== SECTION 1: HEADER (Legend left + Title right) ===== */}
-              <div className="relative z-20 px-4 pt-4 pb-2 flex justify-between items-start gap-3 shrink-0">
-                {/* Legend */}
-                <div className="flex flex-col gap-1">
+              {/* ===== TOP ROW: Legend (left, small) + Title (right) ===== */}
+              <div className="relative z-20 px-4 pt-4 flex justify-between items-start gap-3 shrink-0">
+                {/* Legend — much smaller, blended */}
+                <div className="flex flex-col gap-0.5 pt-0.5">
                   {Object.entries(sideColors).map(([key, c]) => {
                     if (key === "other") return null;
                     return (
                       <div
                         key={key}
-                        className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-bold leading-tight"
-                        style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}
+                        className="flex items-center gap-1 text-[7px] font-bold leading-tight"
+                        style={{
+                          color: isDarkBg ? "rgba(255,255,255,0.75)" : "rgba(30,41,59,0.7)",
+                        }}
                       >
-                        <span className="w-2 h-2 rounded-full shadow-sm shrink-0" style={{ background: c.value }}></span>
-                        <span className="opacity-90">{c.label}</span>
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ background: c.value }}
+                        ></span>
+                        <span>{c.label}</span>
                       </div>
                     );
                   })}
@@ -791,21 +757,24 @@ export default function FamilyMapPage() {
                 <div className="text-right shrink-0">
                   <h2
                     className="text-2xl sm:text-3xl font-black tracking-tight drop-shadow-md leading-none whitespace-nowrap"
-                    style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}
+                    style={{ color: isDarkBg ? "#ffffff" : "#1e293b" }}
                   >
                     আমার <span className="font-bold opacity-90">পরিবার</span>
                   </h2>
                   <div
                     className="h-1 w-16 rounded-full mt-2 ml-auto shadow-sm"
-                    style={{ background: 'linear-gradient(90deg, #3b82f6, #ec4899)' }}
+                    style={{ background: "linear-gradient(90deg, #3b82f6, #ec4899)" }}
                   ></div>
                 </div>
               </div>
 
-              {/* ===== SECTION 2: MAP AREA ===== */}
+              {/* ===== MAP AREA — grows to fill ===== */}
               <div className="flex-1 relative z-10 overflow-hidden">
                 {/* Zoom buttons */}
-                <div className="absolute top-3 right-3 z-30 flex flex-col gap-2" data-html2canvas-ignore="true">
+                <div
+                  className="absolute top-3 right-3 z-30 flex flex-col gap-2"
+                  data-html2canvas-ignore="true"
+                >
                   <button
                     onClick={handleZoomIn}
                     className="w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white/90 dark:bg-gray-800/90 backdrop-blur text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700"
@@ -827,8 +796,8 @@ export default function FamilyMapPage() {
                   <div
                     style={{
                       filter: isDarkBg
-                        ? 'drop-shadow(0px 25px 35px rgba(0,0,0,0.6)) drop-shadow(0px 10px 15px rgba(0,0,0,0.4))'
-                        : 'drop-shadow(0px 25px 35px rgba(0,0,0,0.25)) drop-shadow(0px 10px 15px rgba(0,0,0,0.15))'
+                        ? "drop-shadow(0px 25px 35px rgba(0,0,0,0.6)) drop-shadow(0px 10px 15px rgba(0,0,0,0.4))"
+                        : "drop-shadow(0px 25px 35px rgba(0,0,0,0.25)) drop-shadow(0px 10px 15px rgba(0,0,0,0.15))",
                     }}
                     className="w-full h-full flex items-center justify-center"
                   >
@@ -838,35 +807,50 @@ export default function FamilyMapPage() {
                       className="w-full h-full outline-none"
                     >
                       <defs>
-                        {viewMode === "photos" && Object.entries(familyData).map(([district, members]) => {
-                          const photo = members.find(m => m.photo)?.photo;
-                          if (!photo) return null;
-                          return (
-                            <pattern
-                              key={`pattern-${district}`}
-                              id={`pattern-${safeSvgId(district)}`}
-                              width="100%"
-                              height="100%"
-                              patternContentUnits="objectBoundingBox"
-                              preserveAspectRatio="xMidYMid slice"
-                            >
-                              <image href={photo} preserveAspectRatio="xMidYMid slice" width="1" height="1" />
-                            </pattern>
-                          );
-                        })}
+                        {viewMode === "photos" &&
+                          Object.entries(familyData).map(([district, members]) => {
+                            const photo = members.find((m) => m.photo)?.photo;
+                            if (!photo) return null;
+                            return (
+                              <pattern
+                                key={`pattern-${district}`}
+                                id={`pattern-${safeSvgId(district)}`}
+                                width="100%"
+                                height="100%"
+                                patternContentUnits="objectBoundingBox"
+                                preserveAspectRatio="xMidYMid slice"
+                              >
+                                <image
+                                  href={photo}
+                                  preserveAspectRatio="xMidYMid slice"
+                                  width="1"
+                                  height="1"
+                                />
+                              </pattern>
+                            );
+                          })}
                       </defs>
 
                       <Geographies geography={geoUrl}>
                         {({ geographies }) => (
                           <>
                             {geographies.map((geo) => {
-                              const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
+                              const rawName =
+                                geo.properties.adm2_name ||
+                                geo.properties.ADM2_EN ||
+                                geo.properties.NAME_2 ||
+                                geo.properties.name ||
+                                geo.properties.Dist_Name ||
+                                geo.properties.district;
                               const districtName = standardMap[rawName] || rawName;
                               const members = familyData[districtName] || [];
                               const hasMembers = members.length > 0;
                               const side = getDominantSide(members);
                               const sideColor = side ? sideColors[side].value : unvisitedColor;
-                              const photoPatternUrl = viewMode === "photos" ? members.find(m => m.photo)?.photo : null;
+                              const photoPatternUrl =
+                                viewMode === "photos"
+                                  ? members.find((m) => m.photo)?.photo
+                                  : null;
 
                               return (
                                 <MemoizedGeography
@@ -875,7 +859,9 @@ export default function FamilyMapPage() {
                                   districtName={districtName}
                                   fillColor={hasMembers ? sideColor : unvisitedColor}
                                   patternUrl={photoPatternUrl}
-                                  strokeColor={isDarkBg ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.15)"}
+                                  strokeColor={
+                                    isDarkBg ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.15)"
+                                  }
                                   isDarkBg={isDarkBg}
                                   hoverStroke={isDarkBg ? "#ffffff" : "#1e293b"}
                                   onClick={openDistrictModal}
@@ -890,41 +876,40 @@ export default function FamilyMapPage() {
                 </div>
               </div>
 
-              {/* ===== SECTION 3: FOOTER (Quote + Branding + Progress Bar) ===== */}
-              <div className="relative z-20 px-4 pb-4 pt-2 flex flex-col gap-1.5 shrink-0">
-                {/* Quote */}
-                <p
-                  className="text-[10px] sm:text-[11px] font-bold leading-tight drop-shadow-md"
-                  style={{ color: isDarkBg ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)' }}
-                >
-                  {displayQuote}
-                </p>
-
-                {/* Branding */}
-                <p
-                  className="text-[6px] sm:text-[7px] font-black tracking-widest uppercase opacity-60 drop-shadow-sm"
-                  style={{ color: isDarkBg ? '#ffffff' : '#000000' }}
-                >
-                  Generated by CUET Adventure Society
-                </p>
-
-                {/* Progress Bar */}
-                <div className="mt-1 bg-white/30 dark:bg-black/40 backdrop-blur-md rounded-xl px-3 py-2 border border-white/30 dark:border-white/10 shadow-lg">
+              {/* ===== BOTTOM ROW: Progress Bar + Branding (blended) ===== */}
+              <div className="relative z-20 px-4 pb-4 pt-2 shrink-0">
+                <div className="flex flex-col gap-1.5">
                   <p
-                    className="text-[9px] sm:text-[10px] font-bold mb-1.5 leading-tight"
-                    style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}
+                    className="text-[9px] sm:text-[10px] font-bold leading-tight"
+                    style={{
+                      color: isDarkBg ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.8)",
+                    }}
                   >
-                    আপনার শিকড় বাংলাদেশের <span style={{ color: '#ec4899' }}>{e2b(percentage)}%</span> জায়গা জুড়ে বিস্তৃত
+                    আপনার শিকড় বাংলাদেশের{" "}
+                    <span style={{ color: "#ec4899" }}>{e2b(percentage)}%</span>{" "}
+                    জায়গা জুড়ে বিস্তৃত
                   </p>
-                  <div className="h-1.5 bg-white/40 dark:bg-black/40 rounded-full overflow-hidden">
+                  <div
+                    className="h-1.5 rounded-full overflow-hidden"
+                    style={{
+                      background: isDarkBg ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.08)",
+                    }}
+                  >
                     <div
                       className="h-full rounded-full transition-all duration-700 ease-out"
                       style={{
                         width: `${Math.max(percentage, stats.districts > 0 ? 3 : 0)}%`,
-                        background: 'linear-gradient(90deg, #3b82f6, #a855f7, #ec4899)'
+                        background: "linear-gradient(90deg, #3b82f6, #a855f7, #ec4899)",
                       }}
                     ></div>
                   </div>
+
+                  <p
+                    className="text-[6px] sm:text-[7px] font-black tracking-widest uppercase opacity-50 mt-1"
+                    style={{ color: isDarkBg ? "#ffffff" : "#000000" }}
+                  >
+                    Generated by CUET Adventure Society
+                  </p>
                 </div>
               </div>
             </div>
@@ -1035,52 +1020,6 @@ export default function FamilyMapPage() {
                   ))}
                 </div>
               </div>
-            </div>
-
-            {/* Quote Customization */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
-              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
-                <i className="fa-solid fa-quote-left mr-1 text-pink-500"></i> কোটেশন
-              </p>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {quotePresets.map(q => (
-                  <button
-                    key={q.key}
-                    onClick={() => setQuoteOption(q.key)}
-                    className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all text-left leading-tight ${
-                      quoteOption === q.key
-                        ? 'bg-gradient-to-r from-blue-500 to-pink-500 text-white border-transparent shadow-sm'
-                        : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-pink-300 dark:hover:border-pink-500/50'
-                    }`}
-                  >
-                    {q.text.length > 28 ? q.text.slice(0, 28) + '...' : q.text}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setQuoteOption("custom")}
-                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all flex items-center gap-1 ${
-                    quoteOption === "custom"
-                      ? 'bg-gradient-to-r from-blue-500 to-pink-500 text-white border-transparent shadow-sm'
-                      : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-pink-300 dark:hover:border-pink-500/50'
-                  }`}
-                >
-                  <i className="fa-solid fa-pen text-[9px]"></i> কাস্টম
-                </button>
-              </div>
-              {quoteOption === "custom" && (
-                <>
-                  <textarea
-                    value={customQuote}
-                    onChange={(e) => setCustomQuote(e.target.value.slice(0, 120))}
-                    placeholder="আপনার নিজের কোটেশন এখানে লিখুন..."
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-pink-500 transition-all resize-none"
-                    rows={3}
-                  />
-                  <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1 text-right">
-                    {e2b(customQuote.length)} / ১২০
-                  </p>
-                </>
-              )}
             </div>
 
             {/* Stats */}
