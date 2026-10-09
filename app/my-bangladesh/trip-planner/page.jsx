@@ -11,7 +11,7 @@ import "aos/dist/aos.css";
 const geoUrl = "/bd-upazilas.topo.json";
 
 // ============================================
-// PROJECTION CONFIG
+// PROJECTION
 // ============================================
 const PROJECTION_CONFIG = { scale: 6500, center: [90.35, 23.8] };
 
@@ -38,33 +38,63 @@ const haversine = (p1, p2) => {
   const [lng2, lat2] = p2;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-// 🔴 NEW: Robust upazila name extractor — works with any property keys
+// ---- Robust name extractors ----
 const getUpazilaName = (props) => {
   if (!props || typeof props !== "object") return "উপজেলা";
-  // Try common known keys first
-  const priorityKeys = [
+  const keys = [
     "adm3_name", "ADM3_NAME", "ADM3_EN", "adm3_en",
     "UPZ_NAME", "UPZ_EN", "UPZ_NAME_B", "UPZ_BND_NAME",
     "upazila_name", "upazilaName", "upazila", "Upazila",
     "NAME_3", "name", "Name", "NAME",
-    "UPAZILA", "UPAZILLA", "Upzilla",
-    "ADM3", "adm3", "UPZ", "upz"
+    "UPAZILA", "UPAZILLA", "Upzilla", "upazilla",
+    "ADM3", "adm3", "UPZ", "upz", "UP_NAME"
   ];
-  for (const k of priorityKeys) {
+  for (const k of keys) {
     const v = props[k];
     if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
-    if (typeof v === "number") continue;
   }
-  // Fallback: first string value
   for (const k of Object.keys(props)) {
     const v = props[k];
     if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
   }
   return "উপজেলা";
+};
+
+const getDistrictName = (props) => {
+  if (!props || typeof props !== "object") return "অন্যান্য জেলা";
+  const keys = [
+    "adm2_name", "ADM2_NAME", "ADM2_EN", "adm2_en",
+    "DIST_NAME", "DIST_EN", "DIST_NAME_B", "DISTRICT", "district",
+    "Dist_Name", "dist_name", "DIST_NAME_2",
+    "NAME_2", "ADM2", "adm2", "DIST", "dist"
+  ];
+  for (const k of keys) {
+    const v = props[k];
+    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
+  }
+  return "অন্যান্য জেলা";
+};
+
+const getDivisionName = (props) => {
+  if (!props || typeof props !== "object") return "অন্যান্য বিভাগ";
+  const keys = [
+    "adm1_name", "ADM1_NAME", "ADM1_EN", "adm1_en",
+    "DIV_NAME", "DIV_EN", "DIV_NAME_B", "DIVISION", "division",
+    "Div_Name", "div_name",
+    "NAME_1", "ADM1", "adm1", "DIV", "div"
+  ];
+  for (const k of keys) {
+    const v = props[k];
+    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
+  }
+  return "অন্যান্য বিভাগ";
 };
 
 // ============================================
@@ -110,11 +140,10 @@ const upazilaBaseColors = [
 ];
 
 // ============================================
-// MEMOIZED UPAZILA — FIXED
+// MEMOIZED UPAZILA
 // ============================================
 const MemoizedUpazila = memo(
   ({ geo, name, hasWaypoint, isHovered, fillColor, upazilaColor, strokeColor, hoverFill, onClick, onHover }) => {
-    // 🔴 FIX: Always pass a real fill color
     const baseFill = hasWaypoint ? fillColor : upazilaColor;
 
     return (
@@ -128,7 +157,7 @@ const MemoizedUpazila = memo(
             fill: baseFill,
             outline: "none",
             stroke: strokeColor,
-            strokeWidth: hasWaypoint ? 0.8 : 0.3,
+            strokeWidth: hasWaypoint ? 0.8 : 0.25,
             transition: "all 0.15s ease",
             cursor: "pointer"
           },
@@ -136,7 +165,7 @@ const MemoizedUpazila = memo(
             fill: hasWaypoint ? fillColor : hoverFill,
             outline: "none",
             stroke: strokeColor,
-            strokeWidth: 0.9,
+            strokeWidth: 0.8,
             cursor: "pointer"
           },
           pressed: { outline: "none" }
@@ -155,12 +184,138 @@ const MemoizedUpazila = memo(
 MemoizedUpazila.displayName = "MemoizedUpazila";
 
 // ============================================
+// HIERARCHY EXPLORER (ACCORDION)
+// ============================================
+function HierarchyExplorer({ hierarchy, waypointKeysByRsmKey, onToggleUpazila, routeColor }) {
+  const [openDivision, setOpenDivision] = useState(null);
+  const [openDistrict, setOpenDistrict] = useState(null);
+
+  const divisions = useMemo(() => {
+    return Object.keys(hierarchy).sort((a, b) => a.localeCompare(b, "bn"));
+  }, [hierarchy]);
+
+  if (divisions.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <i className="fa-solid fa-spinner fa-spin text-2xl text-gray-400"></i>
+        <p className="text-xs text-gray-500 mt-3">উপজেলা তালিকা লোড হচ্ছে...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 max-h-[520px] overflow-y-auto pr-1">
+      {divisions.map((divisionName) => {
+        const districts = hierarchy[divisionName];
+        const isDivOpen = openDivision === divisionName;
+        const totalUpz = Object.values(districts).reduce((s, arr) => s + arr.length, 0);
+        const districtNames = Object.keys(districts).sort((a, b) => a.localeCompare(b, "bn"));
+
+        return (
+          <div
+            key={divisionName}
+            className={`rounded-xl overflow-hidden border transition-colors ${
+              isDivOpen
+                ? "border-orange-400 dark:border-orange-500/50 shadow-sm"
+                : "border-gray-200 dark:border-gray-700"
+            }`}
+          >
+            <button
+              onClick={() => {
+                setOpenDivision(isDivOpen ? null : divisionName);
+                setOpenDistrict(null);
+              }}
+              className={`w-full px-3 py-2.5 flex items-center justify-between gap-2 transition-all ${
+                isDivOpen
+                  ? "bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-md"
+                  : "bg-gray-50 dark:bg-gray-900/50 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <i className={`fa-solid fa-chevron-${isDivOpen ? "down" : "right"} text-[10px] transition-transform shrink-0`}></i>
+                <span className="font-black text-xs truncate">{divisionName}</span>
+              </div>
+              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 ${isDivOpen ? "bg-white/25" : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"}`}>
+                {e2b(totalUpz)}
+              </span>
+            </button>
+
+            {isDivOpen && (
+              <div className="bg-white dark:bg-gray-800 p-2 flex flex-col gap-1.5">
+                {districtNames.map((districtName) => {
+                  const upazilas = districts[districtName];
+                  const isDistOpen = openDistrict === districtName;
+                  const sortedUpz = [...upazilas].sort((a, b) =>
+                    a.name.localeCompare(b.name, "bn")
+                  );
+
+                  return (
+                    <div key={districtName}>
+                      <button
+                        onClick={() => setOpenDistrict(isDistOpen ? null : districtName)}
+                        className={`w-full px-2.5 py-2 rounded-lg flex items-center justify-between gap-2 transition-all ${
+                          isDistOpen
+                            ? "bg-pink-50 dark:bg-pink-500/10 text-pink-700 dark:text-pink-400 border border-pink-200 dark:border-pink-500/30"
+                            : "bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900/60"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <i className={`fa-solid fa-chevron-${isDistOpen ? "down" : "right"} text-[8px] shrink-0`}></i>
+                          <span className="font-bold text-[11px] truncate">{districtName}</span>
+                        </div>
+                        <span className="text-[9px] font-bold opacity-60 shrink-0">
+                          {e2b(upazilas.length)}
+                        </span>
+                      </button>
+
+                      {isDistOpen && (
+                        <div className="flex flex-wrap gap-1 mt-1.5 mb-1 pl-2 pr-1 max-h-[240px] overflow-y-auto">
+                          {sortedUpz.map((u) => {
+                            const wpIdx = waypointKeysByRsmKey[u.rsmKey];
+                            const isActive = !!wpIdx;
+                            return (
+                              <button
+                                key={u.rsmKey}
+                                onClick={() => onToggleUpazila(u)}
+                                className={`px-2 py-1 rounded-full text-[9px] font-bold border transition-all flex items-center gap-1 ${
+                                  isActive
+                                    ? "bg-gradient-to-r from-orange-500 to-pink-500 text-white border-transparent shadow-sm"
+                                    : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-orange-400 dark:hover:border-orange-500/50"
+                                }`}
+                                title={u.name}
+                              >
+                                {isActive && (
+                                  <span
+                                    className="w-3.5 h-3.5 rounded-full bg-white/30 text-white text-[8px] font-black flex items-center justify-center shrink-0"
+                                  >
+                                    {e2b(wpIdx)}
+                                  </span>
+                                )}
+                                <span className="truncate max-w-[110px]">{u.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================
 // MAIN COMPONENT
 // ============================================
 export default function TripPlannerPage() {
   const [waypoints, setWaypoints] = useState([]);
   const [bgColor, setBgColor] = useState(bgColors[0].value);
-  const [routeColor, setRouteColor] = useState(routeColors[4].value); // Purple default
+  const [routeColor, setRouteColor] = useState(routeColors[4].value);
   const [upazilaColor, setUpazilaColor] = useState(upazilaBaseColors[0].value);
   const [hoveredUpazila, setHoveredUpazila] = useState("");
   const [quoteOption, setQuoteOption] = useState("default");
@@ -168,6 +323,11 @@ export default function TripPlannerPage() {
   const [tripTitle, setTripTitle] = useState("আমার ট্রিপ প্ল্যান");
   const [downloading, setDownloading] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
+
+  // Hierarchy state
+  const [hierarchy, setHierarchy] = useState({});
+  const hierarchyBuilt = useRef(false);
+  const rsmKeyCache = useRef({});
 
   const mapRef = useRef(null);
 
@@ -178,7 +338,7 @@ export default function TripPlannerPage() {
     AOS.init({ once: true, offset: 50, duration: 800 });
   }, []);
 
-  // ============ COMPUTED ============
+  // ============ STATS ============
   const stats = useMemo(() => {
     let totalDistance = 0;
     for (let i = 0; i < waypoints.length - 1; i++) {
@@ -193,33 +353,51 @@ export default function TripPlannerPage() {
     return quotePresets.find((q) => q.key === quoteOption)?.text || quotePresets[0].text;
   })();
 
-  // 🔴 FIX: use geo.rsmKey as stable id for dedup
-  const waypointIndexByKey = useMemo(() => {
-    const map = new Map();
-    waypoints.forEach((w, i) => map.set(w.id_key, i + 1));
+  const waypointKeysByRsmKey = useMemo(() => {
+    const map = {};
+    waypoints.forEach((w, i) => {
+      map[w.id_key] = i + 1;
+    });
     return map;
   }, [waypoints]);
 
-  // ============ HANDLERS ============
-  const handleAddWaypoint = useCallback((geo, name) => {
-    const centroid = geoCentroid(geo);
-    if (!centroid || !isFinite(centroid[0])) return;
+  // ============ TOGGLE WAYPOINT ============
+  const handleToggleWaypoint = useCallback((geoOrUpz, name) => {
+    let rsmKey, coordinates, upzName;
 
-    const id_key = geo.rsmKey;
-    if (waypoints.some((w) => w.id_key === id_key)) return; // already added
+    if (geoOrUpz && typeof geoOrUpz === "object" && "rsmKey" in geoOrUpz) {
+      // From sidebar — has rsmKey + coordinates
+      rsmKey = geoOrUpz.rsmKey;
+      coordinates = geoOrUpz.coordinates;
+      upzName = geoOrUpz.name;
+    } else {
+      // From map click — geo object
+      const centroid = geoCentroid(geoOrUpz);
+      if (!centroid || !isFinite(centroid[0])) return;
+      rsmKey = geoOrUpz.rsmKey;
+      coordinates = centroid;
+      upzName = name;
+    }
 
-    setWaypoints((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
-        id_key,
-        name: name,
-        coordinates: centroid,
-        notes: "",
-        days: 1,
-      },
-    ]);
-  }, [waypoints]);
+    setWaypoints((prev) => {
+      const exists = prev.find((w) => w.id_key === rsmKey);
+      if (exists) {
+        // Remove
+        return prev.filter((w) => w.id_key !== rsmKey);
+      }
+      // Add
+      return [
+        ...prev,
+        {
+          id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
+          id_key: rsmKey,
+          name: upzName,
+          coordinates,
+          days: 1,
+        },
+      ];
+    });
+  }, []);
 
   const handleRemoveWaypoint = (id) => {
     setWaypoints((prev) => prev.filter((w) => w.id !== id));
@@ -310,7 +488,7 @@ export default function TripPlannerPage() {
             </h1>
             <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm inline-block">
               <i className="fa-solid fa-route text-orange-500 mr-2"></i>
-              উপজেলায় ক্লিক করে আপনার যাত্রাপথ তৈরি করুন। প্রতিটা waypoint সংখ্যাযুক্ত marker হবে এবং তীরচিহ্ন দিয়ে রুট দেখা যাবে। সাইক্লিং, হাইকিং, রোড ট্রিপ — যেকোনো অ্যাডভেঞ্চারের জন্য!
+              বিভাগ → জেলা → উপজেলা — তিন স্তরে ঘুরে আপনার যাত্রাপথ তৈরি করুন। ম্যাপে সরাসরি উপজেলাতেও ক্লিক করতে পারবেন। প্রতিটা waypoint সংখ্যাযুক্ত marker হবে এবং তীরচিহ্ন দিয়ে রুট দেখা যাবে।
             </p>
           </div>
         </div>
@@ -335,7 +513,7 @@ export default function TripPlannerPage() {
                 style={{ background: "radial-gradient(circle, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 70%)" }}
               ></div>
 
-              {/* ===== HEADER ===== */}
+              {/* HEADER */}
               <div className="relative z-20 px-4 pt-4 pb-2 flex justify-between items-start gap-3 shrink-0">
                 <div className="flex-1 min-w-0">
                   <input
@@ -374,9 +552,8 @@ export default function TripPlannerPage() {
                 </div>
               </div>
 
-              {/* ===== MAP AREA ===== */}
+              {/* MAP AREA */}
               <div className="flex-1 relative z-10 overflow-hidden">
-                {/* Zoom buttons */}
                 <div className="absolute top-3 right-3 z-30 flex flex-col gap-2" data-html2canvas-ignore="true">
                   <button
                     onClick={handleZoomIn}
@@ -392,7 +569,6 @@ export default function TripPlannerPage() {
                   </button>
                 </div>
 
-                {/* Hovered upazila indicator */}
                 {hoveredUpazila && (
                   <div
                     data-html2canvas-ignore="true"
@@ -405,21 +581,6 @@ export default function TripPlannerPage() {
                   >
                     <i className="fa-solid fa-location-dot mr-1" style={{ color: routeColor }}></i>
                     {hoveredUpazila}
-                  </div>
-                )}
-
-                {/* Instruction if empty */}
-                {waypoints.length === 0 && (
-                  <div
-                    className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full text-[10px] font-black shadow-lg backdrop-blur-md border whitespace-nowrap"
-                    style={{
-                      background: isDarkBg ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.9)",
-                      color: isDarkBg ? "#ffffff" : "#1e293b",
-                      borderColor: isDarkBg ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)",
-                    }}
-                  >
-                    <i className="fa-solid fa-info-circle mr-1.5" style={{ color: routeColor }}></i>
-                    উপজেলায় ক্লিক করে যাত্রা শুরু করুন
                   </div>
                 )}
 
@@ -454,12 +615,54 @@ export default function TripPlannerPage() {
                         </marker>
                       </defs>
 
-                      {/* Upazilas */}
                       <Geographies geography={geoUrl}>
-                        {({ geographies }) =>
-                          geographies.map((geo) => {
+                        {({ geographies }) => {
+                          // ---- Build hierarchy ONCE ----
+                          if (!hierarchyBuilt.current && geographies.length > 0) {
+                            hierarchyBuilt.current = true;
+                            const h = {};
+                            const keyMap = {};
+
+                            geographies.forEach((g) => {
+                              const div = getDivisionName(g.properties);
+                              const dist = getDistrictName(g.properties);
+                              const upz = getUpazilaName(g.properties);
+
+                              const centroid = geoCentroid(g);
+                              if (!centroid || !isFinite(centroid[0])) return;
+
+                              if (!h[div]) h[div] = {};
+                              if (!h[div][dist]) h[div][dist] = [];
+
+                              const entry = {
+                                name: upz,
+                                rsmKey: g.rsmKey,
+                                coordinates: centroid,
+                              };
+                              h[div][dist].push(entry);
+                              keyMap[g.rsmKey] = entry;
+                            });
+
+                            rsmKeyCache.current = keyMap;
+
+                            // Debug — log first upazila props so user can report
+                            if (process.env.NODE_ENV !== "production") {
+                              console.log(
+                                "[Trip Planner] Sample upazila properties:",
+                                geographies[0]?.properties
+                              );
+                              console.log(
+                                "[Trip Planner] Hierarchy divisions:",
+                                Object.keys(h)
+                              );
+                            }
+
+                            setTimeout(() => setHierarchy(h), 0);
+                          }
+
+                          return geographies.map((geo) => {
                             const name = getUpazilaName(geo.properties);
-                            const isWaypoint = waypointIndexByKey.has(geo.rsmKey);
+                            const isWaypoint = waypointKeysByRsmKey[geo.rsmKey] !== undefined;
 
                             return (
                               <MemoizedUpazila
@@ -473,17 +676,17 @@ export default function TripPlannerPage() {
                                 strokeColor={
                                   isDarkBg || isDarkUpazila
                                     ? "rgba(255,255,255,0.15)"
-                                    : "rgba(0,0,0,0.15)"
+                                    : "rgba(0,0,0,0.12)"
                                 }
                                 hoverFill={
                                   isDarkBg || isDarkUpazila ? "#475569" : "#94a3b8"
                                 }
-                                onClick={handleAddWaypoint}
+                                onClick={handleToggleWaypoint}
                                 onHover={setHoveredUpazila}
                               />
                             );
-                          })
-                        }
+                          });
+                        }}
                       </Geographies>
 
                       {/* Route lines */}
@@ -544,7 +747,7 @@ export default function TripPlannerPage() {
                 </div>
               </div>
 
-              {/* ===== FOOTER ===== */}
+              {/* FOOTER */}
               <div className="relative z-20 px-4 pb-4 pt-2 flex flex-col gap-1.5 shrink-0">
                 <p
                   className="text-[10px] sm:text-[11px] font-bold leading-tight drop-shadow-md"
@@ -567,7 +770,8 @@ export default function TripPlannerPage() {
                           দূরত্ব
                         </p>
                         <p className="text-sm font-black" style={{ color: routeColor }}>
-                          {e2b(Math.round(stats.totalDistance))} <span className="text-[9px]">কি.মি.</span>
+                          {e2b(Math.round(stats.totalDistance))}{" "}
+                          <span className="text-[9px]">কি.মি.</span>
                         </p>
                       </div>
                       <div className="text-center">
@@ -594,7 +798,7 @@ export default function TripPlannerPage() {
           </div>
 
           {/* ============ SIDEBAR ============ */}
-          <div className="w-full md:w-[350px] flex flex-col gap-6 shrink-0">
+          <div className="w-full md:w-[380px] flex flex-col gap-6 shrink-0">
 
             {/* Route List */}
             <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
@@ -613,7 +817,7 @@ export default function TripPlannerPage() {
               </div>
 
               {waypoints.length === 0 ? (
-                <div className="text-center py-8">
+                <div className="text-center py-6">
                   <div
                     className="w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-3"
                     style={{ background: `${routeColor}15` }}
@@ -624,17 +828,19 @@ export default function TripPlannerPage() {
                     এখনো কোনো waypoint যোগ করা হয়নি
                   </p>
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
-                    উপজেলায় ক্লিক করে শুরু করুন
+                    নিচের তালিকা থেকে উপজেলা বেছে নিন
                   </p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto pr-1">
+                <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
                   {waypoints.map((wp, i) => {
                     const isStart = i === 0;
                     const isEnd = i === waypoints.length - 1 && waypoints.length > 1;
                     const markerColor = isStart ? "#10b981" : isEnd ? "#ef4444" : routeColor;
                     const prevWp = waypoints[i - 1];
-                    const segmentDist = prevWp ? haversine(prevWp.coordinates, wp.coordinates) : 0;
+                    const segmentDist = prevWp
+                      ? haversine(prevWp.coordinates, wp.coordinates)
+                      : 0;
 
                     return (
                       <div
@@ -689,6 +895,19 @@ export default function TripPlannerPage() {
                   })}
                 </div>
               )}
+            </div>
+
+            {/* 🔴 HIERARCHY EXPLORER */}
+            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
+                <i className="fa-solid fa-sitemap mr-1 text-emerald-500"></i> এলাকা বেছে নিন
+              </p>
+              <HierarchyExplorer
+                hierarchy={hierarchy}
+                waypointKeysByRsmKey={waypointKeysByRsmKey}
+                onToggleUpazila={(u) => handleToggleWaypoint(u, u.name)}
+                routeColor={routeColor}
+              />
             </div>
 
             {/* Colors */}
@@ -814,7 +1033,11 @@ export default function TripPlannerPage() {
                     : "bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white hover:shadow-[0_8px_25px_rgba(239,68,68,0.4)] hover:-translate-y-1"
                 }`}
               >
-                {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-image"></i>}
+                {downloading ? (
+                  <i className="fa-solid fa-spinner fa-spin"></i>
+                ) : (
+                  <i className="fa-solid fa-image"></i>
+                )}
                 {downloading ? "প্রসেসিং..." : "JPG ডাউনলোড"}
               </button>
               <button
@@ -826,7 +1049,11 @@ export default function TripPlannerPage() {
                     : "bg-blue-600 hover:bg-blue-500 text-white hover:shadow-[0_8px_25px_rgba(37,99,235,0.4)] hover:-translate-y-1"
                 }`}
               >
-                {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-file-pdf"></i>}
+                {downloading ? (
+                  <i className="fa-solid fa-spinner fa-spin"></i>
+                ) : (
+                  <i className="fa-solid fa-file-pdf"></i>
+                )}
                 {downloading ? "প্রসেসিং..." : "PDF ডাউনলোড"}
               </button>
               {waypoints.length < 2 && (
@@ -840,7 +1067,7 @@ export default function TripPlannerPage() {
             <div className="bg-amber-50 dark:bg-amber-500/10 p-4 rounded-xl border border-amber-200 dark:border-amber-500/30">
               <p className="text-[11px] text-amber-800 dark:text-amber-400 font-medium leading-relaxed">
                 <i className="fa-solid fa-lightbulb text-amber-500 mr-1"></i>
-                <strong>টিপস:</strong> যেকোনো উপজেলায় ক্লিক করলে সেটা যাত্রাপথে যোগ হবে। উপরের ↑↓ দিয়ে ক্রম বদলাতে পারবেন, ✕ দিয়ে মুছতে পারবেন।
+                <strong>টিপস:</strong> বিভাগে ক্লিক করলে ঐ বিভাগের জেলা দেখাবে, জেলায় ক্লিক করলে উপজেলা। উপজেলায় ক্লিক করলে waypoint হিসেবে যোগ/বাদ হবে।
               </p>
             </div>
           </div>
