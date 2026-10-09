@@ -10,7 +10,6 @@ import Cropper from "react-easy-crop";
 
 const geoUrl = "/bd-districts.topo.json";
 
-// 🔴 FIX 1 & 2: ১২টি পারফেক্ট গ্রেডিয়েন্ট কালার এবং সঠিক isDark ফ্ল্যাগ
 const bgColors = [
   { name: "ক্লাসিক হোয়াইট", value: "linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)", isDark: false },
   { name: "সফট ক্লাউড", value: "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)", isDark: false },
@@ -38,11 +37,15 @@ const unvisitedColors = [
 const e2b = (num) => String(num).replace(/[0-9]/g, d => '০১২৩৪৫৬৭৮৯'[d]);
 
 const standardMap = {
-  "Chapainababganj": "Chapainawabganj", "Nawabganj": "Chapainawabganj", "Netrakona": "Netrokona",
-  "Panchagar": "Panchagarh", "Bramhanbaria": "Brahmanbaria", "Chittagong": "Chattogram", "Coxs Bazar": "Cox's Bazar"
+  "Chapainababganj": "Chapainawabganj", 
+  "Nawabganj": "Chapainawabganj", 
+  "Netrakona": "Netrokona",
+  "Panchagar": "Panchagarh", 
+  "Bramhanbaria": "Brahmanbaria", 
+  "Chittagong": "Chattogram", 
+  "Coxs Bazar": "Cox's Bazar"
 };
 
-// 🔴 FIX 3: Cox's Bazar spelling fixed in districtBn
 const districtBn = {
   "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
   "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
@@ -178,6 +181,7 @@ export default function PhotoMapPage() {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [cropperAspect, setCropperAspect] = useState(1);
   
   const [downloading, setDownloading] = useState(false);
   const [districtOptionsModal, setDistrictOptionsModal] = useState(null); 
@@ -204,6 +208,14 @@ export default function PhotoMapPage() {
 
   const openFileSelector = () => {
     setActiveDistrict(districtOptionsModal);
+    
+    const tallDistricts = ["Chattogram", "Khagrachhari", "Bandarban", "Sylhet", "Cox's Bazar", "Panchagarh"];
+    if (tallDistricts.includes(districtOptionsModal)) {
+      setCropperAspect(3/4);
+    } else {
+      setCropperAspect(1);
+    }
+
     setDistrictOptionsModal(null);
     fileInputRef.current.click();
   };
@@ -284,11 +296,10 @@ export default function PhotoMapPage() {
       setDistrictPhotos(base64Photos);
       await new Promise(resolve => setTimeout(resolve, 800)); 
 
-      // 🔴 FIX 5: pixelRatio: 3 for optimized file sizes
       const imgData = await toJpeg(mapRef.current, {
         quality: 1.0,
         backgroundColor: "transparent",
-        pixelRatio: 3, 
+        pixelRatio: 6, 
         cacheBust: false,
       });
       
@@ -302,8 +313,8 @@ export default function PhotoMapPage() {
         link.click();
         document.body.removeChild(link);
       } else if (format === 'pdf') {
-        const canvasWidth = mapRef.current.offsetWidth * 3;
-        const canvasHeight = mapRef.current.offsetHeight * 3;
+        const canvasWidth = mapRef.current.offsetWidth * 6;
+        const canvasHeight = mapRef.current.offsetHeight * 6;
         const pdf = new jsPDF({
           orientation: canvasWidth > canvasHeight ? 'landscape' : 'portrait',
           unit: 'px',
@@ -335,15 +346,19 @@ export default function PhotoMapPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans transition-colors duration-500">
       <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
 
-      {/* Cropper Modal */}
       {rawImage && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col isolate">
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm flex flex-col isolate">
+          <div className="bg-gray-900 text-center py-3 text-white border-b border-white/10 z-10 shadow-md">
+            <h3 className="font-black text-lg">{districtBn[activeDistrict] || activeDistrict}</h3>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">ছবি টেনে এবং জুম করে পজিশন ঠিক করুন</p>
+          </div>
+          
           <div className="relative flex-1">
             <Cropper
               image={rawImage}
               crop={crop}
               zoom={zoom}
-              aspect={1}
+              aspect={cropperAspect}
               showGrid={true}
               onCropChange={setCrop}
               onZoomChange={setZoom}
@@ -351,17 +366,23 @@ export default function PhotoMapPage() {
               objectFit="contain"
             />
           </div>
-          <div className="p-6 bg-gray-900 flex flex-wrap justify-between items-center gap-4 shadow-[0_-10px_20px_rgba(0,0,0,0.5)] z-10 border-t border-white/10">
-            <button onClick={() => {setRawImage(null); setActiveDistrict(null);}} className="px-5 py-2.5 bg-gray-800 text-white rounded-xl font-bold hover:bg-gray-700 transition-colors">বাতিল</button>
-            <input type="range" value={zoom} min={1} max={3} step={0.1} onChange={(e) => setZoom(e.target.value)} className="flex-1 min-w-[150px] accent-emerald-500" />
-            <button onClick={handleSaveCrop} className="px-6 py-2.5 bg-campfire hover:bg-orange-600 text-white rounded-xl font-black shadow-lg hover:scale-105 transition-transform flex items-center gap-2">
-              <i className="fa-solid fa-crop-simple"></i> ক্রপ করুন
+          
+          <div className="p-5 sm:p-6 bg-gray-900 flex flex-wrap justify-between items-center gap-4 shadow-[0_-10px_20px_rgba(0,0,0,0.5)] z-10 border-t border-white/10">
+            <button onClick={() => {setRawImage(null); setActiveDistrict(null);}} className="px-5 py-2.5 bg-gray-800 text-white rounded-xl font-bold hover:bg-gray-700 transition-colors border border-gray-700">বাতিল</button>
+            
+            <div className="flex-1 min-w-[150px] flex items-center gap-3">
+              <i className="fa-solid fa-magnifying-glass-minus text-gray-400 text-xs"></i>
+              <input type="range" value={zoom} min={1} max={3} step={0.1} onChange={(e) => setZoom(e.target.value)} className="flex-1 accent-emerald-500" />
+              <i className="fa-solid fa-magnifying-glass-plus text-gray-400 text-xs"></i>
+            </div>
+            
+            <button onClick={handleSaveCrop} className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-black shadow-lg hover:shadow-[0_5px_15px_rgba(16,185,129,0.4)] hover:-translate-y-0.5 transition-all flex items-center gap-2">
+              <i className="fa-solid fa-check"></i> কনফার্ম
             </button>
           </div>
         </div>
       )}
 
-      {/* District Action Modal */}
       {districtOptionsModal && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDistrictOptionsModal(null)}></div>
@@ -388,7 +409,6 @@ export default function PhotoMapPage() {
 
       <div className="max-w-6xl mx-auto relative z-10 flex flex-col gap-10">
         
-        {/* 🔴 FIX 4: সেকশন ১-এর কোড সিম্পলিফাই করা হয়েছে */}
         <div className="flex flex-col mb-4" data-aos="fade-down">
           <div className="w-full">
             <Link href="/my-bangladesh" className="inline-flex items-center gap-2 text-gray-500 hover:text-campfire font-bold mb-4 text-sm transition-colors">
@@ -404,7 +424,6 @@ export default function PhotoMapPage() {
           </div>
         </div>
 
-        {/* সেকশন ২: জেলা নির্বাচনের তালিকা */}
         <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-[2rem] border border-gray-200 dark:border-gray-700 shadow-sm" data-aos="fade-up">
           <h3 className="text-xl font-black mb-6 text-gray-900 dark:text-white flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 pb-4">
             <i className="fa-solid fa-list-check text-emerald-500"></i> জেলা নির্বাচন করে ছবি দিন
@@ -450,7 +469,6 @@ export default function PhotoMapPage() {
           </div>
         </div>
 
-        {/* সেকশন ৩: জেনারেটেড ম্যাপ এবং কালার কন্ট্রোলস */}
         <div className="flex flex-col md:flex-row gap-8 items-start" data-aos="fade-up">
           
           <div className="flex-grow flex justify-center relative w-full">
@@ -543,7 +561,6 @@ export default function PhotoMapPage() {
               <div className="mb-6">
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3"><i className="fa-solid fa-fill-drip mr-1 text-blue-500"></i> ব্যাকগ্রাউন্ড কালার:</p>
                 <div className="flex flex-wrap gap-2.5">
-                  {/* 🔴 FIX: Added border to all background color buttons */}
                   {bgColors.map(color => (
                     <button 
                       key={color.value} 
@@ -564,7 +581,6 @@ export default function PhotoMapPage() {
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2.5">
-                  {/* 🔴 FIX: Added border to all unvisited color buttons */}
                   {unvisitedColors.map(color => (
                     <button 
                       key={color.value} 
