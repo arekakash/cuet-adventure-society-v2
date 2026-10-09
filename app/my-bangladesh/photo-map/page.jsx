@@ -10,15 +10,20 @@ import Cropper from "react-easy-crop";
 
 const geoUrl = "/bd-districts.topo.json";
 
+// 🔴 FIX 1 & 2: ১২টি পারফেক্ট গ্রেডিয়েন্ট কালার এবং সঠিক isDark ফ্ল্যাগ
 const bgColors = [
   { name: "ক্লাসিক হোয়াইট", value: "linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)", isDark: false },
-  { name: "ডার্ক ফরেস্ট", value: "linear-gradient(135deg, #0f3420 0%, #06180e 100%)", isDark: true },
-  { name: "ডিপ ওশান", value: "linear-gradient(135deg, #0f172a 0%, #020617 100%)", isDark: true },
+  { name: "সফট ক্লাউড", value: "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)", isDark: false },
+  { name: "সানরাইজ পিচ", value: "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)", isDark: false },
+  { name: "ফ্রেশ মিন্ট", value: "linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)", isDark: false },
+  { name: "রোজ মিল্ক", value: "linear-gradient(135deg, #fddb92 0%, #d1fdff 100%)", isDark: false },
+  { name: "ন্যাচার গ্রিন", value: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)", isDark: false },
   { name: "সানসেট অরেঞ্জ", value: "linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)", isDark: false },
   { name: "রয়্যাল ব্লু", value: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)", isDark: true },
-  { name: "চেরি রেড", value: "linear-gradient(135deg, #870000 0%, #190a05 100%)", isDark: true },
+  { name: "ডার্ক ফরেস্ট", value: "linear-gradient(135deg, #0f3420 0%, #06180e 100%)", isDark: true },
+  { name: "ডিপ ওশান", value: "linear-gradient(135deg, #0f172a 0%, #020617 100%)", isDark: true },
   { name: "ম্যাজিক পার্পল", value: "linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%)", isDark: true },
-  { name: "ন্যাচার গ্রিন", value: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)", isDark: false },
+  { name: "চেরি রেড", value: "linear-gradient(135deg, #870000 0%, #190a05 100%)", isDark: true },
 ];
 
 const unvisitedColors = [
@@ -37,9 +42,10 @@ const standardMap = {
   "Panchagar": "Panchagarh", "Bramhanbaria": "Brahmanbaria", "Chittagong": "Chattogram", "Coxs Bazar": "Cox's Bazar"
 };
 
+// 🔴 FIX 3: Cox's Bazar spelling fixed in districtBn
 const districtBn = {
   "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
-  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Coxs Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
+  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
   "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
   "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
   "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Sherpur": "শেরপুর",
@@ -125,7 +131,6 @@ const blobToBase64 = async (blobUrl) => {
 };
 
 const MemoizedGeography = memo(({ geo, districtName, hasPhoto, unvisitedColor, isDarkBg, onClick }) => {
-  // 🔴 FIX: বর্ডার ভিজিবিলিটি ফিক্স করা হয়েছে। আনভিজিটেড কালার ডার্ক হলে বর্ডার সাদা, নাহলে হালকা কালো হবে।
   const isDarkUnvisited = unvisitedColor === "#1e293b"; 
   const strokeColor = hasPhoto ? "rgba(255,255,255,0.8)" : (isDarkUnvisited ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.2)");
 
@@ -255,7 +260,6 @@ export default function PhotoMapPage() {
     }
   };
 
-  // 🔴 FIX: JPG এবং PDF ডাউনলোডের ব্যবস্থা
   const handleDownloadMap = async (format) => {
     if (!mapRef.current) return;
     setDownloading(true);
@@ -280,10 +284,11 @@ export default function PhotoMapPage() {
       setDistrictPhotos(base64Photos);
       await new Promise(resolve => setTimeout(resolve, 800)); 
 
+      // 🔴 FIX 5: pixelRatio: 3 for optimized file sizes
       const imgData = await toJpeg(mapRef.current, {
         quality: 1.0,
         backgroundColor: "transparent",
-        pixelRatio: 4, 
+        pixelRatio: 3, 
         cacheBust: false,
       });
       
@@ -297,9 +302,8 @@ export default function PhotoMapPage() {
         link.click();
         document.body.removeChild(link);
       } else if (format === 'pdf') {
-        // PDF Export Logic
-        const canvasWidth = mapRef.current.offsetWidth * 4;
-        const canvasHeight = mapRef.current.offsetHeight * 4;
+        const canvasWidth = mapRef.current.offsetWidth * 3;
+        const canvasHeight = mapRef.current.offsetHeight * 3;
         const pdf = new jsPDF({
           orientation: canvasWidth > canvasHeight ? 'landscape' : 'portrait',
           unit: 'px',
@@ -384,60 +388,23 @@ export default function PhotoMapPage() {
 
       <div className="max-w-6xl mx-auto relative z-10 flex flex-col gap-10">
         
-        {/* 🔴 সেকশন ১: ইন্ট্রো এবং সেটিংস */}
-        <div className="flex flex-col lg:flex-row gap-8" data-aos="fade-down">
-          <div className="flex-1">
+        {/* 🔴 FIX 4: সেকশন ১-এর কোড সিম্পলিফাই করা হয়েছে */}
+        <div className="flex flex-col mb-4" data-aos="fade-down">
+          <div className="w-full">
             <Link href="/my-bangladesh" className="inline-flex items-center gap-2 text-gray-500 hover:text-campfire font-bold mb-4 text-sm transition-colors">
               <i className="fa-solid fa-arrow-left"></i> কালার ম্যাপে ফিরে যান
             </Link>
             <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white mb-4 uppercase tracking-tight leading-tight">
               আপনার নিজস্ব <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-blue-500">ফটো ম্যাপ</span> তৈরি করুন
             </h1>
-            <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm inline-block">
               <i className="fa-solid fa-circle-info text-blue-500 mr-2"></i>
-              নিচের তালিকা থেকে আপনার ভ্রমণ করা জেলাগুলো নির্বাচন করে সেরা স্মৃতিগুলো আপলোড করুন। এরপর সবার নিচে থাকা ম্যাপ থেকে আপনার কাস্টমাইজড 4K ছবি বা PDF ডাউনলোড করে নিন!
+              নিচের তালিকা থেকে আপনার ভ্রমণ করা জেলাগুলো নির্বাচন করে সেরা স্মৃতিগুলো আপলোড করুন। এরপর নিচের ম্যাপটি কাস্টমাইজ করে ডাউনলোড করে নিন!
             </p>
-          </div>
-
-          <div className="flex-1 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-gray-200 dark:border-gray-700 relative">
-            <div className="mb-6">
-              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3"><i className="fa-solid fa-fill-drip mr-1"></i> ম্যাপের ব্যাকগ্রাউন্ড কালার:</p>
-              <div className="flex flex-wrap gap-3">
-                {bgColors.map(color => (
-                  <button 
-                    key={color.value} 
-                    onClick={() => setBgColor(color.value)} 
-                    className={`w-9 h-9 rounded-full shadow-md transition-transform border-2 ${bgColor === color.value ? 'scale-125 border-gray-400 dark:border-white' : 'border-transparent hover:scale-110'}`} 
-                    style={{ background: color.value }} 
-                    title={color.name}
-                  />
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest"><i className="fa-solid fa-palette mr-1"></i> ফাঁকা জেলার রং:</p>
-                <button onClick={resetColors} className="text-[10px] font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center">
-                  <i className="fa-solid fa-rotate-left mr-1"></i> রিসেট
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                {unvisitedColors.map(color => (
-                  <button 
-                    key={color.value} 
-                    onClick={() => setUnvisitedColor(color.value)} 
-                    className={`w-9 h-9 rounded-full shadow-sm transition-transform border-2 ${unvisitedColor === color.value ? 'scale-125 border-gray-400 dark:border-white' : 'border-gray-200 dark:border-gray-600 hover:scale-110'}`} 
-                    style={{ backgroundColor: color.value }} 
-                    title={color.name}
-                  />
-                ))}
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* 🔴 সেকশন ২: জেলা নির্বাচনের তালিকা (ইউজার ফ্লো ফিক্স) */}
+        {/* সেকশন ২: জেলা নির্বাচনের তালিকা */}
         <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-[2rem] border border-gray-200 dark:border-gray-700 shadow-sm" data-aos="fade-up">
           <h3 className="text-xl font-black mb-6 text-gray-900 dark:text-white flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 pb-4">
             <i className="fa-solid fa-list-check text-emerald-500"></i> জেলা নির্বাচন করে ছবি দিন
@@ -483,10 +450,10 @@ export default function PhotoMapPage() {
           </div>
         </div>
 
-        {/* 🔴 সেকশন ৩: জেনারেটেড ম্যাপ এবং ডাউনলোড (সবার নিচে) */}
-        <div className="flex flex-col md:flex-row gap-6 items-start" data-aos="fade-up">
+        {/* সেকশন ৩: জেনারেটেড ম্যাপ এবং কালার কন্ট্রোলস */}
+        <div className="flex flex-col md:flex-row gap-8 items-start" data-aos="fade-up">
+          
           <div className="flex-grow flex justify-center relative w-full">
-            
             <div className="absolute top-4 right-4 z-30 flex flex-col gap-2">
               <button onClick={handleZoomIn} className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white dark:bg-gray-800 text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700 hover:bg-gray-50">
                 <i className="fa-solid fa-plus"></i>
@@ -501,14 +468,14 @@ export default function PhotoMapPage() {
               className="w-full max-w-[650px] aspect-[4/5] relative rounded-[2rem] overflow-hidden shadow-2xl transition-all duration-500 flex flex-col"
               style={{ background: bgColor }}
             >
-              <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%)' }}></div>
-              <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0) 70%)' }}></div>
+              <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)' }}></div>
+              <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 70%)' }}></div>
 
-              <div className="absolute top-6 left-0 right-0 z-20 flex flex-col items-center pointer-events-none px-4">
-                <h2 className="text-3xl sm:text-4xl font-black tracking-tight" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
+              <div className="absolute top-8 left-0 right-0 z-20 flex flex-col items-center pointer-events-none px-4">
+                <h2 className="text-3xl sm:text-4xl font-black tracking-tight drop-shadow-md" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
                   ৬৪ <span className="font-bold text-xl sm:text-2xl opacity-90">জেলা ভ্রমণ</span>
                 </h2>
-                <div className="h-1 w-12 rounded-full mt-2" style={{ backgroundColor: isDarkBg ? '#10b981' : '#e76f51' }}></div>
+                <div className="h-1.5 w-16 rounded-full mt-3 shadow-sm" style={{ background: isDarkBg ? 'linear-gradient(90deg, #10b981, #38ef7d)' : 'linear-gradient(90deg, #ff512f, #f09819)' }}></div>
               </div>
 
               <div className="w-full h-full flex items-center justify-center flex-1 mt-10 z-10 relative">
@@ -516,84 +483,128 @@ export default function PhotoMapPage() {
                   className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
                   style={{ transform: `scale(${mapZoom})`, transformOrigin: "center" }}
                 >
-                  <ComposableMap
-                    projection="geoMercator"
-                    projectionConfig={{ scale: 6500, center: [90.35, 23.8] }}
-                    className="w-full h-[110%] outline-none"
-                  >
-                    <defs>
-                      {Object.entries(districtPhotos).map(([district, url]) => (
-                        <pattern key={`pattern-${district}`} id={`pattern-${district}`} width="100%" height="100%" patternContentUnits="objectBoundingBox" preserveAspectRatio="xMidYMid slice">
-                          <image href={url} preserveAspectRatio="xMidYMid slice" width="1" height="1" />
-                        </pattern>
-                      ))}
-                    </defs>
+                  <div style={{ filter: isDarkBg ? 'drop-shadow(0px 25px 35px rgba(0,0,0,0.6)) drop-shadow(0px 10px 15px rgba(0,0,0,0.4))' : 'drop-shadow(0px 25px 35px rgba(0,0,0,0.25)) drop-shadow(0px 10px 15px rgba(0,0,0,0.15))' }} className="w-full h-[110%] flex items-center justify-center">
+                    <ComposableMap
+                      projection="geoMercator"
+                      projectionConfig={{ scale: 6500, center: [90.35, 23.8] }}
+                      className="w-full h-full outline-none"
+                    >
+                      <defs>
+                        {Object.entries(districtPhotos).map(([district, url]) => (
+                          <pattern key={`pattern-${district}`} id={`pattern-${district}`} width="100%" height="100%" patternContentUnits="objectBoundingBox" preserveAspectRatio="xMidYMid slice">
+                            <image href={url} preserveAspectRatio="xMidYMid slice" width="1" height="1" />
+                          </pattern>
+                        ))}
+                      </defs>
 
-                    <Geographies geography={geoUrl}>
-                      {({ geographies }) => (
-                        <>
-                          {geographies.map((geo) => {
-                            const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
-                            const districtName = standardMap[rawName] || rawName;
-                            const hasPhoto = !!districtPhotos[districtName];
-                            
-                            return (
-                              <MemoizedGeography
-                                key={geo.rsmKey}
-                                geo={geo}
-                                districtName={districtName}
-                                hasPhoto={hasPhoto}
-                                unvisitedColor={unvisitedColor}
-                                isDarkBg={isDarkBg}
-                                onClick={handleMapClick}
-                              />
-                            );
-                          })}
-                        </>
-                      )}
-                    </Geographies>
-                  </ComposableMap>
+                      <Geographies geography={geoUrl}>
+                        {({ geographies }) => (
+                          <>
+                            {geographies.map((geo) => {
+                              const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
+                              const districtName = standardMap[rawName] || rawName;
+                              const hasPhoto = !!districtPhotos[districtName];
+                              
+                              return (
+                                <MemoizedGeography
+                                  key={geo.rsmKey}
+                                  geo={geo}
+                                  districtName={districtName}
+                                  hasPhoto={hasPhoto}
+                                  unvisitedColor={unvisitedColor}
+                                  isDarkBg={isDarkBg}
+                                  onClick={handleMapClick}
+                                />
+                              );
+                            })}
+                          </>
+                        )}
+                      </Geographies>
+                    </ComposableMap>
+                  </div>
                 </div>
               </div>
 
               <div className="absolute bottom-6 left-6 right-6 z-20 pointer-events-none">
-                <p className="text-xs sm:text-sm font-bold leading-tight" style={{ color: isDarkBg ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)' }}>
+                <p className="text-xs sm:text-sm font-bold leading-tight drop-shadow-md" style={{ color: isDarkBg ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)' }}>
                   ভ্রমণ ছিল অজুহাত, পথ বদলেছে বারবার—<br/>
-                  আসল উদ্দেশ্য ছিল <span style={{ color: isDarkBg ? '#10b981' : '#e76f51' }}>আমার বাংলাদেশ</span> কে দেখা।
+                  আসল উদ্দেশ্য ছিল <span style={{ color: isDarkBg ? '#38ef7d' : '#e76f51' }}>আমার বাংলাদেশ</span> কে দেখা।
                 </p>
-                <p className="text-[8px] sm:text-[9px] font-black tracking-widest uppercase mt-3 opacity-60" style={{ color: isDarkBg ? '#ffffff' : '#000000' }}>
+                <p className="text-[8px] sm:text-[9px] font-black tracking-widest uppercase mt-3 opacity-70 drop-shadow-sm" style={{ color: isDarkBg ? '#ffffff' : '#000000' }}>
                   Generated by CUET Adventure Society
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="w-full md:w-80 flex flex-col gap-4 shrink-0">
+          <div className="w-full md:w-[350px] flex flex-col gap-6 shrink-0">
+            
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="mb-6">
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3"><i className="fa-solid fa-fill-drip mr-1 text-blue-500"></i> ব্যাকগ্রাউন্ড কালার:</p>
+                <div className="flex flex-wrap gap-2.5">
+                  {/* 🔴 FIX: Added border to all background color buttons */}
+                  {bgColors.map(color => (
+                    <button 
+                      key={color.value} 
+                      onClick={() => setBgColor(color.value)} 
+                      className={`w-8 h-8 rounded-full shadow-md transition-all border border-gray-300 dark:border-gray-600 ${bgColor === color.value ? 'scale-125 ring-2 ring-emerald-500 ring-offset-2 dark:ring-offset-gray-800' : 'hover:scale-110'}`} 
+                      style={{ background: color.value }} 
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest"><i className="fa-solid fa-palette mr-1 text-purple-500"></i> ফাঁকা জেলার রং:</p>
+                  <button onClick={resetColors} className="text-[10px] font-bold text-gray-400 hover:text-emerald-500 transition-colors flex items-center bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md">
+                    <i className="fa-solid fa-rotate-left mr-1"></i> রিসেট
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2.5">
+                  {/* 🔴 FIX: Added border to all unvisited color buttons */}
+                  {unvisitedColors.map(color => (
+                    <button 
+                      key={color.value} 
+                      onClick={() => setUnvisitedColor(color.value)} 
+                      className={`w-8 h-8 rounded-full shadow-sm transition-all border border-gray-300 dark:border-gray-600 ${unvisitedColor === color.value ? 'scale-125 ring-2 ring-emerald-500 ring-offset-2 dark:ring-offset-gray-800' : 'hover:scale-110'}`} 
+                      style={{ backgroundColor: color.value }} 
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-              <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-lg">
                 <i className="fa-solid fa-map-location-dot"></i>
               </div>
-              <h3 className="text-4xl font-black text-gray-900 dark:text-white">{e2b(Object.keys(districtPhotos).length)} <span className="text-base text-gray-400">/ ৬৪</span></h3>
+              <h3 className="text-4xl font-black text-gray-900 dark:text-white">{e2b(Object.keys(districtPhotos).length)} <span className="text-base text-gray-400 font-bold">/ ৬৪</span></h3>
               <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mt-1">জেলায় ছবি যুক্ত হয়েছে</p>
             </div>
 
-            <button 
-              onClick={() => handleDownloadMap('jpg')} 
-              disabled={downloading || Object.keys(districtPhotos).length === 0}
-              className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex justify-center items-center gap-2 transition-all shadow-md ${downloading || Object.keys(districtPhotos).length === 0 ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600 text-white hover:shadow-[0_5px_20px_rgba(16,185,129,0.4)] hover:-translate-y-0.5'}`}
-            >
-              {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-image"></i>}
-              {downloading ? "প্রসেসিং হচ্ছে..." : "JPG ডাউনলোড"}
-            </button>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => handleDownloadMap('jpg')} 
+                disabled={downloading || Object.keys(districtPhotos).length === 0}
+                className={`w-full py-3.5 rounded-xl font-black text-sm uppercase tracking-widest flex justify-center items-center gap-2 transition-all shadow-md ${downloading || Object.keys(districtPhotos).length === 0 ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600 text-white hover:shadow-[0_8px_25px_rgba(16,185,129,0.4)] hover:-translate-y-1'}`}
+              >
+                {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-image"></i>}
+                {downloading ? "প্রসেসিং হচ্ছে..." : "JPG ডাউনলোড"}
+              </button>
 
-            <button 
-              onClick={() => handleDownloadMap('pdf')} 
-              disabled={downloading || Object.keys(districtPhotos).length === 0}
-              className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex justify-center items-center gap-2 transition-all shadow-md ${downloading || Object.keys(districtPhotos).length === 0 ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-[0_5px_20px_rgba(37,99,235,0.4)] hover:-translate-y-0.5'}`}
-            >
-              {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-file-pdf"></i>}
-              {downloading ? "প্রসেসিং হচ্ছে..." : "PDF ডাউনলোড"}
-            </button>
+              <button 
+                onClick={() => handleDownloadMap('pdf')} 
+                disabled={downloading || Object.keys(districtPhotos).length === 0}
+                className={`w-full py-3.5 rounded-xl font-black text-sm uppercase tracking-widest flex justify-center items-center gap-2 transition-all shadow-md ${downloading || Object.keys(districtPhotos).length === 0 ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-[0_8px_25px_rgba(37,99,235,0.4)] hover:-translate-y-1'}`}
+              >
+                {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-file-pdf"></i>}
+                {downloading ? "প্রসেসিং হচ্ছে..." : "PDF ডাউনলোড"}
+              </button>
+            </div>
 
             {Object.keys(districtPhotos).length > 0 && (
               <button 
@@ -605,9 +616,9 @@ export default function PhotoMapPage() {
                     setDistrictPhotos({});
                   }
                 }}
-                className="w-full py-3 rounded-xl font-bold text-xs text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors border border-red-200 dark:border-transparent mt-2"
+                className="w-full py-3 rounded-xl font-bold text-xs text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors border border-red-200 dark:border-transparent mt-2 flex justify-center items-center gap-2"
               >
-                <i className="fa-solid fa-trash-can mr-1"></i> সব ছবি মুছে ফেলুন
+                <i className="fa-solid fa-trash-can"></i> সব ছবি মুছে ফেলুন
               </button>
             )}
           </div>
