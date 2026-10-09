@@ -11,6 +11,63 @@ import Cropper from "react-easy-crop";
 const geoUrl = "/bd-districts.topo.json";
 
 // ============================================
+// LOCAL STORAGE HELPERS
+// ============================================
+const STORAGE_KEY = "family-map-data-v1";
+const STORAGE_LIMIT_MB = 4.5;
+
+const loadFromStorage = () => {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error("Storage load failed:", e);
+    return null;
+  }
+};
+
+const saveToStorage = (data) => {
+  try {
+    const json = JSON.stringify(data);
+    const sizeBytes = new Blob([json]).size;
+    const sizeMB = sizeBytes / (1024 * 1024);
+
+    if (sizeMB > STORAGE_LIMIT_MB) {
+      return { success: false, reason: "quota", size: sizeMB };
+    }
+
+    localStorage.setItem(STORAGE_KEY, json);
+    return { success: true, size: sizeMB };
+  } catch (e) {
+    if (e.name === "QuotaExceededError") {
+      return { success: false, reason: "quota" };
+    }
+    return { success: false, reason: "unknown", error: e.message };
+  }
+};
+
+const clearStorage = () => {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+const getStorageSize = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return 0;
+    return new Blob([raw]).size / (1024 * 1024);
+  } catch {
+    return 0;
+  }
+};
+
+// ============================================
 // BACKGROUND & MAP COLORS
 // ============================================
 const bgColors = [
@@ -53,7 +110,6 @@ const sideColors = {
 // FAMILY RELATIONS
 // ============================================
 const familyRelations = [
-  // পৈতৃক দিক
   { key: "father",       bn: "বাবা",   side: "paternal" },
   { key: "grandfather_p",bn: "দাদা",   side: "paternal" },
   { key: "grandmother_p",bn: "দাদি",   side: "paternal" },
@@ -61,7 +117,6 @@ const familyRelations = [
   { key: "aunt_p",       bn: "চাচি",   side: "paternal" },
   { key: "aunt_p2",      bn: "ফুফু",   side: "paternal" },
   { key: "uncle_p2",     bn: "ফুফা",   side: "paternal" },
-  // মাতৃকুল
   { key: "mother",       bn: "মা",     side: "maternal" },
   { key: "grandfather_m",bn: "নানা",   side: "maternal" },
   { key: "grandmother_m",bn: "নানি",   side: "maternal" },
@@ -69,14 +124,11 @@ const familyRelations = [
   { key: "aunt_m",       bn: "মামি",   side: "maternal" },
   { key: "aunt_m2",      bn: "খালা",   side: "maternal" },
   { key: "uncle_m2",     bn: "খালু",   side: "maternal" },
-  // নিজ প্রজন্ম
   { key: "brother",      bn: "ভাই",    side: "own" },
   { key: "sister",       bn: "বোন",    side: "own" },
   { key: "cousin",       bn: "কাজিন",  side: "own" },
-  // ইন-ল
   { key: "father_in_law",bn: "শ্বশুর",  side: "in_law" },
   { key: "mother_in_law",bn: "শাশুড়ি", side: "in_law" },
-  // অন্যান্য
   { key: "other",        bn: "অন্যান্য",side: "other" },
 ];
 
@@ -136,7 +188,8 @@ const loadImageWithEXIF = async (file) => {
   }
 };
 
-const getCroppedImg = async (imageSrc, pixelCrop) => {
+// 🔴 CHANGED: Returns base64 data URL (localStorage-safe) with small size
+const getCroppedImg = async (imageSrc, pixelCrop, maxSize = 300, quality = 0.75) => {
   const image = new Image();
   image.src = imageSrc;
   await new Promise((resolve) => (image.onload = resolve));
@@ -144,7 +197,6 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
-  const maxSize = 800;
   let targetWidth = pixelCrop.width;
   let targetHeight = pixelCrop.height;
 
@@ -159,26 +211,8 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
 
   ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, targetWidth, targetHeight);
 
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      resolve(URL.createObjectURL(blob));
-    }, "image/jpeg", 0.9);
-  });
-};
-
-const blobToBase64 = async (blobUrl) => {
-  try {
-    const response = await fetch(blobUrl);
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch (err) {
-    return null;
-  }
+  // ✅ Return base64 string directly
+  return canvas.toDataURL("image/jpeg", quality);
 };
 
 // ============================================
@@ -237,51 +271,72 @@ MemoizedGeography.displayName = 'MemoizedGeography';
 // MAIN COMPONENT
 // ============================================
 export default function FamilyMapPage() {
-  const [familyData, setFamilyData] = useState({}); // { district: [{ id, name, relation, photo }] }
-  const familyRef = useRef(familyData);
+  const [familyData, setFamilyData] = useState({});
+
+  // 🔴 NEW: Storage tracking
+  const isInitialMount = useRef(true);
+  const saveTimeoutRef = useRef(null);
+  const [storageStatus, setStorageStatus] = useState({ size: 0, error: null });
 
   const [bgColor, setBgColor] = useState(bgColors[0].value);
   const [unvisitedColor, setUnvisitedColor] = useState(unvisitedColors[0].value);
-  const [viewMode, setViewMode] = useState("sides"); // "sides" | "photos"
+  const [viewMode, setViewMode] = useState("sides");
 
   const fileInputRef = useRef(null);
   const mapRef = useRef(null);
   const [mapZoom, setMapZoom] = useState(1);
 
-  // Modal state
   const [familyModalDistrict, setFamilyModalDistrict] = useState(null);
-  const [modalMode, setModalMode] = useState("list"); // "list" | "form"
+  const [modalMode, setModalMode] = useState("list");
   const [editingId, setEditingId] = useState(null);
 
-  // Form state
   const [formName, setFormName] = useState("");
   const [formRelation, setFormRelation] = useState("father");
   const [formPhoto, setFormPhoto] = useState(null);
 
-  // Cropper state
   const [rawImage, setRawImage] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const [cropperAspect, setCropperAspect] = useState(1);
 
   const [downloading, setDownloading] = useState(false);
 
   const isDarkBg = bgColors.find(c => c.value === bgColor)?.isDark ?? true;
 
   // ============ EFFECTS ============
+  // 🔴 Init AOS + Load from storage on mount
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
-    return () => {
-      Object.values(familyRef.current).forEach(members => {
-        members.forEach(m => {
-          if (m.photo && m.photo.startsWith('blob:')) URL.revokeObjectURL(m.photo);
-        });
-      });
-    };
+
+    const saved = loadFromStorage();
+    if (saved && typeof saved === "object") {
+      setFamilyData(saved);
+      setStorageStatus({ size: getStorageSize(), error: null });
+    }
   }, []);
 
-  useEffect(() => { familyRef.current = familyData; }, [familyData]);
+  // 🔴 Auto-save to storage (debounced 800ms)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+    saveTimeoutRef.current = setTimeout(() => {
+      const result = saveToStorage(familyData);
+      if (result.success) {
+        setStorageStatus({ size: result.size, error: null });
+      } else {
+        setStorageStatus(prev => ({ ...prev, error: result.reason }));
+      }
+    }, 800);
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [familyData]);
 
   // ============ STATS ============
   const stats = (() => {
@@ -365,8 +420,6 @@ export default function FamilyMapPage() {
     const district = familyModalDistrict;
     setFamilyData(prev => {
       const existing = prev[district] || [];
-      const target = existing.find(m => m.id === memberId);
-      if (target?.photo?.startsWith('blob:')) URL.revokeObjectURL(target.photo);
       const updated = existing.filter(m => m.id !== memberId);
       const newData = { ...prev };
       if (updated.length === 0) delete newData[district];
@@ -378,8 +431,6 @@ export default function FamilyMapPage() {
   const deleteAllInDistrict = () => {
     if (!window.confirm("এই জেলার সব আত্মীয় মুছে ফেলবেন?")) return;
     const district = familyModalDistrict;
-    const members = familyData[district] || [];
-    members.forEach(m => { if (m.photo?.startsWith('blob:')) URL.revokeObjectURL(m.photo); });
     setFamilyData(prev => {
       const nd = { ...prev };
       delete nd[district];
@@ -411,9 +462,9 @@ export default function FamilyMapPage() {
 
   const handleSaveCrop = async () => {
     try {
-      const blobUrl = await getCroppedImg(rawImage, croppedAreaPixels);
-      if (formPhoto && formPhoto.startsWith('blob:')) URL.revokeObjectURL(formPhoto);
-      setFormPhoto(blobUrl);
+      // ✅ Base64 output, 300px, quality 0.75
+      const base64Image = await getCroppedImg(rawImage, croppedAreaPixels, 300, 0.75);
+      setFormPhoto(base64Image);
       setRawImage(null);
     } catch (e) {
       alert("ছবি প্রসেস করতে সমস্যা হয়েছে।");
@@ -421,7 +472,6 @@ export default function FamilyMapPage() {
   };
 
   const removeFormPhoto = () => {
-    if (formPhoto && formPhoto.startsWith('blob:')) URL.revokeObjectURL(formPhoto);
     setFormPhoto(null);
   };
 
@@ -469,9 +519,50 @@ export default function FamilyMapPage() {
     }
   };
 
+  // ============ EXPORT / IMPORT ============
+  const handleExport = () => {
+    const dataStr = JSON.stringify(familyData, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `family-map-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (parsed && typeof parsed === "object") {
+          setFamilyData(parsed);
+          alert("✅ ডেটা সফলভাবে লোড হয়েছে!");
+        } else {
+          alert("❌ ফাইলের format সঠিক নয়");
+        }
+      } catch (err) {
+        alert("❌ ফাইলটি পড়া যায়নি");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = null;
+  };
+
   const handleZoomIn = () => setMapZoom(p => Math.min(p + 0.3, 3));
   const handleZoomOut = () => setMapZoom(p => Math.max(p - 0.3, 1));
   const resetColors = () => { setBgColor(bgColors[0].value); setUnvisitedColor(unvisitedColors[0].value); };
+
+  const handleClearAll = () => {
+    if (window.confirm("আপনি কি নিশ্চিত যে সব আত্মীয় মুছে ফেলতে চান?")) {
+      setFamilyData({});
+      clearStorage();
+      setStorageStatus({ size: 0, error: null });
+    }
+  };
 
   // ============ RENDER ============
   return (
@@ -518,7 +609,6 @@ export default function FamilyMapPage() {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeModal}></div>
           <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl relative z-10 shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
 
-            {/* Header */}
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-start">
               <div>
                 <h3 className="text-2xl font-black text-gray-900 dark:text-white">{districtBn[familyModalDistrict] || familyModalDistrict}</h3>
@@ -531,7 +621,6 @@ export default function FamilyMapPage() {
               </button>
             </div>
 
-            {/* Body */}
             <div className="p-6 overflow-y-auto flex-1">
               {modalMode === "list" ? (
                 <MemberList
@@ -556,7 +645,6 @@ export default function FamilyMapPage() {
               )}
             </div>
 
-            {/* Footer (list mode only) */}
             {modalMode === "list" && (
               <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
                 <button
@@ -584,7 +672,7 @@ export default function FamilyMapPage() {
             </h1>
             <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm inline-block">
               <i className="fa-solid fa-people-roof text-blue-500 mr-2"></i>
-              আপনার পুরো পরিবার দেশের কোথায় কোথায় ছড়িয়ে আছে? জেলায় ক্লিক করে বাবা-মা, দাদা-দাদি, নানা-নানি, চাচা-মামা, খালা-ফুফু — সবাইকে ম্যাপে যোগ করুন এবং পরিবারের Spread Map flex করুন!
+              আপনার পুরো পরিবার দেশের কোথায় কোথায় ছড়িয়ে আছে? জেলায় ক্লিক করে বাবা-মা, দাদা-দাদি, নানা-নানি, চাচা-মামা, খালা-ফুফু — সবাইকে ম্যাপে যোগ করুন। আপনার data স্বয়ংক্রিয়ভাবে ব্রাউজারে save হবে — refresh করলেও থাকবে!
             </p>
           </div>
         </div>
@@ -666,7 +754,6 @@ export default function FamilyMapPage() {
               <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)' }}></div>
               <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 70%)' }}></div>
 
-              {/* Title */}
               <div className="absolute top-8 left-0 right-0 z-20 flex flex-col items-center pointer-events-none px-4">
                 <h2 className="text-3xl sm:text-4xl font-black tracking-tight drop-shadow-md" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
                   আমার <span className="font-bold text-xl sm:text-2xl opacity-90">পরিবার</span>
@@ -674,7 +761,6 @@ export default function FamilyMapPage() {
                 <div className="h-1.5 w-16 rounded-full mt-3 shadow-sm" style={{ background: 'linear-gradient(90deg, #3b82f6, #ec4899)' }}></div>
               </div>
 
-              {/* Legend */}
               <div className="absolute top-24 left-4 z-20 pointer-events-none flex flex-col gap-1">
                 {Object.entries(sideColors).map(([key, c]) => {
                   if (key === "other") return null;
@@ -687,7 +773,6 @@ export default function FamilyMapPage() {
                 })}
               </div>
 
-              {/* Map */}
               <div className="w-full h-full flex items-center justify-center flex-1 mt-10 z-10 relative">
                 <div
                   className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
@@ -745,7 +830,6 @@ export default function FamilyMapPage() {
                 </div>
               </div>
 
-              {/* Footer */}
               <div className="absolute bottom-6 left-6 right-6 z-20 pointer-events-none">
                 <p className="text-xs sm:text-sm font-bold leading-tight drop-shadow-md" style={{ color: isDarkBg ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)' }}>
                   রক্তের বন্ধন ছড়িয়ে আছে <br/>
@@ -775,6 +859,74 @@ export default function FamilyMapPage() {
               >
                 <i className="fa-solid fa-image"></i> ছবি মোড
               </button>
+            </div>
+
+            {/* 🔴 NEW: Storage Status Card */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                  <i className="fa-solid fa-database mr-1 text-emerald-500"></i> ব্রাউজার স্টোরেজ
+                </p>
+                <span className={`text-xs font-black ${
+                  storageStatus.error === "quota" 
+                    ? "text-red-500" 
+                    : storageStatus.size > 3.5 
+                      ? "text-orange-500" 
+                      : "text-emerald-500"
+                }`}>
+                  {storageStatus.size.toFixed(2)} MB / 5 MB
+                </span>
+              </div>
+
+              <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-500 ${
+                    storageStatus.size > 3.5 
+                      ? "bg-gradient-to-r from-orange-400 to-red-500" 
+                      : "bg-gradient-to-r from-emerald-400 to-emerald-500"
+                  }`}
+                  style={{ width: `${Math.min((storageStatus.size / 5) * 100, 100)}%` }}
+                ></div>
+              </div>
+
+              {storageStatus.error === "quota" && (
+                <p className="text-[10px] text-red-500 font-bold mt-2">
+                  <i className="fa-solid fa-triangle-exclamation mr-1"></i>
+                  স্টোরেজ ভরে গেছে! কিছু আত্মীয় মুছে ফেলুন।
+                </p>
+              )}
+
+              {storageStatus.size > 0 && !storageStatus.error && (
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
+                  <i className="fa-solid fa-circle-check mr-1 text-emerald-500"></i>
+                  ব্রাউজারে save আছে — refresh করলেও থাকবে
+                </p>
+              )}
+            </div>
+
+            {/* 🔴 NEW: Export / Import */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleExport}
+                disabled={stats.total === 0}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 ${
+                  stats.total === 0
+                    ? "bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
+                    : "bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-500/20"
+                }`}
+              >
+                <i className="fa-solid fa-download"></i> Export
+              </button>
+              
+              <label className="flex-1 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20">
+                <i className="fa-solid fa-upload"></i> Import
+                <input
+                  type="file"
+                  accept="application/json"
+                  className="hidden"
+                  onChange={handleImport}
+                />
+              </label>
             </div>
 
             {/* Color Controls */}
@@ -860,14 +1012,7 @@ export default function FamilyMapPage() {
             {/* Clear All */}
             {stats.total > 0 && (
               <button
-                onClick={() => {
-                  if (window.confirm("আপনি কি নিশ্চিত যে সব আত্মীয় মুছে ফেলতে চান?")) {
-                    Object.values(familyData).forEach(members => {
-                      members.forEach(m => { if (m.photo?.startsWith('blob:')) URL.revokeObjectURL(m.photo); });
-                    });
-                    setFamilyData({});
-                  }
-                }}
+                onClick={handleClearAll}
                 className="w-full py-3 rounded-xl font-bold text-xs text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors border border-red-200 dark:border-transparent flex justify-center items-center gap-2"
               >
                 <i className="fa-solid fa-trash-can"></i> সব ডেটা মুছে ফেলুন
@@ -948,7 +1093,6 @@ function MemberForm({ formName, setFormName, formRelation, setFormRelation, form
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Photo */}
       <div className="flex flex-col items-center gap-3">
         {formPhoto ? (
           <div className="relative">
@@ -972,7 +1116,6 @@ function MemberForm({ formName, setFormName, formRelation, setFormRelation, form
         )}
       </div>
 
-      {/* Name */}
       <div>
         <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
           আত্মীয়ের নাম <span className="text-red-500">*</span>
@@ -987,7 +1130,6 @@ function MemberForm({ formName, setFormName, formRelation, setFormRelation, form
         />
       </div>
 
-      {/* Relation */}
       <div>
         <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
           সম্পর্ক
@@ -1029,7 +1171,6 @@ function MemberForm({ formName, setFormName, formRelation, setFormRelation, form
         </div>
       </div>
 
-      {/* Actions */}
       <div className="flex gap-3 pt-2">
         <button onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
           বাতিল
