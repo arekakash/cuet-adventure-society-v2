@@ -288,10 +288,8 @@ export default function FamilyMapPage() {
 
   const isDarkBg = bgColors.find(c => c.value === bgColor)?.isDark ?? true;
 
-  // ============ EFFECTS ============
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
-
     const saved = loadFromStorage();
     if (saved && typeof saved === "object") {
       setFamilyData(saved);
@@ -318,7 +316,6 @@ export default function FamilyMapPage() {
     };
   }, [familyData]);
 
-  // ============ STATS ============
   const stats = (() => {
     let total = 0, paternal = 0, maternal = 0, own = 0, inLaw = 0;
     Object.values(familyData).forEach(members => {
@@ -336,7 +333,6 @@ export default function FamilyMapPage() {
 
   const percentage = Math.round((stats.districts / 64) * 100);
 
-  // ============ MODAL ============
   const openDistrictModal = useCallback((districtName) => {
     setFamilyModalDistrict(districtName);
     setModalMode("list");
@@ -421,7 +417,6 @@ export default function FamilyMapPage() {
     closeModal();
   };
 
-  // ============ PHOTO ============
   const handlePhotoClick = () => fileInputRef.current.click();
 
   const handleFileChange = async (e) => {
@@ -454,7 +449,6 @@ export default function FamilyMapPage() {
 
   const removeFormPhoto = () => setFormPhoto(null);
 
-  // ============ DOWNLOAD ============
   const handleDownload = async (format) => {
     if (!mapRef.current) return;
     setDownloading(true);
@@ -498,7 +492,6 @@ export default function FamilyMapPage() {
     }
   };
 
-  // ============ EXPORT / IMPORT ============
   const handleExport = () => {
     const dataStr = JSON.stringify(familyData, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
@@ -543,12 +536,11 @@ export default function FamilyMapPage() {
     }
   };
 
-  // ============ RENDER ============
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans transition-colors duration-500">
       <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
 
-      {/* ============ CROPPER MODAL ============ */}
+      {/* CROPPER MODAL */}
       {rawImage && (
         <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-sm flex flex-col isolate">
           <div className="bg-gray-900 text-center py-3 text-white border-b border-white/10 z-10 shadow-md">
@@ -582,7 +574,7 @@ export default function FamilyMapPage() {
         </div>
       )}
 
-      {/* ============ FAMILY MODAL ============ */}
+      {/* FAMILY MODAL */}
       {familyModalDistrict && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeModal}></div>
@@ -637,7 +629,7 @@ export default function FamilyMapPage() {
 
       <div className="max-w-6xl mx-auto relative z-10 flex flex-col gap-10">
 
-        {/* ============ HERO ============ */}
+        {/* HERO */}
         <div className="flex flex-col mb-4" data-aos="fade-down">
           <div className="w-full">
             <Link href="/my-bangladesh" className="inline-flex items-center gap-2 text-gray-500 hover:text-campfire font-bold mb-4 text-sm transition-colors">
@@ -653,7 +645,7 @@ export default function FamilyMapPage() {
           </div>
         </div>
 
-        {/* ============ DISTRICT LIST ============ */}
+        {/* DISTRICT LIST */}
         <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-[2rem] border border-gray-200 dark:border-gray-700 shadow-sm" data-aos="fade-up">
           <h3 className="text-xl font-black mb-6 text-gray-900 dark:text-white flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 pb-4">
             <i className="fa-solid fa-sitemap text-emerald-500"></i> জেলা অনুযায়ী আত্মীয় যোগ করুন
@@ -709,216 +701,185 @@ export default function FamilyMapPage() {
           </div>
         </div>
 
-        {/* ============ MAP + SIDEBAR ============ */}
+        {/* MAP + SIDEBAR */}
         <div className="flex flex-col md:flex-row gap-8 items-start" data-aos="fade-up">
 
-          {/* ============ MAP CARD — Blended layout ============ */}
+          {/* MAP CARD — FULLY BLENDED */}
           <div className="flex-grow flex justify-center relative w-full">
             <div
               ref={mapRef}
-              className="w-full max-w-[650px] aspect-[4/5] relative rounded-[2rem] overflow-hidden shadow-2xl transition-all duration-500 flex flex-col"
+              className="w-full max-w-[650px] aspect-[4/5] relative rounded-[2rem] overflow-hidden shadow-2xl transition-all duration-500"
               style={{ background: bgColor }}
             >
               {/* Decorative glows */}
-              <div
-                className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0"
-                style={{ background: "radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)" }}
-              ></div>
-              <div
-                className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0"
-                style={{ background: "radial-gradient(circle, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 70%)" }}
-              ></div>
+              <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)' }}></div>
+              <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 70%)' }}></div>
 
-              {/* ===== TOP ROW: Legend (left, small) + Title (right) ===== */}
-              <div className="relative z-20 px-4 pt-4 flex justify-between items-start gap-3 shrink-0">
-                {/* Legend — much smaller, blended */}
-                <div className="flex flex-col gap-0.5 pt-0.5">
+              {/* ===== MAP — fills entire card ===== */}
+              <div
+                className="absolute inset-0 z-0 flex items-center justify-center transition-transform duration-300 ease-out"
+                style={{ transform: `scale(${mapZoom})`, transformOrigin: "center" }}
+              >
+                <div
+                  style={{
+                    filter: isDarkBg
+                      ? 'drop-shadow(0px 25px 35px rgba(0,0,0,0.6)) drop-shadow(0px 10px 15px rgba(0,0,0,0.4))'
+                      : 'drop-shadow(0px 25px 35px rgba(0,0,0,0.25)) drop-shadow(0px 10px 15px rgba(0,0,0,0.15))'
+                  }}
+                  className="w-full h-full flex items-center justify-center"
+                >
+                  <ComposableMap
+                    projection="geoMercator"
+                    projectionConfig={{ scale: 6500, center: [90.35, 23.8] }}
+                    className="w-full h-full outline-none"
+                  >
+                    <defs>
+                      {viewMode === "photos" && Object.entries(familyData).map(([district, members]) => {
+                        const photo = members.find(m => m.photo)?.photo;
+                        if (!photo) return null;
+                        return (
+                          <pattern
+                            key={`pattern-${district}`}
+                            id={`pattern-${safeSvgId(district)}`}
+                            width="100%"
+                            height="100%"
+                            patternContentUnits="objectBoundingBox"
+                            preserveAspectRatio="xMidYMid slice"
+                          >
+                            <image href={photo} preserveAspectRatio="xMidYMid slice" width="1" height="1" />
+                          </pattern>
+                        );
+                      })}
+                    </defs>
+
+                    <Geographies geography={geoUrl}>
+                      {({ geographies }) => (
+                        <>
+                          {geographies.map((geo) => {
+                            const rawName = geo.properties.adm2_name || geo.properties.ADM2_EN || geo.properties.NAME_2 || geo.properties.name || geo.properties.Dist_Name || geo.properties.district;
+                            const districtName = standardMap[rawName] || rawName;
+                            const members = familyData[districtName] || [];
+                            const hasMembers = members.length > 0;
+                            const side = getDominantSide(members);
+                            const sideColor = side ? sideColors[side].value : unvisitedColor;
+                            const photoPatternUrl = viewMode === "photos" ? members.find(m => m.photo)?.photo : null;
+
+                            return (
+                              <MemoizedGeography
+                                key={geo.rsmKey}
+                                geo={geo}
+                                districtName={districtName}
+                                fillColor={hasMembers ? sideColor : unvisitedColor}
+                                patternUrl={photoPatternUrl}
+                                strokeColor={isDarkBg ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.15)"}
+                                isDarkBg={isDarkBg}
+                                hoverStroke={isDarkBg ? "#ffffff" : "#1e293b"}
+                                onClick={openDistrictModal}
+                              />
+                            );
+                          })}
+                        </>
+                      )}
+                    </Geographies>
+                  </ComposableMap>
+                </div>
+              </div>
+
+              {/* ===== HEADER OVERLAY — blended, no card ===== */}
+              <div className="absolute top-0 left-0 right-0 z-20 px-4 pt-4 flex justify-between items-start gap-3 pointer-events-none">
+                {/* Legend — tiny */}
+                <div className="flex flex-col gap-0.5">
                   {Object.entries(sideColors).map(([key, c]) => {
                     if (key === "other") return null;
                     return (
                       <div
                         key={key}
                         className="flex items-center gap-1 text-[7px] font-bold leading-tight"
-                        style={{
-                          color: isDarkBg ? "rgba(255,255,255,0.75)" : "rgba(30,41,59,0.7)",
-                        }}
+                        style={{ color: isDarkBg ? 'rgba(255,255,255,0.7)' : 'rgba(30,41,59,0.65)' }}
                       >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ background: c.value }}
-                        ></span>
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: c.value }}></span>
                         <span>{c.label}</span>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Title — bigger, right */}
+                {/* Title */}
                 <div className="text-right shrink-0">
                   <h2
                     className="text-2xl sm:text-3xl font-black tracking-tight drop-shadow-md leading-none whitespace-nowrap"
-                    style={{ color: isDarkBg ? "#ffffff" : "#1e293b" }}
+                    style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}
                   >
                     আমার <span className="font-bold opacity-90">পরিবার</span>
                   </h2>
                   <div
                     className="h-1 w-16 rounded-full mt-2 ml-auto shadow-sm"
-                    style={{ background: "linear-gradient(90deg, #3b82f6, #ec4899)" }}
+                    style={{ background: 'linear-gradient(90deg, #3b82f6, #ec4899)' }}
                   ></div>
                 </div>
               </div>
 
-              {/* ===== MAP AREA — grows to fill ===== */}
-              <div className="flex-1 relative z-10 overflow-hidden">
-                {/* Zoom buttons */}
-                <div
-                  className="absolute top-3 right-3 z-30 flex flex-col gap-2"
-                  data-html2canvas-ignore="true"
+              {/* ===== ZOOM BUTTONS — below title ===== */}
+              <div className="absolute top-20 right-4 z-30 flex flex-col gap-2" data-html2canvas-ignore="true">
+                <button
+                  onClick={handleZoomIn}
+                  className="w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white/90 dark:bg-gray-800/90 backdrop-blur text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700"
                 >
-                  <button
-                    onClick={handleZoomIn}
-                    className="w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white/90 dark:bg-gray-800/90 backdrop-blur text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700"
-                  >
-                    <i className="fa-solid fa-plus text-sm"></i>
-                  </button>
-                  <button
-                    onClick={handleZoomOut}
-                    className="w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white/90 dark:bg-gray-800/90 backdrop-blur text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700"
-                  >
-                    <i className="fa-solid fa-minus text-sm"></i>
-                  </button>
-                </div>
-
-                <div
-                  className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
-                  style={{ transform: `scale(${mapZoom})`, transformOrigin: "center" }}
+                  <i className="fa-solid fa-plus text-sm"></i>
+                </button>
+                <button
+                  onClick={handleZoomOut}
+                  className="w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white/90 dark:bg-gray-800/90 backdrop-blur text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700"
                 >
-                  <div
-                    style={{
-                      filter: isDarkBg
-                        ? "drop-shadow(0px 25px 35px rgba(0,0,0,0.6)) drop-shadow(0px 10px 15px rgba(0,0,0,0.4))"
-                        : "drop-shadow(0px 25px 35px rgba(0,0,0,0.25)) drop-shadow(0px 10px 15px rgba(0,0,0,0.15))",
-                    }}
-                    className="w-full h-full flex items-center justify-center"
-                  >
-                    <ComposableMap
-                      projection="geoMercator"
-                      projectionConfig={{ scale: 6500, center: [90.35, 23.8] }}
-                      className="w-full h-full outline-none"
-                    >
-                      <defs>
-                        {viewMode === "photos" &&
-                          Object.entries(familyData).map(([district, members]) => {
-                            const photo = members.find((m) => m.photo)?.photo;
-                            if (!photo) return null;
-                            return (
-                              <pattern
-                                key={`pattern-${district}`}
-                                id={`pattern-${safeSvgId(district)}`}
-                                width="100%"
-                                height="100%"
-                                patternContentUnits="objectBoundingBox"
-                                preserveAspectRatio="xMidYMid slice"
-                              >
-                                <image
-                                  href={photo}
-                                  preserveAspectRatio="xMidYMid slice"
-                                  width="1"
-                                  height="1"
-                                />
-                              </pattern>
-                            );
-                          })}
-                      </defs>
-
-                      <Geographies geography={geoUrl}>
-                        {({ geographies }) => (
-                          <>
-                            {geographies.map((geo) => {
-                              const rawName =
-                                geo.properties.adm2_name ||
-                                geo.properties.ADM2_EN ||
-                                geo.properties.NAME_2 ||
-                                geo.properties.name ||
-                                geo.properties.Dist_Name ||
-                                geo.properties.district;
-                              const districtName = standardMap[rawName] || rawName;
-                              const members = familyData[districtName] || [];
-                              const hasMembers = members.length > 0;
-                              const side = getDominantSide(members);
-                              const sideColor = side ? sideColors[side].value : unvisitedColor;
-                              const photoPatternUrl =
-                                viewMode === "photos"
-                                  ? members.find((m) => m.photo)?.photo
-                                  : null;
-
-                              return (
-                                <MemoizedGeography
-                                  key={geo.rsmKey}
-                                  geo={geo}
-                                  districtName={districtName}
-                                  fillColor={hasMembers ? sideColor : unvisitedColor}
-                                  patternUrl={photoPatternUrl}
-                                  strokeColor={
-                                    isDarkBg ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.15)"
-                                  }
-                                  isDarkBg={isDarkBg}
-                                  hoverStroke={isDarkBg ? "#ffffff" : "#1e293b"}
-                                  onClick={openDistrictModal}
-                                />
-                              );
-                            })}
-                          </>
-                        )}
-                      </Geographies>
-                    </ComposableMap>
-                  </div>
-                </div>
+                  <i className="fa-solid fa-minus text-sm"></i>
+                </button>
               </div>
 
-              {/* ===== BOTTOM ROW: Progress Bar + Branding (blended) ===== */}
-              <div className="relative z-20 px-4 pb-4 pt-2 shrink-0">
-                <div className="flex flex-col gap-1.5">
-                  <p
-                    className="text-[9px] sm:text-[10px] font-bold leading-tight"
+              {/* ===== FOOTER OVERLAY — blended, minimal ===== */}
+              <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-2 pointer-events-none">
+                <p
+                  className="text-[9px] sm:text-[10px] font-bold leading-tight mb-1"
+                  style={{ color: isDarkBg ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)' }}
+                >
+                  আপনার শিকড় বাংলাদেশের{' '}
+                  <span
+                    className="inline-block px-1.5 py-0.5 rounded-md font-black mx-0.5 align-middle"
                     style={{
-                      color: isDarkBg ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.8)",
+                      background: 'linear-gradient(90deg, #3b82f6, #ec4899)',
+                      color: '#ffffff',
+                      fontSize: '0.95em',
+                      lineHeight: 1
                     }}
                   >
-                    আপনার শিকড় বাংলাদেশের{" "}
-                    <span style={{ color: "#ec4899" }}>{e2b(percentage)}%</span>{" "}
-                    জায়গা জুড়ে বিস্তৃত
-                  </p>
+                    {e2b(percentage)}%
+                  </span>{' '}
+                  জায়গা জুড়ে বিস্তৃত
+                </p>
+                <div
+                  className="h-1 rounded-full overflow-hidden mb-1.5"
+                  style={{ background: isDarkBg ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.08)' }}
+                >
                   <div
-                    className="h-1.5 rounded-full overflow-hidden"
+                    className="h-full rounded-full transition-all duration-700 ease-out"
                     style={{
-                      background: isDarkBg ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.08)",
+                      width: `${Math.max(percentage, stats.districts > 0 ? 3 : 0)}%`,
+                      background: 'linear-gradient(90deg, #3b82f6, #a855f7, #ec4899)'
                     }}
-                  >
-                    <div
-                      className="h-full rounded-full transition-all duration-700 ease-out"
-                      style={{
-                        width: `${Math.max(percentage, stats.districts > 0 ? 3 : 0)}%`,
-                        background: "linear-gradient(90deg, #3b82f6, #a855f7, #ec4899)",
-                      }}
-                    ></div>
-                  </div>
-
-                  <p
-                    className="text-[6px] sm:text-[7px] font-black tracking-widest uppercase opacity-50 mt-1"
-                    style={{ color: isDarkBg ? "#ffffff" : "#000000" }}
-                  >
-                    Generated by CUET Adventure Society
-                  </p>
+                  ></div>
                 </div>
+                <p
+                  className="text-[6px] font-black tracking-widest uppercase opacity-50"
+                  style={{ color: isDarkBg ? '#ffffff' : '#000000' }}
+                >
+                  Generated by CUET Adventure Society
+                </p>
               </div>
             </div>
           </div>
 
-          {/* ============ SIDEBAR ============ */}
+          {/* SIDEBAR */}
           <div className="w-full md:w-[350px] flex flex-col gap-6 shrink-0">
 
-            {/* View Mode Toggle */}
             <div className="bg-white dark:bg-gray-800 p-2 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex gap-1">
               <button
                 onClick={() => setViewMode("sides")}
@@ -934,7 +895,6 @@ export default function FamilyMapPage() {
               </button>
             </div>
 
-            {/* Storage Status */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-center mb-2">
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
@@ -974,7 +934,6 @@ export default function FamilyMapPage() {
               )}
             </div>
 
-            {/* Export / Import */}
             <div className="flex gap-2">
               <button
                 onClick={handleExport}
@@ -993,7 +952,6 @@ export default function FamilyMapPage() {
               </label>
             </div>
 
-            {/* Colors */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="mb-6">
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3"><i className="fa-solid fa-fill-drip mr-1 text-blue-500"></i> ব্যাকগ্রাউন্ড:</p>
@@ -1022,7 +980,6 @@ export default function FamilyMapPage() {
               </div>
             </div>
 
-            {/* Stats */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="text-center mb-5">
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white rounded-full flex items-center justify-center mx-auto mb-3 text-2xl shadow-lg">
@@ -1052,7 +1009,6 @@ export default function FamilyMapPage() {
               </div>
             </div>
 
-            {/* Download */}
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => handleDownload('jpg')}
@@ -1072,7 +1028,6 @@ export default function FamilyMapPage() {
               </button>
             </div>
 
-            {/* Clear All */}
             {stats.total > 0 && (
               <button
                 onClick={handleClearAll}
