@@ -36,7 +36,7 @@ const unvisitedColors = [
 
 const e2b = (num) => String(num).replace(/[0-9]/g, d => '০১২৩৪৫৬৭৮৯'[d]);
 
-// 🔴 NEW: SVG-safe ID generator (removes apostrophes, spaces, special chars)
+// SVG-safe ID generator (removes apostrophes, spaces, special chars)
 const safeSvgId = (name) => String(name).replace(/[^a-zA-Z0-9]/g, '_');
 
 const standardMap = {
@@ -50,13 +50,13 @@ const standardMap = {
 };
 
 const districtBn = {
-  "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
-  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
-  "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
-  "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
-  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Sherpur": "শেরপুর",
-  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
-  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
+  "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
+  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
+  "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
+  "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
+  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Sherpur": "শেরপুর",
+  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
+  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
 };
 
@@ -68,7 +68,7 @@ const bangladeshDivisions = [
   { name: "রাজশাহী", districts: ["Bogura", "Chapainawabganj", "Joypurhat", "Naogaon", "Natore", "Pabna", "Rajshahi", "Sirajganj"] },
   { name: "রংপুর", districts: ["Dinajpur", "Gaibandha", "Kurigram", "Lalmonirhat", "Nilphamari", "Panchagarh", "Rangpur", "Thakurgaon"] },
   { name: "বরিশাল", districts: ["Barguna", "Barishal", "Bhola", "Jhalokati", "Patuakhali", "Pirojpur"] },
-  { name: "ময়মনসিংহ", districts: ["Jamalpur", "Mymensingh", "Netrokona", "Sherpur"] }
+  { name: "ময়মনসিংহ", districts: ["Jamalpur", "Mymensingh", "Netrokona", "Sherpur"] }
 ];
 
 const loadImageWithEXIF = async (file) => {
@@ -140,7 +140,6 @@ const MemoizedGeography = memo(({ geo, districtName, hasPhoto, unvisitedColor, i
   const isDarkUnvisited = unvisitedColor === "#1e293b"; 
   const strokeColor = hasPhoto ? "rgba(255,255,255,0.8)" : (isDarkUnvisited ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.2)");
   
-  // 🔴 NEW: safe pattern id
   const patternId = `pattern-${safeSvgId(districtName)}`;
 
   return (
@@ -149,14 +148,14 @@ const MemoizedGeography = memo(({ geo, districtName, hasPhoto, unvisitedColor, i
       onClick={() => onClick(geo, districtName)}
       style={{
         default: {
-          fill: hasPhoto ? `url(#${patternId})` : unvisitedColor,   // 🔴 CHANGED
+          fill: hasPhoto ? `url(#${patternId})` : unvisitedColor,
           outline: "none",
           stroke: strokeColor,
           strokeWidth: hasPhoto ? 1.5 : 0.8,
           transition: "all 0.3s ease"
         },
         hover: {
-          fill: hasPhoto ? `url(#${patternId})` : "#94a3b8",        // 🔴 CHANGED
+          fill: hasPhoto ? `url(#${patternId})` : "#94a3b8",
           outline: "none",
           stroke: isDarkBg ? "#ffffff" : "#1e293b",
           strokeWidth: 2,
@@ -332,7 +331,7 @@ export default function PhotoMapPage() {
       
     } catch (error) {
       console.error("Download Error:", error);
-      alert("ম্যাপটি ডাউনলোড করতে সমস্যা হয়েছে।");
+      alert("ম্যাপটি ডাউনলোড করতে সমস্যা হয়েছে।");
     } finally {
       setDistrictPhotos(originalUrls);
       setMapZoom(originalZoom); 
@@ -417,8 +416,9 @@ export default function PhotoMapPage() {
         
         <div className="flex flex-col mb-4" data-aos="fade-down">
           <div className="w-full">
+            {/* 🔴 Back link → Hub */}
             <Link href="/my-bangladesh" className="inline-flex items-center gap-2 text-gray-500 hover:text-campfire font-bold mb-4 text-sm transition-colors">
-              <i className="fa-solid fa-arrow-left"></i> কালার ম্যাপে ফিরে যান
+              <i className="fa-solid fa-arrow-left"></i> My Bangladesh হোম
             </Link>
             <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white mb-4 uppercase tracking-tight leading-tight">
               আপনার নিজস্ব <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-blue-500">ফটো ম্যাপ</span> তৈরি করুন
