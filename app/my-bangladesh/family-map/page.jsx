@@ -188,7 +188,7 @@ const loadImageWithEXIF = async (file) => {
   }
 };
 
-// 🔴 CHANGED: Returns base64 data URL (localStorage-safe) with small size
+// Returns base64 data URL (localStorage-safe) with small size
 const getCroppedImg = async (imageSrc, pixelCrop, maxSize = 300, quality = 0.75) => {
   const image = new Image();
   image.src = imageSrc;
@@ -211,7 +211,6 @@ const getCroppedImg = async (imageSrc, pixelCrop, maxSize = 300, quality = 0.75)
 
   ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, targetWidth, targetHeight);
 
-  // ✅ Return base64 string directly
   return canvas.toDataURL("image/jpeg", quality);
 };
 
@@ -273,7 +272,6 @@ MemoizedGeography.displayName = 'MemoizedGeography';
 export default function FamilyMapPage() {
   const [familyData, setFamilyData] = useState({});
 
-  // 🔴 NEW: Storage tracking
   const isInitialMount = useRef(true);
   const saveTimeoutRef = useRef(null);
   const [storageStatus, setStorageStatus] = useState({ size: 0, error: null });
@@ -304,7 +302,6 @@ export default function FamilyMapPage() {
   const isDarkBg = bgColors.find(c => c.value === bgColor)?.isDark ?? true;
 
   // ============ EFFECTS ============
-  // 🔴 Init AOS + Load from storage on mount
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
 
@@ -315,7 +312,6 @@ export default function FamilyMapPage() {
     }
   }, []);
 
-  // 🔴 Auto-save to storage (debounced 800ms)
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -462,7 +458,6 @@ export default function FamilyMapPage() {
 
   const handleSaveCrop = async () => {
     try {
-      // ✅ Base64 output, 300px, quality 0.75
       const base64Image = await getCroppedImg(rawImage, croppedAreaPixels, 300, 0.75);
       setFormPhoto(base64Image);
       setRawImage(null);
@@ -664,8 +659,9 @@ export default function FamilyMapPage() {
         {/* ============ HERO ============ */}
         <div className="flex flex-col mb-4" data-aos="fade-down">
           <div className="w-full">
+            {/* 🔴 Back link → Hub */}
             <Link href="/my-bangladesh" className="inline-flex items-center gap-2 text-gray-500 hover:text-campfire font-bold mb-4 text-sm transition-colors">
-              <i className="fa-solid fa-arrow-left"></i> কালার ম্যাপে ফিরে যান
+              <i className="fa-solid fa-arrow-left"></i> My Bangladesh হোম
             </Link>
             <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white mb-4 uppercase tracking-tight leading-tight">
               আমার <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">পরিবার ম্যাপ</span>
@@ -861,7 +857,7 @@ export default function FamilyMapPage() {
               </button>
             </div>
 
-            {/* 🔴 NEW: Storage Status Card */}
+            {/* Storage Status Card */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-center mb-2">
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
@@ -904,7 +900,7 @@ export default function FamilyMapPage() {
               )}
             </div>
 
-            {/* 🔴 NEW: Export / Import */}
+            {/* Export / Import */}
             <div className="flex gap-2">
               <button
                 onClick={handleExport}
