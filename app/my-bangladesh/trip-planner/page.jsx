@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useRef, useCallback, memo, useMemo } from "react";
 import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
-import { geoCentroid, geoMercator } from "d3-geo";
+import { geoCentroid, geoMercator, geoContains } from "d3-geo";
+import * as topojson from "topojson-client";
 import Link from "next/link";
 import { toJpeg } from "html-to-image";
 import { jsPDF } from "jspdf";
@@ -45,7 +46,7 @@ const haversine = (p1, p2) => {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-// ---- Robust name extractors ----
+// ---- Robust name extractor ----
 const getUpazilaName = (props) => {
   if (!props || typeof props !== "object") return "উপজেলা";
   const keys = [
@@ -67,32 +68,23 @@ const getUpazilaName = (props) => {
   return "উপজেলা";
 };
 
-const getDistrictName = (props) => {
-  if (!props || typeof props !== "object") return "অন্যান্য জেলা";
-  const keys = [
-    "adm2_name", "ADM2_NAME", "ADM2_EN", "adm2_en",
-    "DIST_NAME", "DIST_EN", "DIST_NAME_B", "DISTRICT", "district",
-    "Dist_Name", "dist_name", "DIST_NAME_2",
-    "NAME_2", "ADM2", "adm2", "DIST", "dist"
-  ];
-  for (const k of keys) {
-    const v = props[k];
-    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
-  }
-  return "অন্যান্য জেলা";
-};
+// ============================================
+// DIVISION MAPPING
+// ============================================
+const bangladeshDivisions = [
+  { name: "ঢাকা", districts: ["Dhaka", "Faridpur", "Gazipur", "Gopalganj", "Kishoreganj", "Madaripur", "Manikganj", "Munshiganj", "Narayanganj", "Narsingdi", "Rajbari", "Shariatpur", "Tangail"] },
+  { name: "চট্টগ্রাম", districts: ["Bandarban", "Brahmanbaria", "Chandpur", "Chattogram", "Cox's Bazar", "Cumilla", "Feni", "Khagrachhari", "Lakshmipur", "Noakhali", "Rangamati"] },
+  { name: "সিলেট", districts: ["Habiganj", "Moulvibazar", "Sunamganj", "Sylhet"] },
+  { name: "খুলনা", districts: ["Bagerhat", "Chuadanga", "Jashore", "Jhenaidah", "Khulna", "Kushtia", "Magura", "Meherpur", "Narail", "Satkhira"] },
+  { name: "রাজশাহী", districts: ["Bogura", "Chapainawabganj", "Joypurhat", "Naogaon", "Natore", "Pabna", "Rajshahi", "Sirajganj"] },
+  { name: "রংপুর", districts: ["Dinajpur", "Gaibandha", "Kurigram", "Lalmonirhat", "Nilphamari", "Panchagarh", "Rangpur", "Thakurgaon"] },
+  { name: "বরিশাল", districts: ["Barguna", "Barishal", "Bhola", "Jhalokati", "Patuakhali", "Pirojpur"] },
+  { name: "ময়মনসিংহ", districts: ["Jamalpur", "Mymensingh", "Netrokona", "Sherpur"] }
+];
 
-const getDivisionName = (props) => {
-  if (!props || typeof props !== "object") return "অন্যান্য বিভাগ";
-  const keys = [
-    "adm1_name", "ADM1_NAME", "ADM1_EN", "adm1_en",
-    "DIV_NAME", "DIV_EN", "DIV_NAME_B", "DIVISION", "division",
-    "Div_Name", "div_name",
-    "NAME_1", "ADM1", "adm1", "DIV", "div"
-  ];
-  for (const k of keys) {
-    const v = props[k];
-    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
+const divisionOfDistrict = (districtName) => {
+  for (const div of bangladeshDivisions) {
+    if (div.districts.includes(districtName)) return div.name;
   }
   return "অন্যান্য বিভাগ";
 };
@@ -285,9 +277,7 @@ function HierarchyExplorer({ hierarchy, waypointKeysByRsmKey, onToggleUpazila, r
                                 title={u.name}
                               >
                                 {isActive && (
-                                  <span
-                                    className="w-3.5 h-3.5 rounded-full bg-white/30 text-white text-[8px] font-black flex items-center justify-center shrink-0"
-                                  >
+                                  <span className="w-3.5 h-3.5 rounded-full bg-white/30 text-white text-[8px] font-black flex items-center justify-center shrink-0">
                                     {e2b(wpIdx)}
                                   </span>
                                 )}
@@ -326,8 +316,8 @@ export default function TripPlannerPage() {
 
   // Hierarchy state
   const [hierarchy, setHierarchy] = useState({});
+  const [districtLookup, setDistrictLookup] = useState(null);
   const hierarchyBuilt = useRef(false);
-  const rsmKeyCache = useRef({});
 
   const mapRef = useRef(null);
 
@@ -336,6 +326,35 @@ export default function TripPlannerPage() {
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
+  }, []);
+
+  // 🔴 Load district topojson for lookup
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/bd-districts.topo.json");
+        const topo = await res.json();
+        const key = Object.keys(topo.objects)[0];
+        const features = topojson.feature(topo, topo.objects[key]).features;
+        const lookup = features.map((f) => {
+          const props = f.properties || {};
+          const rawName =
+            props.adm2_name ||
+            props.ADM2_EN ||
+            props.NAME_2 ||
+            props.name ||
+            props.Dist_Name ||
+            props.district ||
+            "Unknown";
+          const name = rawName === "Coxs Bazar" ? "Cox's Bazar" : rawName;
+          return { name, geometry: f };
+        });
+        setDistrictLookup(lookup);
+        console.log("[Trip Planner] Districts loaded:", lookup.length);
+      } catch (err) {
+        console.error("District lookup failed:", err);
+      }
+    })();
   }, []);
 
   // ============ STATS ============
@@ -366,12 +385,10 @@ export default function TripPlannerPage() {
     let rsmKey, coordinates, upzName;
 
     if (geoOrUpz && typeof geoOrUpz === "object" && "rsmKey" in geoOrUpz) {
-      // From sidebar — has rsmKey + coordinates
       rsmKey = geoOrUpz.rsmKey;
       coordinates = geoOrUpz.coordinates;
       upzName = geoOrUpz.name;
     } else {
-      // From map click — geo object
       const centroid = geoCentroid(geoOrUpz);
       if (!centroid || !isFinite(centroid[0])) return;
       rsmKey = geoOrUpz.rsmKey;
@@ -381,11 +398,7 @@ export default function TripPlannerPage() {
 
     setWaypoints((prev) => {
       const exists = prev.find((w) => w.id_key === rsmKey);
-      if (exists) {
-        // Remove
-        return prev.filter((w) => w.id_key !== rsmKey);
-      }
-      // Add
+      if (exists) return prev.filter((w) => w.id_key !== rsmKey);
       return [
         ...prev,
         {
@@ -471,7 +484,7 @@ export default function TripPlannerPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans transition-colors duration-500">
       <div className="max-w-6xl mx-auto relative z-10 flex flex-col gap-10">
 
-        {/* ============ HERO ============ */}
+        {/* HERO */}
         <div className="flex flex-col mb-4" data-aos="fade-down">
           <div className="w-full">
             <Link
@@ -493,17 +506,16 @@ export default function TripPlannerPage() {
           </div>
         </div>
 
-        {/* ============ MAP + SIDEBAR ============ */}
+        {/* MAP + SIDEBAR */}
         <div className="flex flex-col md:flex-row gap-8 items-start" data-aos="fade-up">
 
-          {/* ============ MAP CARD ============ */}
+          {/* MAP CARD */}
           <div className="flex-grow flex justify-center relative w-full">
             <div
               ref={mapRef}
               className="w-full max-w-[650px] aspect-[4/5] relative rounded-[2rem] overflow-hidden shadow-2xl transition-all duration-500 flex flex-col"
               style={{ background: bgColor }}
             >
-              {/* Decorative glows */}
               <div
                 className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0"
                 style={{ background: "radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)" }}
@@ -617,44 +629,44 @@ export default function TripPlannerPage() {
 
                       <Geographies geography={geoUrl}>
                         {({ geographies }) => {
-                          // ---- Build hierarchy ONCE ----
-                          if (!hierarchyBuilt.current && geographies.length > 0) {
+                          // ---- Build hierarchy ONCE (with district lookup via geoContains) ----
+                          if (!hierarchyBuilt.current && geographies.length > 0 && districtLookup) {
                             hierarchyBuilt.current = true;
                             const h = {};
-                            const keyMap = {};
 
                             geographies.forEach((g) => {
-                              const div = getDivisionName(g.properties);
-                              const dist = getDistrictName(g.properties);
                               const upz = getUpazilaName(g.properties);
-
                               const centroid = geoCentroid(g);
                               if (!centroid || !isFinite(centroid[0])) return;
 
-                              if (!h[div]) h[div] = {};
-                              if (!h[div][dist]) h[div][dist] = [];
+                              // Find containing district
+                              let districtName = "অন্যান্য জেলা";
+                              for (const d of districtLookup) {
+                                try {
+                                  if (geoContains(d.geometry, centroid)) {
+                                    districtName = d.name;
+                                    break;
+                                  }
+                                } catch (e) {}
+                              }
 
-                              const entry = {
+                              const divisionName = divisionOfDistrict(districtName);
+
+                              if (!h[divisionName]) h[divisionName] = {};
+                              if (!h[divisionName][districtName]) h[divisionName][districtName] = [];
+
+                              h[divisionName][districtName].push({
                                 name: upz,
                                 rsmKey: g.rsmKey,
                                 coordinates: centroid,
-                              };
-                              h[div][dist].push(entry);
-                              keyMap[g.rsmKey] = entry;
+                              });
                             });
 
-                            rsmKeyCache.current = keyMap;
-
-                            // Debug — log first upazila props so user can report
                             if (process.env.NODE_ENV !== "production") {
-                              console.log(
-                                "[Trip Planner] Sample upazila properties:",
-                                geographies[0]?.properties
-                              );
-                              console.log(
-                                "[Trip Planner] Hierarchy divisions:",
-                                Object.keys(h)
-                              );
+                              console.log("[Trip Planner] Hierarchy divisions:", Object.keys(h));
+                              Object.keys(h).forEach((div) => {
+                                console.log(`  ${div}: ${Object.keys(h[div]).length} districts`);
+                              });
                             }
 
                             setTimeout(() => setHierarchy(h), 0);
@@ -797,7 +809,7 @@ export default function TripPlannerPage() {
             </div>
           </div>
 
-          {/* ============ SIDEBAR ============ */}
+          {/* SIDEBAR */}
           <div className="w-full md:w-[380px] flex flex-col gap-6 shrink-0">
 
             {/* Route List */}
@@ -897,7 +909,7 @@ export default function TripPlannerPage() {
               )}
             </div>
 
-            {/* 🔴 HIERARCHY EXPLORER */}
+            {/* HIERARCHY EXPLORER */}
             <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
               <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
                 <i className="fa-solid fa-sitemap mr-1 text-emerald-500"></i> এলাকা বেছে নিন
