@@ -14,6 +14,7 @@ const geoUrl = "/bd-districts.topo.json";
 // LOCAL STORAGE HELPERS
 // ============================================
 const STORAGE_KEY = "family-map-data-v1";
+const QUOTE_STORAGE_KEY = "family-map-quote-v1";
 const STORAGE_LIMIT_MB = 4.5;
 
 const loadFromStorage = () => {
@@ -67,6 +68,34 @@ const getStorageSize = () => {
   }
 };
 
+const loadQuote = () => {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = localStorage.getItem(QUOTE_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const saveQuote = (data) => {
+  try {
+    localStorage.setItem(QUOTE_STORAGE_KEY, JSON.stringify(data));
+  } catch {}
+};
+
+// ============================================
+// QUOTE PRESETS
+// ============================================
+const quotePresets = [
+  { key: "default", text: "রক্তের বন্ধন ছড়িয়ে আছে প্রতিটা জেলায়, একটাই পরিবার!" },
+  { key: "roots", text: "শিকড় যেখানে, ভালোবাসা সেখানেই।" },
+  { key: "distance", text: "দূরত্ব যতই হোক, বন্ধন কখনো ছিন্ন হয় না।" },
+  { key: "home", text: "যেখানেই থাকি, পরিবারই আমার আসল ঘর।" },
+  { key: "memories", text: "একটা পরিবার, হাজারো স্মৃতি, অসংখ্য ভালোবাসা।" },
+];
+
 // ============================================
 // BACKGROUND & MAP COLORS
 // ============================================
@@ -95,15 +124,15 @@ const unvisitedColors = [
 ];
 
 // ============================================
-// FAMILY SIDE COLORS
+// FAMILY SIDE COLORS — labels updated
 // ============================================
 const sideColors = {
-  paternal: { value: "#3b82f6", label: "পৈতৃক দিক (বাবার দিক)" },
-  maternal: { value: "#ec4899", label: "মাতৃকুল (মায়ের দিক)" },
-  both:     { value: "#a855f7", label: "উভয় দিক" },
-  own:      { value: "#10b981", label: "নিজ প্রজন্ম (ভাই-বোন-কাজিন)" },
-  in_law:   { value: "#f59e0b", label: "শ্বশুরবাড়ি (ইন-ল)" },
-  other:    { value: "#64748b", label: "অন্যান্য" },
+  paternal: { value: "#3b82f6", label: "বাবার দিকের আত্মীয়" },
+  maternal: { value: "#ec4899", label: "মায়ের দিকের আত্মীয়" },
+  both:     { value: "#a855f7", label: "উভয় দিকের আত্মীয়" },
+  own:      { value: "#10b981", label: "নিজ প্রজন্মের আত্মীয়" },
+  in_law:   { value: "#f59e0b", label: "শ্বশুরবাড়ির আত্মীয়" },
+  other:    { value: "#64748b", label: "অন্যান্য আত্মীয়" },
 };
 
 // ============================================
@@ -188,7 +217,6 @@ const loadImageWithEXIF = async (file) => {
   }
 };
 
-// Returns base64 data URL (localStorage-safe) with small size
 const getCroppedImg = async (imageSrc, pixelCrop, maxSize = 300, quality = 0.75) => {
   const image = new Image();
   image.src = imageSrc;
@@ -280,6 +308,10 @@ export default function FamilyMapPage() {
   const [unvisitedColor, setUnvisitedColor] = useState(unvisitedColors[0].value);
   const [viewMode, setViewMode] = useState("sides");
 
+  // 🔴 NEW: Quote customization
+  const [quoteOption, setQuoteOption] = useState("default");
+  const [customQuote, setCustomQuote] = useState("");
+
   const fileInputRef = useRef(null);
   const mapRef = useRef(null);
   const [mapZoom, setMapZoom] = useState(1);
@@ -310,8 +342,15 @@ export default function FamilyMapPage() {
       setFamilyData(saved);
       setStorageStatus({ size: getStorageSize(), error: null });
     }
+
+    const savedQuote = loadQuote();
+    if (savedQuote && typeof savedQuote === "object") {
+      setQuoteOption(savedQuote.option || "default");
+      setCustomQuote(savedQuote.custom || "");
+    }
   }, []);
 
+  // Auto-save family data (debounced)
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -334,6 +373,11 @@ export default function FamilyMapPage() {
     };
   }, [familyData]);
 
+  // Auto-save quote
+  useEffect(() => {
+    saveQuote({ option: quoteOption, custom: customQuote });
+  }, [quoteOption, customQuote]);
+
   // ============ STATS ============
   const stats = (() => {
     let total = 0, paternal = 0, maternal = 0, own = 0, inLaw = 0;
@@ -348,6 +392,16 @@ export default function FamilyMapPage() {
       });
     });
     return { total, paternal, maternal, own, inLaw, districts: Object.keys(familyData).length };
+  })();
+
+  const percentage = Math.round((stats.districts / 64) * 100);
+
+  // Display quote
+  const displayQuote = (() => {
+    if (quoteOption === "custom") {
+      return customQuote.trim() || quotePresets[0].text;
+    }
+    return quotePresets.find(q => q.key === quoteOption)?.text || quotePresets[0].text;
   })();
 
   // ============ MODAL HANDLERS ============
@@ -659,7 +713,6 @@ export default function FamilyMapPage() {
         {/* ============ HERO ============ */}
         <div className="flex flex-col mb-4" data-aos="fade-down">
           <div className="w-full">
-            {/* 🔴 Back link → Hub */}
             <Link href="/my-bangladesh" className="inline-flex items-center gap-2 text-gray-500 hover:text-campfire font-bold mb-4 text-sm transition-colors">
               <i className="fa-solid fa-arrow-left"></i> My Bangladesh হোম
             </Link>
@@ -750,19 +803,21 @@ export default function FamilyMapPage() {
               <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)' }}></div>
               <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 70%)' }}></div>
 
-              <div className="absolute top-8 left-0 right-0 z-20 flex flex-col items-center pointer-events-none px-4">
-                <h2 className="text-3xl sm:text-4xl font-black tracking-tight drop-shadow-md" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
-                  আমার <span className="font-bold text-xl sm:text-2xl opacity-90">পরিবার</span>
+              {/* 🔴 FIX: Title ছোট করে উপরে-বাম কোণায় */}
+              <div className="absolute top-3 left-3 z-20 pointer-events-none">
+                <h2 className="text-sm sm:text-base font-black tracking-tight drop-shadow-md leading-none" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
+                  আমার <span className="font-bold opacity-90">পরিবার</span>
                 </h2>
-                <div className="h-1.5 w-16 rounded-full mt-3 shadow-sm" style={{ background: 'linear-gradient(90deg, #3b82f6, #ec4899)' }}></div>
+                <div className="h-0.5 w-8 rounded-full mt-1 shadow-sm" style={{ background: 'linear-gradient(90deg, #3b82f6, #ec4899)' }}></div>
               </div>
 
-              <div className="absolute top-24 left-4 z-20 pointer-events-none flex flex-col gap-1">
+              {/* 🔴 FIX: Legend ছোট, উপরে-বাম কোণায় (টাইটেলের নিচে) */}
+              <div className="absolute top-14 left-3 z-20 pointer-events-none flex flex-col gap-0.5">
                 {Object.entries(sideColors).map(([key, c]) => {
                   if (key === "other") return null;
                   return (
-                    <div key={key} className="flex items-center gap-1.5 text-[9px] font-bold" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
-                      <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ background: c.value }}></span>
+                    <div key={key} className="flex items-center gap-1 text-[7px] sm:text-[8px] font-bold leading-tight" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
+                      <span className="w-1.5 h-1.5 rounded-full shadow-sm shrink-0" style={{ background: c.value }}></span>
                       <span className="opacity-90">{c.label}</span>
                     </div>
                   );
@@ -826,14 +881,33 @@ export default function FamilyMapPage() {
                 </div>
               </div>
 
-              <div className="absolute bottom-6 left-6 right-6 z-20 pointer-events-none">
-                <p className="text-xs sm:text-sm font-bold leading-tight drop-shadow-md" style={{ color: isDarkBg ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)' }}>
-                  রক্তের বন্ধন ছড়িয়ে আছে <br/>
-                  <span style={{ color: isDarkBg ? '#ec4899' : '#e76f51' }}>প্রতিটা জেলায়</span>, একটাই পরিবার!
+              {/* 🔴 NEW: Footer with smaller quote + progress bar */}
+              <div className="absolute bottom-3 left-3 right-3 z-20 pointer-events-none flex flex-col gap-2">
+                {/* Quote (smaller) */}
+                <p className="text-[9px] sm:text-[10px] font-bold leading-tight drop-shadow-md px-1" style={{ color: isDarkBg ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)' }}>
+                  {displayQuote}
                 </p>
-                <p className="text-[8px] sm:text-[9px] font-black tracking-widest uppercase mt-3 opacity-70 drop-shadow-sm" style={{ color: isDarkBg ? '#ffffff' : '#000000' }}>
+
+                {/* CAS branding (smaller) */}
+                <p className="text-[6px] sm:text-[7px] font-black tracking-widest uppercase opacity-60 drop-shadow-sm px-1" style={{ color: isDarkBg ? '#ffffff' : '#000000' }}>
                   Generated by CUET Adventure Society
                 </p>
+
+                {/* 🔴 NEW: Progress Bar */}
+                <div className="bg-white/20 dark:bg-black/50 backdrop-blur-md rounded-xl px-3 py-2 border border-white/25 dark:border-white/10 shadow-lg">
+                  <p className="text-[9px] sm:text-[10px] font-bold mb-1.5 leading-tight" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
+                    আপনার শিকড় বাংলাদেশের <span style={{ color: '#ec4899' }}>{e2b(percentage)}%</span> জায়গা জুড়ে বিস্তৃত
+                  </p>
+                  <div className="h-1.5 bg-white/30 dark:bg-black/40 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700 ease-out"
+                      style={{
+                        width: `${Math.max(percentage, stats.districts > 0 ? 3 : 0)}%`,
+                        background: 'linear-gradient(90deg, #3b82f6, #a855f7, #ec4899)'
+                      }}
+                    ></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -954,6 +1028,56 @@ export default function FamilyMapPage() {
               </div>
             </div>
 
+            {/* 🔴 NEW: Quote Customization */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
+                <i className="fa-solid fa-quote-left mr-1 text-pink-500"></i> কোটেশন
+              </p>
+
+              {/* Preset pills */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {quotePresets.map(q => (
+                  <button
+                    key={q.key}
+                    onClick={() => setQuoteOption(q.key)}
+                    className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all text-left leading-tight ${
+                      quoteOption === q.key
+                        ? 'bg-gradient-to-r from-blue-500 to-pink-500 text-white border-transparent shadow-sm'
+                        : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-pink-300 dark:hover:border-pink-500/50'
+                    }`}
+                  >
+                    {q.text.length > 28 ? q.text.slice(0, 28) + '...' : q.text}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setQuoteOption("custom")}
+                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all flex items-center gap-1 ${
+                    quoteOption === "custom"
+                      ? 'bg-gradient-to-r from-blue-500 to-pink-500 text-white border-transparent shadow-sm'
+                      : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-pink-300 dark:hover:border-pink-500/50'
+                  }`}
+                >
+                  <i className="fa-solid fa-pen text-[9px]"></i> কাস্টম
+                </button>
+              </div>
+
+              {/* Custom textarea */}
+              {quoteOption === "custom" && (
+                <>
+                  <textarea
+                    value={customQuote}
+                    onChange={(e) => setCustomQuote(e.target.value.slice(0, 120))}
+                    placeholder="আপনার নিজের কোটেশন এখানে লিখুন..."
+                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-pink-500 transition-all resize-none"
+                    rows={3}
+                  />
+                  <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1 text-right">
+                    {e2b(customQuote.length)} / ১২০
+                  </p>
+                </>
+              )}
+            </div>
+
             {/* Stats Card */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="text-center mb-5">
@@ -968,11 +1092,11 @@ export default function FamilyMapPage() {
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg p-2.5 text-center" style={{ background: sideColors.paternal.value + '20' }}>
                   <p className="text-lg font-black" style={{ color: sideColors.paternal.value }}>{e2b(stats.paternal)}</p>
-                  <p className="text-[9px] font-bold text-gray-600 dark:text-gray-400">পৈতৃক দিক</p>
+                  <p className="text-[9px] font-bold text-gray-600 dark:text-gray-400">বাবার দিক</p>
                 </div>
                 <div className="rounded-lg p-2.5 text-center" style={{ background: sideColors.maternal.value + '20' }}>
                   <p className="text-lg font-black" style={{ color: sideColors.maternal.value }}>{e2b(stats.maternal)}</p>
-                  <p className="text-[9px] font-bold text-gray-600 dark:text-gray-400">মাতৃকুল</p>
+                  <p className="text-[9px] font-bold text-gray-600 dark:text-gray-400">মায়ের দিক</p>
                 </div>
                 <div className="rounded-lg p-2.5 text-center" style={{ background: sideColors.own.value + '20' }}>
                   <p className="text-lg font-black" style={{ color: sideColors.own.value }}>{e2b(stats.own)}</p>
@@ -980,7 +1104,7 @@ export default function FamilyMapPage() {
                 </div>
                 <div className="rounded-lg p-2.5 text-center" style={{ background: sideColors.in_law.value + '20' }}>
                   <p className="text-lg font-black" style={{ color: sideColors.in_law.value }}>{e2b(stats.inLaw)}</p>
-                  <p className="text-[9px] font-bold text-gray-600 dark:text-gray-400">ইন-ল</p>
+                  <p className="text-[9px] font-bold text-gray-600 dark:text-gray-400">শ্বশুরবাড়ি</p>
                 </div>
               </div>
             </div>
@@ -1135,22 +1259,22 @@ function MemberForm({ formName, setFormName, formRelation, setFormRelation, form
           onChange={(e) => setFormRelation(e.target.value)}
           className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
         >
-          <optgroup label="পৈতৃক দিক (বাবার দিক)">
+          <optgroup label="বাবার দিকের আত্মীয়">
             {familyRelations.filter(r => r.side === "paternal").map(r => (
               <option key={r.key} value={r.key}>{r.bn}</option>
             ))}
           </optgroup>
-          <optgroup label="মাতৃকুল (মায়ের দিক)">
+          <optgroup label="মায়ের দিকের আত্মীয়">
             {familyRelations.filter(r => r.side === "maternal").map(r => (
               <option key={r.key} value={r.key}>{r.bn}</option>
             ))}
           </optgroup>
-          <optgroup label="নিজ প্রজন্ম">
+          <optgroup label="নিজ প্রজন্মের আত্মীয়">
             {familyRelations.filter(r => r.side === "own").map(r => (
               <option key={r.key} value={r.key}>{r.bn}</option>
             ))}
           </optgroup>
-          <optgroup label="শ্বশুরবাড়ি">
+          <optgroup label="শ্বশুরবাড়ির আত্মীয়">
             {familyRelations.filter(r => r.side === "in_law").map(r => (
               <option key={r.key} value={r.key}>{r.bn}</option>
             ))}
