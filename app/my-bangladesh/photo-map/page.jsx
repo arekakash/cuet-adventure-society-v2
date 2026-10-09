@@ -36,6 +36,9 @@ const unvisitedColors = [
 
 const e2b = (num) => String(num).replace(/[0-9]/g, d => '০১২৩৪৫৬৭৮৯'[d]);
 
+// 🔴 NEW: SVG-safe ID generator (removes apostrophes, spaces, special chars)
+const safeSvgId = (name) => String(name).replace(/[^a-zA-Z0-9]/g, '_');
+
 const standardMap = {
   "Chapainababganj": "Chapainawabganj", 
   "Nawabganj": "Chapainawabganj", 
@@ -136,6 +139,9 @@ const blobToBase64 = async (blobUrl) => {
 const MemoizedGeography = memo(({ geo, districtName, hasPhoto, unvisitedColor, isDarkBg, onClick }) => {
   const isDarkUnvisited = unvisitedColor === "#1e293b"; 
   const strokeColor = hasPhoto ? "rgba(255,255,255,0.8)" : (isDarkUnvisited ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.2)");
+  
+  // 🔴 NEW: safe pattern id
+  const patternId = `pattern-${safeSvgId(districtName)}`;
 
   return (
     <Geography
@@ -143,14 +149,14 @@ const MemoizedGeography = memo(({ geo, districtName, hasPhoto, unvisitedColor, i
       onClick={() => onClick(geo, districtName)}
       style={{
         default: {
-          fill: hasPhoto ? `url(#pattern-${districtName})` : unvisitedColor,
+          fill: hasPhoto ? `url(#${patternId})` : unvisitedColor,   // 🔴 CHANGED
           outline: "none",
           stroke: strokeColor,
           strokeWidth: hasPhoto ? 1.5 : 0.8,
           transition: "all 0.3s ease"
         },
         hover: {
-          fill: hasPhoto ? `url(#pattern-${districtName})` : "#94a3b8",
+          fill: hasPhoto ? `url(#${patternId})` : "#94a3b8",        // 🔴 CHANGED
           outline: "none",
           stroke: isDarkBg ? "#ffffff" : "#1e293b",
           strokeWidth: 2,
@@ -509,7 +515,7 @@ export default function PhotoMapPage() {
                     >
                       <defs>
                         {Object.entries(districtPhotos).map(([district, url]) => (
-                          <pattern key={`pattern-${district}`} id={`pattern-${district}`} width="100%" height="100%" patternContentUnits="objectBoundingBox" preserveAspectRatio="xMidYMid slice">
+                          <pattern key={`pattern-${district}`} id={`pattern-${safeSvgId(district)}`} width="100%" height="100%" patternContentUnits="objectBoundingBox" preserveAspectRatio="xMidYMid slice">
                             <image href={url} preserveAspectRatio="xMidYMid slice" width="1" height="1" />
                           </pattern>
                         ))}
