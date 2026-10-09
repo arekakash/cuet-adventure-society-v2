@@ -11,11 +11,10 @@ import "aos/dist/aos.css";
 const geoUrl = "/bd-upazilas.topo.json";
 
 // ============================================
-// PROJECTION CONFIG (matches ComposableMap)
+// PROJECTION CONFIG
 // ============================================
 const PROJECTION_CONFIG = { scale: 6500, center: [90.35, 23.8] };
 
-// Create a standalone projection for computing deltas between coordinates
 const baseProjection = geoMercator()
   .scale(PROJECTION_CONFIG.scale)
   .center(PROJECTION_CONFIG.center)
@@ -41,6 +40,31 @@ const haversine = (p1, p2) => {
   const dLng = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+// 🔴 NEW: Robust upazila name extractor — works with any property keys
+const getUpazilaName = (props) => {
+  if (!props || typeof props !== "object") return "উপজেলা";
+  // Try common known keys first
+  const priorityKeys = [
+    "adm3_name", "ADM3_NAME", "ADM3_EN", "adm3_en",
+    "UPZ_NAME", "UPZ_EN", "UPZ_NAME_B", "UPZ_BND_NAME",
+    "upazila_name", "upazilaName", "upazila", "Upazila",
+    "NAME_3", "name", "Name", "NAME",
+    "UPAZILA", "UPAZILLA", "Upzilla",
+    "ADM3", "adm3", "UPZ", "upz"
+  ];
+  for (const k of priorityKeys) {
+    const v = props[k];
+    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
+    if (typeof v === "number") continue;
+  }
+  // Fallback: first string value
+  for (const k of Object.keys(props)) {
+    const v = props[k];
+    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
+  }
+  return "উপজেলা";
 };
 
 // ============================================
@@ -82,14 +106,17 @@ const upazilaBaseColors = [
   { name: "Ice", value: "#e0f2fe" },
   { name: "Mint", value: "#d1fae5" },
   { name: "White", value: "#ffffff" },
-  { name: "Dark", value: "#334155" },
+  { name: "Slate", value: "#334155" },
 ];
 
 // ============================================
-// MEMOIZED UPAZILA GEOGRAPHY
+// MEMOIZED UPAZILA — FIXED
 // ============================================
 const MemoizedUpazila = memo(
-  ({ geo, name, hasWaypoint, isHovered, fillColor, strokeColor, hoverFill, onClick, onHover }) => {
+  ({ geo, name, hasWaypoint, isHovered, fillColor, upazilaColor, strokeColor, hoverFill, onClick, onHover }) => {
+    // 🔴 FIX: Always pass a real fill color
+    const baseFill = hasWaypoint ? fillColor : upazilaColor;
+
     return (
       <Geography
         geography={geo}
@@ -98,7 +125,7 @@ const MemoizedUpazila = memo(
         onMouseLeave={() => onHover("")}
         style={{
           default: {
-            fill: hasWaypoint ? fillColor : undefined,
+            fill: baseFill,
             outline: "none",
             stroke: strokeColor,
             strokeWidth: hasWaypoint ? 0.8 : 0.3,
@@ -112,9 +139,7 @@ const MemoizedUpazila = memo(
             strokeWidth: 0.9,
             cursor: "pointer"
           },
-          pressed: {
-            outline: "none"
-          }
+          pressed: { outline: "none" }
         }}
       />
     );
@@ -124,6 +149,7 @@ const MemoizedUpazila = memo(
     prev.hasWaypoint === next.hasWaypoint &&
     prev.isHovered === next.isHovered &&
     prev.fillColor === next.fillColor &&
+    prev.upazilaColor === next.upazilaColor &&
     prev.strokeColor === next.strokeColor
 );
 MemoizedUpazila.displayName = "MemoizedUpazila";
@@ -134,7 +160,7 @@ MemoizedUpazila.displayName = "MemoizedUpazila";
 export default function TripPlannerPage() {
   const [waypoints, setWaypoints] = useState([]);
   const [bgColor, setBgColor] = useState(bgColors[0].value);
-  const [routeColor, setRouteColor] = useState(routeColors[0].value);
+  const [routeColor, setRouteColor] = useState(routeColors[4].value); // Purple default
   const [upazilaColor, setUpazilaColor] = useState(upazilaBaseColors[0].value);
   const [hoveredUpazila, setHoveredUpazila] = useState("");
   const [quoteOption, setQuoteOption] = useState("default");
@@ -142,14 +168,12 @@ export default function TripPlannerPage() {
   const [tripTitle, setTripTitle] = useState("আমার ট্রিপ প্ল্যান");
   const [downloading, setDownloading] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
-  const [editingWaypoint, setEditingWaypoint] = useState(null);
 
   const mapRef = useRef(null);
 
   const isDarkBg = bgColors.find((c) => c.value === bgColor)?.isDark ?? false;
   const isDarkUpazila = upazilaColor === "#334155";
 
-  // ============ EFFECTS ============
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
   }, []);
@@ -169,39 +193,33 @@ export default function TripPlannerPage() {
     return quotePresets.find((q) => q.key === quoteOption)?.text || quotePresets[0].text;
   })();
 
-  // Check if a district coordinate is a waypoint
-  const waypointIndexByCoord = useMemo(() => {
+  // 🔴 FIX: use geo.rsmKey as stable id for dedup
+  const waypointIndexByKey = useMemo(() => {
     const map = new Map();
-    waypoints.forEach((w, i) => {
-      const key = `${w.coordinates[0].toFixed(5)},${w.coordinates[1].toFixed(5)}`;
-      map.set(key, i + 1);
-    });
+    waypoints.forEach((w, i) => map.set(w.id_key, i + 1));
     return map;
   }, [waypoints]);
 
   // ============ HANDLERS ============
   const handleAddWaypoint = useCallback((geo, name) => {
     const centroid = geoCentroid(geo);
-    if (!centroid || centroid.length !== 2 || !isFinite(centroid[0])) return;
+    if (!centroid || !isFinite(centroid[0])) return;
 
-    const key = `${centroid[0].toFixed(5)},${centroid[1].toFixed(5)}`;
-    // If already a waypoint — ignore
-    if (waypointIndexByCoord.has(key)) {
-      // Option: remove it instead? For now just ignore to prevent duplicates
-      return;
-    }
+    const id_key = geo.rsmKey;
+    if (waypoints.some((w) => w.id_key === id_key)) return; // already added
 
     setWaypoints((prev) => [
       ...prev,
       {
         id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
+        id_key,
         name: name,
         coordinates: centroid,
         notes: "",
         days: 1,
       },
     ]);
-  }, [waypointIndexByCoord]);
+  }, [waypoints]);
 
   const handleRemoveWaypoint = (id) => {
     setWaypoints((prev) => prev.filter((w) => w.id !== id));
@@ -219,16 +237,8 @@ export default function TripPlannerPage() {
     });
   };
 
-  const handleUpdateWaypoint = (id, updates) => {
-    setWaypoints((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, ...updates } : w))
-    );
-  };
-
   const handleClearAll = () => {
-    if (window.confirm("সব waypoint মুছে ফেলবেন?")) {
-      setWaypoints([]);
-    }
+    if (window.confirm("সব waypoint মুছে ফেলবেন?")) setWaypoints([]);
   };
 
   const handleZoomIn = () => setMapZoom((p) => Math.min(p + 0.3, 4));
@@ -327,7 +337,6 @@ export default function TripPlannerPage() {
 
               {/* ===== HEADER ===== */}
               <div className="relative z-20 px-4 pt-4 pb-2 flex justify-between items-start gap-3 shrink-0">
-                {/* Trip title (left) */}
                 <div className="flex-1 min-w-0">
                   <input
                     type="text"
@@ -346,11 +355,10 @@ export default function TripPlannerPage() {
                     className="text-[9px] font-bold mt-1 opacity-60"
                     style={{ color: isDarkBg ? "#ffffff" : "#1e293b" }}
                   >
-                    <i className="fa-solid fa-pen mr-1"></i>নাম পরিবর্তন করতে এখানে ক্লিক করুন
+                    <i className="fa-solid fa-edit mr-1"></i>নাম পরিবর্তন করতে এখানে ক্লিক করুন
                   </p>
                 </div>
 
-                {/* Waypoint count (right) */}
                 <div className="text-right shrink-0">
                   <h2
                     className="text-2xl sm:text-3xl font-black tracking-tight drop-shadow-md leading-none whitespace-nowrap"
@@ -388,7 +396,7 @@ export default function TripPlannerPage() {
                 {hoveredUpazila && (
                   <div
                     data-html2canvas-ignore="true"
-                    className="absolute top-3 left-3 z-30 px-3 py-1.5 rounded-full text-[10px] font-black shadow-lg backdrop-blur-md border"
+                    className="absolute top-3 left-3 z-30 px-3 py-1.5 rounded-full text-[10px] font-black shadow-lg backdrop-blur-md border max-w-[60%] truncate"
                     style={{
                       background: isDarkBg ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.85)",
                       color: isDarkBg ? "#ffffff" : "#1e293b",
@@ -400,17 +408,17 @@ export default function TripPlannerPage() {
                   </div>
                 )}
 
-                {/* Instruction if no waypoints */}
+                {/* Instruction if empty */}
                 {waypoints.length === 0 && (
                   <div
-                    className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full text-[10px] font-black shadow-lg backdrop-blur-md border"
+                    className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full text-[10px] font-black shadow-lg backdrop-blur-md border whitespace-nowrap"
                     style={{
                       background: isDarkBg ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.9)",
                       color: isDarkBg ? "#ffffff" : "#1e293b",
                       borderColor: isDarkBg ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)",
                     }}
                   >
-                    <i className="fa-solid fa-hand-pointer mr-1.5" style={{ color: routeColor }}></i>
+                    <i className="fa-solid fa-info-circle mr-1.5" style={{ color: routeColor }}></i>
                     উপজেলায় ক্লিক করে যাত্রা শুরু করুন
                   </div>
                 )}
@@ -433,7 +441,6 @@ export default function TripPlannerPage() {
                       className="w-full h-full outline-none"
                     >
                       <defs>
-                        {/* Arrowhead marker */}
                         <marker
                           id="trip-arrowhead"
                           markerWidth="8"
@@ -451,23 +458,8 @@ export default function TripPlannerPage() {
                       <Geographies geography={geoUrl}>
                         {({ geographies }) =>
                           geographies.map((geo) => {
-                            const props = geo.properties || {};
-                            const name =
-                              props.upazila ||
-                              props.UPZ_NAME ||
-                              props.UPZ_EN ||
-                              props.adm3_name ||
-                              props.ADM3_EN ||
-                              props.NAME_3 ||
-                              props.name ||
-                              "Unknown";
-
-                            const centroid = geoCentroid(geo);
-                            const key = centroid && centroid.length === 2
-                              ? `${centroid[0].toFixed(5)},${centroid[1].toFixed(5)}`
-                              : "";
-                            const waypointNum = waypointIndexByCoord.get(key);
-                            const isWaypoint = !!waypointNum;
+                            const name = getUpazilaName(geo.properties);
+                            const isWaypoint = waypointIndexByKey.has(geo.rsmKey);
 
                             return (
                               <MemoizedUpazila
@@ -477,6 +469,7 @@ export default function TripPlannerPage() {
                                 hasWaypoint={isWaypoint}
                                 isHovered={hoveredUpazila === name}
                                 fillColor={routeColor}
+                                upazilaColor={upazilaColor}
                                 strokeColor={
                                   isDarkBg || isDarkUpazila
                                     ? "rgba(255,255,255,0.15)"
@@ -493,7 +486,7 @@ export default function TripPlannerPage() {
                         }
                       </Geographies>
 
-                      {/* Route lines (in a Marker for each segment) */}
+                      {/* Route lines */}
                       {waypoints.slice(0, -1).map((wp, i) => {
                         const next = waypoints[i + 1];
                         const [dx, dy] = getScreenDelta(wp.coordinates, next.coordinates);
@@ -516,7 +509,7 @@ export default function TripPlannerPage() {
                         );
                       })}
 
-                      {/* Waypoint number markers */}
+                      {/* Waypoint markers */}
                       {waypoints.map((wp, i) => {
                         const isStart = i === 0;
                         const isEnd = i === waypoints.length - 1 && waypoints.length > 1;
@@ -532,7 +525,6 @@ export default function TripPlannerPage() {
                               fill={markerFill}
                               stroke="#ffffff"
                               strokeWidth={1.2}
-                              style={{ filter: `drop-shadow(0px 1px 2px rgba(0,0,0,0.4))` }}
                             />
                             <text
                               textAnchor="middle"
@@ -567,7 +559,6 @@ export default function TripPlannerPage() {
                   Generated by CUET Adventure Society
                 </p>
 
-                {/* Stats bar */}
                 {waypoints.length > 0 && (
                   <div className="mt-1 bg-white/30 dark:bg-black/40 backdrop-blur-md rounded-xl px-3 py-2 border border-white/30 dark:border-white/10 shadow-lg">
                     <div className="flex justify-between items-center gap-2">
@@ -660,13 +651,12 @@ export default function TripPlannerPage() {
                           <p className="text-[11px] font-black text-gray-800 dark:text-gray-100 truncate">
                             {wp.name}
                           </p>
-                          {prevWp && (
+                          {prevWp ? (
                             <p className="text-[9px] text-gray-500 dark:text-gray-400 mt-0.5">
                               <i className="fa-solid fa-arrow-up mr-1 text-[8px]"></i>
                               {e2b(segmentDist.toFixed(1))} কি.মি. আগের স্টপ থেকে
                             </p>
-                          )}
-                          {!prevWp && (
+                          ) : (
                             <p className="text-[9px] text-emerald-600 dark:text-emerald-400 mt-0.5 font-bold">
                               যাত্রা শুরু
                             </p>
@@ -767,7 +757,7 @@ export default function TripPlannerPage() {
               </div>
             </div>
 
-            {/* Quote Customization */}
+            {/* Quote */}
             <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
               <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
                 <i className="fa-solid fa-quote-left mr-1 text-pink-500"></i> কোটেশন
@@ -794,7 +784,7 @@ export default function TripPlannerPage() {
                       : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-pink-300"
                   }`}
                 >
-                  <i className="fa-solid fa-pen text-[8px]"></i> কাস্টম
+                  <i className="fa-solid fa-pencil text-[8px]"></i> কাস্টম
                 </button>
               </div>
               {quoteOption === "custom" && (
