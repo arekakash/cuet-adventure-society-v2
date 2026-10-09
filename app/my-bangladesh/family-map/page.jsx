@@ -11,7 +11,7 @@ import Cropper from "react-easy-crop";
 const geoUrl = "/bd-districts.topo.json";
 
 // ============================================
-// LOCAL STORAGE HELPERS
+// LOCAL STORAGE
 // ============================================
 const STORAGE_KEY = "family-map-data-v1";
 const QUOTE_STORAGE_KEY = "family-map-quote-v1";
@@ -32,19 +32,12 @@ const loadFromStorage = () => {
 const saveToStorage = (data) => {
   try {
     const json = JSON.stringify(data);
-    const sizeBytes = new Blob([json]).size;
-    const sizeMB = sizeBytes / (1024 * 1024);
-
-    if (sizeMB > STORAGE_LIMIT_MB) {
-      return { success: false, reason: "quota", size: sizeMB };
-    }
-
+    const sizeMB = new Blob([json]).size / (1024 * 1024);
+    if (sizeMB > STORAGE_LIMIT_MB) return { success: false, reason: "quota", size: sizeMB };
     localStorage.setItem(STORAGE_KEY, json);
     return { success: true, size: sizeMB };
   } catch (e) {
-    if (e.name === "QuotaExceededError") {
-      return { success: false, reason: "quota" };
-    }
+    if (e.name === "QuotaExceededError") return { success: false, reason: "quota" };
     return { success: false, reason: "unknown", error: e.message };
   }
 };
@@ -53,9 +46,7 @@ const clearStorage = () => {
   try {
     localStorage.removeItem(STORAGE_KEY);
     return true;
-  } catch (e) {
-    return false;
-  }
+  } catch { return false; }
 };
 
 const getStorageSize = () => {
@@ -63,9 +54,7 @@ const getStorageSize = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return 0;
     return new Blob([raw]).size / (1024 * 1024);
-  } catch {
-    return 0;
-  }
+  } catch { return 0; }
 };
 
 const loadQuote = () => {
@@ -74,9 +63,7 @@ const loadQuote = () => {
     const raw = localStorage.getItem(QUOTE_STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 };
 
 const saveQuote = (data) => {
@@ -97,7 +84,7 @@ const quotePresets = [
 ];
 
 // ============================================
-// BACKGROUND & MAP COLORS
+// BACKGROUND COLORS
 // ============================================
 const bgColors = [
   { name: "ক্লাসিক হোয়াইট", value: "linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)", isDark: false },
@@ -124,7 +111,7 @@ const unvisitedColors = [
 ];
 
 // ============================================
-// FAMILY SIDE COLORS — labels updated
+// FAMILY SIDES
 // ============================================
 const sideColors = {
   paternal: { value: "#3b82f6", label: "বাবার দিকের আত্মীয়" },
@@ -198,7 +185,7 @@ const bangladeshDivisions = [
 ];
 
 // ============================================
-// IMAGE PROCESSING HELPERS
+// IMAGE PROCESSING
 // ============================================
 const loadImageWithEXIF = async (file) => {
   try {
@@ -243,7 +230,7 @@ const getCroppedImg = async (imageSrc, pixelCrop, maxSize = 300, quality = 0.75)
 };
 
 // ============================================
-// DOMINANT SIDE LOGIC
+// DOMINANT SIDE
 // ============================================
 const getDominantSide = (members) => {
   if (!members || members.length === 0) return null;
@@ -299,7 +286,6 @@ MemoizedGeography.displayName = 'MemoizedGeography';
 // ============================================
 export default function FamilyMapPage() {
   const [familyData, setFamilyData] = useState({});
-
   const isInitialMount = useRef(true);
   const saveTimeoutRef = useRef(null);
   const [storageStatus, setStorageStatus] = useState({ size: 0, error: null });
@@ -308,7 +294,6 @@ export default function FamilyMapPage() {
   const [unvisitedColor, setUnvisitedColor] = useState(unvisitedColors[0].value);
   const [viewMode, setViewMode] = useState("sides");
 
-  // 🔴 NEW: Quote customization
   const [quoteOption, setQuoteOption] = useState("default");
   const [customQuote, setCustomQuote] = useState("");
 
@@ -350,15 +335,12 @@ export default function FamilyMapPage() {
     }
   }, []);
 
-  // Auto-save family data (debounced)
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
-
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-
     saveTimeoutRef.current = setTimeout(() => {
       const result = saveToStorage(familyData);
       if (result.success) {
@@ -367,13 +349,11 @@ export default function FamilyMapPage() {
         setStorageStatus(prev => ({ ...prev, error: result.reason }));
       }
     }, 800);
-
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, [familyData]);
 
-  // Auto-save quote
   useEffect(() => {
     saveQuote({ option: quoteOption, custom: customQuote });
   }, [quoteOption, customQuote]);
@@ -396,15 +376,12 @@ export default function FamilyMapPage() {
 
   const percentage = Math.round((stats.districts / 64) * 100);
 
-  // Display quote
   const displayQuote = (() => {
-    if (quoteOption === "custom") {
-      return customQuote.trim() || quotePresets[0].text;
-    }
+    if (quoteOption === "custom") return customQuote.trim() || quotePresets[0].text;
     return quotePresets.find(q => q.key === quoteOption)?.text || quotePresets[0].text;
   })();
 
-  // ============ MODAL HANDLERS ============
+  // ============ MODAL ============
   const openDistrictModal = useCallback((districtName) => {
     setFamilyModalDistrict(districtName);
     setModalMode("list");
@@ -489,7 +466,7 @@ export default function FamilyMapPage() {
     closeModal();
   };
 
-  // ============ PHOTO UPLOAD ============
+  // ============ PHOTO ============
   const handlePhotoClick = () => fileInputRef.current.click();
 
   const handleFileChange = async (e) => {
@@ -520,9 +497,7 @@ export default function FamilyMapPage() {
     }
   };
 
-  const removeFormPhoto = () => {
-    setFormPhoto(null);
-  };
+  const removeFormPhoto = () => setFormPhoto(null);
 
   // ============ DOWNLOAD ============
   const handleDownload = async (format) => {
@@ -657,7 +632,6 @@ export default function FamilyMapPage() {
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeModal}></div>
           <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl relative z-10 shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
-
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-start">
               <div>
                 <h3 className="text-2xl font-black text-gray-900 dark:text-white">{districtBn[familyModalDistrict] || familyModalDistrict}</h3>
@@ -669,7 +643,6 @@ export default function FamilyMapPage() {
                 <i className="fa-solid fa-xmark text-gray-600 dark:text-gray-300"></i>
               </button>
             </div>
-
             <div className="p-6 overflow-y-auto flex-1">
               {modalMode === "list" ? (
                 <MemberList
@@ -693,7 +666,6 @@ export default function FamilyMapPage() {
                 />
               )}
             </div>
-
             {modalMode === "list" && (
               <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
                 <button
@@ -785,51 +757,81 @@ export default function FamilyMapPage() {
         {/* ============ MAP + SIDEBAR ============ */}
         <div className="flex flex-col md:flex-row gap-8 items-start" data-aos="fade-up">
 
+          {/* ============ MAP CARD — 3-section layout ============ */}
           <div className="flex-grow flex justify-center relative w-full">
-            <div className="absolute top-4 right-4 z-30 flex flex-col gap-2">
-              <button onClick={handleZoomIn} className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white dark:bg-gray-800 text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700">
-                <i className="fa-solid fa-plus"></i>
-              </button>
-              <button onClick={handleZoomOut} className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white dark:bg-gray-800 text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700">
-                <i className="fa-solid fa-minus"></i>
-              </button>
-            </div>
-
             <div
               ref={mapRef}
               className="w-full max-w-[650px] aspect-[4/5] relative rounded-[2rem] overflow-hidden shadow-2xl transition-all duration-500 flex flex-col"
               style={{ background: bgColor }}
             >
+              {/* Decorative glows */}
               <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)' }}></div>
               <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full pointer-events-none z-0" style={{ background: 'radial-gradient(circle, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 70%)' }}></div>
 
-              {/* 🔴 FIX: Title ছোট করে উপরে-বাম কোণায় */}
-              <div className="absolute top-3 left-3 z-20 pointer-events-none">
-                <h2 className="text-sm sm:text-base font-black tracking-tight drop-shadow-md leading-none" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
-                  আমার <span className="font-bold opacity-90">পরিবার</span>
-                </h2>
-                <div className="h-0.5 w-8 rounded-full mt-1 shadow-sm" style={{ background: 'linear-gradient(90deg, #3b82f6, #ec4899)' }}></div>
+              {/* ===== SECTION 1: HEADER (Legend left + Title right) ===== */}
+              <div className="relative z-20 px-4 pt-4 pb-2 flex justify-between items-start gap-3 shrink-0">
+                {/* Legend */}
+                <div className="flex flex-col gap-1">
+                  {Object.entries(sideColors).map(([key, c]) => {
+                    if (key === "other") return null;
+                    return (
+                      <div
+                        key={key}
+                        className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-bold leading-tight"
+                        style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}
+                      >
+                        <span className="w-2 h-2 rounded-full shadow-sm shrink-0" style={{ background: c.value }}></span>
+                        <span className="opacity-90">{c.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Title — bigger, right */}
+                <div className="text-right shrink-0">
+                  <h2
+                    className="text-2xl sm:text-3xl font-black tracking-tight drop-shadow-md leading-none whitespace-nowrap"
+                    style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}
+                  >
+                    আমার <span className="font-bold opacity-90">পরিবার</span>
+                  </h2>
+                  <div
+                    className="h-1 w-16 rounded-full mt-2 ml-auto shadow-sm"
+                    style={{ background: 'linear-gradient(90deg, #3b82f6, #ec4899)' }}
+                  ></div>
+                </div>
               </div>
 
-              {/* 🔴 FIX: Legend ছোট, উপরে-বাম কোণায় (টাইটেলের নিচে) */}
-              <div className="absolute top-14 left-3 z-20 pointer-events-none flex flex-col gap-0.5">
-                {Object.entries(sideColors).map(([key, c]) => {
-                  if (key === "other") return null;
-                  return (
-                    <div key={key} className="flex items-center gap-1 text-[7px] sm:text-[8px] font-bold leading-tight" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
-                      <span className="w-1.5 h-1.5 rounded-full shadow-sm shrink-0" style={{ background: c.value }}></span>
-                      <span className="opacity-90">{c.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
+              {/* ===== SECTION 2: MAP AREA ===== */}
+              <div className="flex-1 relative z-10 overflow-hidden">
+                {/* Zoom buttons */}
+                <div className="absolute top-3 right-3 z-30 flex flex-col gap-2" data-html2canvas-ignore="true">
+                  <button
+                    onClick={handleZoomIn}
+                    className="w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white/90 dark:bg-gray-800/90 backdrop-blur text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700"
+                  >
+                    <i className="fa-solid fa-plus text-sm"></i>
+                  </button>
+                  <button
+                    onClick={handleZoomOut}
+                    className="w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white/90 dark:bg-gray-800/90 backdrop-blur text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700"
+                  >
+                    <i className="fa-solid fa-minus text-sm"></i>
+                  </button>
+                </div>
 
-              <div className="w-full h-full flex items-center justify-center flex-1 mt-10 z-10 relative">
                 <div
                   className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
                   style={{ transform: `scale(${mapZoom})`, transformOrigin: "center" }}
                 >
-                  <div style={{ filter: isDarkBg ? 'drop-shadow(0px 25px 35px rgba(0,0,0,0.6)) drop-shadow(0px 10px 15px rgba(0,0,0,0.4))' : 'drop-shadow(0px 25px 35px rgba(0,0,0,0.25)) drop-shadow(0px 10px 15px rgba(0,0,0,0.15))' }} className="w-full h-[110%] flex items-center justify-center">
+                  <div
+                    style={{
+                      filter: isDarkBg
+                        ? 'drop-shadow(0px 25px 35px rgba(0,0,0,0.6)) drop-shadow(0px 10px 15px rgba(0,0,0,0.4))'
+                        : 'drop-shadow(0px 25px 35px rgba(0,0,0,0.25)) drop-shadow(0px 10px 15px rgba(0,0,0,0.15))'
+                    }}
+                    className="w-full h-full flex items-center justify-center"
+                  >
                     <ComposableMap
                       projection="geoMercator"
                       projectionConfig={{ scale: 6500, center: [90.35, 23.8] }}
@@ -840,7 +842,14 @@ export default function FamilyMapPage() {
                           const photo = members.find(m => m.photo)?.photo;
                           if (!photo) return null;
                           return (
-                            <pattern key={`pattern-${district}`} id={`pattern-${safeSvgId(district)}`} width="100%" height="100%" patternContentUnits="objectBoundingBox" preserveAspectRatio="xMidYMid slice">
+                            <pattern
+                              key={`pattern-${district}`}
+                              id={`pattern-${safeSvgId(district)}`}
+                              width="100%"
+                              height="100%"
+                              patternContentUnits="objectBoundingBox"
+                              preserveAspectRatio="xMidYMid slice"
+                            >
                               <image href={photo} preserveAspectRatio="xMidYMid slice" width="1" height="1" />
                             </pattern>
                           );
@@ -881,24 +890,33 @@ export default function FamilyMapPage() {
                 </div>
               </div>
 
-              {/* 🔴 NEW: Footer with smaller quote + progress bar */}
-              <div className="absolute bottom-3 left-3 right-3 z-20 pointer-events-none flex flex-col gap-2">
-                {/* Quote (smaller) */}
-                <p className="text-[9px] sm:text-[10px] font-bold leading-tight drop-shadow-md px-1" style={{ color: isDarkBg ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)' }}>
+              {/* ===== SECTION 3: FOOTER (Quote + Branding + Progress Bar) ===== */}
+              <div className="relative z-20 px-4 pb-4 pt-2 flex flex-col gap-1.5 shrink-0">
+                {/* Quote */}
+                <p
+                  className="text-[10px] sm:text-[11px] font-bold leading-tight drop-shadow-md"
+                  style={{ color: isDarkBg ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)' }}
+                >
                   {displayQuote}
                 </p>
 
-                {/* CAS branding (smaller) */}
-                <p className="text-[6px] sm:text-[7px] font-black tracking-widest uppercase opacity-60 drop-shadow-sm px-1" style={{ color: isDarkBg ? '#ffffff' : '#000000' }}>
+                {/* Branding */}
+                <p
+                  className="text-[6px] sm:text-[7px] font-black tracking-widest uppercase opacity-60 drop-shadow-sm"
+                  style={{ color: isDarkBg ? '#ffffff' : '#000000' }}
+                >
                   Generated by CUET Adventure Society
                 </p>
 
-                {/* 🔴 NEW: Progress Bar */}
-                <div className="bg-white/20 dark:bg-black/50 backdrop-blur-md rounded-xl px-3 py-2 border border-white/25 dark:border-white/10 shadow-lg">
-                  <p className="text-[9px] sm:text-[10px] font-bold mb-1.5 leading-tight" style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}>
+                {/* Progress Bar */}
+                <div className="mt-1 bg-white/30 dark:bg-black/40 backdrop-blur-md rounded-xl px-3 py-2 border border-white/30 dark:border-white/10 shadow-lg">
+                  <p
+                    className="text-[9px] sm:text-[10px] font-bold mb-1.5 leading-tight"
+                    style={{ color: isDarkBg ? '#ffffff' : '#1e293b' }}
+                  >
                     আপনার শিকড় বাংলাদেশের <span style={{ color: '#ec4899' }}>{e2b(percentage)}%</span> জায়গা জুড়ে বিস্তৃত
                   </p>
-                  <div className="h-1.5 bg-white/30 dark:bg-black/40 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-white/40 dark:bg-black/40 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-700 ease-out"
                       style={{
@@ -931,7 +949,7 @@ export default function FamilyMapPage() {
               </button>
             </div>
 
-            {/* Storage Status Card */}
+            {/* Storage Status */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-center mb-2">
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
@@ -947,7 +965,6 @@ export default function FamilyMapPage() {
                   {storageStatus.size.toFixed(2)} MB / 5 MB
                 </span>
               </div>
-
               <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-500 ${
@@ -958,14 +975,12 @@ export default function FamilyMapPage() {
                   style={{ width: `${Math.min((storageStatus.size / 5) * 100, 100)}%` }}
                 ></div>
               </div>
-
               {storageStatus.error === "quota" && (
                 <p className="text-[10px] text-red-500 font-bold mt-2">
                   <i className="fa-solid fa-triangle-exclamation mr-1"></i>
                   স্টোরেজ ভরে গেছে! কিছু আত্মীয় মুছে ফেলুন।
                 </p>
               )}
-
               {storageStatus.size > 0 && !storageStatus.error && (
                 <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
                   <i className="fa-solid fa-circle-check mr-1 text-emerald-500"></i>
@@ -987,19 +1002,13 @@ export default function FamilyMapPage() {
               >
                 <i className="fa-solid fa-download"></i> Export
               </button>
-              
               <label className="flex-1 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20">
                 <i className="fa-solid fa-upload"></i> Import
-                <input
-                  type="file"
-                  accept="application/json"
-                  className="hidden"
-                  onChange={handleImport}
-                />
+                <input type="file" accept="application/json" className="hidden" onChange={handleImport} />
               </label>
             </div>
 
-            {/* Color Controls */}
+            {/* Colors */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="mb-6">
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3"><i className="fa-solid fa-fill-drip mr-1 text-blue-500"></i> ব্যাকগ্রাউন্ড:</p>
@@ -1028,13 +1037,11 @@ export default function FamilyMapPage() {
               </div>
             </div>
 
-            {/* 🔴 NEW: Quote Customization */}
+            {/* Quote Customization */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
               <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
                 <i className="fa-solid fa-quote-left mr-1 text-pink-500"></i> কোটেশন
               </p>
-
-              {/* Preset pills */}
               <div className="flex flex-wrap gap-2 mb-3">
                 {quotePresets.map(q => (
                   <button
@@ -1060,8 +1067,6 @@ export default function FamilyMapPage() {
                   <i className="fa-solid fa-pen text-[9px]"></i> কাস্টম
                 </button>
               </div>
-
-              {/* Custom textarea */}
               {quoteOption === "custom" && (
                 <>
                   <textarea
@@ -1078,7 +1083,7 @@ export default function FamilyMapPage() {
               )}
             </div>
 
-            {/* Stats Card */}
+            {/* Stats */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="text-center mb-5">
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white rounded-full flex items-center justify-center mx-auto mb-3 text-2xl shadow-lg">
@@ -1088,7 +1093,6 @@ export default function FamilyMapPage() {
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mt-1">মোট আত্মীয়</p>
                 <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">ছড়িয়ে আছে {e2b(stats.districts)} টি জেলায়</p>
               </div>
-
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg p-2.5 text-center" style={{ background: sideColors.paternal.value + '20' }}>
                   <p className="text-lg font-black" style={{ color: sideColors.paternal.value }}>{e2b(stats.paternal)}</p>
@@ -1109,7 +1113,7 @@ export default function FamilyMapPage() {
               </div>
             </div>
 
-            {/* Download Buttons */}
+            {/* Download */}
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => handleDownload('jpg')}
@@ -1146,7 +1150,7 @@ export default function FamilyMapPage() {
 }
 
 // ============================================
-// MEMBER LIST SUB-COMPONENT
+// MEMBER LIST
 // ============================================
 function MemberList({ members, onEdit, onDelete, onDeleteAll }) {
   if (members.length === 0) {
@@ -1205,7 +1209,7 @@ function MemberList({ members, onEdit, onDelete, onDeleteAll }) {
 }
 
 // ============================================
-// MEMBER FORM SUB-COMPONENT
+// MEMBER FORM
 // ============================================
 function MemberForm({ formName, setFormName, formRelation, setFormRelation, formPhoto, onPhotoClick, onRemovePhoto, onSave, onCancel, isEditing }) {
   const selectedSide = getRelationSide(formRelation);
