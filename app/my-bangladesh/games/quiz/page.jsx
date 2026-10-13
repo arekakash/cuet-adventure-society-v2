@@ -1,5 +1,12 @@
 "use client";
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  memo,
+} from "react";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import * as topojson from "topojson-client";
 import Link from "next/link";
@@ -7,8 +14,16 @@ import AOS from "aos";
 import "aos/dist/aos.css";
 import { supabase } from "@/lib/supabase";
 
+// ============================================
+// CONSTANTS
+// ============================================
 const geoUrl = "/bd-districts.topo.json";
-const QUESTION_TIME = 10; // 🔴 প্রতি প্রশ্নে ১০ সেকেন্ড
+const QUESTION_TIME = 10;
+const ANSWER_REVEAL_MS = 1300;
+const CORRECT_POINTS = 100;
+const WRONG_PENALTY = 20;
+const PERFECT_BONUS = 200;
+const PASS_THRESHOLD = 0.6; // ৬০% সঠিক = win
 
 // ============================================
 // HELPERS
@@ -25,33 +40,36 @@ const shuffle = (arr) => {
 };
 
 const formatTime = (sec) => {
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${e2b(m.toString().padStart(2, "0"))}:${e2b(s.toString().padStart(2, "0"))}`;
+  const safe = Math.max(0, Math.floor(sec || 0));
+  const m = Math.floor(safe / 60);
+  const s = safe % 60;
+  return `${e2b(m.toString().padStart(2, "0"))}:${e2b(
+    s.toString().padStart(2, "0")
+  )}`;
 };
 
 // ============================================
 // NAME NORMALIZATION
 // ============================================
 const standardMap = {
-  "Chapainababganj": "Chapainawabganj",
-  "Nawabganj": "Chapainawabganj",
-  "Netrakona": "Netrokona",
-  "Panchagar": "Panchagarh",
-  "Bramhanbaria": "Brahmanbaria",
-  "Chittagong": "Chattogram",
+  Chapainababganj: "Chapainawabganj",
+  Nawabganj: "Chapainawabganj",
+  Netrakona: "Netrokona",
+  Panchagar: "Panchagarh",
+  Bramhanbaria: "Brahmanbaria",
+  Chittagong: "Chattogram",
   "Coxs Bazar": "Cox's Bazar",
 };
 
 const districtBn = {
-  "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
-  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
-  "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
-  "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
-  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Sherpur": "শেরপুর",
-  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
-  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
-  "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট",
+  Barguna: "বরগুনা", Barishal: "বরিশাল", Bhola: "ভোলা", Jhalokati: "ঝালকাঠি", Patuakhali: "পটুয়াখালী", Pirojpur: "পিরোজপুর",
+  Bandarban: "বান্দরবান", Brahmanbaria: "ব্রাহ্মণবাড়িয়া", Chandpur: "চাঁদপুর", Chattogram: "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", Cumilla: "কুমিল্লা", Feni: "ফেনী", Khagrachhari: "খাগড়াছড়ি", Lakshmipur: "লক্ষ্মীপুর", Noakhali: "নোয়াখালী", Rangamati: "রাঙামাটি",
+  Dhaka: "ঢাকা", Faridpur: "ফরিদপুর", Gazipur: "গাজীপুর", Gopalganj: "গোপালগঞ্জ", Kishoreganj: "কিশোরগঞ্জ", Madaripur: "মাদারীপুর", Manikganj: "মানিকগঞ্জ", Munshiganj: "মুন্সিগঞ্জ", Narayanganj: "নারায়ণগঞ্জ", Narsingdi: "নরসিংদী", Rajbari: "রাজবাড়ী", Shariatpur: "শরীয়তপুর", Tangail: "টাঙ্গাইল",
+  Bagerhat: "বাগেরহাট", Chuadanga: "চুয়াডাঙ্গা", Jashore: "যশোর", Jhenaidah: "ঝিনাইদহ", Khulna: "খুলনা", Kushtia: "কুষ্টিয়া", Magura: "মাগুরা", Meherpur: "মেহেরপুর", Narail: "নড়াইল", Satkhira: "সাতক্ষীরা",
+  Jamalpur: "জামালপুর", Mymensingh: "ময়মনসিংহ", Netrokona: "নেত্রকোনা", Sherpur: "শেরপুর",
+  Bogura: "বগুড়া", Chapainawabganj: "চাঁপাইনবাবগঞ্জ", Joypurhat: "জয়পুরহাট", Naogaon: "নওগাঁ", Natore: "নাটোর", Pabna: "পাবনা", Rajshahi: "রাজশাহী", Sirajganj: "সিরাজগঞ্জ",
+  Dinajpur: "দিনাজপুর", Gaibandha: "গাইবান্ধা", Kurigram: "কুড়িগ্রাম", Lalmonirhat: "লালমনিরহাট", Nilphamari: "নীলফামারী", Panchagarh: "পঞ্চগড়", Rangpur: "রংপুর", Thakurgaon: "ঠাকুরগাঁও",
+  Habiganj: "হবিগঞ্জ", Moulvibazar: "মৌলভীবাজার", Sunamganj: "সুনামগঞ্জ", Sylhet: "সিলেট",
 };
 
 const extractRawName = (geo) => {
@@ -138,9 +156,11 @@ const difficulties = [
 ];
 
 // ============================================
-// SOUND ENGINE
+// SOUND ENGINE (with mute)
 // ============================================
 let audioCtx = null;
+let soundMuted = false;
+
 const initAudio = () => {
   if (typeof window === "undefined") return null;
   if (!audioCtx) {
@@ -154,6 +174,7 @@ const initAudio = () => {
 };
 
 const playTone = (freq, duration, type = "sine", volume = 0.12, delay = 0) => {
+  if (soundMuted) return;
   const ctx = initAudio();
   if (!ctx) return;
   if (ctx.state === "suspended") ctx.resume();
@@ -206,47 +227,221 @@ const sounds = {
 };
 
 // ============================================
-// MEMOIZED GEOGRAPHY (Highlight target district)
+// MEMOIZED GEOGRAPHY (actually memoized now)
 // ============================================
-const MemoizedGeography = ({ geo, isTarget, onClick }) => {
-  let fill = "#cbd5e1";
-  let stroke = "rgba(148,163,184,0.4)";
-  let strokeWidth = 0.5;
-  let filter = "none";
+const MemoizedGeography = memo(
+  function MemoizedGeography({ geo, isTarget, isHoverEnabled = true }) {
+    const fill = isTarget ? "#10b981" : "#cbd5e1";
+    const stroke = isTarget ? "#ffffff" : "rgba(148,163,184,0.4)";
+    const strokeWidth = isTarget ? 1.5 : 0.5;
+    const filter = isTarget
+      ? "drop-shadow(0 0 8px rgba(16,185,129,0.9))"
+      : "none";
 
-  if (isTarget) {
-    fill = "#10b981";
-    stroke = "#ffffff";
-    strokeWidth = 1.5;
-    filter = "drop-shadow(0 0 8px rgba(16,185,129,0.9))";
-  }
+    return (
+      <Geography
+        geography={geo}
+        style={{
+          default: {
+            fill,
+            outline: "none",
+            stroke,
+            strokeWidth,
+            transition: "fill 0.3s ease, stroke 0.3s ease",
+            filter,
+            cursor: "default",
+          },
+          hover: {
+            fill,
+            outline: "none",
+            stroke,
+            strokeWidth,
+            filter,
+          },
+          pressed: { outline: "none" },
+        }}
+      />
+    );
+  },
+  (prev, next) =>
+    prev.geo.rsmKey === next.geo.rsmKey && prev.isTarget === next.isTarget
+);
+
+// ============================================
+// SCORE BREAKDOWN (NEW)
+// ============================================
+function ScoreBreakdown({ breakdown }) {
+  if (!breakdown) return null;
+
+  const {
+    totalQuestions,
+    correctCount,
+    wrongCount,
+    basePoints,
+    comboBonus,
+    penaltyPoints,
+    perfectBonus,
+    maxCombo,
+    finalScore,
+    won,
+  } = breakdown;
+
+  const comboMultiplierLabel =
+    maxCombo >= 5 ? "×২" : maxCombo >= 3 ? "×১.৫" : null;
 
   return (
-    <Geography
-      geography={geo}
-      onClick={onClick}
-      style={{
-        default: {
-          fill,
-          outline: "none",
-          stroke,
-          strokeWidth,
-          transition: "fill 0.3s ease, stroke 0.3s ease",
-          filter,
-          cursor: "default",
-        },
-        hover: {
-          fill: isTarget ? "#10b981" : "#94a3b8",
-          outline: "none",
-          stroke: isTarget ? "#ffffff" : "#cbd5e1",
-          strokeWidth: isTarget ? 1.5 : 0.8,
-          filter,
-        },
-        pressed: { outline: "none" },
-      }}
-    />
+    <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/25 mb-4 text-left">
+      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-white/20">
+        <i className="fa-solid fa-calculator text-yellow-300"></i>
+        <h3 className="text-xs font-black text-white uppercase tracking-widest">
+          স্কোর কীভাবে তৈরি হলো
+        </h3>
+      </div>
+
+      <div className="space-y-2">
+        {correctCount > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-check text-emerald-300 mr-1.5 w-4 text-center"></i>
+              {e2b(correctCount)}টি সঠিক × ১০০
+            </span>
+            <span className="text-emerald-300 font-black">
+              +{e2b(basePoints)}
+            </span>
+          </div>
+        )}
+
+        {comboBonus > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-bolt text-amber-300 mr-1.5 w-4 text-center"></i>
+              কম্বো মাল্টিপ্লায়ার বোনাস
+              {comboMultiplierLabel && (
+                <span className="text-amber-200/80 ml-1">
+                  (সর্বোচ্চ {comboMultiplierLabel})
+                </span>
+              )}
+            </span>
+            <span className="text-amber-300 font-black">
+              +{e2b(comboBonus)}
+            </span>
+          </div>
+        )}
+
+        {perfectBonus > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-crown text-yellow-300 mr-1.5 w-4 text-center"></i>
+              পারফেক্ট বোনাস (কোনো ভুল নেই!)
+            </span>
+            <span className="text-yellow-300 font-black">
+              +{e2b(perfectBonus)}
+            </span>
+          </div>
+        )}
+
+        {penaltyPoints > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-xmark text-red-300 mr-1.5 w-4 text-center"></i>
+              {e2b(wrongCount)}টি ভুল/টাইমআউট × ২০
+            </span>
+            <span className="text-red-300 font-black">
+              −{e2b(penaltyPoints)}
+            </span>
+          </div>
+        )}
+
+        {correctCount === 0 && wrongCount > 0 && (
+          <div className="text-center text-xs font-bold text-white/70 py-2">
+            <i className="fa-solid fa-face-sad-tear mr-1.5"></i>
+            কোনো সঠিক উত্তর দিতে পারেননি
+          </div>
+        )}
+
+        <div className="border-t border-white/25 my-2"></div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-black text-white uppercase tracking-wider">
+            <i className="fa-solid fa-equals text-white/70 mr-1.5"></i>
+            মোট স্কোর
+          </span>
+          <span className="text-xl font-black text-white">
+            {e2b(finalScore)}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-3 pt-2 border-t border-white/20 flex items-center justify-center gap-2 text-[9px] font-bold text-white/60 flex-wrap">
+        <span>
+          <i className="fa-solid fa-circle-question mr-1"></i>
+          মোট প্রশ্ন: {e2b(totalQuestions)}
+        </span>
+        <span>•</span>
+        <span className="text-emerald-300">
+          <i className="fa-solid fa-check mr-1"></i>
+          সঠিক: {e2b(correctCount)}
+        </span>
+        <span>•</span>
+        <span className="text-red-300">
+          <i className="fa-solid fa-xmark mr-1"></i>
+          ভুল: {e2b(wrongCount)}
+        </span>
+      </div>
+    </div>
   );
-};
+}
+
+// ============================================
+// EXIT CONFIRM MODAL (replaces window.confirm)
+// ============================================
+function ExitConfirmModal({ onCancel, onConfirm }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onCancel}
+      ></div>
+      <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-sm relative z-10 shadow-2xl p-6 text-center">
+        <div className="w-14 h-14 mx-auto rounded-2xl bg-red-100 dark:bg-red-500/20 flex items-center justify-center mb-4">
+          <i className="fa-solid fa-triangle-exclamation text-red-500 text-xl"></i>
+        </div>
+        <h3 className="text-lg font-black text-gray-900 dark:text-white mb-1">
+          কুইজ থেকে বের হবেন?
+        </h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">
+          আপনার বর্তমান অগ্রগতি সংরক্ষিত হবে না।
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-black text-xs"
+          >
+            খেলে যাব
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-3 rounded-xl bg-red-500 text-white font-black text-xs"
+          >
+            হ্যাঁ, বের হব
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ============================================
 // LEADERBOARD MODAL
@@ -259,6 +454,7 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
   );
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       setLoading(true);
       try {
@@ -278,13 +474,24 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
         }
 
         const { data, error } = await query;
-        if (!error) setEntries(data || []);
+        if (!cancelled && !error) setEntries(data || []);
       } catch (e) {
         console.error(e);
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [activeDifficulty]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const getMedalIcon = (rank) => {
     if (rank === 1) return "fa-crown text-yellow-400";
@@ -304,7 +511,11 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+    >
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
@@ -322,7 +533,8 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors"
+            aria-label="বন্ধ করুন"
+            className="w-11 h-11 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors"
           >
             <i className="fa-solid fa-xmark text-gray-600 dark:text-gray-300"></i>
           </button>
@@ -334,7 +546,7 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
             className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
               activeDifficulty === null
                 ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
             }`}
           >
             সব
@@ -346,7 +558,7 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
               className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
                 activeDifficulty === d.id
                   ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
               }`}
             >
               {d.title}
@@ -470,7 +682,6 @@ export default function QuizPage() {
   const [difficulty, setDifficulty] = useState(null);
   const [allDistricts, setAllDistricts] = useState(null);
 
-  // 🔴 Question queue: [{ uid, name, bnName, options: [4 names] }]
   const [questionQueue, setQuestionQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -480,9 +691,11 @@ export default function QuizPage() {
   const [combo, setCombo] = useState(0);
   const [maxCombo, setMaxCombo] = useState(0);
   const [startTime, setStartTime] = useState(null);
-  const [elapsed, setElapsed] = useState(0);
 
-  // 🔴 Per-question timer
+  // 🔴 NEW: score components
+  const [basePoints, setBasePoints] = useState(0);
+  const [comboBonus, setComboBonus] = useState(0);
+
   const [questionTimeLeft, setQuestionTimeLeft] = useState(QUESTION_TIME);
 
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -498,27 +711,44 @@ export default function QuizPage() {
   const [finalWrong, setFinalWrong] = useState(0);
   const [finalMaxCombo, setFinalMaxCombo] = useState(0);
   const [wasWin, setWasWin] = useState(false);
+  const [scoreBreakdown, setScoreBreakdown] = useState(null); // 🔴 NEW
 
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [scoreSubmitStatus, setScoreSubmitStatus] = useState("idle");
   const [userRank, setUserRank] = useState(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false); // 🔴 NEW
+  const [soundOn, setSoundOn] = useState(true); // 🔴 NEW
 
-  // Refs for stale closure prevention
+  // Sync mute flag
+  useEffect(() => {
+    soundMuted = !soundOn;
+  }, [soundOn]);
+
+  // ============================================
+  // stateRef via useEffect (concurrent-safe)
+  // ============================================
   const stateRef = useRef({});
-  stateRef.current = {
-    score,
-    correctCount,
-    wrongCount,
-    maxCombo,
-    difficulty,
-    startTime,
-    questionQueue,
-    user,
-  };
+  useEffect(() => {
+    stateRef.current = {
+      score,
+      correctCount,
+      wrongCount,
+      maxCombo,
+      difficulty,
+      startTime,
+      questionQueue,
+      user,
+      basePoints,
+      comboBonus,
+    };
+  });
 
   const gameEndedRef = useRef(false);
+  const lastTickRef = useRef(null);
+  const advanceTimerRef = useRef(null);
+  const toastTimerRef = useRef(null);
 
   // ============ AUTH CHECK ============
   useEffect(() => {
@@ -545,7 +775,6 @@ export default function QuizPage() {
         const key = Object.keys(topo.objects)[0];
         const features = topojson.feature(topo, topo.objects[key]).features;
 
-        // Attach _uid and _rawName
         const enriched = features.map((f, i) => ({
           ...f,
           _uid: i,
@@ -559,15 +788,28 @@ export default function QuizPage() {
     })();
   }, []);
 
+  // ============ MEMOIZED UID MAP (fix O(n²)) ============
+  const uidByNameMap = useMemo(() => {
+    const m = new Map();
+    (allDistricts || []).forEach((d) => {
+      m.set(getNormalizedName(d._rawName), d._uid);
+    });
+    return m;
+  }, [allDistricts]);
+
   // ============ COUNTDOWN ============
   useEffect(() => {
     if (phase !== "countdown") return;
+
     if (countdownValue <= 0) {
       sounds.go();
-      setPhase("playing");
-      setStartTime(Date.now());
-      return;
+      const t = setTimeout(() => {
+        setPhase("playing");
+        setStartTime(Date.now());
+      }, 700);
+      return () => clearTimeout(t);
     }
+
     sounds.countdown();
     const t = setTimeout(() => setCountdownValue((v) => v - 1), 800);
     return () => clearTimeout(t);
@@ -614,20 +856,26 @@ export default function QuizPage() {
 
       if (data?.saved) {
         try {
-          const { data: profileData } = await supabase
+          const { data: profileData, error: profileErr } = await supabase
             .from("profiles")
             .select("game_xp, game_level")
             .eq("id", currentUser.id)
-            .single();
-          const currentXp = profileData?.game_xp || 0;
-          const newXp = currentXp + (payload.xp || 0);
-          const newLevel = Math.min(15, Math.floor(newXp / 500) + 1);
-          await supabase
-            .from("profiles")
-            .update({ game_xp: newXp, game_level: newLevel })
-            .eq("id", currentUser.id);
+            .maybeSingle();
+
+          if (profileErr) {
+            console.warn("[Quiz] Profile fetch failed:", profileErr);
+          } else if (profileData) {
+            const currentXp = profileData.game_xp || 0;
+            const newXp = currentXp + (payload.xp || 0);
+            const newLevel = Math.min(15, Math.floor(newXp / 500) + 1);
+            const { error: updErr } = await supabase
+              .from("profiles")
+              .update({ game_xp: newXp, game_level: newLevel })
+              .eq("id", currentUser.id);
+            if (updErr) console.warn("[Quiz] Profile update failed:", updErr);
+          }
         } catch (e) {
-          console.warn("XP update failed:", e);
+          console.warn("[Quiz] XP update exception:", e);
         }
       }
     } catch (e) {
@@ -642,6 +890,10 @@ export default function QuizPage() {
       if (gameEndedRef.current) return;
       gameEndedRef.current = true;
 
+      // Clear pending timers
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+
       try {
         const {
           startTime: st,
@@ -650,6 +902,8 @@ export default function QuizPage() {
           correctCount: cc,
           wrongCount: wc,
           maxCombo: mc,
+          basePoints: bp,
+          comboBonus: cb,
         } = stateRef.current;
 
         if (!st || !df) {
@@ -659,16 +913,37 @@ export default function QuizPage() {
           setFinalWrong(0);
           setFinalMaxCombo(0);
           setWasWin(false);
+          setScoreBreakdown(null);
           setTimeout(() => setPhase("result"), 30);
           return;
         }
 
         const finalTime = Math.max(0, Math.floor((Date.now() - st) / 1000));
 
-        const baseScore = cc * 100 - wc * 20;
-        const perfectBonus = won && wc === 0 ? 200 : 0;
-        const finalScore = Math.max(0, baseScore + perfectBonus);
+        // 🔴 FIX: use gameplay score (sc) + perfect bonus
+        const perfectBonus = wc === 0 && cc > 0 ? PERFECT_BONUS : 0;
+        const finalScore = Math.max(0, sc + perfectBonus);
+        const penaltyPoints = wc * WRONG_PENALTY;
 
+        // Determine win: at least PASS_THRESHOLD correct
+        const totalQ = df.totalQuestions || cc + wc;
+        const isWin = won && cc >= Math.ceil(totalQ * PASS_THRESHOLD);
+
+        // 🔴 NEW: Build breakdown
+        const breakdown = {
+          totalQuestions: totalQ,
+          correctCount: cc,
+          wrongCount: wc,
+          basePoints: bp,
+          comboBonus: cb,
+          penaltyPoints,
+          perfectBonus,
+          maxCombo: mc,
+          finalScore,
+          won: isWin,
+        };
+
+        // localStorage stats
         try {
           const stats = JSON.parse(
             localStorage.getItem("game-hub-stats-v1") || "{}"
@@ -695,7 +970,7 @@ export default function QuizPage() {
           console.warn("localStorage save failed:", e);
         }
 
-        if (won) sounds.win();
+        if (isWin) sounds.win();
         else sounds.lose();
 
         setFinalScoreDisplay(finalScore);
@@ -703,31 +978,24 @@ export default function QuizPage() {
         setFinalCorrect(cc);
         setFinalWrong(wc);
         setFinalMaxCombo(mc);
-        setWasWin(won);
+        setWasWin(isWin);
+        setScoreBreakdown(breakdown);
 
-        setTimeout(() => {
-          setPhase("result");
-        }, 50);
+        setTimeout(() => setPhase("result"), 50);
 
         const xpGain = Math.round(finalScore / 10) + 50;
         const accuracy =
           cc + wc > 0 ? Math.round((cc / (cc + wc)) * 100 * 100) / 100 : 0;
 
-        setTimeout(() => {
-          try {
-            submitScoreToSupabase({
-              difficulty: df.id,
-              score: finalScore,
-              timeSeconds: finalTime,
-              wrongTaps: wc,
-              maxCombo: mc,
-              accuracy,
-              xp: xpGain,
-            });
-          } catch (e) {
-            console.warn("submit failed:", e);
-          }
-        }, 300);
+        submitScoreToSupabase({
+          difficulty: df.id,
+          score: finalScore,
+          timeSeconds: finalTime,
+          wrongTaps: wc,
+          maxCombo: mc,
+          accuracy,
+          xp: xpGain,
+        }).catch((e) => console.warn("[Quiz] submit failed:", e));
       } catch (err) {
         console.error("[Quiz] endGame error:", err);
         setFinalScoreDisplay(0);
@@ -736,21 +1004,12 @@ export default function QuizPage() {
         setFinalWrong(0);
         setFinalMaxCombo(0);
         setWasWin(false);
+        setScoreBreakdown(null);
         setPhase("result");
       }
     },
     [submitScoreToSupabase]
   );
-
-  // ============ TOTAL ELAPSED TIMER ============
-  useEffect(() => {
-    if (phase !== "playing" || !startTime) return;
-    const id = setInterval(() => {
-      const el = Math.floor((Date.now() - startTime) / 1000);
-      setElapsed(el);
-    }, 1000);
-    return () => clearInterval(id);
-  }, [phase, startTime]);
 
   // ============ PER-QUESTION TIMER ============
   useEffect(() => {
@@ -759,8 +1018,11 @@ export default function QuizPage() {
     if (questionTimeLeft <= 0) return;
     if (currentIndex >= questionQueue.length) return;
 
-    // Play tick in last 3 seconds
-    if (questionTimeLeft <= 3) sounds.tick();
+    // Tick in last 3s (deduped)
+    if (questionTimeLeft <= 3 && lastTickRef.current !== questionTimeLeft) {
+      sounds.tick();
+      lastTickRef.current = questionTimeLeft;
+    }
 
     const t = setTimeout(() => {
       setQuestionTimeLeft((v) => v - 1);
@@ -781,24 +1043,28 @@ export default function QuizPage() {
     sounds.timeout();
     setWrongCount((w) => w + 1);
     setCombo(0);
-    setScore((s) => Math.max(0, s - 20));
+    setScore((s) => s - WRONG_PENALTY);
     setSelectedAnswer("__timeout__");
     setShowResult(true);
     setToast({ text: "⏰ সময় শেষ!", type: "wrong" });
 
-    setTimeout(() => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), ANSWER_REVEAL_MS);
+
+    advanceTimerRef.current = setTimeout(() => {
       setToast(null);
       const nextIdx = currentIndex + 1;
       if (nextIdx >= questionQueue.length) {
         endGame(true);
       } else {
+        lastTickRef.current = null;
         setCurrentIndex(nextIdx);
         setQuestionTimeLeft(QUESTION_TIME);
         setSelectedAnswer(null);
         setShowResult(false);
         setTapLocked(false);
       }
-    }, 1200);
+    }, ANSWER_REVEAL_MS);
   }, [
     phase,
     questionTimeLeft,
@@ -809,71 +1075,83 @@ export default function QuizPage() {
   ]);
 
   // ============ START GAME ============
-  const startGame = (diff) => {
-    if (!allDistricts) return;
-    gameEndedRef.current = false;
-    setDifficulty(diff);
-    setScore(0);
-    setCorrectCount(0);
-    setWrongCount(0);
-    setCombo(0);
-    setMaxCombo(0);
-    setElapsed(0);
-    setCurrentIndex(0);
-    setCountdownValue(3);
-    setScoreSubmitStatus("idle");
-    setUserRank(null);
-    setSelectedAnswer(null);
-    setShowResult(false);
-    setTapLocked(false);
-    setQuestionTimeLeft(QUESTION_TIME);
+  const startGame = useCallback(
+    (diff) => {
+      if (!allDistricts) return;
+      gameEndedRef.current = false;
+      lastTickRef.current = null;
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
 
-    // Build pool
-    const pool = diff.districts
-      ? allDistricts.filter((g) => {
-          const normalized = getNormalizedName(g._rawName);
-          return diff.districts.includes(normalized);
-        })
-      : allDistricts;
+      setDifficulty(diff);
+      setScore(0);
+      setCorrectCount(0);
+      setWrongCount(0);
+      setCombo(0);
+      setMaxCombo(0);
+      setBasePoints(0);
+      setComboBonus(0);
+      setCurrentIndex(0);
+      setCountdownValue(3);
+      setScoreSubmitStatus("idle");
+      setUserRank(null);
+      setSelectedAnswer(null);
+      setShowResult(false);
+      setTapLocked(false);
+      setQuestionTimeLeft(QUESTION_TIME);
+      setToast(null);
+      setScoreBreakdown(null);
 
-    const shuffledPool = shuffle(pool);
-    const selected = shuffledPool.slice(0, diff.totalQuestions);
+      // Build pool
+      const pool = diff.districts
+        ? allDistricts.filter((g) => {
+            const normalized = getNormalizedName(g._rawName);
+            return diff.districts.includes(normalized);
+          })
+        : allDistricts;
 
-    // 🔴 Build question queue with 4 options per question
-    const queue = selected.map((correctGeo) => {
-      const correctName = getNormalizedName(correctGeo._rawName);
-      const correctBn = districtBn[correctName] || correctName;
+      const shuffledPool = shuffle(pool);
+      const selected = shuffledPool.slice(0, diff.totalQuestions);
 
-      // Pick 3 distractors from the same pool (excluding correct answer)
-      const distractorPool = pool.filter(
-        (g) => g._uid !== correctGeo._uid
-      );
-      const shuffledDistractors = shuffle(distractorPool);
-      const distractors = shuffledDistractors.slice(0, 3).map((g) => {
-        const n = getNormalizedName(g._rawName);
+      // Build question queue with deduped options
+      const queue = selected.map((correctGeo) => {
+        const correctName = getNormalizedName(correctGeo._rawName);
+        const correctBn = districtBn[correctName] || correctName;
+
+        // Distractor pool excluding correct + deduping bn names
+        const distractorPool = pool.filter(
+          (g) => g._uid !== correctGeo._uid
+        );
+        const shuffledDistractors = shuffle(distractorPool);
+        const usedBnNames = new Set([correctBn]);
+        const distractors = [];
+        for (const g of shuffledDistractors) {
+          const n = getNormalizedName(g._rawName);
+          const bn = districtBn[n] || n;
+          if (usedBnNames.has(bn)) continue;
+          usedBnNames.add(bn);
+          distractors.push({ name: n, bnName: bn, isCorrect: false });
+          if (distractors.length === 3) break;
+        }
+
+        const options = shuffle([
+          { name: correctName, bnName: correctBn, isCorrect: true },
+          ...distractors,
+        ]);
+
         return {
-          name: n,
-          bnName: districtBn[n] || n,
+          uid: correctGeo._uid,
+          name: correctName,
+          bnName: correctBn,
+          options,
         };
       });
 
-      // Combine + shuffle 4 options
-      const options = shuffle([
-        { name: correctName, bnName: correctBn, isCorrect: true },
-        ...distractors.map((d) => ({ ...d, isCorrect: false })),
-      ]);
-
-      return {
-        uid: correctGeo._uid,
-        name: correctName,
-        bnName: correctBn,
-        options,
-      };
-    });
-
-    setQuestionQueue(queue);
-    setPhase("countdown");
-  };
+      setQuestionQueue(queue);
+      setPhase("countdown");
+    },
+    [allDistricts]
+  );
 
   // ============ HANDLE ANSWER ============
   const handleAnswer = useCallback(
@@ -890,50 +1168,65 @@ export default function QuizPage() {
       setShowResult(true);
 
       if (option.isCorrect) {
-        // ✅ CORRECT
         sounds.correct();
         const newCombo = combo + 1;
-        let points = 100;
         let multiplier = 1;
         if (newCombo >= 5) multiplier = 2;
         else if (newCombo >= 3) multiplier = 1.5;
-        points = Math.round(points * multiplier);
 
-        setScore((s) => s + points);
+        const baseComp = CORRECT_POINTS;
+        const totalPoints = Math.round(baseComp * multiplier);
+        const comboComp = totalPoints - baseComp;
+
+        setScore((s) => s + totalPoints);
+        setBasePoints((b) => b + baseComp);
+        setComboBonus((b) => b + comboComp);
         setCorrectCount((c) => c + 1);
         setCombo(newCombo);
         setMaxCombo((m) => Math.max(m, newCombo));
 
         setToast({
-          text: `+${e2b(points)}${multiplier > 1 ? ` (×${multiplier})` : ""}`,
+          text: `+${e2b(totalPoints)}${
+            multiplier > 1 ? ` (বেস ১০০ + কম্বো ${e2b(comboComp)})` : ""
+          }`,
           type: "correct",
         });
       } else {
-        // ❌ WRONG
         sounds.wrong();
         setWrongCount((w) => w + 1);
         setCombo(0);
-        setScore((s) => Math.max(0, s - 20));
-        setToast({ text: "✗ ভুল", type: "wrong" });
+        setScore((s) => s - WRONG_PENALTY);
+        setToast({ text: `✗ ভুল (−${e2b(WRONG_PENALTY)})`, type: "wrong" });
       }
 
-      // Advance to next question
-      setTimeout(() => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => setToast(null), ANSWER_REVEAL_MS);
+
+      advanceTimerRef.current = setTimeout(() => {
         setToast(null);
         const nextIdx = currentIndex + 1;
         if (nextIdx >= questionQueue.length) {
           endGame(true);
         } else {
+          lastTickRef.current = null;
           setCurrentIndex(nextIdx);
           setQuestionTimeLeft(QUESTION_TIME);
           setSelectedAnswer(null);
           setShowResult(false);
           setTapLocked(false);
         }
-      }, 1200);
+      }, ANSWER_REVEAL_MS);
     },
     [phase, tapLocked, currentIndex, questionQueue, combo, endGame]
   );
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   // ============ CURRENT QUESTION ============
   const currentQuestion =
@@ -941,12 +1234,13 @@ export default function QuizPage() {
       ? questionQueue[currentIndex]
       : null;
 
-  const progressPct =
-    questionQueue.length > 0
-      ? Math.round((currentIndex / questionQueue.length) * 100)
-      : 0;
+  const questionProgress = questionQueue.length
+    ? Math.round(((currentIndex + 1) / questionQueue.length) * 100)
+    : 0;
 
-  // ============ RENDER: MENU ============
+  // ============================================
+  // RENDER: MENU
+  // ============================================
   if (phase === "menu") {
     return (
       <div
@@ -963,7 +1257,8 @@ export default function QuizPage() {
             </Link>
             <button
               onClick={() => setShowLeaderboard(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black rounded-xl text-xs shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
+              aria-label="লিডারবোর্ড দেখুন"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black rounded-xl text-xs shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
             >
               <i className="fa-solid fa-trophy"></i>
               লিডারবোর্ড
@@ -978,7 +1273,8 @@ export default function QuizPage() {
               জেলা কুইজ
             </h1>
             <p className="text-base text-gray-600 dark:text-gray-400 max-w-xl mx-auto">
-              ম্যাপে highlight করা জেলার সঠিক নাম বেছে নিন। প্রতি প্রশ্নে ১০ সেকেন্ড সময়!
+              ম্যাপে highlight করা জেলার সঠিক নাম বেছে নিন। প্রতি প্রশ্নে ১০
+              সেকেন্ড সময়!
             </p>
           </div>
 
@@ -993,6 +1289,7 @@ export default function QuizPage() {
                 disabled={!allDistricts}
                 data-aos="fade-up"
                 data-aos-delay={idx * 100}
+                aria-label={`${diff.title} ডিফিকাল্টিতে শুরু`}
                 className={`group relative overflow-hidden rounded-3xl bg-gradient-to-br ${diff.gradient} p-7 shadow-xl ${diff.shadow} hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 text-left disabled:opacity-50 disabled:cursor-wait`}
               >
                 <div className="absolute -top-20 -right-20 w-44 h-44 bg-white/20 rounded-full blur-3xl group-hover:bg-white/30 transition-colors"></div>
@@ -1080,6 +1377,10 @@ export default function QuizPage() {
                 <i className="fa-solid fa-crown text-yellow-500 mt-1 text-xs"></i>
                 কোনো ভুল না করলে <b>+২০০ পারফেক্ট বোনাস</b>
               </li>
+              <li className="flex items-start gap-2">
+                <i className="fa-solid fa-trophy text-emerald-500 mt-1 text-xs"></i>
+                <b>৬০%+ সঠিক</b> উত্তর দিলে জয়ী হবেন
+              </li>
             </ul>
           </div>
         </div>
@@ -1095,7 +1396,9 @@ export default function QuizPage() {
     );
   }
 
-  // ============ RENDER: COUNTDOWN ============
+  // ============================================
+  // RENDER: COUNTDOWN
+  // ============================================
   if (phase === "countdown") {
     return (
       <div
@@ -1153,7 +1456,9 @@ export default function QuizPage() {
     );
   }
 
-  // ============ RENDER: RESULT ============
+  // ============================================
+  // RENDER: RESULT
+  // ============================================
   if (phase === "result") {
     const won = wasWin;
     const xpGained = Math.round(finalScoreDisplay / 10) + 50;
@@ -1233,7 +1538,7 @@ export default function QuizPage() {
           <div className="bg-red-500/20 backdrop-blur-sm rounded-xl p-3 mb-4 border border-red-300/30">
             <p className="text-xs font-bold text-white/90 text-center">
               <i className="fa-solid fa-triangle-exclamation mr-1.5"></i>
-              স্কোর সেভ করা যায়নি
+              স্কোর সেভ করা যায়নি — আবার চেষ্টা করুন
             </p>
           </div>
         );
@@ -1254,7 +1559,6 @@ export default function QuizPage() {
                 ? "bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-500"
                 : "bg-gradient-to-br from-red-500 via-pink-500 to-orange-500"
             }`}
-            data-aos="zoom-in"
           >
             <div className="absolute -top-24 -right-24 w-72 h-72 bg-white/15 rounded-full blur-3xl"></div>
             <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-black/10 rounded-full blur-3xl"></div>
@@ -1263,19 +1567,19 @@ export default function QuizPage() {
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm border-4 border-white/40 mb-4">
                 <i
                   className={`fa-solid ${
-                    won ? "fa-crown" : "fa-clock"
+                    won ? "fa-crown" : "fa-heart-crack"
                   } text-white text-3xl`}
                 ></i>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-white mb-1">
-                {won ? "অভিনন্দন!" : "সময় শেষ!"}
+                {won ? "অভিনন্দন!" : "ভালো চেষ্টা!"}
               </h1>
               <p className="text-white/85 text-xs font-bold mb-5">
                 {won
                   ? `আপনি ${e2b(finalCorrect)}টি সঠিক উত্তর দিয়েছেন 🎉`
                   : `${e2b(finalCorrect)}/${e2b(
                       difficulty?.totalQuestions || 0
-                    )} সঠিক উত্তর`}
+                    )} সঠিক — ৬০% দরকার ছিল`}
               </p>
 
               <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-5 border border-white/25 mb-4">
@@ -1320,6 +1624,9 @@ export default function QuizPage() {
                 </div>
               </div>
 
+              {/* 🔴 NEW: Score breakdown */}
+              {scoreBreakdown && <ScoreBreakdown breakdown={scoreBreakdown} />}
+
               {renderSaveStatus()}
 
               <div className="flex flex-col gap-2">
@@ -1327,11 +1634,11 @@ export default function QuizPage() {
                   <button
                     onClick={() => {
                       gameEndedRef.current = false;
-                      setPhase("menu");
+                      if (difficulty) startGame(difficulty);
                     }}
                     className="flex-1 py-3 bg-white/20 backdrop-blur-sm text-white font-black rounded-xl border border-white/30 hover:bg-white/30 transition-all text-xs"
                   >
-                    <i className="fa-solid fa-rotate-left mr-1.5"></i>
+                    <i className="fa-solid fa-rotate-right mr-1.5"></i>
                     আবার খেলুন
                   </button>
                   <button
@@ -1342,9 +1649,19 @@ export default function QuizPage() {
                     লিডারবোর্ড
                   </button>
                 </div>
+                <button
+                  onClick={() => {
+                    gameEndedRef.current = false;
+                    setPhase("menu");
+                  }}
+                  className="w-full py-3 bg-white text-gray-900 font-black rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all text-xs"
+                >
+                  <i className="fa-solid fa-layer-group mr-1.5"></i>
+                  ডিফিকাল্টি পরিবর্তন
+                </button>
                 <Link
                   href="/my-bangladesh/games"
-                  className="w-full py-3 bg-white text-gray-900 font-black rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all text-center text-xs"
+                  className="w-full py-3 bg-white/10 text-white font-black rounded-xl border border-white/20 hover:bg-white/15 transition-all text-center text-xs"
                 >
                   <i className="fa-solid fa-home mr-1.5"></i>
                   গেম হাব
@@ -1365,11 +1682,12 @@ export default function QuizPage() {
     );
   }
 
-  // ============ RENDER: PLAYING ============
+  // ============================================
+  // RENDER: PLAYING
+  // ============================================
   const timeWarning = questionTimeLeft <= 3 && questionTimeLeft > 0;
-  const questionProgress = questionQueue.length
-    ? Math.round(((currentIndex + 1) / questionQueue.length) * 100)
-    : 0;
+  const isTimeout = selectedAnswer === "__timeout__";
+  const displayScore = Math.max(0, score);
 
   return (
     <div
@@ -1380,13 +1698,9 @@ export default function QuizPage() {
       <div className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div className="px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2">
           <button
-            onClick={() => {
-              if (window.confirm("গেম থেকে বের হয়ে যাবেন?")) {
-                gameEndedRef.current = false;
-                setPhase("menu");
-              }
-            }}
-            className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shrink-0"
+            onClick={() => setShowExitModal(true)}
+            aria-label="কুইজ থেকে বের হন"
+            className="w-11 h-11 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shrink-0"
           >
             <i className="fa-solid fa-xmark"></i>
           </button>
@@ -1394,7 +1708,7 @@ export default function QuizPage() {
           <div className="flex items-center gap-2 sm:gap-3 flex-1 justify-center min-w-0">
             <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-xs sm:text-sm shadow-md shrink-0">
               <i className="fa-solid fa-star text-[10px] sm:text-xs"></i>
-              <span>{e2b(score)}</span>
+              <span>{e2b(displayScore)}</span>
             </div>
 
             {combo >= 3 && (
@@ -1405,11 +1719,23 @@ export default function QuizPage() {
             )}
           </div>
 
+          <button
+            onClick={() => setSoundOn((s) => !s)}
+            aria-label={soundOn ? "সাউন্ড বন্ধ করুন" : "সাউন্ড চালু করুন"}
+            className="w-11 h-11 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shrink-0"
+          >
+            <i
+              className={`fa-solid ${
+                soundOn ? "fa-volume-high" : "fa-volume-xmark"
+              } text-sm`}
+            ></i>
+          </button>
+
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-[10px] sm:text-xs font-black text-gray-500 dark:text-gray-400 whitespace-nowrap">
               {e2b(currentIndex + 1)}/{e2b(questionQueue.length)}
             </span>
-            <div className="w-12 sm:w-20 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+            <div className="hidden sm:block w-20 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
                 style={{ width: `${questionProgress}%` }}
@@ -1424,9 +1750,7 @@ export default function QuizPage() {
         <div className="flex items-center gap-3 max-w-3xl mx-auto">
           <i
             className={`fa-solid fa-stopwatch text-lg ${
-              timeWarning
-                ? "text-red-500 animate-pulse"
-                : "text-emerald-500"
+              timeWarning ? "text-red-500 animate-pulse" : "text-emerald-500"
             }`}
           ></i>
           <div className="flex-1">
@@ -1461,7 +1785,11 @@ export default function QuizPage() {
       </div>
 
       {/* MAP */}
-      <div className="flex-1 relative bg-gray-100 dark:bg-[#0a0d12] overflow-hidden">
+      <div
+        className="flex-1 relative bg-gray-100 dark:bg-[#0a0d12] overflow-hidden"
+        role="img"
+        aria-label="বাংলাদেশ জেলা ম্যাপ"
+      >
         <div className="absolute inset-0 pointer-events-none">
           <div
             className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] h-[120%]"
@@ -1483,18 +1811,13 @@ export default function QuizPage() {
                 geographies.map((geo) => {
                   const raw = extractRawName(geo);
                   const normalized = getNormalizedName(raw);
-                  // Find the corresponding enriched district to get _uid
-                  const enriched = allDistricts.find(
-                    (d) => getNormalizedName(d._rawName) === normalized
-                  );
-                  const uid = enriched?._uid;
+                  const uid = uidByNameMap.get(normalized);
                   const isTarget = uid === currentQuestion.uid;
                   return (
                     <MemoizedGeography
                       key={geo.rsmKey}
                       geo={geo}
                       isTarget={isTarget}
-                      onClick={() => {}}
                     />
                   );
                 })
@@ -1506,7 +1829,7 @@ export default function QuizPage() {
         {/* Toast */}
         {toast && (
           <div
-            className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full font-black text-sm shadow-lg backdrop-blur-md border animate-[fadeInOut_1.2s_ease-out]"
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full font-black text-sm shadow-lg backdrop-blur-md border animate-[fadeInOut_1.3s_ease-out]"
             style={{
               background:
                 toast.type === "correct"
@@ -1539,17 +1862,25 @@ export default function QuizPage() {
                   "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:border-emerald-400 hover:scale-[1.02]";
 
                 if (showResult) {
-                  if (isThisSelected && isCorrectAnswer) {
-                    style =
-                      "bg-emerald-500 border-emerald-400 text-white shadow-lg scale-[1.03]";
-                  } else if (isThisSelected && !isCorrectAnswer) {
+                  if (isCorrectAnswer) {
+                    // Always highlight the correct answer
+                    if (isThisSelected) {
+                      // User picked the correct one
+                      style =
+                        "bg-emerald-500 border-emerald-400 text-white shadow-lg scale-[1.03]";
+                    } else {
+                      // Timeout or user picked wrong — reveal correct
+                      style =
+                        "bg-emerald-100 dark:bg-emerald-500/20 border-emerald-400 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-400";
+                    }
+                  } else if (isThisSelected && !isTimeout) {
+                    // User picked this wrong option
                     style =
                       "bg-red-500 border-red-400 text-white shadow-lg scale-[1.03]";
-                  } else if (isCorrectAnswer) {
-                    style =
-                      "bg-emerald-100 dark:bg-emerald-500/20 border-emerald-400 text-emerald-700 dark:text-emerald-300";
                   } else {
-                    style = "bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-400 opacity-60";
+                    // Dim other options
+                    style =
+                      "bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-400 opacity-60";
                   }
                 }
 
@@ -1563,14 +1894,17 @@ export default function QuizPage() {
                     <span className="block truncate">{opt.bnName}</span>
                     {showResult && isCorrectAnswer && (
                       <span className="absolute top-2 right-2">
-                        <i className="fa-solid fa-check-circle text-white text-sm"></i>
+                        <i className="fa-solid fa-check-circle text-white text-sm drop-shadow"></i>
                       </span>
                     )}
-                    {showResult && isThisSelected && !isCorrectAnswer && (
-                      <span className="absolute top-2 right-2">
-                        <i className="fa-solid fa-times-circle text-white text-sm"></i>
-                      </span>
-                    )}
+                    {showResult &&
+                      isThisSelected &&
+                      !isCorrectAnswer &&
+                      !isTimeout && (
+                        <span className="absolute top-2 right-2">
+                          <i className="fa-solid fa-times-circle text-white text-sm"></i>
+                        </span>
+                      )}
                   </button>
                 );
               })}
@@ -1578,6 +1912,20 @@ export default function QuizPage() {
           </div>
         )}
       </div>
+
+      {/* EXIT CONFIRM */}
+      {showExitModal && (
+        <ExitConfirmModal
+          onCancel={() => setShowExitModal(false)}
+          onConfirm={() => {
+            setShowExitModal(false);
+            gameEndedRef.current = false;
+            if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+            setPhase("menu");
+          }}
+        />
+      )}
 
       <style jsx>{`
         @keyframes fadeInOut {
