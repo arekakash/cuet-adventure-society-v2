@@ -379,12 +379,23 @@ export default function JigsawPage() {
     ro.observe(mapWrapRef.current);
     return () => ro.disconnect();
   }, [phase]);
+  
+  // ============ PROJECTION (DYNAMIC FIT) ============
+const projection = useMemo(() => {
+  if (!mapDims.w || !mapDims.h || !allDistricts || allDistricts.length === 0) {
+    return null;
+  }
 
-  // ============ PROJECTION ============
-  const projection = useMemo(() => {
-    if (!mapDims.w || !mapDims.h) return null;
-    return geoMercator().scale(6500).center([90.35, 23.8]).translate([mapDims.w / 2, mapDims.h / 2]);
-  }, [mapDims.w, mapDims.h]);
+  const featureCollection = {
+    type: "FeatureCollection",
+    features: allDistricts,
+  };
+
+  return geoMercator().fitSize(
+    [mapDims.w * 0.92, mapDims.h * 0.92],
+    featureCollection
+  );
+}, [mapDims.w, mapDims.h, allDistricts]);
 
   const pathGen = useMemo(() => (projection ? geoPath(projection) : null), [projection]);
 
