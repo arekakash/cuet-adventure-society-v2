@@ -1,5 +1,12 @@
 "use client";
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  memo,
+} from "react";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import * as topojson from "topojson-client";
 import Link from "next/link";
@@ -7,7 +14,19 @@ import AOS from "aos";
 import "aos/dist/aos.css";
 import { supabase } from "@/lib/supabase";
 
+// ============================================
+// CONSTANTS
+// ============================================
 const geoUrl = "/bd-districts.topo.json";
+const COUNTDOWN_START_DELAY = 700;
+const FLASH_CORRECT_MS = 650;
+const FLASH_WRONG_MS = 450;
+const TOAST_MS = 700;
+const CORRECT_POINTS = 100;
+const WRONG_PENALTY = 20;
+const PERFECT_BONUS = 200;
+const TIME_BONUS_MULTIPLIER = 2;
+const MAX_TIME_BONUS = 400;
 
 // ============================================
 // HELPERS
@@ -24,33 +43,36 @@ const shuffle = (arr) => {
 };
 
 const formatTime = (sec) => {
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${e2b(m.toString().padStart(2, "0"))}:${e2b(s.toString().padStart(2, "0"))}`;
+  const safe = Math.max(0, Math.floor(sec || 0));
+  const m = Math.floor(safe / 60);
+  const s = safe % 60;
+  return `${e2b(m.toString().padStart(2, "0"))}:${e2b(
+    s.toString().padStart(2, "0")
+  )}`;
 };
 
 // ============================================
 // NAME NORMALIZATION
 // ============================================
 const standardMap = {
-  "Chapainababganj": "Chapainawabganj",
-  "Nawabganj": "Chapainawabganj",
-  "Netrakona": "Netrokona",
-  "Panchagar": "Panchagarh",
-  "Bramhanbaria": "Brahmanbaria",
-  "Chittagong": "Chattogram",
+  Chapainababganj: "Chapainawabganj",
+  Nawabganj: "Chapainawabganj",
+  Netrakona: "Netrokona",
+  Panchagar: "Panchagarh",
+  Bramhanbaria: "Brahmanbaria",
+  Chittagong: "Chattogram",
   "Coxs Bazar": "Cox's Bazar",
 };
 
 const districtBn = {
-  "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
-  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
-  "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
-  "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
-  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Sherpur": "শেরপুর",
-  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
-  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
-  "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট",
+  Barguna: "বরগুনা", Barishal: "বরিশাল", Bhola: "ভোলা", Jhalokati: "ঝালকাঠি", Patuakhali: "পটুয়াখালী", Pirojpur: "পিরোজপুর",
+  Bandarban: "বান্দরবান", Brahmanbaria: "ব্রাহ্মণবাড়িয়া", Chandpur: "চাঁদপুর", Chattogram: "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", Cumilla: "কুমিল্লা", Feni: "ফেনী", Khagrachhari: "খাগড়াছড়ি", Lakshmipur: "লক্ষ্মীপুর", Noakhali: "নোয়াখালী", Rangamati: "রাঙামাটি",
+  Dhaka: "ঢাকা", Faridpur: "ফরিদপুর", Gazipur: "গাজীপুর", Gopalganj: "গোপালগঞ্জ", Kishoreganj: "কিশোরগঞ্জ", Madaripur: "মাদারীপুর", Manikganj: "মানিকগঞ্জ", Munshiganj: "মুন্সিগঞ্জ", Narayanganj: "নারায়ণগঞ্জ", Narsingdi: "নরসিংদী", Rajbari: "রাজবাড়ী", Shariatpur: "শরীয়তপুর", Tangail: "টাঙ্গাইল",
+  Bagerhat: "বাগেরহাট", Chuadanga: "চুয়াডাঙ্গা", Jashore: "যশোর", Jhenaidah: "ঝিনাইদহ", Khulna: "খুলনা", Kushtia: "কুষ্টিয়া", Magura: "মাগুরা", Meherpur: "মেহেরপুর", Narail: "নড়াইল", Satkhira: "সাতক্ষীরা",
+  Jamalpur: "জামালপুর", Mymensingh: "ময়মনসিংহ", Netrokona: "নেত্রকোনা", Sherpur: "শেরপুর",
+  Bogura: "বগুড়া", Chapainawabganj: "চাঁপাইনবাবগঞ্জ", Joypurhat: "জয়পুরহাট", Naogaon: "নওগাঁ", Natore: "নাটোর", Pabna: "পাবনা", Rajshahi: "রাজশাহী", Sirajganj: "সিরাজগঞ্জ",
+  Dinajpur: "দিনাজপুর", Gaibandha: "গাইবান্ধা", Kurigram: "কুড়িগ্রাম", Lalmonirhat: "লালমনিরহাট", Nilphamari: "নীলফামারী", Panchagarh: "পঞ্চগড়", Rangpur: "রংপুর", Thakurgaon: "ঠাকুরগাঁও",
+  Habiganj: "হবিগঞ্জ", Moulvibazar: "মৌলভীবাজার", Sunamganj: "সুনামগঞ্জ", Sylhet: "সিলেট",
 };
 
 const extractRawName = (geo) => {
@@ -143,9 +165,11 @@ const difficulties = [
 ];
 
 // ============================================
-// SOUND ENGINE
+// SOUND ENGINE (with mute)
 // ============================================
 let audioCtx = null;
+let soundMuted = false;
+
 const initAudio = () => {
   if (typeof window === "undefined") return null;
   if (!audioCtx) {
@@ -159,6 +183,7 @@ const initAudio = () => {
 };
 
 const playTone = (freq, duration, type = "sine", volume = 0.12, delay = 0) => {
+  if (soundMuted) return;
   const ctx = initAudio();
   if (!ctx) return;
   if (ctx.state === "suspended") ctx.resume();
@@ -207,57 +232,272 @@ const sounds = {
 };
 
 // ============================================
-// MEMOIZED GEOGRAPHY
+// MEMOIZED GEOGRAPHY (properly memoized now)
 // ============================================
-const MemoizedGeography = ({
-  geo,
-  geoName,
-  isCorrectFlash,
-  isWrongFlash,
-  onTap,
-}) => {
-  let fill = "#e2e8f0";
-  let stroke = "rgba(0,0,0,0.15)";
+const MemoizedGeography = memo(
+  function MemoizedGeography({
+    geo,
+    geoName,
+    isCorrectFlash,
+    isWrongFlash,
+    onTap,
+  }) {
+    let fill = "#e2e8f0";
+    let stroke = "rgba(0,0,0,0.15)";
 
-  if (isCorrectFlash) {
-    fill = "#10b981";
-    stroke = "#ffffff";
-  } else if (isWrongFlash) {
-    fill = "#ef4444";
-    stroke = "#ffffff";
-  }
+    if (isCorrectFlash) {
+      fill = "#10b981";
+      stroke = "#ffffff";
+    } else if (isWrongFlash) {
+      fill = "#ef4444";
+      stroke = "#ffffff";
+    }
+
+    const isFlashing = isCorrectFlash || isWrongFlash;
+
+    return (
+      <Geography
+        geography={geo}
+        onClick={() => onTap(geoName)}
+        style={{
+          default: {
+            fill,
+            outline: "none",
+            stroke,
+            strokeWidth: isFlashing ? 1.5 : 0.6,
+            transition: "fill 0.25s ease, stroke 0.25s ease",
+            cursor: "pointer",
+          },
+          hover: {
+            fill: isCorrectFlash
+              ? "#10b981"
+              : isWrongFlash
+              ? "#ef4444"
+              : "#94a3b8",
+            outline: "none",
+            stroke: "#ffffff",
+            strokeWidth: 1.2,
+            cursor: "pointer",
+          },
+          pressed: { outline: "none" },
+        }}
+      />
+    );
+  },
+  (prev, next) =>
+    prev.geo.rsmKey === next.geo.rsmKey &&
+    prev.geoName === next.geoName &&
+    prev.isCorrectFlash === next.isCorrectFlash &&
+    prev.isWrongFlash === next.isWrongFlash &&
+    prev.onTap === next.onTap
+);
+
+// ============================================
+// SCORE BREAKDOWN
+// ============================================
+function ScoreBreakdown({ breakdown }) {
+  if (!breakdown) return null;
+
+  const {
+    totalTargets,
+    correctCount,
+    wrongTaps,
+    basePoints,
+    comboBonus,
+    timeBonus,
+    perfectBonus,
+    wrongPenalty,
+    rawTotal,
+    clamped,
+    finalScore,
+    maxCombo,
+    won,
+  } = breakdown;
+
+  const comboMultiplierLabel =
+    maxCombo >= 5 ? "×২" : maxCombo >= 3 ? "×১.৫" : null;
 
   return (
-    <Geography
-      geography={geo}
-      onClick={() => onTap(geoName)}
-      style={{
-        default: {
-          fill,
-          outline: "none",
-          stroke,
-          strokeWidth: isCorrectFlash || isWrongFlash ? 1.5 : 0.6,
-          transition: "fill 0.25s ease, stroke 0.25s ease",
-          cursor: "pointer",
-        },
-        hover: {
-          fill: isCorrectFlash
-            ? "#10b981"
-            : isWrongFlash
-            ? "#ef4444"
-            : "#94a3b8",
-          outline: "none",
-          stroke: "#ffffff",
-          strokeWidth: 1.2,
-          cursor: "pointer",
-        },
-        pressed: {
-          outline: "none",
-        },
-      }}
-    />
+    <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/25 mb-4 text-left">
+      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-white/20">
+        <i className="fa-solid fa-calculator text-yellow-300"></i>
+        <h3 className="text-xs font-black text-white uppercase tracking-widest">
+          স্কোর কীভাবে তৈরি হলো
+        </h3>
+      </div>
+
+      <div className="space-y-2">
+        {correctCount > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-check text-emerald-300 mr-1.5 w-4 text-center"></i>
+              {e2b(correctCount)}টি সঠিক × ১০০
+            </span>
+            <span className="text-emerald-300 font-black">
+              +{e2b(basePoints)}
+            </span>
+          </div>
+        )}
+
+        {comboBonus > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-bolt text-amber-300 mr-1.5 w-4 text-center"></i>
+              কম্বো বোনাস
+              {comboMultiplierLabel && (
+                <span className="text-amber-200/80 ml-1">
+                  (সর্বোচ্চ {comboMultiplierLabel})
+                </span>
+              )}
+            </span>
+            <span className="text-amber-300 font-black">
+              +{e2b(comboBonus)}
+            </span>
+          </div>
+        )}
+
+        {perfectBonus > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-crown text-yellow-300 mr-1.5 w-4 text-center"></i>
+              পারফেক্ট বোনাস (০ ভুল!)
+            </span>
+            <span className="text-yellow-300 font-black">
+              +{e2b(perfectBonus)}
+            </span>
+          </div>
+        )}
+
+        {timeBonus > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-stopwatch text-blue-300 mr-1.5 w-4 text-center"></i>
+              টাইম বোনাস (দ্রুত শেষ করেছেন)
+            </span>
+            <span className="text-blue-300 font-black">
+              +{e2b(timeBonus)}
+            </span>
+          </div>
+        )}
+
+        {wrongTaps > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-xmark text-red-300 mr-1.5 w-4 text-center"></i>
+              {e2b(wrongTaps)}টি ভুল ট্যাপ × ২০
+            </span>
+            <span className="text-red-300 font-black">
+              −{e2b(wrongPenalty)}
+            </span>
+          </div>
+        )}
+
+        {correctCount === 0 && wrongTaps > 0 && (
+          <div className="text-center text-xs font-bold text-white/70 py-2">
+            <i className="fa-solid fa-face-sad-tear mr-1.5"></i>
+            কোনো জেলা খুঁজে পাননি
+          </div>
+        )}
+
+        {clamped && (
+          <div className="text-[10px] text-white/60 italic text-center pt-1">
+            <i className="fa-solid fa-circle-info mr-1"></i>
+            হিসাব: {e2b(rawTotal)} → সর্বনিম্ন ০ পর্যন্ত সীমিত
+          </div>
+        )}
+
+        <div className="border-t border-white/25 my-2"></div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-black text-white uppercase tracking-wider">
+            <i className="fa-solid fa-equals text-white/70 mr-1.5"></i>
+            মোট স্কোর
+          </span>
+          <span className="text-xl font-black text-white">
+            {e2b(finalScore)}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-3 pt-2 border-t border-white/20 flex items-center justify-center gap-2 text-[9px] font-bold text-white/60 flex-wrap">
+        <span>
+          <i className="fa-solid fa-crosshairs mr-1"></i>
+          লক্ষ্য: {e2b(totalTargets)}
+        </span>
+        <span>•</span>
+        <span className="text-emerald-300">
+          <i className="fa-solid fa-check mr-1"></i>
+          সঠিক: {e2b(correctCount)}
+        </span>
+        <span>•</span>
+        <span className="text-red-300">
+          <i className="fa-solid fa-xmark mr-1"></i>
+          ভুল: {e2b(wrongTaps)}
+        </span>
+        {won && (
+          <>
+            <span>•</span>
+            <span className="text-blue-300">
+              <i className="fa-solid fa-flag-checkered mr-1"></i>
+              সম্পূর্ণ
+            </span>
+          </>
+        )}
+      </div>
+    </div>
   );
-};
+}
+
+// ============================================
+// EXIT CONFIRM MODAL
+// ============================================
+function ExitConfirmModal({ onCancel, onConfirm }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onCancel}
+      ></div>
+      <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-sm relative z-10 shadow-2xl p-6 text-center">
+        <div className="w-14 h-14 mx-auto rounded-2xl bg-red-100 dark:bg-red-500/20 flex items-center justify-center mb-4">
+          <i className="fa-solid fa-triangle-exclamation text-red-500 text-xl"></i>
+        </div>
+        <h3 className="text-lg font-black text-gray-900 dark:text-white mb-1">
+          গেম থেকে বের হবেন?
+        </h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">
+          আপনার বর্তমান অগ্রগতি সংরক্ষিত হবে না।
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-black text-xs"
+          >
+            খেলে যাব
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-3 rounded-xl bg-red-500 text-white font-black text-xs"
+          >
+            হ্যাঁ, বের হব
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ============================================
 // LEADERBOARD MODAL
@@ -270,6 +510,7 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
   );
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       setLoading(true);
       try {
@@ -289,13 +530,24 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
         }
 
         const { data, error } = await query;
-        if (!error) setEntries(data || []);
+        if (!cancelled && !error) setEntries(data || []);
       } catch (e) {
         console.error(e);
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [activeDifficulty]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const getMedalIcon = (rank) => {
     if (rank === 1) return "fa-crown text-yellow-400";
@@ -315,7 +567,11 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+    >
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
@@ -333,7 +589,8 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors"
+            aria-label="বন্ধ করুন"
+            className="w-11 h-11 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors"
           >
             <i className="fa-solid fa-xmark text-gray-600 dark:text-gray-300"></i>
           </button>
@@ -345,7 +602,7 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
             className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
               activeDifficulty === null
                 ? "bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-md"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
             }`}
           >
             সব
@@ -357,7 +614,7 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
               className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
                 activeDifficulty === d.id
                   ? "bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-md"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
               }`}
             >
               {d.title}
@@ -489,6 +746,8 @@ export default function TapDistrictPage() {
   const [wrongTaps, setWrongTaps] = useState(0);
   const [combo, setCombo] = useState(0);
   const [maxCombo, setMaxCombo] = useState(0);
+  const [basePoints, setBasePoints] = useState(0);
+  const [comboBonus, setComboBonus] = useState(0);
   const [startTime, setStartTime] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -506,28 +765,54 @@ export default function TapDistrictPage() {
   const [finalWrong, setFinalWrong] = useState(0);
   const [finalMaxCombo, setFinalMaxCombo] = useState(0);
   const [wasWin, setWasWin] = useState(false);
+  const [scoreBreakdown, setScoreBreakdown] = useState(null);
 
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [scoreSubmitStatus, setScoreSubmitStatus] = useState("idle");
   const [userRank, setUserRank] = useState(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
 
-  // 🔴 FIX: Refs to always have latest values inside setTimeout/interval
+  // Sync mute
+  useEffect(() => {
+    soundMuted = !soundOn;
+  }, [soundOn]);
+
+  // ============================================
+  // stateRef via useEffect (concurrent-safe)
+  // ============================================
   const stateRef = useRef({});
-  stateRef.current = {
-    score,
-    correctCount,
-    wrongTaps,
-    maxCombo,
-    difficulty,
-    startTime,
-    targetQueue,
-    user,
-  };
+  useEffect(() => {
+    stateRef.current = {
+      score,
+      correctCount,
+      wrongTaps,
+      maxCombo,
+      basePoints,
+      comboBonus,
+      difficulty,
+      startTime,
+      targetQueue,
+      user,
+    };
+  });
 
-  // Prevent double-firing endGame
   const gameEndedRef = useRef(false);
+  const lastTickRef = useRef(null);
+  const toastTimerRef = useRef(null);
+  const correctFlashTimerRef = useRef(null);
+  const wrongFlashTimerRef = useRef(null);
+  const advanceTimerRef = useRef(null);
+
+  // ============================================
+  // STABLE onTap via ref (so Geography memo works)
+  // ============================================
+  const handleTapRef = useRef(null);
+  const stableOnTap = useCallback((name) => {
+    handleTapRef.current?.(name);
+  }, []);
 
   // ============ AUTH CHECK ============
   useEffect(() => {
@@ -553,102 +838,130 @@ export default function TapDistrictPage() {
         const topo = await res.json();
         const key = Object.keys(topo.objects)[0];
         const features = topojson.feature(topo, topo.objects[key]).features;
-        setAllDistricts(features);
+
+        const enriched = features.map((f, i) => ({
+          ...f,
+          _uid: i,
+          _rawName: extractRawName(f),
+          _normalizedName: getNormalizedName(extractRawName(f)),
+        }));
+
+        setAllDistricts(enriched);
       } catch (e) {
         console.error("Load failed:", e);
       }
     })();
   }, []);
 
+  // ============ LOOKUP MAP (for fast geo naming) ============
+  const nameByRsmKeyMap = useMemo(() => {
+    const m = new Map();
+    (allDistricts || []).forEach((d) => {
+      m.set(d.rsmKey, d._normalizedName);
+    });
+    return m;
+  }, [allDistricts]);
+
   // ============ COUNTDOWN ============
   useEffect(() => {
     if (phase !== "countdown") return;
+
     if (countdownValue <= 0) {
       sounds.go();
-      setPhase("playing");
-      setStartTime(Date.now());
-      return;
+      const t = setTimeout(() => {
+        setPhase("playing");
+        setStartTime(Date.now());
+      }, COUNTDOWN_START_DELAY);
+      return () => clearTimeout(t);
     }
+
     sounds.countdown();
     const t = setTimeout(() => setCountdownValue((v) => v - 1), 800);
     return () => clearTimeout(t);
   }, [phase, countdownValue]);
 
   // ============ SUBMIT SCORE ============
-  const submitScoreToSupabase = useCallback(
-    async (payload) => {
-      const currentUser = stateRef.current.user;
-      if (!currentUser) {
-        setScoreSubmitStatus("not_logged_in");
+  const submitScoreToSupabase = useCallback(async (payload) => {
+    const currentUser = stateRef.current.user;
+    if (!currentUser) {
+      setScoreSubmitStatus("not_logged_in");
+      return;
+    }
+    setScoreSubmitStatus("pending");
+
+    try {
+      const { data, error } = await supabase.rpc("submit_game_score", {
+        p_game_mode: "tap-district",
+        p_difficulty: payload.difficulty,
+        p_score: payload.score,
+        p_time_seconds: payload.timeSeconds,
+        p_wrong_taps: payload.wrongTaps,
+        p_max_combo: payload.maxCombo,
+        p_accuracy: payload.accuracy,
+        p_xp: payload.xp,
+      });
+
+      if (error) {
+        console.error("Score submit failed:", error);
+        setScoreSubmitStatus("error");
         return;
       }
-      setScoreSubmitStatus("pending");
 
-      try {
-        const { data, error } = await supabase.rpc("submit_game_score", {
-          p_game_mode: "tap-district",
-          p_difficulty: payload.difficulty,
-          p_score: payload.score,
-          p_time_seconds: payload.timeSeconds,
-          p_wrong_taps: payload.wrongTaps,
-          p_max_combo: payload.maxCombo,
-          p_accuracy: payload.accuracy,
-          p_xp: payload.xp,
-        });
+      if (data?.saved) {
+        setScoreSubmitStatus("saved");
+        setUserRank(data.rank || null);
+      } else if (data?.qualified === false) {
+        setScoreSubmitStatus("not_qualified");
+      } else if (data?.saved === false && data?.qualified) {
+        setScoreSubmitStatus("existing_better");
+        setUserRank(data.rank || null);
+      } else {
+        setScoreSubmitStatus("error");
+      }
 
-        if (error) {
-          console.error("Score submit failed:", error);
-          setScoreSubmitStatus("error");
-          return;
-        }
+      if (data?.saved) {
+        try {
+          const { data: profileData, error: profileErr } = await supabase
+            .from("profiles")
+            .select("game_xp, game_level")
+            .eq("id", currentUser.id)
+            .maybeSingle();
 
-        if (data?.saved) {
-          setScoreSubmitStatus("saved");
-          setUserRank(data.rank || null);
-        } else if (data?.qualified === false) {
-          setScoreSubmitStatus("not_qualified");
-        } else if (data?.saved === false && data?.qualified) {
-          setScoreSubmitStatus("existing_better");
-          setUserRank(data.rank || null);
-        } else {
-          setScoreSubmitStatus("error");
-        }
-
-        if (data?.saved) {
-          try {
-            const { data: profileData } = await supabase
-              .from("profiles")
-              .select("game_xp, game_level")
-              .eq("id", currentUser.id)
-              .single();
-            const currentXp = profileData?.game_xp || 0;
+          if (profileErr) {
+            console.warn("[TapDistrict] Profile fetch failed:", profileErr);
+          } else if (profileData) {
+            const currentXp = profileData.game_xp || 0;
             const newXp = currentXp + (payload.xp || 0);
             const newLevel = Math.min(15, Math.floor(newXp / 500) + 1);
-            await supabase
+            const { error: updErr } = await supabase
               .from("profiles")
               .update({ game_xp: newXp, game_level: newLevel })
               .eq("id", currentUser.id);
-          } catch (e) {
-            console.warn("XP update failed:", e);
+            if (updErr)
+              console.warn("[TapDistrict] Profile update failed:", updErr);
           }
+        } catch (e) {
+          console.warn("[TapDistrict] XP update exception:", e);
         }
-      } catch (e) {
-        console.error("Submit error:", e);
-        setScoreSubmitStatus("error");
       }
-    },
-    []
-  );
+    } catch (e) {
+      console.error("Submit error:", e);
+      setScoreSubmitStatus("error");
+    }
+  }, []);
 
-  // ============ END GAME (STABLE — uses refs) ============
+  // ============ END GAME ============
   const endGame = useCallback(
     (won = true) => {
-      // 🔴 Prevent double-firing
-      if (gameEndedRef.current) {
-        console.warn("[TapDistrict] endGame already called — ignoring");
-        return;
-      }
+      if (gameEndedRef.current) return;
       gameEndedRef.current = true;
+
+      // Clear pending timers
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (correctFlashTimerRef.current)
+        clearTimeout(correctFlashTimerRef.current);
+      if (wrongFlashTimerRef.current) clearTimeout(wrongFlashTimerRef.current);
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
 
       try {
         const {
@@ -658,29 +971,57 @@ export default function TapDistrictPage() {
           correctCount: cc,
           wrongTaps: wt,
           maxCombo: mc,
+          basePoints: bp,
+          comboBonus: cb,
         } = stateRef.current;
 
         if (!st || !df) {
-          console.warn("[TapDistrict] endGame: startTime or difficulty missing");
-          // Fallback: force result with safe defaults
           setFinalScoreDisplay(0);
           setFinalTimeDisplay(0);
           setFinalCorrect(0);
           setFinalWrong(0);
           setFinalMaxCombo(0);
           setWasWin(false);
-          setPhase("result");
+          setScoreBreakdown(null);
+          setTimeout(() => setPhase("result"), 30);
           return;
         }
 
         const finalTime = Math.max(0, Math.floor((Date.now() - st) / 1000));
 
-        const baseScore = cc * 100 - wt * 20;
-        const timeBonus = won ? Math.max(0, (df.timeLimit - finalTime) * 2) : 0;
-        const perfectBonus = won && wt === 0 ? 200 : 0;
-        const finalScore = Math.max(0, baseScore + timeBonus + perfectBonus);
+        // 🔴 Time bonus with cap
+        const rawTimeBonus = won
+          ? Math.max(0, df.timeLimit - finalTime) * TIME_BONUS_MULTIPLIER
+          : 0;
+        const timeBonus = Math.min(rawTimeBonus, MAX_TIME_BONUS);
 
-        // Save to localStorage
+        const perfectBonus = won && wt === 0 && cc > 0 ? PERFECT_BONUS : 0;
+        const wrongPenalty = wt * WRONG_PENALTY;
+
+        // 🔴 Use tracked gameplay score (already includes base + combo - wrong)
+        // Then add end-of-game bonuses on top
+        const rawTotal = sc + timeBonus + perfectBonus;
+        const finalScore = Math.max(0, rawTotal);
+        const clamped = rawTotal < 0;
+
+        // Build breakdown
+        const breakdown = {
+          totalTargets: df.totalQuestions,
+          correctCount: cc,
+          wrongTaps: wt,
+          basePoints: bp,
+          comboBonus: cb,
+          timeBonus,
+          perfectBonus,
+          wrongPenalty,
+          rawTotal,
+          clamped,
+          finalScore,
+          maxCombo: mc,
+          won,
+        };
+
+        // Save stats
         try {
           const stats = JSON.parse(
             localStorage.getItem("game-hub-stats-v1") || "{}"
@@ -710,48 +1051,38 @@ export default function TapDistrictPage() {
         if (won) sounds.win();
         else sounds.lose();
 
-        // Set display values — order matters: values first, then phase
         setFinalScoreDisplay(finalScore);
         setFinalTimeDisplay(finalTime);
         setFinalCorrect(cc);
         setFinalWrong(wt);
         setFinalMaxCombo(mc);
         setWasWin(won);
+        setScoreBreakdown(breakdown);
 
-        // Small delay so React flushes display values first
-        setTimeout(() => {
-          setPhase("result");
-        }, 50);
+        setTimeout(() => setPhase("result"), 50);
 
-        // Submit to Supabase (non-blocking)
         const xpGain = Math.round(finalScore / 10) + 50;
         const accuracy =
           cc + wt > 0 ? Math.round((cc / (cc + wt)) * 100 * 100) / 100 : 0;
 
-        setTimeout(() => {
-          try {
-            submitScoreToSupabase({
-              difficulty: df.id,
-              score: finalScore,
-              timeSeconds: finalTime,
-              wrongTaps: wt,
-              maxCombo: mc,
-              accuracy,
-              xp: xpGain,
-            });
-          } catch (e) {
-            console.warn("submit failed:", e);
-          }
-        }, 300);
+        submitScoreToSupabase({
+          difficulty: df.id,
+          score: finalScore,
+          timeSeconds: finalTime,
+          wrongTaps: wt,
+          maxCombo: mc,
+          accuracy,
+          xp: xpGain,
+        }).catch((e) => console.warn("[TapDistrict] submit failed:", e));
       } catch (err) {
         console.error("[TapDistrict] endGame error:", err);
-        // Ultimate fallback: force result screen
         setFinalScoreDisplay(0);
         setFinalTimeDisplay(0);
         setFinalCorrect(0);
         setFinalWrong(0);
         setFinalMaxCombo(0);
         setWasWin(false);
+        setScoreBreakdown(null);
         setPhase("result");
       }
     },
@@ -766,7 +1097,17 @@ export default function TapDistrictPage() {
       setElapsed(el);
       const remaining = difficulty.timeLimit - el;
       setTimeLeft(remaining);
-      if (remaining <= 5 && remaining > 0) sounds.tick();
+
+      // Deduped tick
+      if (
+        remaining <= 5 &&
+        remaining > 0 &&
+        lastTickRef.current !== remaining
+      ) {
+        sounds.tick();
+        lastTickRef.current = remaining;
+      }
+
       if (remaining <= 0) {
         clearInterval(id);
         endGame(false);
@@ -776,47 +1117,60 @@ export default function TapDistrictPage() {
   }, [phase, startTime, difficulty, endGame]);
 
   // ============ START GAME ============
-  const startGame = (diff) => {
-    if (!allDistricts) return;
-    gameEndedRef.current = false; // 🔴 Reset lock
-    setDifficulty(diff);
-    setScore(0);
-    setCorrectCount(0);
-    setWrongTaps(0);
-    setCombo(0);
-    setMaxCombo(0);
-    setElapsed(0);
-    setTimeLeft(diff.timeLimit);
-    setCurrentIndex(0);
-    setCountdownValue(3);
-    setScoreSubmitStatus("idle");
-    setUserRank(null);
+  const startGame = useCallback(
+    (diff) => {
+      if (!allDistricts) return;
+      gameEndedRef.current = false;
+      lastTickRef.current = null;
 
-    const pool = diff.districts
-      ? allDistricts.filter((g) => {
-          const raw = extractRawName(g);
-          const normalized = getNormalizedName(raw);
-          return diff.districts.includes(normalized);
-        })
-      : allDistricts;
+      // Clear any pending timers
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (correctFlashTimerRef.current)
+        clearTimeout(correctFlashTimerRef.current);
+      if (wrongFlashTimerRef.current) clearTimeout(wrongFlashTimerRef.current);
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
 
-    const shuffled = shuffle(pool);
-    const selected = shuffled.slice(0, diff.totalQuestions);
+      setDifficulty(diff);
+      setScore(0);
+      setCorrectCount(0);
+      setWrongTaps(0);
+      setCombo(0);
+      setMaxCombo(0);
+      setBasePoints(0);
+      setComboBonus(0);
+      setElapsed(0);
+      setTimeLeft(diff.timeLimit);
+      setCurrentIndex(0);
+      setCountdownValue(3);
+      setScoreSubmitStatus("idle");
+      setUserRank(null);
+      setCorrectFlashName(null);
+      setWrongFlashName(null);
+      setTapLocked(false);
+      setToast(null);
+      setScoreBreakdown(null);
 
-    const queue = selected.map((g) => {
-      const raw = extractRawName(g);
-      const normalized = getNormalizedName(raw);
-      return {
-        name: normalized,
-        bnName: districtBn[normalized] || normalized,
-      };
-    });
+      const pool = diff.districts
+        ? allDistricts.filter((g) =>
+            diff.districts.includes(g._normalizedName)
+          )
+        : allDistricts;
 
-    setTargetQueue(queue);
-    setPhase("countdown");
-  };
+      const shuffled = shuffle(pool);
+      const selected = shuffled.slice(0, diff.totalQuestions);
 
-  // ============ HANDLE TAP ============
+      const queue = selected.map((g) => ({
+        name: g._normalizedName,
+        bnName: districtBn[g._normalizedName] || g._normalizedName,
+      }));
+
+      setTargetQueue(queue);
+      setPhase("countdown");
+    },
+    [allDistricts]
+  );
+
+  // ============ HANDLE TAP (with combo multiplier!) ============
   const handleTap = useCallback(
     (tappedName) => {
       if (phase !== "playing") return;
@@ -828,46 +1182,89 @@ export default function TapDistrictPage() {
 
       if (tappedName === currentTarget.name) {
         sounds.correct();
-        setCorrectFlashName(tappedName);
-        setScore((s) => s + 100);
-        setCorrectCount((c) => c + 1);
+
+        // 🔴 Apply combo multiplier
         const newCombo = combo + 1;
+        let multiplier = 1;
+        if (newCombo >= 5) multiplier = 2;
+        else if (newCombo >= 3) multiplier = 1.5;
+
+        const baseComp = CORRECT_POINTS;
+        const totalPoints = Math.round(baseComp * multiplier);
+        const comboComp = totalPoints - baseComp;
+
+        setScore((s) => s + totalPoints);
+        setBasePoints((b) => b + baseComp);
+        setComboBonus((b) => b + comboComp);
+        setCorrectCount((c) => c + 1);
         setCombo(newCombo);
         setMaxCombo((m) => Math.max(m, newCombo));
+        setCorrectFlashName(tappedName);
 
-        setToast({ text: "✓ সঠিক!", type: "correct" });
-        setTimeout(() => setToast(null), 600);
+        setToast({
+          text: `+${e2b(totalPoints)}${
+            multiplier > 1 ? ` (কম্বো ×${e2b(multiplier * 10)}/১০)` : ""
+          }`,
+          type: "correct",
+        });
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => setToast(null), TOAST_MS);
 
         setTapLocked(true);
-        setTimeout(() => {
+        if (correctFlashTimerRef.current)
+          clearTimeout(correctFlashTimerRef.current);
+        correctFlashTimerRef.current = setTimeout(() => {
           setCorrectFlashName(null);
           setTapLocked(false);
           const nextIdx = currentIndex + 1;
           if (nextIdx >= targetQueue.length) {
             endGame(true);
           } else {
+            lastTickRef.current = null;
             setCurrentIndex(nextIdx);
           }
-        }, 650);
+        }, FLASH_CORRECT_MS);
       } else {
         sounds.wrong();
         setWrongFlashName(tappedName);
         setWrongTaps((w) => w + 1);
         setCombo(0);
-        setScore((s) => Math.max(0, s - 20));
+        setScore((s) => s - WRONG_PENALTY);
 
-        setToast({ text: "✗ ভুল", type: "wrong" });
-        setTimeout(() => setToast(null), 500);
+        setToast({
+          text: `✗ ভুল (−${e2b(WRONG_PENALTY)})`,
+          type: "wrong",
+        });
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => setToast(null), TOAST_MS);
 
         setTapLocked(true);
-        setTimeout(() => {
+        if (wrongFlashTimerRef.current)
+          clearTimeout(wrongFlashTimerRef.current);
+        wrongFlashTimerRef.current = setTimeout(() => {
           setWrongFlashName(null);
           setTapLocked(false);
-        }, 400);
+        }, FLASH_WRONG_MS);
       }
     },
     [phase, tapLocked, currentIndex, targetQueue, combo, endGame]
   );
+
+  // Keep the stable onTap in sync with the latest handleTap
+  useEffect(() => {
+    handleTapRef.current = handleTap;
+  }, [handleTap]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (correctFlashTimerRef.current)
+        clearTimeout(correctFlashTimerRef.current);
+      if (wrongFlashTimerRef.current) clearTimeout(wrongFlashTimerRef.current);
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    };
+  }, []);
 
   // ============ CURRENT TARGET ============
   const currentTarget =
@@ -875,12 +1272,13 @@ export default function TapDistrictPage() {
       ? targetQueue[currentIndex]
       : null;
 
-  const progressPct =
-    targetQueue.length > 0
-      ? Math.round((correctCount / targetQueue.length) * 100)
-      : 0;
+  const progressPct = targetQueue.length
+    ? Math.round((correctCount / targetQueue.length) * 100)
+    : 0;
 
-  // ============ RENDER: MENU ============
+  // ============================================
+  // RENDER: MENU
+  // ============================================
   if (phase === "menu") {
     return (
       <div
@@ -897,7 +1295,8 @@ export default function TapDistrictPage() {
             </Link>
             <button
               onClick={() => setShowLeaderboard(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black rounded-xl text-xs shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
+              aria-label="লিডারবোর্ড দেখুন"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black rounded-xl text-xs shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
             >
               <i className="fa-solid fa-trophy"></i>
               লিডারবোর্ড
@@ -912,7 +1311,8 @@ export default function TapDistrictPage() {
               জেলা ট্যাপ চ্যালেঞ্জ
             </h1>
             <p className="text-base text-gray-600 dark:text-gray-400 max-w-xl mx-auto">
-              জেলার নাম শুনে ম্যাপে ট্যাপ করুন। যত দ্রুত ও কম ভুলে খুঁজে বের করবেন, তত ভালো!
+              জেলার নাম শুনে ম্যাপে ট্যাপ করুন। যত দ্রুত ও কম ভুলে খুঁজে বের
+              করবেন, তত ভালো!
             </p>
           </div>
 
@@ -927,6 +1327,7 @@ export default function TapDistrictPage() {
                 disabled={!allDistricts}
                 data-aos="fade-up"
                 data-aos-delay={idx * 100}
+                aria-label={`${diff.title} ডিফিকাল্টিতে শুরু`}
                 className={`group relative overflow-hidden rounded-3xl bg-gradient-to-br ${diff.gradient} p-7 shadow-xl ${diff.shadow} hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 text-left disabled:opacity-50 disabled:cursor-wait`}
               >
                 <div className="absolute -top-20 -right-20 w-44 h-44 bg-white/20 rounded-full blur-3xl group-hover:bg-white/30 transition-colors"></div>
@@ -1003,8 +1404,12 @@ export default function TapDistrictPage() {
                 ভুল ট্যাপ: <b>−২০ পয়েন্ট</b>, combo রিসেট
               </li>
               <li className="flex items-start gap-2">
-                <i className="fa-solid fa-star text-amber-500 mt-1 text-xs"></i>
-                দ্রুত শেষ করলে <b>সময় বোনাস</b>
+                <i className="fa-solid fa-bolt text-amber-500 mt-1 text-xs"></i>
+                টানা ৩টি সঠিক: <b>×১.৫</b>, টানা ৫টি: <b>×২</b>
+              </li>
+              <li className="flex items-start gap-2">
+                <i className="fa-solid fa-star text-blue-500 mt-1 text-xs"></i>
+                দ্রুত শেষ করলে <b>সময় বোনাস</b> (সর্বোচ্চ ৪০০)
               </li>
               <li className="flex items-start gap-2">
                 <i className="fa-solid fa-crown text-yellow-500 mt-1 text-xs"></i>
@@ -1025,7 +1430,9 @@ export default function TapDistrictPage() {
     );
   }
 
-  // ============ RENDER: COUNTDOWN ============
+  // ============================================
+  // RENDER: COUNTDOWN
+  // ============================================
   if (phase === "countdown") {
     return (
       <div
@@ -1083,7 +1490,9 @@ export default function TapDistrictPage() {
     );
   }
 
-  // ============ RENDER: RESULT ============
+  // ============================================
+  // RENDER: RESULT
+  // ============================================
   if (phase === "result") {
     const won = wasWin;
     const xpGained = Math.round(finalScoreDisplay / 10) + 50;
@@ -1163,7 +1572,7 @@ export default function TapDistrictPage() {
           <div className="bg-red-500/20 backdrop-blur-sm rounded-xl p-3 mb-4 border border-red-300/30">
             <p className="text-xs font-bold text-white/90 text-center">
               <i className="fa-solid fa-triangle-exclamation mr-1.5"></i>
-              স্কোর সেভ করা যায়নি
+              স্কোর সেভ করা যায়নি — আবার চেষ্টা করুন
             </p>
           </div>
         );
@@ -1184,7 +1593,6 @@ export default function TapDistrictPage() {
                 ? "bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-500"
                 : "bg-gradient-to-br from-red-500 via-pink-500 to-orange-500"
             }`}
-            data-aos="zoom-in"
           >
             <div className="absolute -top-24 -right-24 w-72 h-72 bg-white/15 rounded-full blur-3xl"></div>
             <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-black/10 rounded-full blur-3xl"></div>
@@ -1202,7 +1610,7 @@ export default function TapDistrictPage() {
               </h1>
               <p className="text-white/85 text-xs font-bold mb-5">
                 {won
-                  ? `আপনি ${e2b(finalCorrect)}টি জেলা সম্পূর্ণ করেছেন 🎉`
+                  ? `আপনি ${e2b(finalCorrect)}টি জেলা খুঁজে পেয়েছেন 🎉`
                   : `${e2b(finalCorrect)}/${e2b(
                       difficulty?.totalQuestions || 0
                     )} জেলা খুঁজে পেয়েছেন`}
@@ -1220,7 +1628,8 @@ export default function TapDistrictPage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 mb-4">
+              {/* Stats — 4 columns including maxCombo */}
+              <div className="grid grid-cols-4 gap-2 mb-4">
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl p-2.5 border border-white/20">
                   <i className="fa-solid fa-stopwatch text-white/70 text-xs mb-0.5"></i>
                   <p className="text-base font-black text-white">
@@ -1248,7 +1657,18 @@ export default function TapDistrictPage() {
                     ভুল
                   </p>
                 </div>
+                <div className="bg-white/15 backdrop-blur-sm rounded-xl p-2.5 border border-white/20">
+                  <i className="fa-solid fa-bolt text-white/70 text-xs mb-0.5"></i>
+                  <p className="text-base font-black text-white">
+                    {e2b(finalMaxCombo)}
+                  </p>
+                  <p className="text-[8px] font-bold text-white/70 uppercase tracking-wider">
+                    কম্বো
+                  </p>
+                </div>
               </div>
+
+              {scoreBreakdown && <ScoreBreakdown breakdown={scoreBreakdown} />}
 
               {renderSaveStatus()}
 
@@ -1257,11 +1677,11 @@ export default function TapDistrictPage() {
                   <button
                     onClick={() => {
                       gameEndedRef.current = false;
-                      setPhase("menu");
+                      if (difficulty) startGame(difficulty);
                     }}
                     className="flex-1 py-3 bg-white/20 backdrop-blur-sm text-white font-black rounded-xl border border-white/30 hover:bg-white/30 transition-all text-xs"
                   >
-                    <i className="fa-solid fa-rotate-left mr-1.5"></i>
+                    <i className="fa-solid fa-rotate-right mr-1.5"></i>
                     আবার খেলুন
                   </button>
                   <button
@@ -1272,9 +1692,19 @@ export default function TapDistrictPage() {
                     লিডারবোর্ড
                   </button>
                 </div>
+                <button
+                  onClick={() => {
+                    gameEndedRef.current = false;
+                    setPhase("menu");
+                  }}
+                  className="w-full py-3 bg-white text-gray-900 font-black rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all text-xs"
+                >
+                  <i className="fa-solid fa-layer-group mr-1.5"></i>
+                  ডিফিকাল্টি পরিবর্তন
+                </button>
                 <Link
                   href="/my-bangladesh/games"
-                  className="w-full py-3 bg-white text-gray-900 font-black rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all text-center text-xs"
+                  className="w-full py-3 bg-white/10 text-white font-black rounded-xl border border-white/20 hover:bg-white/15 transition-all text-center text-xs"
                 >
                   <i className="fa-solid fa-home mr-1.5"></i>
                   গেম হাব
@@ -1295,8 +1725,11 @@ export default function TapDistrictPage() {
     );
   }
 
-  // ============ RENDER: PLAYING ============
+  // ============================================
+  // RENDER: PLAYING
+  // ============================================
   const timeWarning = timeLeft <= 15 && timeLeft > 0;
+  const displayScore = Math.max(0, score);
 
   return (
     <div
@@ -1307,13 +1740,9 @@ export default function TapDistrictPage() {
       <div className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div className="px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2">
           <button
-            onClick={() => {
-              if (window.confirm("গেম থেকে বের হয়ে যাবেন?")) {
-                gameEndedRef.current = false;
-                setPhase("menu");
-              }
-            }}
-            className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shrink-0"
+            onClick={() => setShowExitModal(true)}
+            aria-label="গেম থেকে বের হন"
+            className="w-11 h-11 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shrink-0"
           >
             <i className="fa-solid fa-xmark"></i>
           </button>
@@ -1327,27 +1756,39 @@ export default function TapDistrictPage() {
               }`}
             >
               <i className="fa-solid fa-stopwatch text-[10px] sm:text-xs"></i>
-              <span>{formatTime(Math.max(timeLeft, 0))}</span>
+              <span>{formatTime(timeLeft)}</span>
             </div>
 
             <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white font-black text-xs sm:text-sm shadow-md shrink-0">
               <i className="fa-solid fa-star text-[10px] sm:text-xs"></i>
-              <span>{e2b(score)}</span>
+              <span>{e2b(displayScore)}</span>
             </div>
 
             {combo >= 3 && (
               <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-xs shadow-md animate-pulse shrink-0">
                 <i className="fa-solid fa-bolt text-[10px]"></i>
-                <span>{e2b(combo)}</span>
+                <span>×{combo >= 5 ? "২" : "১.৫"}</span>
               </div>
             )}
           </div>
+
+          <button
+            onClick={() => setSoundOn((s) => !s)}
+            aria-label={soundOn ? "সাউন্ড বন্ধ করুন" : "সাউন্ড চালু করুন"}
+            className="w-11 h-11 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shrink-0"
+          >
+            <i
+              className={`fa-solid ${
+                soundOn ? "fa-volume-high" : "fa-volume-xmark"
+              } text-sm`}
+            ></i>
+          </button>
 
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-[10px] sm:text-xs font-black text-gray-500 dark:text-gray-400 whitespace-nowrap">
               {e2b(correctCount)}/{e2b(targetQueue.length)}
             </span>
-            <div className="w-12 sm:w-20 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+            <div className="hidden sm:block w-20 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full transition-all duration-500"
                 style={{ width: `${progressPct}%` }}
@@ -1377,7 +1818,11 @@ export default function TapDistrictPage() {
       </div>
 
       {/* MAP */}
-      <div className="flex-1 relative bg-gray-100 dark:bg-[#0a0d12] overflow-hidden">
+      <div
+        className="flex-1 relative bg-gray-100 dark:bg-[#0a0d12] overflow-hidden"
+        role="application"
+        aria-label="বাংলাদেশ জেলা ম্যাপ — ট্যাপ করে জেলা চিহ্নিত করুন"
+      >
         <div className="absolute inset-0 pointer-events-none">
           <div
             className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] h-[120%]"
@@ -1397,8 +1842,9 @@ export default function TapDistrictPage() {
             <Geographies geography={geoUrl}>
               {({ geographies }) =>
                 geographies.map((geo) => {
-                  const geoRawName = extractRawName(geo);
-                  const geoNormalized = getNormalizedName(geoRawName);
+                  const geoNormalized =
+                    nameByRsmKeyMap.get(geo.rsmKey) ||
+                    getNormalizedName(extractRawName(geo));
 
                   return (
                     <MemoizedGeography
@@ -1407,7 +1853,7 @@ export default function TapDistrictPage() {
                       geoName={geoNormalized}
                       isCorrectFlash={correctFlashName === geoNormalized}
                       isWrongFlash={wrongFlashName === geoNormalized}
-                      onTap={handleTap}
+                      onTap={stableOnTap}
                     />
                   );
                 })
@@ -1416,10 +1862,9 @@ export default function TapDistrictPage() {
           </ComposableMap>
         )}
 
-        {/* Toast */}
         {toast && (
           <div
-            className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full font-black text-sm shadow-lg backdrop-blur-md border animate-[fadeInOut_0.6s_ease-out]"
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full font-black text-sm shadow-lg backdrop-blur-md border animate-[fadeInOut_0.7s_ease-out]"
             style={{
               background:
                 toast.type === "correct"
@@ -1434,7 +1879,7 @@ export default function TapDistrictPage() {
         )}
 
         {/* Stuck hint */}
-        {elapsed > 20 && currentIndex === correctCount && wrongTaps === 0 && (
+        {elapsed > 20 && correctCount === 0 && wrongTaps === 0 && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-4 py-2 rounded-full pointer-events-none">
             <i className="fa-solid fa-lightbulb text-amber-400 mr-1.5"></i>
             জেলার অবস্থান মনে করার চেষ্টা করুন!
@@ -1461,6 +1906,25 @@ export default function TapDistrictPage() {
           </span>
         </div>
       </div>
+
+      {/* EXIT CONFIRM */}
+      {showExitModal && (
+        <ExitConfirmModal
+          onCancel={() => setShowExitModal(false)}
+          onConfirm={() => {
+            setShowExitModal(false);
+            gameEndedRef.current = false;
+            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+            if (correctFlashTimerRef.current)
+              clearTimeout(correctFlashTimerRef.current);
+            if (wrongFlashTimerRef.current)
+              clearTimeout(wrongFlashTimerRef.current);
+            if (advanceTimerRef.current)
+              clearTimeout(advanceTimerRef.current);
+            setPhase("menu");
+          }}
+        />
+      )}
 
       <style jsx>{`
         @keyframes fadeInOut {
