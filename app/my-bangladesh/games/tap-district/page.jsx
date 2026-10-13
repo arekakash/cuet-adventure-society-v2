@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
-import { geoCentroid } from "d3-geo";
 import * as topojson from "topojson-client";
 import Link from "next/link";
 import AOS from "aos";
@@ -54,12 +53,31 @@ const districtBn = {
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট",
 };
 
-const getBnName = (raw) => {
-  const normalized = standardMap[raw] || raw;
-  return districtBn[normalized] || normalized;
+const extractRawName = (geo) => {
+  const props = geo?.properties || {};
+  const keys = [
+    "adm2_name", "ADM2_NAME", "ADM2_EN", "adm2_en",
+    "NAME_2", "name", "Name", "NAME",
+    "Dist_Name", "dist_name", "DIST_NAME",
+    "district", "District", "DISTRICT",
+    "dist", "Dist",
+  ];
+  for (const k of keys) {
+    const v = props[k];
+    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
+  }
+  for (const k of Object.keys(props)) {
+    const v = props[k];
+    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
+  }
+  return "";
 };
 
 const getNormalizedName = (raw) => standardMap[raw] || raw;
+const getBnName = (raw) => {
+  const n = getNormalizedName(raw);
+  return districtBn[n] || n;
+};
 
 // ============================================
 // DIFFICULTY DATA
@@ -125,7 +143,7 @@ const difficulties = [
 ];
 
 // ============================================
-// SOUND ENGINE (Web Audio API)
+// SOUND ENGINE
 // ============================================
 let audioCtx = null;
 const initAudio = () => {
@@ -193,6 +211,7 @@ const sounds = {
 // ============================================
 const MemoizedGeography = ({
   geo,
+  geoName,
   isCorrectFlash,
   isWrongFlash,
   onTap,
@@ -211,7 +230,7 @@ const MemoizedGeography = ({
   return (
     <Geography
       geography={geo}
-      onClick={() => onTap(geo)}
+      onClick={() => onTap(geoName)}
       style={{
         default: {
           fill,
@@ -462,7 +481,8 @@ export default function TapDistrictPage() {
   const [difficulty, setDifficulty] = useState(null);
   const [allDistricts, setAllDistricts] = useState(null);
 
-  const [targetQueue, setTargetQueue] = useState([]); // list of {rsmKey, name, bnName}
+  // 🔴 FIX: Queue stores normalized NAMES (not rsmKey)
+  const [targetQueue, setTargetQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const [score, setScore] = useState(0);
@@ -474,8 +494,9 @@ export default function TapDistrictPage() {
   const [elapsed, setElapsed] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
 
-  const [correctFlash, setCorrectFlash] = useState(null);
-  const [wrongFlash, setWrongFlash] = useState(null);
+  // 🔴 FIX: Flash stores normalized NAME (not rsmKey)
+  const [correctFlashName, setCorrectFlashName] = useState(null);
+  const [wrongFlashName, setWrongFlashName] = useState(null);
   const [tapLocked, setTapLocked] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -488,7 +509,6 @@ export default function TapDistrictPage() {
   const [finalMaxCombo, setFinalMaxCombo] = useState(0);
   const [wasWin, setWasWin] = useState(false);
 
-  // Auth
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [scoreSubmitStatus, setScoreSubmitStatus] = useState("idle");
@@ -573,15 +593,10 @@ export default function TapDistrictPage() {
     setScoreSubmitStatus("idle");
     setUserRank(null);
 
-    // Pick target districts
+    // Pool filtering by normalized name
     const pool = diff.districts
       ? allDistricts.filter((g) => {
-          const raw =
-            g.properties?.adm2_name ||
-            g.properties?.ADM2_EN ||
-            g.properties?.NAME_2 ||
-            g.properties?.name ||
-            "";
+          const raw = extractRawName(g);
           const normalized = getNormalizedName(raw);
           return diff.districts.includes(normalized);
         })
@@ -590,16 +605,11 @@ export default function TapDistrictPage() {
     const shuffled = shuffle(pool);
     const selected = shuffled.slice(0, diff.totalQuestions);
 
+    // 🔴 FIX: Use normalized NAME as queue identifier
     const queue = selected.map((g) => {
-      const raw =
-        g.properties?.adm2_name ||
-        g.properties?.ADM2_EN ||
-        g.properties?.NAME_2 ||
-        g.properties?.name ||
-        "Unknown";
+      const raw = extractRawName(g);
       const normalized = getNormalizedName(raw);
       return {
-        rsmKey: g.rsmKey,
         name: normalized,
         bnName: districtBn[normalized] || normalized,
       };
@@ -679,38 +689,35 @@ export default function TapDistrictPage() {
     const finalTime = Math.floor((Date.now() - startTime) / 1000);
     setElapsed(finalTime);
 
-    // Base score
     const baseScore = correctCount * 100 - wrongTaps * 20;
-
-    // Time bonus
-    const timeBonus = won ? Math.max(0, (difficulty.timeLimit - finalTime) * 2) : 0;
-
-    // Perfect bonus
+    const timeBonus = won
+      ? Math.max(0, (difficulty.timeLimit - finalTime) * 2)
+      : 0;
     const perfectBonus = won && wrongTaps === 0 ? 200 : 0;
-
     const finalScore = Math.max(0, baseScore + timeBonus + perfectBonus);
 
-    // Local storage
     try {
       const stats = JSON.parse(
         localStorage.getItem("game-hub-stats-v1") || "{}"
       );
       const xpGain = Math.round(finalScore / 10) + 50;
-      const newStats = {
-        xp: (stats.xp || 0) + xpGain,
-        totalPlays: (stats.totalPlays || 0) + 1,
-        streak: stats.streak || 0,
-        lastPlayDate: new Date().toISOString().slice(0, 10),
-        unlockedAchievements: stats.unlockedAchievements || [],
-        bestScores: {
-          ...(stats.bestScores || {}),
-          [`tap-district-${difficulty.id}`]: Math.max(
-            finalScore,
-            stats.bestScores?.[`tap-district-${difficulty.id}`] || 0
-          ),
-        },
-      };
-      localStorage.setItem("game-hub-stats-v1", JSON.stringify(newStats));
+      localStorage.setItem(
+        "game-hub-stats-v1",
+        JSON.stringify({
+          xp: (stats.xp || 0) + xpGain,
+          totalPlays: (stats.totalPlays || 0) + 1,
+          streak: stats.streak || 0,
+          lastPlayDate: new Date().toISOString().slice(0, 10),
+          unlockedAchievements: stats.unlockedAchievements || [],
+          bestScores: {
+            ...(stats.bestScores || {}),
+            [`tap-district-${difficulty.id}`]: Math.max(
+              finalScore,
+              stats.bestScores?.[`tap-district-${difficulty.id}`] || 0
+            ),
+          },
+        })
+      );
     } catch {}
 
     if (won) sounds.win();
@@ -724,7 +731,6 @@ export default function TapDistrictPage() {
     setFinalMaxCombo(maxCombo);
     setWasWin(won);
 
-    // Submit to Supabase
     const xpGain = Math.round(finalScore / 10) + 50;
     const accuracy =
       correctCount + wrongTaps > 0
@@ -746,22 +752,21 @@ export default function TapDistrictPage() {
     }, 300);
   };
 
-  // ============ HANDLE TAP ============
+  // ============ HANDLE TAP (NAME-BASED) ============
   const handleTap = useCallback(
-    (geo) => {
+    (tappedName) => {
       if (phase !== "playing") return;
       if (tapLocked) return;
       if (currentIndex >= targetQueue.length) return;
 
       const currentTarget = targetQueue[currentIndex];
-      const tappedRsmKey = geo.rsmKey;
+      if (!currentTarget) return;
 
-      if (tappedRsmKey === currentTarget.rsmKey) {
-        // CORRECT
+      if (tappedName === currentTarget.name) {
+        // ✅ CORRECT
         sounds.correct();
-        setCorrectFlash(tappedRsmKey);
-        const points = 100;
-        setScore((s) => s + points);
+        setCorrectFlashName(tappedName);
+        setScore((s) => s + 100);
         setCorrectCount((c) => c + 1);
         const newCombo = combo + 1;
         setCombo(newCombo);
@@ -772,7 +777,7 @@ export default function TapDistrictPage() {
 
         setTapLocked(true);
         setTimeout(() => {
-          setCorrectFlash(null);
+          setCorrectFlashName(null);
           setTapLocked(false);
           const nextIdx = currentIndex + 1;
           if (nextIdx >= targetQueue.length) {
@@ -782,9 +787,9 @@ export default function TapDistrictPage() {
           }
         }, 650);
       } else {
-        // WRONG
+        // ❌ WRONG
         sounds.wrong();
-        setWrongFlash(tappedRsmKey);
+        setWrongFlashName(tappedName);
         setWrongTaps((w) => w + 1);
         setCombo(0);
         setScore((s) => Math.max(0, s - 20));
@@ -794,7 +799,7 @@ export default function TapDistrictPage() {
 
         setTapLocked(true);
         setTimeout(() => {
-          setWrongFlash(null);
+          setWrongFlashName(null);
           setTapLocked(false);
         }, 400);
       }
@@ -846,7 +851,10 @@ export default function TapDistrictPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5" data-aos="fade-up">
+          <div
+            className="grid grid-cols-1 sm:grid-cols-3 gap-5"
+            data-aos="fade-up"
+          >
             {difficulties.map((diff, idx) => (
               <button
                 key={diff.id}
@@ -869,7 +877,9 @@ export default function TapDistrictPage() {
                   <p className="text-white/85 text-sm font-bold mb-3">
                     {diff.subtitle}
                   </p>
-                  <p className="text-white/70 text-xs mb-5">{diff.description}</p>
+                  <p className="text-white/70 text-xs mb-5">
+                    {diff.description}
+                  </p>
                   <div className="flex items-center gap-2 text-white font-black text-xs uppercase tracking-widest group-hover:gap-4 transition-all">
                     শুরু করুন
                     <i className="fa-solid fa-arrow-right"></i>
@@ -1290,7 +1300,6 @@ export default function TapDistrictPage() {
 
       {/* MAP */}
       <div className="flex-1 relative bg-gray-100 dark:bg-[#0a0d12] overflow-hidden">
-        {/* Decorative glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div
             className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] h-[120%]"
@@ -1309,15 +1318,21 @@ export default function TapDistrictPage() {
           >
             <Geographies geography={geoUrl}>
               {({ geographies }) =>
-                geographies.map((geo) => (
-                  <MemoizedGeography
-                    key={geo.rsmKey}
-                    geo={geo}
-                    isCorrectFlash={correctFlash === geo.rsmKey}
-                    isWrongFlash={wrongFlash === geo.rsmKey}
-                    onTap={handleTap}
-                  />
-                ))
+                geographies.map((geo) => {
+                  const geoRawName = extractRawName(geo);
+                  const geoNormalized = getNormalizedName(geoRawName);
+
+                  return (
+                    <MemoizedGeography
+                      key={geo.rsmKey}
+                      geo={geo}
+                      geoName={geoNormalized}
+                      isCorrectFlash={correctFlashName === geoNormalized}
+                      isWrongFlash={wrongFlashName === geoNormalized}
+                      onTap={handleTap}
+                    />
+                  );
+                })
               }
             </Geographies>
           </ComposableMap>
@@ -1344,7 +1359,7 @@ export default function TapDistrictPage() {
         {elapsed > 20 && currentIndex === correctCount && wrongTaps === 0 && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-4 py-2 rounded-full pointer-events-none">
             <i className="fa-solid fa-lightbulb text-amber-400 mr-1.5"></i>
-            নামটি বিভাগ অনুযায়ী রঙিন — সাহায্য নিন!
+            জেলার অবস্থান মনে করার চেষ্টা করুন!
           </div>
         )}
       </div>
