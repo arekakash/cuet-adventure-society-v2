@@ -481,7 +481,6 @@ export default function TapDistrictPage() {
   const [difficulty, setDifficulty] = useState(null);
   const [allDistricts, setAllDistricts] = useState(null);
 
-  // 🔴 FIX: Queue stores normalized NAMES (not rsmKey)
   const [targetQueue, setTargetQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -494,7 +493,6 @@ export default function TapDistrictPage() {
   const [elapsed, setElapsed] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
 
-  // 🔴 FIX: Flash stores normalized NAME (not rsmKey)
   const [correctFlashName, setCorrectFlashName] = useState(null);
   const [wrongFlashName, setWrongFlashName] = useState(null);
   const [tapLocked, setTapLocked] = useState(false);
@@ -514,6 +512,22 @@ export default function TapDistrictPage() {
   const [scoreSubmitStatus, setScoreSubmitStatus] = useState("idle");
   const [userRank, setUserRank] = useState(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+
+  // 🔴 FIX: Refs to always have latest values inside setTimeout/interval
+  const stateRef = useRef({});
+  stateRef.current = {
+    score,
+    correctCount,
+    wrongTaps,
+    maxCombo,
+    difficulty,
+    startTime,
+    targetQueue,
+    user,
+  };
+
+  // Prevent double-firing endGame
+  const gameEndedRef = useRef(false);
 
   // ============ AUTH CHECK ============
   useEffect(() => {
@@ -560,69 +574,11 @@ export default function TapDistrictPage() {
     return () => clearTimeout(t);
   }, [phase, countdownValue]);
 
-  // ============ GAME TIMER ============
-  useEffect(() => {
-    if (phase !== "playing" || !startTime) return;
-    const id = setInterval(() => {
-      const el = Math.floor((Date.now() - startTime) / 1000);
-      setElapsed(el);
-      const remaining = difficulty.timeLimit - el;
-      setTimeLeft(remaining);
-      if (remaining <= 5 && remaining > 0) sounds.tick();
-      if (remaining <= 0) {
-        clearInterval(id);
-        endGame(false);
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [phase, startTime, difficulty]);
-
-  // ============ START GAME ============
-  const startGame = (diff) => {
-    if (!allDistricts) return;
-    setDifficulty(diff);
-    setScore(0);
-    setCorrectCount(0);
-    setWrongTaps(0);
-    setCombo(0);
-    setMaxCombo(0);
-    setElapsed(0);
-    setTimeLeft(diff.timeLimit);
-    setCurrentIndex(0);
-    setCountdownValue(3);
-    setScoreSubmitStatus("idle");
-    setUserRank(null);
-
-    // Pool filtering by normalized name
-    const pool = diff.districts
-      ? allDistricts.filter((g) => {
-          const raw = extractRawName(g);
-          const normalized = getNormalizedName(raw);
-          return diff.districts.includes(normalized);
-        })
-      : allDistricts;
-
-    const shuffled = shuffle(pool);
-    const selected = shuffled.slice(0, diff.totalQuestions);
-
-    // 🔴 FIX: Use normalized NAME as queue identifier
-    const queue = selected.map((g) => {
-      const raw = extractRawName(g);
-      const normalized = getNormalizedName(raw);
-      return {
-        name: normalized,
-        bnName: districtBn[normalized] || normalized,
-      };
-    });
-
-    setTargetQueue(queue);
-    setPhase("countdown");
-  };
-
   // ============ SUBMIT SCORE ============
   const submitScoreToSupabase = useCallback(
     async (payload) => {
-      if (!user) {
+      const currentUser = stateRef.current.user;
+      if (!currentUser) {
         setScoreSubmitStatus("not_logged_in");
         return;
       }
@@ -663,7 +619,7 @@ export default function TapDistrictPage() {
             const { data: profileData } = await supabase
               .from("profiles")
               .select("game_xp, game_level")
-              .eq("id", user.id)
+              .eq("id", currentUser.id)
               .single();
             const currentXp = profileData?.game_xp || 0;
             const newXp = currentXp + (payload.xp || 0);
@@ -671,7 +627,7 @@ export default function TapDistrictPage() {
             await supabase
               .from("profiles")
               .update({ game_xp: newXp, game_level: newLevel })
-              .eq("id", user.id);
+              .eq("id", currentUser.id);
           } catch (e) {
             console.warn("XP update failed:", e);
           }
@@ -681,78 +637,186 @@ export default function TapDistrictPage() {
         setScoreSubmitStatus("error");
       }
     },
-    [user]
+    []
   );
 
-  // ============ END GAME ============
-  const endGame = (won = true) => {
-    const finalTime = Math.floor((Date.now() - startTime) / 1000);
-    setElapsed(finalTime);
+  // ============ END GAME (STABLE — uses refs) ============
+  const endGame = useCallback(
+    (won = true) => {
+      // 🔴 Prevent double-firing
+      if (gameEndedRef.current) {
+        console.warn("[TapDistrict] endGame already called — ignoring");
+        return;
+      }
+      gameEndedRef.current = true;
 
-    const baseScore = correctCount * 100 - wrongTaps * 20;
-    const timeBonus = won
-      ? Math.max(0, (difficulty.timeLimit - finalTime) * 2)
-      : 0;
-    const perfectBonus = won && wrongTaps === 0 ? 200 : 0;
-    const finalScore = Math.max(0, baseScore + timeBonus + perfectBonus);
+      try {
+        const {
+          startTime: st,
+          difficulty: df,
+          score: sc,
+          correctCount: cc,
+          wrongTaps: wt,
+          maxCombo: mc,
+        } = stateRef.current;
 
-    try {
-      const stats = JSON.parse(
-        localStorage.getItem("game-hub-stats-v1") || "{}"
-      );
-      const xpGain = Math.round(finalScore / 10) + 50;
-      localStorage.setItem(
-        "game-hub-stats-v1",
-        JSON.stringify({
-          xp: (stats.xp || 0) + xpGain,
-          totalPlays: (stats.totalPlays || 0) + 1,
-          streak: stats.streak || 0,
-          lastPlayDate: new Date().toISOString().slice(0, 10),
-          unlockedAchievements: stats.unlockedAchievements || [],
-          bestScores: {
-            ...(stats.bestScores || {}),
-            [`tap-district-${difficulty.id}`]: Math.max(
-              finalScore,
-              stats.bestScores?.[`tap-district-${difficulty.id}`] || 0
-            ),
-          },
+        if (!st || !df) {
+          console.warn("[TapDistrict] endGame: startTime or difficulty missing");
+          // Fallback: force result with safe defaults
+          setFinalScoreDisplay(0);
+          setFinalTimeDisplay(0);
+          setFinalCorrect(0);
+          setFinalWrong(0);
+          setFinalMaxCombo(0);
+          setWasWin(false);
+          setPhase("result");
+          return;
+        }
+
+        const finalTime = Math.max(0, Math.floor((Date.now() - st) / 1000));
+
+        const baseScore = cc * 100 - wt * 20;
+        const timeBonus = won ? Math.max(0, (df.timeLimit - finalTime) * 2) : 0;
+        const perfectBonus = won && wt === 0 ? 200 : 0;
+        const finalScore = Math.max(0, baseScore + timeBonus + perfectBonus);
+
+        // Save to localStorage
+        try {
+          const stats = JSON.parse(
+            localStorage.getItem("game-hub-stats-v1") || "{}"
+          );
+          const xpGain = Math.round(finalScore / 10) + 50;
+          localStorage.setItem(
+            "game-hub-stats-v1",
+            JSON.stringify({
+              xp: (stats.xp || 0) + xpGain,
+              totalPlays: (stats.totalPlays || 0) + 1,
+              streak: stats.streak || 0,
+              lastPlayDate: new Date().toISOString().slice(0, 10),
+              unlockedAchievements: stats.unlockedAchievements || [],
+              bestScores: {
+                ...(stats.bestScores || {}),
+                [`tap-district-${df.id}`]: Math.max(
+                  finalScore,
+                  stats.bestScores?.[`tap-district-${df.id}`] || 0
+                ),
+              },
+            })
+          );
+        } catch (e) {
+          console.warn("localStorage save failed:", e);
+        }
+
+        if (won) sounds.win();
+        else sounds.lose();
+
+        // Set display values — order matters: values first, then phase
+        setFinalScoreDisplay(finalScore);
+        setFinalTimeDisplay(finalTime);
+        setFinalCorrect(cc);
+        setFinalWrong(wt);
+        setFinalMaxCombo(mc);
+        setWasWin(won);
+
+        // Small delay so React flushes display values first
+        setTimeout(() => {
+          setPhase("result");
+        }, 50);
+
+        // Submit to Supabase (non-blocking)
+        const xpGain = Math.round(finalScore / 10) + 50;
+        const accuracy =
+          cc + wt > 0 ? Math.round((cc / (cc + wt)) * 100 * 100) / 100 : 0;
+
+        setTimeout(() => {
+          try {
+            submitScoreToSupabase({
+              difficulty: df.id,
+              score: finalScore,
+              timeSeconds: finalTime,
+              wrongTaps: wt,
+              maxCombo: mc,
+              accuracy,
+              xp: xpGain,
+            });
+          } catch (e) {
+            console.warn("submit failed:", e);
+          }
+        }, 300);
+      } catch (err) {
+        console.error("[TapDistrict] endGame error:", err);
+        // Ultimate fallback: force result screen
+        setFinalScoreDisplay(0);
+        setFinalTimeDisplay(0);
+        setFinalCorrect(0);
+        setFinalWrong(0);
+        setFinalMaxCombo(0);
+        setWasWin(false);
+        setPhase("result");
+      }
+    },
+    [submitScoreToSupabase]
+  );
+
+  // ============ GAME TIMER ============
+  useEffect(() => {
+    if (phase !== "playing" || !startTime || !difficulty) return;
+    const id = setInterval(() => {
+      const el = Math.floor((Date.now() - startTime) / 1000);
+      setElapsed(el);
+      const remaining = difficulty.timeLimit - el;
+      setTimeLeft(remaining);
+      if (remaining <= 5 && remaining > 0) sounds.tick();
+      if (remaining <= 0) {
+        clearInterval(id);
+        endGame(false);
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [phase, startTime, difficulty, endGame]);
+
+  // ============ START GAME ============
+  const startGame = (diff) => {
+    if (!allDistricts) return;
+    gameEndedRef.current = false; // 🔴 Reset lock
+    setDifficulty(diff);
+    setScore(0);
+    setCorrectCount(0);
+    setWrongTaps(0);
+    setCombo(0);
+    setMaxCombo(0);
+    setElapsed(0);
+    setTimeLeft(diff.timeLimit);
+    setCurrentIndex(0);
+    setCountdownValue(3);
+    setScoreSubmitStatus("idle");
+    setUserRank(null);
+
+    const pool = diff.districts
+      ? allDistricts.filter((g) => {
+          const raw = extractRawName(g);
+          const normalized = getNormalizedName(raw);
+          return diff.districts.includes(normalized);
         })
-      );
-    } catch {}
+      : allDistricts;
 
-    if (won) sounds.win();
-    else sounds.lose();
+    const shuffled = shuffle(pool);
+    const selected = shuffled.slice(0, diff.totalQuestions);
 
-    setPhase("result");
-    setFinalScoreDisplay(finalScore);
-    setFinalTimeDisplay(finalTime);
-    setFinalCorrect(correctCount);
-    setFinalWrong(wrongTaps);
-    setFinalMaxCombo(maxCombo);
-    setWasWin(won);
+    const queue = selected.map((g) => {
+      const raw = extractRawName(g);
+      const normalized = getNormalizedName(raw);
+      return {
+        name: normalized,
+        bnName: districtBn[normalized] || normalized,
+      };
+    });
 
-    const xpGain = Math.round(finalScore / 10) + 50;
-    const accuracy =
-      correctCount + wrongTaps > 0
-        ? Math.round(
-            (correctCount / (correctCount + wrongTaps)) * 100 * 100
-          ) / 100
-        : 0;
-
-    setTimeout(() => {
-      submitScoreToSupabase({
-        difficulty: difficulty.id,
-        score: finalScore,
-        timeSeconds: finalTime,
-        wrongTaps,
-        maxCombo,
-        accuracy,
-        xp: xpGain,
-      });
-    }, 300);
+    setTargetQueue(queue);
+    setPhase("countdown");
   };
 
-  // ============ HANDLE TAP (NAME-BASED) ============
+  // ============ HANDLE TAP ============
   const handleTap = useCallback(
     (tappedName) => {
       if (phase !== "playing") return;
@@ -763,7 +827,6 @@ export default function TapDistrictPage() {
       if (!currentTarget) return;
 
       if (tappedName === currentTarget.name) {
-        // ✅ CORRECT
         sounds.correct();
         setCorrectFlashName(tappedName);
         setScore((s) => s + 100);
@@ -787,7 +850,6 @@ export default function TapDistrictPage() {
           }
         }, 650);
       } else {
-        // ❌ WRONG
         sounds.wrong();
         setWrongFlashName(tappedName);
         setWrongTaps((w) => w + 1);
@@ -804,7 +866,7 @@ export default function TapDistrictPage() {
         }, 400);
       }
     },
-    [phase, tapLocked, currentIndex, targetQueue, combo]
+    [phase, tapLocked, currentIndex, targetQueue, combo, endGame]
   );
 
   // ============ CURRENT TARGET ============
@@ -821,7 +883,10 @@ export default function TapDistrictPage() {
   // ============ RENDER: MENU ============
   if (phase === "menu") {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans">
+      <div
+        key="menu"
+        className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans"
+      >
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <Link
@@ -963,7 +1028,10 @@ export default function TapDistrictPage() {
   // ============ RENDER: COUNTDOWN ============
   if (phase === "countdown") {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-orange-500 via-red-500 to-pink-500">
+      <div
+        key="countdown"
+        className="h-screen flex items-center justify-center bg-gradient-to-br from-orange-500 via-red-500 to-pink-500"
+      >
         <div className="text-center">
           {countdownValue > 0 ? (
             <div
@@ -1105,7 +1173,10 @@ export default function TapDistrictPage() {
     };
 
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans flex items-center justify-center">
+      <div
+        key="result"
+        className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans flex items-center justify-center"
+      >
         <div className="max-w-xl w-full">
           <div
             className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 shadow-2xl text-center ${
@@ -1133,7 +1204,7 @@ export default function TapDistrictPage() {
                 {won
                   ? `আপনি ${e2b(finalCorrect)}টি জেলা সম্পূর্ণ করেছেন 🎉`
                   : `${e2b(finalCorrect)}/${e2b(
-                      difficulty.totalQuestions
+                      difficulty?.totalQuestions || 0
                     )} জেলা খুঁজে পেয়েছেন`}
               </p>
 
@@ -1184,7 +1255,10 @@ export default function TapDistrictPage() {
               <div className="flex flex-col gap-2">
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setPhase("menu")}
+                    onClick={() => {
+                      gameEndedRef.current = false;
+                      setPhase("menu");
+                    }}
                     className="flex-1 py-3 bg-white/20 backdrop-blur-sm text-white font-black rounded-xl border border-white/30 hover:bg-white/30 transition-all text-xs"
                   >
                     <i className="fa-solid fa-rotate-left mr-1.5"></i>
@@ -1225,13 +1299,17 @@ export default function TapDistrictPage() {
   const timeWarning = timeLeft <= 15 && timeLeft > 0;
 
   return (
-    <div className="h-screen overflow-hidden bg-gray-50 dark:bg-[#050b08] font-sans flex flex-col">
+    <div
+      key="playing"
+      className="h-screen overflow-hidden bg-gray-50 dark:bg-[#050b08] font-sans flex flex-col"
+    >
       {/* HEADER */}
       <div className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div className="px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2">
           <button
             onClick={() => {
               if (window.confirm("গেম থেকে বের হয়ে যাবেন?")) {
+                gameEndedRef.current = false;
                 setPhase("menu");
               }
             }}
