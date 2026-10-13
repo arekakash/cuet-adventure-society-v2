@@ -35,6 +35,11 @@ export default function Navbar() {
   // 🔴 NEW: My Bangladesh active detection
   const isMyBangladeshActive = pathname?.startsWith("/my-bangladesh");
 
+  // 🔴 NEW: Hide navbar on individual game pages (immersive fullscreen experience)
+  // Hub page /my-bangladesh/games — navbar দেখাবে
+  // Game pages /my-bangladesh/games/xxx — navbar লুকাবে
+  const isGamePage = pathname?.startsWith("/my-bangladesh/games/");
+
   useEffect(() => {
     // পেজ লোড হলে লোকাল স্টোরেজ থেকে থিম চেক করা
     const storedTheme = localStorage.getItem("theme");
@@ -141,6 +146,11 @@ export default function Navbar() {
   const isLoggedIn = !!session;
   const isAdmin = userProfile?.role === 'admin';
   const avatarUrl = userProfile?.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.full_name || 'User')}&background=e76f51&color=fff`;
+
+  // 🔴 Hide navbar entirely on game pages for immersive fullscreen gameplay
+  if (isGamePage) {
+    return null;
+  }
 
   return (
     <>
