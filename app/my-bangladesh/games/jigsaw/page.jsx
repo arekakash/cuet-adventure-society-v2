@@ -25,9 +25,35 @@ const shuffle = (arr) => {
   return a;
 };
 
+const formatTime = (sec) => {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${e2b(m.toString().padStart(2, "0"))}:${e2b(s.toString().padStart(2, "0"))}`;
+};
+
 // ============================================
-// NAME NORMALIZATION
+// NAME EXTRACTION (robust, multi-key)
 // ============================================
+const extractRawName = (geo) => {
+  const props = geo?.properties || {};
+  const keys = [
+    "adm2_name", "ADM2_NAME", "ADM2_EN", "adm2_en",
+    "NAME_2", "name", "Name", "NAME",
+    "Dist_Name", "dist_name", "DIST_NAME",
+    "district", "District", "DISTRICT",
+    "dist", "Dist",
+  ];
+  for (const k of keys) {
+    const v = props[k];
+    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
+  }
+  for (const k of Object.keys(props)) {
+    const v = props[k];
+    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
+  }
+  return "";
+};
+
 const standardMap = {
   "Chapainababganj": "Chapainawabganj",
   "Nawabganj": "Chapainawabganj",
@@ -47,28 +73,6 @@ const districtBn = {
   "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
   "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
   "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট",
-};
-
-// Robust name extractor
-const extractRawName = (geo) => {
-  const props = geo?.properties || {};
-  const keys = [
-    "adm2_name", "ADM2_NAME", "ADM2_EN", "adm2_en",
-    "NAME_2", "name", "Name", "NAME",
-    "Dist_Name", "dist_name", "DIST_NAME",
-    "district", "District", "DISTRICT",
-    "dist", "Dist",
-  ];
-  for (const k of keys) {
-    const v = props[k];
-    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
-  }
-  // Last resort: first string value
-  for (const k of Object.keys(props)) {
-    const v = props[k];
-    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
-  }
-  return "";
 };
 
 const getNormalizedName = (raw) => standardMap[raw] || raw;
@@ -109,13 +113,9 @@ const divisionColors = {
   "ময়মনসিংহ": "#ef4444",
 };
 
-const getDivision = (rawName) => {
-  const normalized = getNormalizedName(rawName);
-  return districtToDivision[normalized] || "ঢাকা";
-};
-
 const getColorByRawName = (rawName) => {
-  const div = getDivision(rawName);
+  const n = getNormalizedName(rawName);
+  const div = districtToDivision[n] || "ঢাকা";
   return divisionColors[div] || "#64748b";
 };
 
@@ -123,36 +123,9 @@ const getColorByRawName = (rawName) => {
 // DIFFICULTIES
 // ============================================
 const difficulties = [
-  {
-    id: "easy",
-    title: "সহজ",
-    subtitle: "১৫ জেলা • সময় নেই",
-    icon: "fa-solid fa-seedling",
-    color: "#10b981",
-    gradient: "from-emerald-500 to-teal-500",
-    pieces: 15,
-    timer: null,
-  },
-  {
-    id: "medium",
-    title: "মাঝারি",
-    subtitle: "৩০ জেলা • ৫ মিনিট",
-    icon: "fa-solid fa-fire",
-    color: "#f59e0b",
-    gradient: "from-amber-500 to-orange-500",
-    pieces: 30,
-    timer: 300,
-  },
-  {
-    id: "hard",
-    title: "কঠিন",
-    subtitle: "৬৪ জেলা • ৮ মিনিট",
-    icon: "fa-solid fa-skull",
-    color: "#ef4444",
-    gradient: "from-red-500 to-pink-500",
-    pieces: 64,
-    timer: 480,
-  },
+  { id: "easy", title: "সহজ", subtitle: "১৫ জেলা • সময় নেই", icon: "fa-solid fa-seedling", gradient: "from-emerald-500 to-teal-500", pieces: 15, timer: null },
+  { id: "medium", title: "মাঝারি", subtitle: "৩০ জেলা • ৫ মিনিট", icon: "fa-solid fa-fire", gradient: "from-amber-500 to-orange-500", pieces: 30, timer: 300 },
+  { id: "hard", title: "কঠিন", subtitle: "৬৪ জেলা • ৮ মিনিট", icon: "fa-solid fa-skull", gradient: "from-red-500 to-pink-500", pieces: 64, timer: 480 },
 ];
 
 // ============================================
@@ -164,9 +137,7 @@ const initAudio = () => {
   if (!audioCtx) {
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   }
   return audioCtx;
 };
@@ -190,63 +161,31 @@ const playTone = (freq, duration, type = "sine", volume = 0.12, delay = 0) => {
 };
 
 const sounds = {
-  correct: () => {
-    playTone(800, 0.15, "sine", 0.12);
-    playTone(1200, 0.22, "sine", 0.1, 0.08);
-  },
-  perfect: () => {
-    playTone(900, 0.12, "sine", 0.12);
-    playTone(1200, 0.12, "sine", 0.12, 0.07);
-    playTone(1500, 0.28, "sine", 0.14, 0.14);
-  },
-  wrong: () => {
-    playTone(180, 0.28, "sawtooth", 0.08);
-  },
-  pick: () => {
-    playTone(550, 0.05, "sine", 0.06);
-  },
-  win: () => {
-    [523, 659, 784, 1047, 1319].forEach((f, i) => {
-      playTone(f, 0.4, "sine", 0.14, i * 0.13);
-    });
-  },
-  lose: () => {
-    [400, 350, 300, 250].forEach((f, i) => {
-      playTone(f, 0.3, "triangle", 0.12, i * 0.15);
-    });
-  },
-  tick: () => {
-    playTone(1100, 0.04, "sine", 0.05);
-  },
+  correct: () => { playTone(800, 0.15, "sine", 0.12); playTone(1200, 0.22, "sine", 0.1, 0.08); },
+  perfect: () => { playTone(900, 0.12, "sine", 0.12); playTone(1200, 0.12, "sine", 0.12, 0.07); playTone(1500, 0.28, "sine", 0.14, 0.14); },
+  wrong: () => { playTone(180, 0.28, "sawtooth", 0.08); },
+  pick: () => { playTone(550, 0.05, "sine", 0.06); },
+  win: () => { [523, 659, 784, 1047, 1319].forEach((f, i) => playTone(f, 0.4, "sine", 0.14, i * 0.13)); },
+  lose: () => { [400, 350, 300, 250].forEach((f, i) => playTone(f, 0.3, "triangle", 0.12, i * 0.15)); },
+  tick: () => { playTone(1100, 0.04, "sine", 0.05); },
 };
 
 // ============================================
 // DISTRICT PIECE SVG
 // ============================================
-function DistrictPiece({ geo, size = 54, fill = "#94a3b8", showName = false, name = "" }) {
+function DistrictPiece({ geo, size = 54, fill = "#94a3b8" }) {
   const pathD = useMemo(() => {
     if (!geo) return "";
     try {
-      const proj = geoMercator().fitExtent(
-        [[4, 4], [size - 4, size - 4]],
-        geo
-      );
+      const proj = geoMercator().fitExtent([[4, 4], [size - 4, size - 4]], geo);
       const pathGen = geoPath(proj);
       return pathGen(geo) || "";
-    } catch {
-      return "";
-    }
+    } catch { return ""; }
   }, [geo, size]);
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="block">
-      <path
-        d={pathD}
-        fill={fill}
-        stroke="#ffffff"
-        strokeWidth={0.9}
-        strokeLinejoin="round"
-      />
+      <path d={pathD} fill={fill} stroke="#ffffff" strokeWidth={0.9} strokeLinejoin="round" />
     </svg>
   );
 }
@@ -265,29 +204,19 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
       try {
         let query = supabase
           .from("game_scores")
-          .select("id, score, time_seconds, wrong_taps, max_combo, difficulty, user_id, profiles:user_id(full_name, photo_url)")
+          .select("id, score, time_seconds, wrong_taps, difficulty, user_id, profiles:user_id(full_name, photo_url)")
           .eq("game_mode", "jigsaw")
           .order("score", { ascending: false })
           .order("time_seconds", { ascending: true })
           .order("wrong_taps", { ascending: true })
           .limit(50);
-
         if (activeDifficulty) query = query.eq("difficulty", activeDifficulty);
-
         const { data, error } = await query;
         if (!error) setEntries(data || []);
-      } catch (e) {
-        console.error(e);
-      }
+      } catch (e) { console.error(e); }
       setLoading(false);
     })();
   }, [activeDifficulty]);
-
-  const formatTime = (sec) => {
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${e2b(m.toString().padStart(2, "0"))}:${e2b(s.toString().padStart(2, "0"))}`;
-  };
 
   const getMedalIcon = (rank) => {
     if (rank === 1) return "fa-crown text-yellow-400";
@@ -308,59 +237,24 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose}></div>
       <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-lg relative z-10 shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <div className="p-5 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
-          <div>
-            <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-              <i className="fa-solid fa-trophy text-amber-500"></i>
-              টপ ৫০ লিডারবোর্ড
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              সেরা খেলোয়াড়দের তালিকা
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors"
-          >
+          <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+            <i className="fa-solid fa-trophy text-amber-500"></i> টপ ৫০ লিডারবোর্ড
+          </h3>
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
             <i className="fa-solid fa-xmark text-gray-600 dark:text-gray-300"></i>
           </button>
         </div>
-
-        <div className="px-5 py-3 flex gap-2 border-b border-gray-100 dark:border-gray-800 overflow-x-auto">
-          <button
-            onClick={() => setActiveDifficulty(null)}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
-              activeDifficulty === null
-                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-            }`}
-          >
-            সব
-          </button>
+        <div className="px-5 py-3 flex gap-2 border-b overflow-x-auto">
+          <button onClick={() => setActiveDifficulty(null)} className={`px-3 py-1.5 rounded-full text-xs font-bold ${activeDifficulty === null ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600"}`}>সব</button>
           {difficulties.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => setActiveDifficulty(d.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
-                activeDifficulty === d.id
-                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-              }`}
-            >
-              {d.title}
-            </button>
+            <button key={d.id} onClick={() => setActiveDifficulty(d.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold ${activeDifficulty === d.id ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600"}`}>{d.title}</button>
           ))}
         </div>
-
         <div className="flex-1 overflow-y-auto p-3">
           {loading ? (
-            <div className="text-center py-10">
-              <i className="fa-solid fa-spinner fa-spin text-2xl text-purple-500"></i>
-            </div>
+            <div className="text-center py-10"><i className="fa-solid fa-spinner fa-spin text-2xl text-purple-500"></i></div>
           ) : entries.length === 0 ? (
-            <div className="text-center py-10">
-              <i className="fa-solid fa-inbox text-3xl text-gray-300 dark:text-gray-600"></i>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">এখনো কোনো স্কোর নেই</p>
-            </div>
+            <div className="text-center py-10"><i className="fa-solid fa-inbox text-3xl text-gray-300"></i><p className="text-sm text-gray-500 mt-3">এখনো কোনো স্কোর নেই</p></div>
           ) : (
             <div className="flex flex-col gap-2">
               {entries.map((entry, idx) => {
@@ -371,37 +265,18 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
                 const avatar = profile.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=a855f7&color=fff`;
                 const medal = getMedalIcon(rank);
                 return (
-                  <div
-                    key={entry.id}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl border-2 transition-all ${getRankStyle(rank)} ${
-                      isMe ? "ring-2 ring-purple-500 ring-offset-1 dark:ring-offset-gray-900" : ""
-                    }`}
-                  >
-                    <div className="w-8 shrink-0 text-center">
-                      {medal ? (
-                        <i className={`fa-solid ${medal} text-lg`}></i>
-                      ) : (
-                        <span className="text-sm font-black text-gray-500 dark:text-gray-400">{e2b(rank)}</span>
-                      )}
+                  <div key={entry.id} className={`flex items-center gap-3 p-2.5 rounded-xl border-2 ${getRankStyle(rank)} ${isMe ? "ring-2 ring-purple-500" : ""}`}>
+                    <div className="w-8 text-center">
+                      {medal ? <i className={`fa-solid ${medal} text-lg`}></i> : <span className="text-sm font-black text-gray-500">{e2b(rank)}</span>}
                     </div>
-                    <img src={avatar} alt={name} className="w-9 h-9 rounded-full border-2 border-white dark:border-gray-700 shrink-0 object-cover" />
+                    <img src={avatar} alt={name} className="w-9 h-9 rounded-full border-2 border-white object-cover" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-gray-900 dark:text-white truncate">
-                        {name}
-                        {isMe && <span className="ml-1.5 text-[9px] text-purple-500 font-bold">(আপনি)</span>}
+                      <p className="text-xs font-black text-gray-900 dark:text-white truncate">{name}{isMe && <span className="ml-1.5 text-[9px] text-purple-500">(আপনি)</span>}</p>
+                      <p className="text-[9px] text-gray-500 font-bold mt-0.5">
+                        {entry.difficulty === "easy" ? "সহজ" : entry.difficulty === "medium" ? "মাঝারি" : "কঠিন"} • {formatTime(entry.time_seconds)}
                       </p>
-                      <div className="flex items-center gap-2 mt-0.5 text-[9px] text-gray-500 dark:text-gray-400 font-bold">
-                        <span>{entry.difficulty === "easy" ? "সহজ" : entry.difficulty === "medium" ? "মাঝারি" : "কঠিন"}</span>
-                        <span>•</span>
-                        <span><i className="fa-solid fa-stopwatch mr-0.5"></i>{formatTime(entry.time_seconds)}</span>
-                        <span>•</span>
-                        <span><i className="fa-solid fa-xmark mr-0.5"></i>{e2b(entry.wrong_taps)}</span>
-                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-base font-black text-purple-600 dark:text-purple-400">{e2b(entry.score)}</p>
-                      <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase">পয়েন্ট</p>
-                    </div>
+                    <p className="text-base font-black text-purple-600">{e2b(entry.score)}</p>
                   </div>
                 );
               })}
@@ -420,9 +295,11 @@ export default function JigsawPage() {
   const [phase, setPhase] = useState("menu");
   const [difficulty, setDifficulty] = useState(null);
   const [allDistricts, setAllDistricts] = useState(null);
+
+  // 🔴 FIX: gamePieces now array of {geo, uid, rawName, bnName}
   const [gamePieces, setGamePieces] = useState([]);
-  const [placed, setPlaced] = useState(() => new Set());
-  const [trayOrder, setTrayOrder] = useState([]);
+  const [placed, setPlaced] = useState(() => new Set()); // Set of UIDs
+  const [trayOrder, setTrayOrder] = useState([]); // Array of UIDs
 
   const mapWrapRef = useRef(null);
   const [mapDims, setMapDims] = useState({ w: 0, h: 0 });
@@ -458,14 +335,12 @@ export default function JigsawPage() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user || null);
-      } catch (e) {
-        console.error(e);
-      }
+      } catch (e) { console.error(e); }
       setAuthLoading(false);
     })();
   }, []);
 
-  // ============ LOAD DISTRICTS ============
+  // ============ LOAD DISTRICTS (with _uid + _rawName) ============
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
     (async () => {
@@ -475,11 +350,16 @@ export default function JigsawPage() {
         const key = Object.keys(topo.objects)[0];
         const features = topojson.feature(topo, topo.objects[key]).features;
 
-        // 🔴 SORT so bigger districts come first (for index/rsmKey stability)
-        const enriched = features.map((f) => ({
+        // 🔴 CRITICAL FIX: attach _uid and _rawName
+        const enriched = features.map((f, i) => ({
           ...f,
+          _uid: i,
           _rawName: extractRawName(f),
         }));
+
+        console.log("[Jigsaw] Loaded districts:", enriched.length);
+        console.log("[Jigsaw] Sample names:", enriched.slice(0, 5).map(f => f._rawName));
+
         setAllDistricts(enriched);
       } catch (err) {
         console.error("Load failed:", err);
@@ -503,31 +383,25 @@ export default function JigsawPage() {
   // ============ PROJECTION ============
   const projection = useMemo(() => {
     if (!mapDims.w || !mapDims.h) return null;
-    return geoMercator()
-      .scale(6500)
-      .center([90.35, 23.8])
-      .translate([mapDims.w / 2, mapDims.h / 2]);
+    return geoMercator().scale(6500).center([90.35, 23.8]).translate([mapDims.w / 2, mapDims.h / 2]);
   }, [mapDims.w, mapDims.h]);
 
   const pathGen = useMemo(() => (projection ? geoPath(projection) : null), [projection]);
 
-  // ============ CORRECT POSITIONS ============
+  // ============ CORRECT POSITIONS (keyed by _uid) ============
   const correctPositions = useMemo(() => {
     if (!projection || !gamePieces.length) return {};
     const pos = {};
-    gamePieces.forEach((geo) => {
-      const c = geoCentroid(geo);
-      const p = projection(c);
-      if (p && isFinite(p[0])) pos[geo.rsmKey] = { x: p[0], y: p[1] };
+    gamePieces.forEach((p) => {
+      const c = geoCentroid(p.geo);
+      const xy = projection(c);
+      if (xy && isFinite(xy[0])) pos[p.uid] = { x: xy[0], y: xy[1] };
     });
     return pos;
   }, [projection, gamePieces]);
 
-  // ============ TARGET KEYS SET ============
-  const targetKeysSet = useMemo(
-    () => new Set(gamePieces.map((g) => g.rsmKey)),
-    [gamePieces]
-  );
+  // ============ TARGET UID SET ============
+  const targetUidsSet = useMemo(() => new Set(gamePieces.map((p) => p.uid)), [gamePieces]);
 
   // ============ TIMER ============
   useEffect(() => {
@@ -539,10 +413,7 @@ export default function JigsawPage() {
         const remaining = difficulty.timer - el;
         setTimeLeft(remaining);
         if (remaining <= 5 && remaining > 0) sounds.tick();
-        if (remaining <= 0) {
-          clearInterval(id);
-          endGame(false);
-        }
+        if (remaining <= 0) { clearInterval(id); endGame(false); }
       }
     }, 1000);
     return () => clearInterval(id);
@@ -564,23 +435,25 @@ export default function JigsawPage() {
     setUserRank(null);
 
     const shuffled = shuffle(allDistricts);
-    const selected =
-      diff.pieces >= allDistricts.length
-        ? allDistricts
-        : shuffled.slice(0, diff.pieces);
+    const selected = diff.pieces >= allDistricts.length ? allDistricts : shuffled.slice(0, diff.pieces);
 
-    setGamePieces(selected);
-    setTrayOrder(shuffle([...selected.map((g) => g.rsmKey)]));
+    // 🔴 Build gamePieces with unique UIDs
+    const pieces = selected.map((geo) => ({
+      geo,
+      uid: geo._uid,
+      rawName: geo._rawName,
+      bnName: getBnName(geo._rawName),
+    }));
+
+    setGamePieces(pieces);
+    setTrayOrder(shuffle(pieces.map((p) => p.uid)));
     setPhase("playing");
   };
 
   // ============ SUBMIT SCORE ============
   const submitScoreToSupabase = useCallback(
     async (payload) => {
-      if (!user) {
-        setScoreSubmitStatus("not_logged_in");
-        return;
-      }
+      if (!user) { setScoreSubmitStatus("not_logged_in"); return; }
       setScoreSubmitStatus("pending");
       try {
         const { data, error } = await supabase.rpc("submit_game_score", {
@@ -593,43 +466,22 @@ export default function JigsawPage() {
           p_accuracy: payload.accuracy,
           p_xp: payload.xp,
         });
-
-        if (error) {
-          setScoreSubmitStatus("error");
-          return;
-        }
-
-        if (data?.saved) {
-          setScoreSubmitStatus("saved");
-          setUserRank(data.rank || null);
-        } else if (data?.qualified === false) {
-          setScoreSubmitStatus("not_qualified");
-        } else if (data?.saved === false && data?.qualified) {
-          setScoreSubmitStatus("existing_better");
-          setUserRank(data.rank || null);
-        } else {
-          setScoreSubmitStatus("error");
-        }
+        if (error) { setScoreSubmitStatus("error"); return; }
+        if (data?.saved) { setScoreSubmitStatus("saved"); setUserRank(data.rank || null); }
+        else if (data?.qualified === false) setScoreSubmitStatus("not_qualified");
+        else if (data?.saved === false && data?.qualified) { setScoreSubmitStatus("existing_better"); setUserRank(data.rank || null); }
+        else setScoreSubmitStatus("error");
 
         if (data?.saved) {
           try {
-            const { data: profileData } = await supabase
-              .from("profiles")
-              .select("game_xp, game_level")
-              .eq("id", user.id)
-              .single();
+            const { data: profileData } = await supabase.from("profiles").select("game_xp, game_level").eq("id", user.id).single();
             const currentXp = profileData?.game_xp || 0;
             const newXp = currentXp + (payload.xp || 0);
             const newLevel = Math.min(15, Math.floor(newXp / 500) + 1);
-            await supabase
-              .from("profiles")
-              .update({ game_xp: newXp, game_level: newLevel })
-              .eq("id", user.id);
+            await supabase.from("profiles").update({ game_xp: newXp, game_level: newLevel }).eq("id", user.id);
           } catch (e) {}
         }
-      } catch (e) {
-        setScoreSubmitStatus("error");
-      }
+      } catch (e) { setScoreSubmitStatus("error"); }
     },
     [user]
   );
@@ -639,36 +491,23 @@ export default function JigsawPage() {
     const finalTime = Math.floor((Date.now() - startTime) / 1000);
     setElapsed(finalTime);
     let timeBonus = 0;
-    if (difficulty?.timer && won) {
-      timeBonus = Math.max(0, difficulty.timer - finalTime) * 2;
-    }
+    if (difficulty?.timer && won) timeBonus = Math.max(0, difficulty.timer - finalTime) * 2;
     const finalScore = score + timeBonus;
 
     try {
       const stats = JSON.parse(localStorage.getItem("game-hub-stats-v1") || "{}");
       const xpGain = Math.round(finalScore / 10) + 50;
-      localStorage.setItem(
-        "game-hub-stats-v1",
-        JSON.stringify({
-          xp: (stats.xp || 0) + xpGain,
-          totalPlays: (stats.totalPlays || 0) + 1,
-          streak: stats.streak || 0,
-          lastPlayDate: new Date().toISOString().slice(0, 10),
-          unlockedAchievements: stats.unlockedAchievements || [],
-          bestScores: {
-            ...(stats.bestScores || {}),
-            [`jigsaw-${difficulty.id}`]: Math.max(
-              finalScore,
-              stats.bestScores?.[`jigsaw-${difficulty.id}`] || 0
-            ),
-          },
-        })
-      );
+      localStorage.setItem("game-hub-stats-v1", JSON.stringify({
+        xp: (stats.xp || 0) + xpGain,
+        totalPlays: (stats.totalPlays || 0) + 1,
+        streak: stats.streak || 0,
+        lastPlayDate: new Date().toISOString().slice(0, 10),
+        unlockedAchievements: stats.unlockedAchievements || [],
+        bestScores: { ...(stats.bestScores || {}), [`jigsaw-${difficulty.id}`]: Math.max(finalScore, stats.bestScores?.[`jigsaw-${difficulty.id}`] || 0) },
+      }));
     } catch {}
 
-    if (won) sounds.win();
-    else sounds.lose();
-
+    if (won) sounds.win(); else sounds.lose();
     setPhase("result");
     setFinalScoreDisplay(finalScore);
     setFinalTimeDisplay(finalTime);
@@ -676,10 +515,7 @@ export default function JigsawPage() {
     setWasWin(won);
 
     const xpGain = Math.round(finalScore / 10) + 50;
-    const accuracy =
-      gamePieces.length > 0
-        ? Math.round(((gamePieces.length - wrongTaps) / gamePieces.length) * 100 * 100) / 100
-        : 0;
+    const accuracy = gamePieces.length > 0 ? Math.round(((gamePieces.length - wrongTaps) / gamePieces.length) * 100 * 100) / 100 : 0;
 
     setTimeout(() => {
       submitScoreToSupabase({
@@ -703,12 +539,12 @@ export default function JigsawPage() {
   }, [placed, gamePieces]);
 
   // ============ DRAG ============
-  const handlePointerDown = (e, geo) => {
-    if (placed.has(geo.rsmKey)) return;
+  const handlePointerDown = (e, piece) => {
+    if (placed.has(piece.uid)) return;
     e.preventDefault();
     sounds.pick();
     e.currentTarget.setPointerCapture?.(e.pointerId);
-    const drag = { geo, x: e.clientX, y: e.clientY };
+    const drag = { piece, x: e.clientX, y: e.clientY };
     dragRef.current = drag;
     setDragging(drag);
   };
@@ -727,17 +563,9 @@ export default function JigsawPage() {
       const d = dragRef.current;
       if (!d) return;
       const mapRect = mapWrapRef.current?.getBoundingClientRect();
-      if (!mapRect) {
-        setDragging(null);
-        dragRef.current = null;
-        return;
-      }
-      const correct = correctPositions[d.geo.rsmKey];
-      if (!correct) {
-        setDragging(null);
-        dragRef.current = null;
-        return;
-      }
+      if (!mapRect) { setDragging(null); dragRef.current = null; return; }
+      const correct = correctPositions[d.piece.uid];
+      if (!correct) { setDragging(null); dragRef.current = null; return; }
       const dropX = e.clientX - mapRect.left;
       const dropY = e.clientY - mapRect.top;
       const dist = Math.hypot(dropX - correct.x, dropY - correct.y);
@@ -754,17 +582,12 @@ export default function JigsawPage() {
         setScore((s) => s + points);
         setCombo(newCombo);
         setMaxCombo((m) => Math.max(m, newCombo));
-        setPlaced((prev) => new Set([...prev, d.geo.rsmKey]));
+        setPlaced((prev) => new Set([...prev, d.piece.uid]));
         setSnapFlash({ x: correct.x, y: correct.y, perfect });
         setTimeout(() => setSnapFlash(null), 700);
 
-        if (perfect) sounds.perfect();
-        else sounds.correct();
-
-        setToast({
-          text: `+${e2b(points)}${multiplier > 1 ? ` (×${multiplier})` : ""}`,
-          type: perfect ? "perfect" : "correct",
-        });
+        if (perfect) sounds.perfect(); else sounds.correct();
+        setToast({ text: `+${e2b(points)}${multiplier > 1 ? ` (×${multiplier})` : ""}`, type: perfect ? "perfect" : "correct" });
         setTimeout(() => setToast(null), 900);
       } else {
         setCombo(0);
@@ -791,19 +614,11 @@ export default function JigsawPage() {
   const unplacedPieces = useMemo(() => {
     if (!gamePieces.length) return [];
     return trayOrder
-      .map((k) => gamePieces.find((g) => g.rsmKey === k))
-      .filter((g) => g && !placed.has(g.rsmKey));
+      .map((uid) => gamePieces.find((p) => p.uid === uid))
+      .filter((p) => p && !placed.has(p.uid));
   }, [gamePieces, trayOrder, placed]);
 
-  const progressPct = gamePieces.length
-    ? Math.round((placed.size / gamePieces.length) * 100)
-    : 0;
-
-  const formatTime = (sec) => {
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${e2b(m.toString().padStart(2, "0"))}:${e2b(s.toString().padStart(2, "0"))}`;
-  };
+  const progressPct = gamePieces.length ? Math.round((placed.size / gamePieces.length) * 100) : 0;
 
   // ============ RENDER: MENU ============
   if (phase === "menu") {
@@ -811,18 +626,11 @@ export default function JigsawPage() {
       <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-6">
-            <Link
-              href="/my-bangladesh/games"
-              className="inline-flex items-center gap-2 text-gray-500 hover:text-campfire font-bold text-sm transition-colors"
-            >
+            <Link href="/my-bangladesh/games" className="inline-flex items-center gap-2 text-gray-500 hover:text-campfire font-bold text-sm">
               <i className="fa-solid fa-arrow-left"></i> গেম হাব
             </Link>
-            <button
-              onClick={() => setShowLeaderboard(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black rounded-xl text-xs shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
-            >
-              <i className="fa-solid fa-trophy"></i>
-              লিডারবোর্ড
+            <button onClick={() => setShowLeaderboard(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black rounded-xl text-xs shadow-md">
+              <i className="fa-solid fa-trophy"></i> লিডারবোর্ড
             </button>
           </div>
 
@@ -830,100 +638,44 @@ export default function JigsawPage() {
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 shadow-2xl mb-5">
               <i className="fa-solid fa-puzzle-piece text-white text-3xl"></i>
             </div>
-            <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white mb-3">
-              জিগস পাজল
-            </h1>
+            <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white mb-3">জিগস পাজল</h1>
             <p className="text-base text-gray-600 dark:text-gray-400 max-w-xl mx-auto">
-              জেলার টুকরো সঠিক জায়গায় বসিয়ে সম্পূর্ণ বাংলাদেশ তৈরি করুন। সময়, কম্বো, নিখুঁত স্ন্যাপ — সব মিলিয়ে সর্বোচ্চ স্কোর!
+              জেলার টুকরো সঠিক জায়গায় বসিয়ে সম্পূর্ণ বাংলাদেশ তৈরি করুন!
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5" data-aos="fade-up">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {difficulties.map((diff, idx) => (
-              <button
-                key={diff.id}
-                onClick={() => startGame(diff)}
-                disabled={!allDistricts}
-                data-aos="fade-up"
-                data-aos-delay={idx * 100}
-                className={`group relative overflow-hidden rounded-3xl bg-gradient-to-br ${diff.gradient} p-7 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 text-left disabled:opacity-50 disabled:cursor-wait`}
-              >
-                <div className="absolute -top-20 -right-20 w-44 h-44 bg-white/20 rounded-full blur-3xl group-hover:bg-white/30 transition-colors"></div>
-                <div className="absolute -bottom-20 -left-20 w-44 h-44 bg-black/10 rounded-full blur-3xl"></div>
+              <button key={diff.id} onClick={() => startGame(diff)} disabled={!allDistricts} data-aos="fade-up" data-aos-delay={idx * 100}
+                className={`group relative overflow-hidden rounded-3xl bg-gradient-to-br ${diff.gradient} p-7 shadow-xl hover:-translate-y-2 transition-all duration-500 text-left disabled:opacity-50`}>
+                <div className="absolute -top-20 -right-20 w-44 h-44 bg-white/20 rounded-full blur-3xl"></div>
                 <div className="relative z-10">
-                  <div className="w-14 h-14 bg-white/25 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-5 border border-white/30 group-hover:scale-110 transition-transform">
+                  <div className="w-14 h-14 bg-white/25 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-5 border border-white/30">
                     <i className={`${diff.icon} text-white text-2xl`}></i>
                   </div>
                   <h3 className="text-3xl font-black text-white mb-1">{diff.title}</h3>
                   <p className="text-white/85 text-sm font-bold mb-5">{diff.subtitle}</p>
-                  <div className="flex items-center gap-2 text-white font-black text-xs uppercase tracking-widest group-hover:gap-4 transition-all">
-                    শুরু করুন
-                    <i className="fa-solid fa-arrow-right"></i>
+                  <div className="flex items-center gap-2 text-white font-black text-xs uppercase">
+                    শুরু করুন <i className="fa-solid fa-arrow-right"></i>
                   </div>
                 </div>
               </button>
             ))}
           </div>
 
-          {!allDistricts && (
-            <div className="mt-8 text-center">
-              <i className="fa-solid fa-spinner fa-spin text-3xl text-purple-500"></i>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">ম্যাপ লোড হচ্ছে...</p>
-            </div>
-          )}
-
           {!authLoading && !user && (
             <div className="mt-8 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 p-4 rounded-2xl flex items-start gap-3">
-              <i className="fa-solid fa-circle-info text-blue-500 text-lg mt-0.5"></i>
+              <i className="fa-solid fa-circle-info text-blue-500 text-lg"></i>
               <div className="flex-1">
                 <p className="text-sm font-bold text-blue-900 dark:text-blue-300 mb-1">গেস্ট হিসেবে খেলছেন</p>
-                <p className="text-xs text-blue-700 dark:text-blue-400 mb-3">স্কোর সেভ করতে ও লিডারবোর্ডে জায়গা পেতে লগইন করুন।</p>
-                <Link
-                  href="/login?redirect=/my-bangladesh/games/jigsaw"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-black rounded-lg transition-colors"
-                >
+                <Link href="/login?redirect=/my-bangladesh/games/jigsaw" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white text-xs font-black rounded-lg">
                   <i className="fa-solid fa-right-to-bracket"></i> লগইন
                 </Link>
               </div>
             </div>
           )}
-
-          <div className="mt-10 bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
-            <h3 className="font-black text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-              <i className="fa-solid fa-circle-info text-blue-500"></i> খেলার নিয়ম
-            </h3>
-            <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-              <li className="flex items-start gap-2">
-                <i className="fa-solid fa-check text-emerald-500 mt-1 text-xs"></i>
-                ম্যাপের faded অংশে জেলার dashed slot দেখাবে — সেখানেই সঠিক টুকরা বসাতে হবে
-              </li>
-              <li className="flex items-start gap-2">
-                <i className="fa-solid fa-check text-emerald-500 mt-1 text-xs"></i>
-                নিচের tray থেকে জেলার টুকরো টেনে সঠিক slot-এ ছাড়ুন — <b>+১০০</b>
-              </li>
-              <li className="flex items-start gap-2">
-                <i className="fa-solid fa-check text-emerald-500 mt-1 text-xs"></i>
-                নিখুঁত স্ন্যাপ (একদম কেন্দ্রে) — <b>+১৫০</b>
-              </li>
-              <li className="flex items-start gap-2">
-                <i className="fa-solid fa-check text-emerald-500 mt-1 text-xs"></i>
-                টানা ৩টি সঠিক — <b>×১.৫</b>, টানা ৫টি — <b>×২</b>
-              </li>
-              <li className="flex items-start gap-2">
-                <i className="fa-solid fa-palette text-purple-500 mt-1 text-xs"></i>
-                প্রতিটি জেলা তার বিভাগ অনুযায়ী রঙিন হবে
-              </li>
-            </ul>
-          </div>
         </div>
-
-        {showLeaderboard && (
-          <LeaderboardModal
-            onClose={() => setShowLeaderboard(false)}
-            currentUserId={user?.id}
-            initialDifficulty={null}
-          />
-        )}
+        {showLeaderboard && <LeaderboardModal onClose={() => setShowLeaderboard(false)} currentUserId={user?.id} initialDifficulty={null} />}
       </div>
     );
   }
@@ -934,122 +686,69 @@ export default function JigsawPage() {
     const xpGained = Math.round(finalScoreDisplay / 10) + 50;
 
     const renderSaveStatus = () => {
-      if (scoreSubmitStatus === "pending") {
-        return (
-          <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3 mb-4 border border-white/20 flex items-center justify-center gap-2">
-            <i className="fa-solid fa-spinner fa-spin text-white/90 text-sm"></i>
-            <span className="text-xs font-bold text-white/90">স্কোর সংরক্ষণ হচ্ছে...</span>
-          </div>
-        );
-      }
-      if (scoreSubmitStatus === "saved") {
-        return (
-          <div className="bg-gradient-to-r from-yellow-400/30 to-amber-500/30 backdrop-blur-sm rounded-xl p-3 mb-4 border border-yellow-300/50">
-            <div className="flex items-center justify-center gap-2">
-              <i className="fa-solid fa-trophy text-yellow-300 text-lg"></i>
-              <div className="text-left">
-                <p className="text-xs font-black text-white">লিডারবোর্ডে #{e2b(userRank || 0)} হয়েছেন!</p>
-                <p className="text-[9px] text-white/80 font-bold">স্কোর সফলভাবে সংরক্ষিত হয়েছে</p>
-              </div>
-            </div>
-          </div>
-        );
-      }
-      if (scoreSubmitStatus === "not_qualified") {
-        return (
-          <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3 mb-4 border border-white/20">
-            <p className="text-xs font-bold text-white/90 text-center">
-              <i className="fa-solid fa-circle-exclamation mr-1.5"></i>
-              টপ ৫০-এ জায়গা হয়নি — আরো চেষ্টা করুন!
-            </p>
-          </div>
-        );
-      }
-      if (scoreSubmitStatus === "existing_better") {
-        return (
-          <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3 mb-4 border border-white/20">
-            <p className="text-xs font-bold text-white/90 text-center">
-              <i className="fa-solid fa-crown mr-1.5 text-yellow-300"></i>
-              আপনার আগের স্কোর-ই সেরা — #{e2b(userRank || 0)}
-            </p>
-          </div>
-        );
-      }
-      if (scoreSubmitStatus === "not_logged_in") {
-        return (
-          <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 mb-4 border border-white/25">
-            <p className="text-xs font-bold text-white/95 mb-2 text-center">
-              <i className="fa-solid fa-lock mr-1.5"></i>
-              স্কোর সেভ করতে লগইন করুন
-            </p>
-            <Link
-              href="/login?redirect=/my-bangladesh/games/jigsaw"
-              className="block w-full py-2.5 bg-white text-gray-900 font-black rounded-lg text-xs text-center hover:shadow-lg transition-all"
-            >
-              <i className="fa-solid fa-right-to-bracket mr-1.5"></i>
-              লগইন / রেজিস্টার
-            </Link>
-          </div>
-        );
-      }
-      if (scoreSubmitStatus === "error") {
-        return (
-          <div className="bg-red-500/20 backdrop-blur-sm rounded-xl p-3 mb-4 border border-red-300/30">
-            <p className="text-xs font-bold text-white/90 text-center">
-              <i className="fa-solid fa-triangle-exclamation mr-1.5"></i>
-              স্কোর সেভ করা যায়নি
-            </p>
-          </div>
-        );
-      }
+      if (scoreSubmitStatus === "pending") return (
+        <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3 mb-4 border border-white/20 flex items-center justify-center gap-2">
+          <i className="fa-solid fa-spinner fa-spin text-white/90 text-sm"></i>
+          <span className="text-xs font-bold text-white/90">স্কোর সংরক্ষণ হচ্ছে...</span>
+        </div>
+      );
+      if (scoreSubmitStatus === "saved") return (
+        <div className="bg-gradient-to-r from-yellow-400/30 to-amber-500/30 backdrop-blur-sm rounded-xl p-3 mb-4 border border-yellow-300/50 flex items-center justify-center gap-2">
+          <i className="fa-solid fa-trophy text-yellow-300 text-lg"></i>
+          <p className="text-xs font-black text-white">লিডারবোর্ডে #{e2b(userRank || 0)} হয়েছেন!</p>
+        </div>
+      );
+      if (scoreSubmitStatus === "not_qualified") return (
+        <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3 mb-4 border border-white/20">
+          <p className="text-xs font-bold text-white/90 text-center">টপ ৫০-এ জায়গা হয়নি — আরো চেষ্টা করুন!</p>
+        </div>
+      );
+      if (scoreSubmitStatus === "existing_better") return (
+        <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3 mb-4 border border-white/20">
+          <p className="text-xs font-bold text-white/90 text-center">আপনার আগের স্কোর-ই সেরা — #{e2b(userRank || 0)}</p>
+        </div>
+      );
+      if (scoreSubmitStatus === "not_logged_in") return (
+        <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 mb-4 border border-white/25">
+          <p className="text-xs font-bold text-white/95 mb-2 text-center"><i className="fa-solid fa-lock mr-1.5"></i>স্কোর সেভ করতে লগইন করুন</p>
+          <Link href="/login?redirect=/my-bangladesh/games/jigsaw" className="block w-full py-2.5 bg-white text-gray-900 font-black rounded-lg text-xs text-center">
+            লগইন / রেজিস্টার
+          </Link>
+        </div>
+      );
       return null;
     };
 
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 flex items-center justify-center">
         <div className="max-w-xl w-full">
-          <div
-            className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 shadow-2xl text-center ${
-              won
-                ? "bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-500"
-                : "bg-gradient-to-br from-red-500 via-pink-500 to-orange-500"
-            }`}
-            data-aos="zoom-in"
-          >
+          <div className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 shadow-2xl text-center ${won ? "bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-500" : "bg-gradient-to-br from-red-500 via-pink-500 to-orange-500"}`}>
             <div className="absolute -top-24 -right-24 w-72 h-72 bg-white/15 rounded-full blur-3xl"></div>
-            <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-black/10 rounded-full blur-3xl"></div>
             <div className="relative z-10">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm border-4 border-white/40 mb-4">
                 <i className={`fa-solid ${won ? "fa-crown" : "fa-clock"} text-white text-3xl`}></i>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white mb-1">
-                {won ? "অভিনন্দন!" : "সময় শেষ!"}
-              </h1>
+              <h1 className="text-2xl sm:text-3xl font-black text-white mb-1">{won ? "অভিনন্দন!" : "সময় শেষ!"}</h1>
               <p className="text-white/85 text-xs font-bold mb-5">
-                {won
-                  ? "আপনি সম্পূর্ণ বাংলাদেশ তৈরি করেছেন 🎉"
-                  : `${e2b(placed.size)}/${e2b(gamePieces.length)} জেলা সম্পন্ন করতে পেরেছেন`}
+                {won ? "আপনি সম্পূর্ণ বাংলাদেশ তৈরি করেছেন 🎉" : `${e2b(placed.size)}/${e2b(gamePieces.length)} জেলা সম্পন্ন`}
               </p>
 
               <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-5 border border-white/25 mb-4">
-                <p className="text-white/80 text-[10px] font-black uppercase tracking-widest mb-1">চূড়ান্ত স্কোর</p>
+                <p className="text-white/80 text-[10px] font-black uppercase mb-1">চূড়ান্ত স্কোর</p>
                 <p className="text-5xl font-black text-white mb-1">{e2b(finalScoreDisplay)}</p>
                 <p className="text-white/70 text-[10px] font-bold">+ {e2b(xpGained)} XP</p>
               </div>
 
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl p-2.5 border border-white/20">
-                  <i className="fa-solid fa-stopwatch text-white/70 text-xs mb-0.5"></i>
                   <p className="text-base font-black text-white">{formatTime(finalTimeDisplay)}</p>
                   <p className="text-[8px] font-bold text-white/70 uppercase">সময়</p>
                 </div>
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl p-2.5 border border-white/20">
-                  <i className="fa-solid fa-bolt text-white/70 text-xs mb-0.5"></i>
                   <p className="text-base font-black text-white">{e2b(maxCombo)}</p>
                   <p className="text-[8px] font-bold text-white/70 uppercase">সেরা কম্বো</p>
                 </div>
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl p-2.5 border border-white/20">
-                  <i className="fa-solid fa-xmark text-white/70 text-xs mb-0.5"></i>
                   <p className="text-base font-black text-white">{e2b(wrongTaps)}</p>
                   <p className="text-[8px] font-bold text-white/70 uppercase">ভুল</p>
                 </div>
@@ -1059,37 +758,21 @@ export default function JigsawPage() {
 
               <div className="flex flex-col gap-2">
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setPhase("menu")}
-                    className="flex-1 py-3 bg-white/20 backdrop-blur-sm text-white font-black rounded-xl border border-white/30 hover:bg-white/30 transition-all text-xs"
-                  >
+                  <button onClick={() => setPhase("menu")} className="flex-1 py-3 bg-white/20 text-white font-black rounded-xl border border-white/30 text-xs">
                     <i className="fa-solid fa-rotate-left mr-1.5"></i> আবার খেলুন
                   </button>
-                  <button
-                    onClick={() => setShowLeaderboard(true)}
-                    className="flex-1 py-3 bg-white/20 backdrop-blur-sm text-white font-black rounded-xl border border-white/30 hover:bg-white/30 transition-all text-xs"
-                  >
+                  <button onClick={() => setShowLeaderboard(true)} className="flex-1 py-3 bg-white/20 text-white font-black rounded-xl border border-white/30 text-xs">
                     <i className="fa-solid fa-trophy mr-1.5"></i> লিডারবোর্ড
                   </button>
                 </div>
-                <Link
-                  href="/my-bangladesh/games"
-                  className="w-full py-3 bg-white text-gray-900 font-black rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all text-center text-xs"
-                >
+                <Link href="/my-bangladesh/games" className="w-full py-3 bg-white text-gray-900 font-black rounded-xl text-center text-xs">
                   <i className="fa-solid fa-home mr-1.5"></i> গেম হাব
                 </Link>
               </div>
             </div>
           </div>
         </div>
-
-        {showLeaderboard && (
-          <LeaderboardModal
-            onClose={() => setShowLeaderboard(false)}
-            currentUserId={user?.id}
-            initialDifficulty={difficulty?.id}
-          />
-        )}
+        {showLeaderboard && <LeaderboardModal onClose={() => setShowLeaderboard(false)} currentUserId={user?.id} initialDifficulty={difficulty?.id} />}
       </div>
     );
   }
@@ -1100,157 +783,77 @@ export default function JigsawPage() {
       {/* HEADER */}
       <div className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div className="px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3">
-          <button
-            onClick={() => {
-              if (window.confirm("গেম থেকে বের হয়ে যাবেন?")) setPhase("menu");
-            }}
-            className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          >
+          <button onClick={() => { if (window.confirm("গেম থেকে বের হয়ে যাবেন?")) setPhase("menu"); }}
+            className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
             <i className="fa-solid fa-xmark"></i>
           </button>
-
           <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-center">
-            <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-black text-sm ${
-                difficulty?.timer && timeLeft !== null && timeLeft < 30
-                  ? "bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 animate-pulse"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-              }`}
-            >
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-black text-sm ${difficulty?.timer && timeLeft !== null && timeLeft < 30 ? "bg-red-100 dark:bg-red-500/20 text-red-600 animate-pulse" : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"}`}>
               <i className="fa-solid fa-stopwatch text-xs"></i>
-              <span>
-                {difficulty?.timer
-                  ? formatTime(Math.max(timeLeft || 0, 0))
-                  : formatTime(elapsed)}
-              </span>
+              <span>{difficulty?.timer ? formatTime(Math.max(timeLeft || 0, 0)) : formatTime(elapsed)}</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-black text-sm shadow-md">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-black text-sm">
               <i className="fa-solid fa-star text-xs"></i>
               <span>{e2b(score)}</span>
             </div>
             {combo >= 3 && (
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-sm shadow-md animate-pulse">
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-sm animate-pulse">
                 <i className="fa-solid fa-bolt text-xs"></i>
                 <span>×{combo >= 5 ? "২" : "১.৫"}</span>
               </div>
             )}
           </div>
-
           <div className="w-16 sm:w-28 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
-              style={{ width: `${progressPct}%` }}
-            ></div>
+            <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }}></div>
           </div>
         </div>
       </div>
 
       {/* MAP */}
-      <div
-        ref={mapWrapRef}
-        className="flex-1 relative bg-gray-100 dark:bg-[#0a0d12] overflow-hidden"
-      >
+      <div ref={mapWrapRef} className="flex-1 relative bg-gray-100 dark:bg-[#0a0d12] overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
-          <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] h-[120%]"
-            style={{
-              background:
-                "radial-gradient(circle at center, rgba(168,85,247,0.08) 0%, transparent 60%)",
-            }}
-          ></div>
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] h-[120%]" style={{ background: "radial-gradient(circle at center, rgba(168,85,247,0.08) 0%, transparent 60%)" }}></div>
         </div>
 
         {projection && pathGen && allDistricts && (
-          <svg
-            className="absolute inset-0 w-full h-full"
-            viewBox={`0 0 ${mapDims.w} ${mapDims.h}`}
-            preserveAspectRatio="xMidYMid meet"
-          >
-            {/* 🔴 LAYER 1: All districts — faded background (non-targets) */}
+          <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${mapDims.w} ${mapDims.h}`} preserveAspectRatio="xMidYMid meet">
+            {/* LAYER 1: Background (all non-target) */}
             {allDistricts.map((geo) => {
-              if (targetKeysSet.has(geo.rsmKey)) return null;
+              if (targetUidsSet.has(geo._uid)) return null;
               return (
-                <path
-                  key={`bg-${geo.rsmKey}`}
-                  d={pathGen(geo)}
-                  fill="#cbd5e1"
-                  stroke="rgba(148,163,184,0.5)"
-                  strokeWidth={0.4}
-                  opacity={0.4}
-                  style={{ pointerEvents: "none" }}
-                />
+                <path key={`bg-${geo._uid}`} d={pathGen(geo)} fill="#cbd5e1" stroke="rgba(148,163,184,0.5)" strokeWidth={0.4} opacity={0.5} style={{ pointerEvents: "none" }} />
               );
             })}
 
-            {/* 🔴 LAYER 2: Target slots — dashed outlines (unplaced) */}
-            {gamePieces.map((geo) => {
-              if (placed.has(geo.rsmKey)) return null;
-              const raw = geo._rawName || extractRawName(geo);
-              const color = getColorByRawName(raw);
+            {/* LAYER 2: Target slots (unplaced) */}
+            {gamePieces.map((piece) => {
+              if (placed.has(piece.uid)) return null;
+              const color = getColorByRawName(piece.rawName);
               return (
-                <path
-                  key={`slot-${geo.rsmKey}`}
-                  d={pathGen(geo)}
-                  fill={`${color}15`}
-                  stroke={color}
-                  strokeWidth={0.8}
-                  strokeDasharray="3 2"
-                  opacity={0.8}
-                  style={{ pointerEvents: "none" }}
-                />
+                <path key={`slot-${piece.uid}`} d={pathGen(piece.geo)} fill={`${color}20`} stroke={color} strokeWidth={0.9} strokeDasharray="3 2" opacity={0.85} style={{ pointerEvents: "none" }} />
               );
             })}
 
-            {/* 🔴 LAYER 3: Placed districts — full division color */}
-            {gamePieces.map((geo) => {
-              if (!placed.has(geo.rsmKey)) return null;
-              const raw = geo._rawName || extractRawName(geo);
-              const color = getColorByRawName(raw);
+            {/* LAYER 3: Placed (filled) */}
+            {gamePieces.map((piece) => {
+              if (!placed.has(piece.uid)) return null;
+              const color = getColorByRawName(piece.rawName);
               return (
-                <path
-                  key={`placed-${geo.rsmKey}`}
-                  d={pathGen(geo)}
-                  fill={color}
-                  stroke="#ffffff"
-                  strokeWidth={1}
-                  strokeLinejoin="round"
-                  style={{
-                    transition: "fill 0.4s ease",
-                    filter: `drop-shadow(0 0 4px ${color}80)`,
-                  }}
-                />
+                <path key={`placed-${piece.uid}`} d={pathGen(piece.geo)} fill={color} stroke="#ffffff" strokeWidth={1} strokeLinejoin="round"
+                  style={{ transition: "fill 0.4s ease", filter: `drop-shadow(0 0 4px ${color}80)` }} />
               );
             })}
 
             {snapFlash && (
-              <circle
-                cx={snapFlash.x}
-                cy={snapFlash.y}
-                r={30}
-                fill="none"
-                stroke={snapFlash.perfect ? "#fbbf24" : "#10b981"}
-                strokeWidth={3}
-                opacity={0.9}
-                style={{ animation: "snapRing 0.7s ease-out forwards" }}
-              />
+              <circle cx={snapFlash.x} cy={snapFlash.y} r={30} fill="none" stroke={snapFlash.perfect ? "#fbbf24" : "#10b981"} strokeWidth={3} opacity={0.9}
+                style={{ animation: "snapRing 0.7s ease-out forwards" }} />
             )}
           </svg>
         )}
 
         {toast && (
-          <div
-            className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full font-black text-sm shadow-lg backdrop-blur-md border animate-[fadeInOut_0.9s_ease-out]"
-            style={{
-              background:
-                toast.type === "wrong"
-                  ? "rgba(239,68,68,0.95)"
-                  : toast.type === "perfect"
-                  ? "rgba(251,191,36,0.95)"
-                  : "rgba(16,185,129,0.95)",
-              color: "#fff",
-              borderColor: "rgba(255,255,255,0.3)",
-            }}
-          >
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full font-black text-sm shadow-lg backdrop-blur-md border animate-[fadeInOut_0.9s_ease-out]"
+            style={{ background: toast.type === "wrong" ? "rgba(239,68,68,0.95)" : toast.type === "perfect" ? "rgba(251,191,36,0.95)" : "rgba(16,185,129,0.95)", color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}>
             {toast.text}
           </div>
         )}
@@ -1264,18 +867,16 @@ export default function JigsawPage() {
       </div>
 
       {/* TRAY */}
-      <div className="shrink-0 h-44 sm:h-48 bg-white dark:bg-gray-900 border-t-2 border-gray-200 dark:border-gray-800 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+      <div className="shrink-0 h-44 sm:h-48 bg-white dark:bg-gray-900 border-t-2 border-gray-200 dark:border-gray-800">
         <div className="px-3 py-2 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
           <p className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
             <i className="fa-solid fa-hand-pointer mr-1 text-purple-500"></i>
             টুকরা টেনে ম্যাপে ছাড়ুন
           </p>
-          <p className="text-[10px] font-black text-gray-500 dark:text-gray-400">
-            {e2b(unplacedPieces.length)} বাকি
-          </p>
+          <p className="text-[10px] font-black text-gray-500 dark:text-gray-400">{e2b(unplacedPieces.length)} বাকি</p>
         </div>
 
-        <div className="h-[calc(100%-36px)] overflow-y-auto overflow-x-hidden px-3 py-2">
+        <div className="h-[calc(100%-36px)] overflow-y-auto px-3 py-2">
           {unplacedPieces.length === 0 ? (
             <div className="flex items-center justify-center h-full text-emerald-500">
               <i className="fa-solid fa-check-circle text-2xl mr-2"></i>
@@ -1283,20 +884,15 @@ export default function JigsawPage() {
             </div>
           ) : (
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
-              {unplacedPieces.map((geo) => {
-                const raw = geo._rawName || extractRawName(geo);
-                const color = getColorByRawName(raw);
-                const bn = getBnName(raw);
+              {unplacedPieces.map((piece) => {
+                const color = getColorByRawName(piece.rawName);
                 return (
-                  <div
-                    key={geo.rsmKey}
-                    onPointerDown={(e) => handlePointerDown(e, geo)}
-                    className="touch-none select-none cursor-grab active:cursor-grabbing flex flex-col items-center p-1 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:scale-105 transition-all"
-                    style={{ touchAction: "none" }}
-                  >
-                    <DistrictPiece geo={geo} size={44} fill={color} />
+                  <div key={piece.uid} onPointerDown={(e) => handlePointerDown(e, piece)}
+                    className="touch-none select-none cursor-grab active:cursor-grabbing flex flex-col items-center p-1 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 hover:scale-105 transition-all"
+                    style={{ touchAction: "none" }}>
+                    <DistrictPiece geo={piece.geo} size={44} fill={color} />
                     <span className="text-[7px] font-bold text-gray-600 dark:text-gray-400 mt-0.5 truncate max-w-full">
-                      {bn}
+                      {piece.bnName}
                     </span>
                   </div>
                 );
@@ -1308,32 +904,20 @@ export default function JigsawPage() {
 
       {/* DRAG OVERLAY */}
       {dragging && (
-        <div
-          className="fixed pointer-events-none z-[80]"
-          style={{
-            left: dragging.x,
-            top: dragging.y,
-            transform: "translate(-50%, -50%) scale(1.3)",
-            filter: "drop-shadow(0 12px 24px rgba(168,85,247,0.5))",
-          }}
-        >
-          <DistrictPiece
-            geo={dragging.geo}
-            size={64}
-            fill={getColorByRawName(dragging.geo._rawName || extractRawName(dragging.geo))}
-          />
+        <div className="fixed pointer-events-none z-[80]" style={{
+          left: dragging.x, top: dragging.y,
+          transform: "translate(-50%, -50%) scale(1.3)",
+          filter: "drop-shadow(0 12px 24px rgba(168,85,247,0.5))",
+        }}>
+          <DistrictPiece geo={dragging.piece.geo} size={64} fill={getColorByRawName(dragging.piece.rawName)} />
         </div>
       )}
 
       <style jsx>{`
-        @keyframes snapRing {
-          0% { opacity: 1; r: 30; }
-          100% { opacity: 0; r: 55; }
-        }
+        @keyframes snapRing { 0% { opacity: 1; r: 30; } 100% { opacity: 0; r: 55; } }
         @keyframes fadeInOut {
           0% { opacity: 0; transform: translate(-50%, -10px); }
-          20% { opacity: 1; transform: translate(-50%, 0); }
-          80% { opacity: 1; transform: translate(-50%, 0); }
+          20%, 80% { opacity: 1; transform: translate(-50%, 0); }
           100% { opacity: 0; transform: translate(-50%, -10px); }
         }
       `}</style>
