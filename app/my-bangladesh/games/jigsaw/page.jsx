@@ -137,7 +137,9 @@ const initAudio = () => {
   if (!audioCtx) {
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
   return audioCtx;
 };
@@ -180,13 +182,145 @@ function DistrictPiece({ geo, size = 54, fill = "#94a3b8" }) {
       const proj = geoMercator().fitExtent([[4, 4], [size - 4, size - 4]], geo);
       const pathGen = geoPath(proj);
       return pathGen(geo) || "";
-    } catch { return ""; }
+    } catch {
+      return "";
+    }
   }, [geo, size]);
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="block">
       <path d={pathD} fill={fill} stroke="#ffffff" strokeWidth={0.9} strokeLinejoin="round" />
     </svg>
+  );
+}
+
+// ============================================
+// SCORE BREAKDOWN COMPONENT
+// ============================================
+function ScoreBreakdown({ breakdown }) {
+  if (!breakdown) return null;
+
+  const {
+    totalPieces,
+    placedCount,
+    basePoints,
+    perfectCount,
+    perfectBonus,
+    comboBonus,
+    timeBonus,
+    wrongTaps,
+    finalScore,
+    won,
+  } = breakdown;
+
+  return (
+    <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/25 mb-4 text-left">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-white/20">
+        <i className="fa-solid fa-calculator text-yellow-300"></i>
+        <h3 className="text-xs font-black text-white uppercase tracking-widest">
+          স্কোর কীভাবে তৈরি হলো
+        </h3>
+      </div>
+
+      <div className="space-y-2">
+        {/* Placed districts base points */}
+        {placedCount > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-check text-emerald-300 mr-1.5 w-4 text-center"></i>
+              {e2b(placedCount)}টি জেলা বসিয়েছেন × ১০০
+            </span>
+            <span className="text-emerald-300 font-black">
+              +{e2b(placedCount * 100)}
+            </span>
+          </div>
+        )}
+
+        {/* Perfect snap bonus */}
+        {perfectCount > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-star text-yellow-300 mr-1.5 w-4 text-center"></i>
+              {e2b(perfectCount)}টি perfect snap × ৫০ (বোনাস)
+            </span>
+            <span className="text-yellow-300 font-black">
+              +{e2b(perfectBonus)}
+            </span>
+          </div>
+        )}
+
+        {/* Combo bonus */}
+        {comboBonus > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-bolt text-amber-300 mr-1.5 w-4 text-center"></i>
+              কম্বো মাল্টিপ্লায়ার বোনাস
+            </span>
+            <span className="text-amber-300 font-black">
+              +{e2b(comboBonus)}
+            </span>
+          </div>
+        )}
+
+        {/* Time bonus */}
+        {timeBonus > 0 && (
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/85">
+              <i className="fa-solid fa-stopwatch text-blue-300 mr-1.5 w-4 text-center"></i>
+              টাইম বোনাস (দ্রুত শেষ করেছেন)
+            </span>
+            <span className="text-blue-300 font-black">
+              +{e2b(timeBonus)}
+            </span>
+          </div>
+        )}
+
+        {/* If empty (no points at all) */}
+        {placedCount === 0 && !won && (
+          <div className="text-center text-xs font-bold text-white/70 py-2">
+            <i className="fa-solid fa-face-sad-tear mr-1.5"></i>
+            কোনো জেলা বসাতে পারেননি
+          </div>
+        )}
+
+        {/* Divider */}
+        <div className="border-t border-white/25 my-2"></div>
+
+        {/* Total */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-black text-white uppercase tracking-wider">
+            <i className="fa-solid fa-equals text-white/70 mr-1.5"></i>
+            মোট স্কোর
+          </span>
+          <span className="text-xl font-black text-white">
+            {e2b(finalScore)}
+          </span>
+        </div>
+      </div>
+
+      {/* Info line */}
+      <div className="mt-3 pt-2 border-t border-white/20 flex items-center justify-center gap-2 text-[9px] font-bold text-white/60 flex-wrap">
+        <span>
+          <i className="fa-solid fa-cube mr-1"></i>
+          মোট টুকরা: {e2b(totalPieces)}
+        </span>
+        <span>•</span>
+        <span className="text-emerald-300">
+          <i className="fa-solid fa-check mr-1"></i>
+          বসানো: {e2b(placedCount)}
+        </span>
+        {wrongTaps > 0 && (
+          <>
+            <span>•</span>
+            <span className="text-red-300">
+              <i className="fa-solid fa-xmark mr-1"></i>
+              ভুল ট্যাপ: {e2b(wrongTaps)}
+            </span>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -213,7 +347,9 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
         if (activeDifficulty) query = query.eq("difficulty", activeDifficulty);
         const { data, error } = await query;
         if (!error) setEntries(data || []);
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
       setLoading(false);
     })();
   }, [activeDifficulty]);
@@ -237,17 +373,21 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose}></div>
       <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-lg relative z-10 shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <div className="p-5 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
-          <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-            <i className="fa-solid fa-trophy text-amber-500"></i> টপ ৫০ লিডারবোর্ড
-          </h3>
+          <div>
+            <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+              <i className="fa-solid fa-trophy text-amber-500"></i>
+              টপ ৫০ লিডারবোর্ড
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">জিগস পাজল</p>
+          </div>
           <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
             <i className="fa-solid fa-xmark text-gray-600 dark:text-gray-300"></i>
           </button>
         </div>
         <div className="px-5 py-3 flex gap-2 border-b overflow-x-auto">
-          <button onClick={() => setActiveDifficulty(null)} className={`px-3 py-1.5 rounded-full text-xs font-bold ${activeDifficulty === null ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600"}`}>সব</button>
+          <button onClick={() => setActiveDifficulty(null)} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap ${activeDifficulty === null ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600"}`}>সব</button>
           {difficulties.map((d) => (
-            <button key={d.id} onClick={() => setActiveDifficulty(d.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold ${activeDifficulty === d.id ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600"}`}>{d.title}</button>
+            <button key={d.id} onClick={() => setActiveDifficulty(d.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap ${activeDifficulty === d.id ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600"}`}>{d.title}</button>
           ))}
         </div>
         <div className="flex-1 overflow-y-auto p-3">
@@ -271,7 +411,10 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
                     </div>
                     <img src={avatar} alt={name} className="w-9 h-9 rounded-full border-2 border-white object-cover" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-gray-900 dark:text-white truncate">{name}{isMe && <span className="ml-1.5 text-[9px] text-purple-500">(আপনি)</span>}</p>
+                      <p className="text-xs font-black text-gray-900 dark:text-white truncate">
+                        {name}
+                        {isMe && <span className="ml-1.5 text-[9px] text-purple-500">(আপনি)</span>}
+                      </p>
                       <p className="text-[9px] text-gray-500 font-bold mt-0.5">
                         {entry.difficulty === "easy" ? "সহজ" : entry.difficulty === "medium" ? "মাঝারি" : "কঠিন"} • {formatTime(entry.time_seconds)}
                       </p>
@@ -296,10 +439,9 @@ export default function JigsawPage() {
   const [difficulty, setDifficulty] = useState(null);
   const [allDistricts, setAllDistricts] = useState(null);
 
-  // 🔴 FIX: gamePieces now array of {geo, uid, rawName, bnName}
   const [gamePieces, setGamePieces] = useState([]);
-  const [placed, setPlaced] = useState(() => new Set()); // Set of UIDs
-  const [trayOrder, setTrayOrder] = useState([]); // Array of UIDs
+  const [placed, setPlaced] = useState(() => new Set());
+  const [trayOrder, setTrayOrder] = useState([]);
 
   const mapWrapRef = useRef(null);
   const [mapDims, setMapDims] = useState({ w: 0, h: 0 });
@@ -315,6 +457,11 @@ export default function JigsawPage() {
   const [elapsed, setElapsed] = useState(0);
   const [timeLeft, setTimeLeft] = useState(null);
 
+  // 🔴 NEW: Score breakdown tracking
+  const [basePoints, setBasePoints] = useState(0);
+  const [perfectCount, setPerfectCount] = useState(0);
+  const [comboBonus, setComboBonus] = useState(0);
+
   const [toast, setToast] = useState(null);
   const [snapFlash, setSnapFlash] = useState(null);
 
@@ -322,6 +469,7 @@ export default function JigsawPage() {
   const [finalTimeDisplay, setFinalTimeDisplay] = useState(0);
   const [timeBonusDisplay, setTimeBonusDisplay] = useState(0);
   const [wasWin, setWasWin] = useState(false);
+  const [scoreBreakdown, setScoreBreakdown] = useState(null);
 
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -329,18 +477,39 @@ export default function JigsawPage() {
   const [userRank, setUserRank] = useState(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
+  // 🔴 Refs for stale-closure prevention
+  const stateRef = useRef({});
+  stateRef.current = {
+    score,
+    combo,
+    maxCombo,
+    wrongTaps,
+    basePoints,
+    perfectCount,
+    comboBonus,
+    difficulty,
+    startTime,
+    placedCount: placed.size,
+    totalPieces: gamePieces.length,
+    user,
+  };
+
+  const gameEndedRef = useRef(false);
+
   // ============ AUTH ============
   useEffect(() => {
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user || null);
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
       setAuthLoading(false);
     })();
   }, []);
 
-  // ============ LOAD DISTRICTS (with _uid + _rawName) ============
+  // ============ LOAD DISTRICTS ============
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
     (async () => {
@@ -350,15 +519,11 @@ export default function JigsawPage() {
         const key = Object.keys(topo.objects)[0];
         const features = topojson.feature(topo, topo.objects[key]).features;
 
-        // 🔴 CRITICAL FIX: attach _uid and _rawName
         const enriched = features.map((f, i) => ({
           ...f,
           _uid: i,
           _rawName: extractRawName(f),
         }));
-
-        console.log("[Jigsaw] Loaded districts:", enriched.length);
-        console.log("[Jigsaw] Sample names:", enriched.slice(0, 5).map(f => f._rawName));
 
         setAllDistricts(enriched);
       } catch (err) {
@@ -379,27 +544,25 @@ export default function JigsawPage() {
     ro.observe(mapWrapRef.current);
     return () => ro.disconnect();
   }, [phase]);
-  
+
   // ============ PROJECTION (DYNAMIC FIT) ============
-const projection = useMemo(() => {
-  if (!mapDims.w || !mapDims.h || !allDistricts || allDistricts.length === 0) {
-    return null;
-  }
-
-  const featureCollection = {
-    type: "FeatureCollection",
-    features: allDistricts,
-  };
-
-  return geoMercator().fitSize(
-    [mapDims.w * 0.92, mapDims.h * 0.92],
-    featureCollection
-  );
-}, [mapDims.w, mapDims.h, allDistricts]);
+  const projection = useMemo(() => {
+    if (!mapDims.w || !mapDims.h || !allDistricts || allDistricts.length === 0) {
+      return null;
+    }
+    const featureCollection = {
+      type: "FeatureCollection",
+      features: allDistricts,
+    };
+    return geoMercator().fitSize(
+      [mapDims.w * 0.92, mapDims.h * 0.92],
+      featureCollection
+    );
+  }, [mapDims.w, mapDims.h, allDistricts]);
 
   const pathGen = useMemo(() => (projection ? geoPath(projection) : null), [projection]);
 
-  // ============ CORRECT POSITIONS (keyed by _uid) ============
+  // ============ CORRECT POSITIONS ============
   const correctPositions = useMemo(() => {
     if (!projection || !gamePieces.length) return {};
     const pos = {};
@@ -411,44 +574,226 @@ const projection = useMemo(() => {
     return pos;
   }, [projection, gamePieces]);
 
-  // ============ TARGET UID SET ============
-  const targetUidsSet = useMemo(() => new Set(gamePieces.map((p) => p.uid)), [gamePieces]);
+  const targetUidsSet = useMemo(
+    () => new Set(gamePieces.map((p) => p.uid)),
+    [gamePieces]
+  );
 
-  // ============ TIMER ============
+  // ============ SUBMIT SCORE (with stateRef) ============
+  const submitScoreToSupabase = useCallback(async (payload) => {
+    const currentUser = stateRef.current.user;
+    if (!currentUser) {
+      setScoreSubmitStatus("not_logged_in");
+      return;
+    }
+    setScoreSubmitStatus("pending");
+    try {
+      const { data, error } = await supabase.rpc("submit_game_score", {
+        p_game_mode: "jigsaw",
+        p_difficulty: payload.difficulty,
+        p_score: payload.score,
+        p_time_seconds: payload.timeSeconds,
+        p_wrong_taps: payload.wrongTaps,
+        p_max_combo: payload.maxCombo,
+        p_accuracy: payload.accuracy,
+        p_xp: payload.xp,
+      });
+      if (error) {
+        setScoreSubmitStatus("error");
+        return;
+      }
+      if (data?.saved) {
+        setScoreSubmitStatus("saved");
+        setUserRank(data.rank || null);
+      } else if (data?.qualified === false) setScoreSubmitStatus("not_qualified");
+      else if (data?.saved === false && data?.qualified) {
+        setScoreSubmitStatus("existing_better");
+        setUserRank(data.rank || null);
+      } else setScoreSubmitStatus("error");
+
+      if (data?.saved) {
+        try {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("game_xp, game_level")
+            .eq("id", currentUser.id)
+            .single();
+          const currentXp = profileData?.game_xp || 0;
+          const newXp = currentXp + (payload.xp || 0);
+          const newLevel = Math.min(15, Math.floor(newXp / 500) + 1);
+          await supabase
+            .from("profiles")
+            .update({ game_xp: newXp, game_level: newLevel })
+            .eq("id", currentUser.id);
+        } catch (e) {}
+      }
+    } catch (e) {
+      setScoreSubmitStatus("error");
+    }
+  }, []);
+
+  // ============ END GAME (STABLE) ============
+  const endGame = useCallback(
+    (won = true) => {
+      if (gameEndedRef.current) return;
+      gameEndedRef.current = true;
+
+      try {
+        const {
+          startTime: st,
+          difficulty: df,
+          score: sc,
+          combo: cm,
+          maxCombo: mc,
+          wrongTaps: wt,
+          basePoints: bp,
+          perfectCount: pc,
+          comboBonus: cb,
+          placedCount: pl,
+          totalPieces: tp,
+        } = stateRef.current;
+
+        if (!st || !df) {
+          // Fallback: force result screen
+          setFinalScoreDisplay(0);
+          setFinalTimeDisplay(0);
+          setWasWin(false);
+          setScoreBreakdown(null);
+          setTimeout(() => setPhase("result"), 30);
+          return;
+        }
+
+        const finalTime = Math.max(0, Math.floor((Date.now() - st) / 1000));
+        const timeBonus = (df.timer && won)
+          ? Math.max(0, df.timer - finalTime) * 2
+          : 0;
+        const finalScore = sc + timeBonus;
+        const perfectBonus = pc * 50;
+
+        // Build score breakdown
+        const breakdown = {
+          totalPieces: tp,
+          placedCount: pl,
+          basePoints: bp,
+          perfectCount: pc,
+          perfectBonus,
+          comboBonus: cb,
+          timeBonus,
+          wrongTaps: wt,
+          finalScore,
+          won,
+        };
+
+        // localStorage
+        try {
+          const stats = JSON.parse(
+            localStorage.getItem("game-hub-stats-v1") || "{}"
+          );
+          const xpGain = Math.round(finalScore / 10) + 50;
+          localStorage.setItem(
+            "game-hub-stats-v1",
+            JSON.stringify({
+              xp: (stats.xp || 0) + xpGain,
+              totalPlays: (stats.totalPlays || 0) + 1,
+              streak: stats.streak || 0,
+              lastPlayDate: new Date().toISOString().slice(0, 10),
+              unlockedAchievements: stats.unlockedAchievements || [],
+              bestScores: {
+                ...(stats.bestScores || {}),
+                [`jigsaw-${df.id}`]: Math.max(
+                  finalScore,
+                  stats.bestScores?.[`jigsaw-${df.id}`] || 0
+                ),
+              },
+            })
+          );
+        } catch {}
+
+        if (won) sounds.win();
+        else sounds.lose();
+
+        setFinalScoreDisplay(finalScore);
+        setFinalTimeDisplay(finalTime);
+        setTimeBonusDisplay(timeBonus);
+        setWasWin(won);
+        setScoreBreakdown(breakdown);
+
+        setTimeout(() => {
+          setPhase("result");
+        }, 50);
+
+        const xpGain = Math.round(finalScore / 10) + 50;
+        const accuracy = tp > 0 ? Math.round((pl / tp) * 100 * 100) / 100 : 0;
+
+        setTimeout(() => {
+          try {
+            submitScoreToSupabase({
+              difficulty: df.id,
+              score: finalScore,
+              timeSeconds: finalTime,
+              wrongTaps: wt,
+              maxCombo: mc,
+              accuracy,
+              xp: xpGain,
+            });
+          } catch (e) {}
+        }, 300);
+      } catch (err) {
+        console.error("[Jigsaw] endGame error:", err);
+        setFinalScoreDisplay(0);
+        setFinalTimeDisplay(0);
+        setWasWin(false);
+        setScoreBreakdown(null);
+        setPhase("result");
+      }
+    },
+    [submitScoreToSupabase]
+  );
+
+  // ============ GAME TIMER ============
   useEffect(() => {
-    if (phase !== "playing" || !startTime) return;
+    if (phase !== "playing" || !startTime || !difficulty) return;
     const id = setInterval(() => {
       const el = Math.floor((Date.now() - startTime) / 1000);
       setElapsed(el);
-      if (difficulty?.timer) {
+      if (difficulty.timer) {
         const remaining = difficulty.timer - el;
         setTimeLeft(remaining);
         if (remaining <= 5 && remaining > 0) sounds.tick();
-        if (remaining <= 0) { clearInterval(id); endGame(false); }
+        if (remaining <= 0) {
+          clearInterval(id);
+          endGame(false);
+        }
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [phase, startTime, difficulty]);
+  }, [phase, startTime, difficulty, endGame]);
 
   // ============ START GAME ============
   const startGame = (diff) => {
     if (!allDistricts) return;
+    gameEndedRef.current = false;
     setDifficulty(diff);
     setPlaced(new Set());
     setScore(0);
     setCombo(0);
     setMaxCombo(0);
     setWrongTaps(0);
+    setBasePoints(0);
+    setPerfectCount(0);
+    setComboBonus(0);
     setElapsed(0);
     setTimeLeft(diff.timer);
     setStartTime(Date.now());
     setScoreSubmitStatus("idle");
     setUserRank(null);
+    setScoreBreakdown(null);
 
     const shuffled = shuffle(allDistricts);
-    const selected = diff.pieces >= allDistricts.length ? allDistricts : shuffled.slice(0, diff.pieces);
+    const selected = diff.pieces >= allDistricts.length
+      ? allDistricts
+      : shuffled.slice(0, diff.pieces);
 
-    // 🔴 Build gamePieces with unique UIDs
     const pieces = selected.map((geo) => ({
       geo,
       uid: geo._uid,
@@ -461,93 +806,13 @@ const projection = useMemo(() => {
     setPhase("playing");
   };
 
-  // ============ SUBMIT SCORE ============
-  const submitScoreToSupabase = useCallback(
-    async (payload) => {
-      if (!user) { setScoreSubmitStatus("not_logged_in"); return; }
-      setScoreSubmitStatus("pending");
-      try {
-        const { data, error } = await supabase.rpc("submit_game_score", {
-          p_game_mode: "jigsaw",
-          p_difficulty: payload.difficulty,
-          p_score: payload.score,
-          p_time_seconds: payload.timeSeconds,
-          p_wrong_taps: payload.wrongTaps,
-          p_max_combo: payload.maxCombo,
-          p_accuracy: payload.accuracy,
-          p_xp: payload.xp,
-        });
-        if (error) { setScoreSubmitStatus("error"); return; }
-        if (data?.saved) { setScoreSubmitStatus("saved"); setUserRank(data.rank || null); }
-        else if (data?.qualified === false) setScoreSubmitStatus("not_qualified");
-        else if (data?.saved === false && data?.qualified) { setScoreSubmitStatus("existing_better"); setUserRank(data.rank || null); }
-        else setScoreSubmitStatus("error");
-
-        if (data?.saved) {
-          try {
-            const { data: profileData } = await supabase.from("profiles").select("game_xp, game_level").eq("id", user.id).single();
-            const currentXp = profileData?.game_xp || 0;
-            const newXp = currentXp + (payload.xp || 0);
-            const newLevel = Math.min(15, Math.floor(newXp / 500) + 1);
-            await supabase.from("profiles").update({ game_xp: newXp, game_level: newLevel }).eq("id", user.id);
-          } catch (e) {}
-        }
-      } catch (e) { setScoreSubmitStatus("error"); }
-    },
-    [user]
-  );
-
-  // ============ END GAME ============
-  const endGame = (won = true) => {
-    const finalTime = Math.floor((Date.now() - startTime) / 1000);
-    setElapsed(finalTime);
-    let timeBonus = 0;
-    if (difficulty?.timer && won) timeBonus = Math.max(0, difficulty.timer - finalTime) * 2;
-    const finalScore = score + timeBonus;
-
-    try {
-      const stats = JSON.parse(localStorage.getItem("game-hub-stats-v1") || "{}");
-      const xpGain = Math.round(finalScore / 10) + 50;
-      localStorage.setItem("game-hub-stats-v1", JSON.stringify({
-        xp: (stats.xp || 0) + xpGain,
-        totalPlays: (stats.totalPlays || 0) + 1,
-        streak: stats.streak || 0,
-        lastPlayDate: new Date().toISOString().slice(0, 10),
-        unlockedAchievements: stats.unlockedAchievements || [],
-        bestScores: { ...(stats.bestScores || {}), [`jigsaw-${difficulty.id}`]: Math.max(finalScore, stats.bestScores?.[`jigsaw-${difficulty.id}`] || 0) },
-      }));
-    } catch {}
-
-    if (won) sounds.win(); else sounds.lose();
-    setPhase("result");
-    setFinalScoreDisplay(finalScore);
-    setFinalTimeDisplay(finalTime);
-    setTimeBonusDisplay(timeBonus);
-    setWasWin(won);
-
-    const xpGain = Math.round(finalScore / 10) + 50;
-    const accuracy = gamePieces.length > 0 ? Math.round(((gamePieces.length - wrongTaps) / gamePieces.length) * 100 * 100) / 100 : 0;
-
-    setTimeout(() => {
-      submitScoreToSupabase({
-        difficulty: difficulty.id,
-        score: finalScore,
-        timeSeconds: finalTime,
-        wrongTaps,
-        maxCombo,
-        accuracy,
-        xp: xpGain,
-      });
-    }, 300);
-  };
-
   // ============ CHECK WIN ============
   useEffect(() => {
     if (phase !== "playing") return;
     if (placed.size === gamePieces.length && gamePieces.length > 0) {
       setTimeout(() => endGame(true), 500);
     }
-  }, [placed, gamePieces]);
+  }, [placed, gamePieces, phase, endGame]);
 
   // ============ DRAG ============
   const handlePointerDown = (e, piece) => {
@@ -574,9 +839,17 @@ const projection = useMemo(() => {
       const d = dragRef.current;
       if (!d) return;
       const mapRect = mapWrapRef.current?.getBoundingClientRect();
-      if (!mapRect) { setDragging(null); dragRef.current = null; return; }
+      if (!mapRect) {
+        setDragging(null);
+        dragRef.current = null;
+        return;
+      }
       const correct = correctPositions[d.piece.uid];
-      if (!correct) { setDragging(null); dragRef.current = null; return; }
+      if (!correct) {
+        setDragging(null);
+        dragRef.current = null;
+        return;
+      }
       const dropX = e.clientX - mapRect.left;
       const dropY = e.clientY - mapRect.top;
       const dist = Math.hypot(dropX - correct.x, dropY - correct.y);
@@ -584,21 +857,34 @@ const projection = useMemo(() => {
       if (dist < SNAP_DISTANCE) {
         const perfect = dist < PERFECT_DISTANCE;
         const newCombo = combo + 1;
-        let points = perfect ? 150 : 100;
+        const baseForThis = perfect ? 150 : 100;
         let multiplier = 1;
         if (newCombo >= 5) multiplier = 2;
         else if (newCombo >= 3) multiplier = 1.5;
-        points = Math.round(points * multiplier);
+        const finalPoints = Math.round(baseForThis * multiplier);
 
-        setScore((s) => s + points);
+        // 🔴 Track score components
+        const baseComp = 100;
+        const perfectComp = perfect ? 50 : 0;
+        const comboComp = finalPoints - baseComp - perfectComp;
+
+        setScore((s) => s + finalPoints);
+        setBasePoints((b) => b + baseComp);
+        if (perfect) setPerfectCount((c) => c + 1);
+        setComboBonus((b) => b + comboComp);
         setCombo(newCombo);
         setMaxCombo((m) => Math.max(m, newCombo));
         setPlaced((prev) => new Set([...prev, d.piece.uid]));
         setSnapFlash({ x: correct.x, y: correct.y, perfect });
         setTimeout(() => setSnapFlash(null), 700);
 
-        if (perfect) sounds.perfect(); else sounds.correct();
-        setToast({ text: `+${e2b(points)}${multiplier > 1 ? ` (×${multiplier})` : ""}`, type: perfect ? "perfect" : "correct" });
+        if (perfect) sounds.perfect();
+        else sounds.correct();
+
+        setToast({
+          text: `+${e2b(finalPoints)}${multiplier > 1 ? ` (×${multiplier})` : ""}`,
+          type: perfect ? "perfect" : "correct",
+        });
         setTimeout(() => setToast(null), 900);
       } else {
         setCombo(0);
@@ -629,12 +915,14 @@ const projection = useMemo(() => {
       .filter((p) => p && !placed.has(p.uid));
   }, [gamePieces, trayOrder, placed]);
 
-  const progressPct = gamePieces.length ? Math.round((placed.size / gamePieces.length) * 100) : 0;
+  const progressPct = gamePieces.length
+    ? Math.round((placed.size / gamePieces.length) * 100)
+    : 0;
 
   // ============ RENDER: MENU ============
   if (phase === "menu") {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans">
+      <div key="menu" className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <Link href="/my-bangladesh/games" className="inline-flex items-center gap-2 text-gray-500 hover:text-campfire font-bold text-sm">
@@ -657,8 +945,14 @@ const projection = useMemo(() => {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {difficulties.map((diff, idx) => (
-              <button key={diff.id} onClick={() => startGame(diff)} disabled={!allDistricts} data-aos="fade-up" data-aos-delay={idx * 100}
-                className={`group relative overflow-hidden rounded-3xl bg-gradient-to-br ${diff.gradient} p-7 shadow-xl hover:-translate-y-2 transition-all duration-500 text-left disabled:opacity-50`}>
+              <button
+                key={diff.id}
+                onClick={() => startGame(diff)}
+                disabled={!allDistricts}
+                data-aos="fade-up"
+                data-aos-delay={idx * 100}
+                className={`group relative overflow-hidden rounded-3xl bg-gradient-to-br ${diff.gradient} p-7 shadow-xl hover:-translate-y-2 transition-all duration-500 text-left disabled:opacity-50`}
+              >
                 <div className="absolute -top-20 -right-20 w-44 h-44 bg-white/20 rounded-full blur-3xl"></div>
                 <div className="relative z-10">
                   <div className="w-14 h-14 bg-white/25 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-5 border border-white/30">
@@ -721,7 +1015,9 @@ const projection = useMemo(() => {
       );
       if (scoreSubmitStatus === "not_logged_in") return (
         <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 mb-4 border border-white/25">
-          <p className="text-xs font-bold text-white/95 mb-2 text-center"><i className="fa-solid fa-lock mr-1.5"></i>স্কোর সেভ করতে লগইন করুন</p>
+          <p className="text-xs font-bold text-white/95 mb-2 text-center">
+            <i className="fa-solid fa-lock mr-1.5"></i>স্কোর সেভ করতে লগইন করুন
+          </p>
           <Link href="/login?redirect=/my-bangladesh/games/jigsaw" className="block w-full py-2.5 bg-white text-gray-900 font-black rounded-lg text-xs text-center">
             লগইন / রেজিস্টার
           </Link>
@@ -731,7 +1027,10 @@ const projection = useMemo(() => {
     };
 
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 flex items-center justify-center">
+      <div
+        key="result"
+        className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 flex items-center justify-center"
+      >
         <div className="max-w-xl w-full">
           <div className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 shadow-2xl text-center ${won ? "bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-500" : "bg-gradient-to-br from-red-500 via-pink-500 to-orange-500"}`}>
             <div className="absolute -top-24 -right-24 w-72 h-72 bg-white/15 rounded-full blur-3xl"></div>
@@ -739,63 +1038,109 @@ const projection = useMemo(() => {
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm border-4 border-white/40 mb-4">
                 <i className={`fa-solid ${won ? "fa-crown" : "fa-clock"} text-white text-3xl`}></i>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white mb-1">{won ? "অভিনন্দন!" : "সময় শেষ!"}</h1>
+              <h1 className="text-2xl sm:text-3xl font-black text-white mb-1">
+                {won ? "অভিনন্দন!" : "সময় শেষ!"}
+              </h1>
               <p className="text-white/85 text-xs font-bold mb-5">
-                {won ? "আপনি সম্পূর্ণ বাংলাদেশ তৈরি করেছেন 🎉" : `${e2b(placed.size)}/${e2b(gamePieces.length)} জেলা সম্পন্ন`}
+                {won
+                  ? "আপনি সম্পূর্ণ বাংলাদেশ তৈরি করেছেন 🎉"
+                  : `${e2b(placed.size)}/${e2b(gamePieces.length)} জেলা সম্পন্ন করতে পেরেছেন`}
               </p>
 
+              {/* Big final score */}
               <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-5 border border-white/25 mb-4">
-                <p className="text-white/80 text-[10px] font-black uppercase mb-1">চূড়ান্ত স্কোর</p>
-                <p className="text-5xl font-black text-white mb-1">{e2b(finalScoreDisplay)}</p>
-                <p className="text-white/70 text-[10px] font-bold">+ {e2b(xpGained)} XP</p>
+                <p className="text-white/80 text-[10px] font-black uppercase tracking-widest mb-1">
+                  চূড়ান্ত স্কোর
+                </p>
+                <p className="text-5xl font-black text-white mb-1">
+                  {e2b(finalScoreDisplay)}
+                </p>
+                <p className="text-white/70 text-[10px] font-bold">
+                  + {e2b(xpGained)} XP
+                </p>
               </div>
 
+              {/* Stat pills */}
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl p-2.5 border border-white/20">
+                  <i className="fa-solid fa-stopwatch text-white/70 text-xs mb-0.5"></i>
                   <p className="text-base font-black text-white">{formatTime(finalTimeDisplay)}</p>
-                  <p className="text-[8px] font-bold text-white/70 uppercase">সময়</p>
+                  <p className="text-[8px] font-bold text-white/70 uppercase tracking-wider">সময়</p>
                 </div>
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl p-2.5 border border-white/20">
+                  <i className="fa-solid fa-bolt text-white/70 text-xs mb-0.5"></i>
                   <p className="text-base font-black text-white">{e2b(maxCombo)}</p>
-                  <p className="text-[8px] font-bold text-white/70 uppercase">সেরা কম্বো</p>
+                  <p className="text-[8px] font-bold text-white/70 uppercase tracking-wider">সেরা কম্বো</p>
                 </div>
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl p-2.5 border border-white/20">
+                  <i className="fa-solid fa-xmark text-white/70 text-xs mb-0.5"></i>
                   <p className="text-base font-black text-white">{e2b(wrongTaps)}</p>
-                  <p className="text-[8px] font-bold text-white/70 uppercase">ভুল</p>
+                  <p className="text-[8px] font-bold text-white/70 uppercase tracking-wider">ভুল</p>
                 </div>
               </div>
+
+              {/* 🔴 Score Breakdown (NEW) */}
+              {scoreBreakdown && <ScoreBreakdown breakdown={scoreBreakdown} />}
 
               {renderSaveStatus()}
 
               <div className="flex flex-col gap-2">
                 <div className="flex gap-2">
-                  <button onClick={() => setPhase("menu")} className="flex-1 py-3 bg-white/20 text-white font-black rounded-xl border border-white/30 text-xs">
+                  <button
+                    onClick={() => {
+                      gameEndedRef.current = false;
+                      setPhase("menu");
+                    }}
+                    className="flex-1 py-3 bg-white/20 text-white font-black rounded-xl border border-white/30 text-xs"
+                  >
                     <i className="fa-solid fa-rotate-left mr-1.5"></i> আবার খেলুন
                   </button>
-                  <button onClick={() => setShowLeaderboard(true)} className="flex-1 py-3 bg-white/20 text-white font-black rounded-xl border border-white/30 text-xs">
+                  <button
+                    onClick={() => setShowLeaderboard(true)}
+                    className="flex-1 py-3 bg-white/20 text-white font-black rounded-xl border border-white/30 text-xs"
+                  >
                     <i className="fa-solid fa-trophy mr-1.5"></i> লিডারবোর্ড
                   </button>
                 </div>
-                <Link href="/my-bangladesh/games" className="w-full py-3 bg-white text-gray-900 font-black rounded-xl text-center text-xs">
+                <Link
+                  href="/my-bangladesh/games"
+                  className="w-full py-3 bg-white text-gray-900 font-black rounded-xl text-center text-xs"
+                >
                   <i className="fa-solid fa-home mr-1.5"></i> গেম হাব
                 </Link>
               </div>
             </div>
           </div>
         </div>
-        {showLeaderboard && <LeaderboardModal onClose={() => setShowLeaderboard(false)} currentUserId={user?.id} initialDifficulty={difficulty?.id} />}
+        {showLeaderboard && (
+          <LeaderboardModal
+            onClose={() => setShowLeaderboard(false)}
+            currentUserId={user?.id}
+            initialDifficulty={difficulty?.id}
+          />
+        )}
       </div>
     );
   }
 
   // ============ RENDER: PLAYING ============
   return (
-    <div className="h-screen overflow-hidden bg-gray-50 dark:bg-[#050b08] font-sans flex flex-col">
+    <div
+      key="playing"
+      className="h-screen overflow-hidden bg-gray-50 dark:bg-[#050b08] font-sans flex flex-col"
+    >
       {/* HEADER */}
       <div className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div className="px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3">
-          <button onClick={() => { if (window.confirm("গেম থেকে বের হয়ে যাবেন?")) setPhase("menu"); }}
-            className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+          <button
+            onClick={() => {
+              if (window.confirm("গেম থেকে বের হয়ে যাবেন?")) {
+                gameEndedRef.current = false;
+                setPhase("menu");
+              }
+            }}
+            className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800"
+          >
             <i className="fa-solid fa-xmark"></i>
           </button>
           <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-center">
@@ -828,7 +1173,7 @@ const projection = useMemo(() => {
 
         {projection && pathGen && allDistricts && (
           <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${mapDims.w} ${mapDims.h}`} preserveAspectRatio="xMidYMid meet">
-            {/* LAYER 1: Background (all non-target) */}
+            {/* LAYER 1: Background */}
             {allDistricts.map((geo) => {
               if (targetUidsSet.has(geo._uid)) return null;
               return (
@@ -836,7 +1181,7 @@ const projection = useMemo(() => {
               );
             })}
 
-            {/* LAYER 2: Target slots (unplaced) */}
+            {/* LAYER 2: Target slots */}
             {gamePieces.map((piece) => {
               if (placed.has(piece.uid)) return null;
               const color = getColorByRawName(piece.rawName);
@@ -845,26 +1190,30 @@ const projection = useMemo(() => {
               );
             })}
 
-            {/* LAYER 3: Placed (filled) */}
+            {/* LAYER 3: Placed */}
             {gamePieces.map((piece) => {
               if (!placed.has(piece.uid)) return null;
               const color = getColorByRawName(piece.rawName);
               return (
-                <path key={`placed-${piece.uid}`} d={pathGen(piece.geo)} fill={color} stroke="#ffffff" strokeWidth={1} strokeLinejoin="round"
-                  style={{ transition: "fill 0.4s ease", filter: `drop-shadow(0 0 4px ${color}80)` }} />
+                <path key={`placed-${piece.uid}`} d={pathGen(piece.geo)} fill={color} stroke="#ffffff" strokeWidth={1} strokeLinejoin="round" style={{ transition: "fill 0.4s ease", filter: `drop-shadow(0 0 4px ${color}80)` }} />
               );
             })}
 
             {snapFlash && (
-              <circle cx={snapFlash.x} cy={snapFlash.y} r={30} fill="none" stroke={snapFlash.perfect ? "#fbbf24" : "#10b981"} strokeWidth={3} opacity={0.9}
-                style={{ animation: "snapRing 0.7s ease-out forwards" }} />
+              <circle cx={snapFlash.x} cy={snapFlash.y} r={30} fill="none" stroke={snapFlash.perfect ? "#fbbf24" : "#10b981"} strokeWidth={3} opacity={0.9} style={{ animation: "snapRing 0.7s ease-out forwards" }} />
             )}
           </svg>
         )}
 
         {toast && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full font-black text-sm shadow-lg backdrop-blur-md border animate-[fadeInOut_0.9s_ease-out]"
-            style={{ background: toast.type === "wrong" ? "rgba(239,68,68,0.95)" : toast.type === "perfect" ? "rgba(251,191,36,0.95)" : "rgba(16,185,129,0.95)", color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}>
+          <div
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full font-black text-sm shadow-lg backdrop-blur-md border animate-[fadeInOut_0.9s_ease-out]"
+            style={{
+              background: toast.type === "wrong" ? "rgba(239,68,68,0.95)" : toast.type === "perfect" ? "rgba(251,191,36,0.95)" : "rgba(16,185,129,0.95)",
+              color: "#fff",
+              borderColor: "rgba(255,255,255,0.3)"
+            }}
+          >
             {toast.text}
           </div>
         )}
@@ -898,9 +1247,12 @@ const projection = useMemo(() => {
               {unplacedPieces.map((piece) => {
                 const color = getColorByRawName(piece.rawName);
                 return (
-                  <div key={piece.uid} onPointerDown={(e) => handlePointerDown(e, piece)}
+                  <div
+                    key={piece.uid}
+                    onPointerDown={(e) => handlePointerDown(e, piece)}
                     className="touch-none select-none cursor-grab active:cursor-grabbing flex flex-col items-center p-1 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 hover:scale-105 transition-all"
-                    style={{ touchAction: "none" }}>
+                    style={{ touchAction: "none" }}
+                  >
                     <DistrictPiece geo={piece.geo} size={44} fill={color} />
                     <span className="text-[7px] font-bold text-gray-600 dark:text-gray-400 mt-0.5 truncate max-w-full">
                       {piece.bnName}
@@ -915,17 +1267,28 @@ const projection = useMemo(() => {
 
       {/* DRAG OVERLAY */}
       {dragging && (
-        <div className="fixed pointer-events-none z-[80]" style={{
-          left: dragging.x, top: dragging.y,
-          transform: "translate(-50%, -50%) scale(1.3)",
-          filter: "drop-shadow(0 12px 24px rgba(168,85,247,0.5))",
-        }}>
-          <DistrictPiece geo={dragging.piece.geo} size={64} fill={getColorByRawName(dragging.piece.rawName)} />
+        <div
+          className="fixed pointer-events-none z-[80]"
+          style={{
+            left: dragging.x,
+            top: dragging.y,
+            transform: "translate(-50%, -50%) scale(1.3)",
+            filter: "drop-shadow(0 12px 24px rgba(168,85,247,0.5))",
+          }}
+        >
+          <DistrictPiece
+            geo={dragging.piece.geo}
+            size={64}
+            fill={getColorByRawName(dragging.piece.rawName)}
+          />
         </div>
       )}
 
       <style jsx>{`
-        @keyframes snapRing { 0% { opacity: 1; r: 30; } 100% { opacity: 0; r: 55; } }
+        @keyframes snapRing {
+          0% { opacity: 1; r: 30; }
+          100% { opacity: 0; r: 55; }
+        }
         @keyframes fadeInOut {
           0% { opacity: 0; transform: translate(-50%, -10px); }
           20%, 80% { opacity: 1; transform: translate(-50%, 0); }
