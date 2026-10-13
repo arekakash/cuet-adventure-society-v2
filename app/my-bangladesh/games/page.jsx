@@ -59,7 +59,7 @@ const games = [
     gradient: "from-blue-500 via-purple-500 to-pink-500",
     shadow: "shadow-purple-500/30",
     available: true,
-    badge: "নতুন",
+    badge: null,
     difficulty: "মাঝারি",
     points: "১০০/সঠিক",
   },
@@ -73,8 +73,8 @@ const games = [
     icon: "fa-solid fa-hand-pointer",
     gradient: "from-orange-500 via-red-500 to-pink-500",
     shadow: "shadow-orange-500/30",
-    available: false,
-    badge: "শীঘ্রই",
+    available: true,
+    badge: "নতুন",
     difficulty: "সহজ",
     points: "১০০/সঠিক",
   },
@@ -141,7 +141,7 @@ const games = [
 ];
 
 // ============================================
-// ACHIEVEMENTS PREVIEW (8 of 20+)
+// ACHIEVEMENTS PREVIEW
 // ============================================
 const achievementsPreview = [
   { id: "first-blood", icon: "fa-solid fa-fire", title: "প্রথম পদক্ষেপ", color: "#ef4444" },
@@ -170,12 +170,6 @@ const loadStats = () => {
   }
 };
 
-const saveStats = (stats) => {
-  try {
-    localStorage.setItem(STATS_KEY, JSON.stringify(stats));
-  } catch {}
-};
-
 const defaultStats = {
   xp: 0,
   totalPlays: 0,
@@ -183,6 +177,16 @@ const defaultStats = {
   lastPlayDate: null,
   unlockedAchievements: [],
   bestScores: {},
+};
+
+// ============================================
+// BEST SCORE HELPERS
+// ============================================
+const getBestForGame = (bestScores, gameId) => {
+  if (!bestScores || !gameId) return 0;
+  const keys = Object.keys(bestScores).filter((k) => k.startsWith(`${gameId}-`));
+  if (keys.length === 0) return 0;
+  return Math.max(...keys.map((k) => bestScores[k] || 0));
 };
 
 // ============================================
@@ -203,9 +207,7 @@ export default function GameHubPage() {
   const nextLevel = getNextLevel(stats.xp);
   const progressPercent = nextLevel
     ? Math.round(
-        ((stats.xp - currentLevel.xp) /
-          (nextLevel.xp - currentLevel.xp)) *
-          100
+        ((stats.xp - currentLevel.xp) / (nextLevel.xp - currentLevel.xp)) * 100
       )
     : 100;
 
@@ -216,7 +218,7 @@ export default function GameHubPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans transition-colors duration-500">
       <div className="max-w-6xl mx-auto relative z-10 flex flex-col gap-10">
 
-        {/* ============ HERO ============ */}
+        {/* HERO */}
         <div className="flex flex-col mb-4" data-aos="fade-down">
           <div className="w-full">
             <Link
@@ -233,12 +235,12 @@ export default function GameHubPage() {
             </h1>
             <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm inline-block">
               <i className="fa-solid fa-gamepad text-purple-500 mr-2"></i>
-              ৬৪ জেলা চিনুন খেলতে খেলতে! পাজল সাজান, কুইজ খেলুন, স্কোর বাড়ান এবং লিডারবোর্ডে জায়গা করে নিন।
+              {e2b(availableGames.length)} টি গেম এখনই খেলার জন্য প্রস্তুত। ৬৪ জেলা চিনুন খেলতে খেলতে, স্কোর বাড়ান এবং লিডারবোর্ডে জায়গা করে নিন!
             </p>
           </div>
         </div>
 
-        {/* ============ PLAYER STATS ============ */}
+        {/* PLAYER STATS */}
         <div
           className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"
           data-aos="fade-up"
@@ -355,7 +357,7 @@ export default function GameHubPage() {
           </div>
         </div>
 
-        {/* ============ AVAILABLE GAMES ============ */}
+        {/* AVAILABLE GAMES */}
         {availableGames.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-6" data-aos="fade-up">
@@ -371,64 +373,80 @@ export default function GameHubPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-              {availableGames.map((game, idx) => (
-                <Link
-                  key={game.id}
-                  href={game.href}
-                  className="group block"
-                  data-aos="fade-up"
-                  data-aos-delay={idx * 80}
-                >
-                  <div
-                    className={`h-full relative overflow-hidden rounded-3xl bg-gradient-to-br ${game.gradient} p-6 shadow-xl ${game.shadow} hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col min-h-[280px]`}
+              {availableGames.map((game, idx) => {
+                const bestScore = getBestForGame(stats.bestScores, game.id);
+                return (
+                  <Link
+                    key={game.id}
+                    href={game.href}
+                    className="group block"
+                    data-aos="fade-up"
+                    data-aos-delay={idx * 80}
                   >
-                    {/* Decorative circles */}
-                    <div className="absolute -top-20 -right-20 w-44 h-44 bg-white/20 rounded-full blur-3xl group-hover:bg-white/30 transition-colors"></div>
-                    <div className="absolute -bottom-20 -left-20 w-44 h-44 bg-black/10 rounded-full blur-3xl"></div>
+                    <div
+                      className={`h-full relative overflow-hidden rounded-3xl bg-gradient-to-br ${game.gradient} p-6 shadow-xl ${game.shadow} hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col min-h-[300px]`}
+                    >
+                      {/* Decorative circles */}
+                      <div className="absolute -top-20 -right-20 w-44 h-44 bg-white/20 rounded-full blur-3xl group-hover:bg-white/30 transition-colors"></div>
+                      <div className="absolute -bottom-20 -left-20 w-44 h-44 bg-black/10 rounded-full blur-3xl"></div>
 
-                    {/* Badge */}
-                    {game.badge && (
-                      <div className="absolute top-4 right-4 bg-white/25 backdrop-blur-sm px-3 py-1 rounded-full border border-white/40 z-10">
-                        <span className="text-[10px] font-black text-white uppercase tracking-widest">
-                          {game.badge}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="relative z-10 flex flex-col h-full">
-                      <div className="w-14 h-14 bg-white/25 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 border border-white/30 group-hover:scale-110 transition-transform duration-500">
-                        <i className={`${game.icon} text-white text-2xl`}></i>
-                      </div>
-
-                      <h3 className="text-2xl font-black text-white mb-1">
-                        {game.title}
-                      </h3>
-                      <p className="text-white/85 text-sm font-bold mb-3">
-                        {game.subtitle}
-                      </p>
-                      <p className="text-white/75 text-xs leading-relaxed flex-grow">
-                        {game.description}
-                      </p>
-
-                      <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/20">
-                        <div className="flex items-center gap-2 text-white/80 text-[10px] font-bold uppercase tracking-wider">
-                          <i className="fa-solid fa-signal"></i>
-                          <span>{game.difficulty}</span>
+                      {/* Badge */}
+                      {game.badge && (
+                        <div className="absolute top-4 right-4 bg-white/25 backdrop-blur-sm px-3 py-1 rounded-full border border-white/40 z-10">
+                          <span className="text-[10px] font-black text-white uppercase tracking-widest">
+                            {game.badge}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-2 text-white text-xs font-black uppercase tracking-wider group-hover:gap-4 transition-all">
-                          শুরু করুন
-                          <i className="fa-solid fa-arrow-right"></i>
+                      )}
+
+                      <div className="relative z-10 flex flex-col h-full">
+                        <div className="w-14 h-14 bg-white/25 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 border border-white/30 group-hover:scale-110 transition-transform duration-500">
+                          <i className={`${game.icon} text-white text-2xl`}></i>
+                        </div>
+
+                        <h3 className="text-2xl font-black text-white mb-1">
+                          {game.title}
+                        </h3>
+                        <p className="text-white/85 text-sm font-bold mb-3">
+                          {game.subtitle}
+                        </p>
+                        <p className="text-white/75 text-xs leading-relaxed flex-grow">
+                          {game.description}
+                        </p>
+
+                        {/* Best Score row */}
+                        {bestScore > 0 && (
+                          <div className="mt-4 bg-white/15 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/25 flex items-center justify-between">
+                            <span className="text-[10px] font-black text-white/85 uppercase tracking-widest">
+                              <i className="fa-solid fa-crown text-yellow-300 mr-1"></i>
+                              সেরা স্কোর
+                            </span>
+                            <span className="text-sm font-black text-white">
+                              {e2b(bestScore)}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/20">
+                          <div className="flex items-center gap-2 text-white/80 text-[10px] font-bold uppercase tracking-wider">
+                            <i className="fa-solid fa-signal"></i>
+                            <span>{game.difficulty}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-white text-xs font-black uppercase tracking-wider group-hover:gap-4 transition-all">
+                            শুরু করুন
+                            <i className="fa-solid fa-arrow-right"></i>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* ============ COMING SOON GAMES ============ */}
+        {/* COMING SOON GAMES */}
         {comingSoonGames.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-6" data-aos="fade-up">
@@ -490,7 +508,7 @@ export default function GameHubPage() {
           </div>
         )}
 
-        {/* ============ ACHIEVEMENTS PREVIEW ============ */}
+        {/* ACHIEVEMENTS PREVIEW */}
         <div
           className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-[2rem] border border-gray-200 dark:border-gray-700 shadow-sm"
           data-aos="fade-up"
@@ -545,7 +563,7 @@ export default function GameHubPage() {
           </div>
         </div>
 
-        {/* ============ LEADERBOARD CTA ============ */}
+        {/* LEADERBOARD CTA */}
         <div
           className="bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 rounded-[2rem] p-8 sm:p-10 relative overflow-hidden shadow-2xl"
           data-aos="fade-up"
@@ -568,7 +586,7 @@ export default function GameHubPage() {
                 টপ ৫০-এ জায়গা করে নিন। প্রথম তিনজন পাবেন বিশেষ গোল্ড, সিলভার ও ব্রোঞ্জ কার্ড!
               </p>
               <Link
-                href="/my-bangladesh/games/leaderboard"
+                href="/my-bangladesh/games/jigsaw"
                 className="inline-flex items-center gap-3 px-6 py-3 bg-white text-orange-600 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all"
               >
                 <i className="fa-solid fa-list-ol"></i>
@@ -578,45 +596,36 @@ export default function GameHubPage() {
 
             {/* Podium Illustration */}
             <div className="flex items-end gap-2 sm:gap-3">
-              {/* 2nd place */}
               <div className="flex flex-col items-center">
                 <div className="w-12 h-12 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center border-2 border-white/50 mb-2">
                   <i className="fa-solid fa-user text-white text-sm"></i>
                 </div>
                 <div className="w-16 h-12 bg-white/30 backdrop-blur-sm rounded-t-lg flex items-center justify-center">
-                  <span className="text-white font-black text-xl">
-                    {e2b(2)}
-                  </span>
+                  <span className="text-white font-black text-xl">{e2b(2)}</span>
                 </div>
               </div>
-              {/* 1st place */}
               <div className="flex flex-col items-center">
                 <i className="fa-solid fa-crown text-yellow-300 text-2xl mb-1 drop-shadow-lg"></i>
                 <div className="w-14 h-14 rounded-full bg-white/40 backdrop-blur-sm flex items-center justify-center border-2 border-yellow-300 mb-2">
                   <i className="fa-solid fa-user text-white"></i>
                 </div>
                 <div className="w-16 h-20 bg-white/40 backdrop-blur-sm rounded-t-lg flex items-center justify-center">
-                  <span className="text-white font-black text-2xl">
-                    {e2b(1)}
-                  </span>
+                  <span className="text-white font-black text-2xl">{e2b(1)}</span>
                 </div>
               </div>
-              {/* 3rd place */}
               <div className="flex flex-col items-center">
                 <div className="w-12 h-12 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center border-2 border-white/50 mb-2">
                   <i className="fa-solid fa-user text-white text-sm"></i>
                 </div>
                 <div className="w-16 h-10 bg-white/30 backdrop-blur-sm rounded-t-lg flex items-center justify-center">
-                  <span className="text-white font-black text-xl">
-                    {e2b(3)}
-                  </span>
+                  <span className="text-white font-black text-xl">{e2b(3)}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ============ DAILY CHALLENGE TEASER ============ */}
+        {/* DAILY CHALLENGE TEASER */}
         <div
           className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-[2rem] border-2 border-dashed border-purple-200 dark:border-purple-500/30 shadow-sm text-center"
           data-aos="fade-up"
@@ -636,7 +645,7 @@ export default function GameHubPage() {
           </span>
         </div>
 
-        {/* ============ FOOTER INFO ============ */}
+        {/* FOOTER INFO */}
         <div className="text-center pb-4">
           <p className="text-xs text-gray-400 dark:text-gray-500">
             <i className="fa-solid fa-shield-halved mr-1 text-emerald-500"></i>
