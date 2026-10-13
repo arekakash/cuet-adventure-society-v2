@@ -26,6 +26,58 @@ const shuffle = (arr) => {
 };
 
 // ============================================
+// NAME NORMALIZATION
+// ============================================
+const standardMap = {
+  "Chapainababganj": "Chapainawabganj",
+  "Nawabganj": "Chapainawabganj",
+  "Netrakona": "Netrokona",
+  "Panchagar": "Panchagarh",
+  "Bramhanbaria": "Brahmanbaria",
+  "Chittagong": "Chattogram",
+  "Coxs Bazar": "Cox's Bazar",
+};
+
+const districtBn = {
+  "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
+  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
+  "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
+  "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
+  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Sherpur": "শেরপুর",
+  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
+  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
+  "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট",
+};
+
+// Robust name extractor
+const extractRawName = (geo) => {
+  const props = geo?.properties || {};
+  const keys = [
+    "adm2_name", "ADM2_NAME", "ADM2_EN", "adm2_en",
+    "NAME_2", "name", "Name", "NAME",
+    "Dist_Name", "dist_name", "DIST_NAME",
+    "district", "District", "DISTRICT",
+    "dist", "Dist",
+  ];
+  for (const k of keys) {
+    const v = props[k];
+    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
+  }
+  // Last resort: first string value
+  for (const k of Object.keys(props)) {
+    const v = props[k];
+    if (typeof v === "string" && v.trim() && v.length < 60) return v.trim();
+  }
+  return "";
+};
+
+const getNormalizedName = (raw) => standardMap[raw] || raw;
+const getBnName = (raw) => {
+  const n = getNormalizedName(raw);
+  return districtBn[n] || n;
+};
+
+// ============================================
 // DIVISIONS
 // ============================================
 const bangladeshDivisions = [
@@ -57,8 +109,15 @@ const divisionColors = {
   "ময়মনসিংহ": "#ef4444",
 };
 
-const getDivision = (name) => districtToDivision[name] || "ঢাকা";
-const getColor = (name) => divisionColors[getDivision(name)] || "#64748b";
+const getDivision = (rawName) => {
+  const normalized = getNormalizedName(rawName);
+  return districtToDivision[normalized] || "ঢাকা";
+};
+
+const getColorByRawName = (rawName) => {
+  const div = getDivision(rawName);
+  return divisionColors[div] || "#64748b";
+};
 
 // ============================================
 // DIFFICULTIES
@@ -164,12 +223,12 @@ const sounds = {
 // ============================================
 // DISTRICT PIECE SVG
 // ============================================
-function DistrictPiece({ geo, size = 54, fill = "#94a3b8" }) {
+function DistrictPiece({ geo, size = 54, fill = "#94a3b8", showName = false, name = "" }) {
   const pathD = useMemo(() => {
     if (!geo) return "";
     try {
       const proj = geoMercator().fitExtent(
-        [[3, 3], [size - 3, size - 3]],
+        [[4, 4], [size - 4, size - 4]],
         geo
       );
       const pathGen = geoPath(proj);
@@ -185,7 +244,7 @@ function DistrictPiece({ geo, size = 54, fill = "#94a3b8" }) {
         d={pathD}
         fill={fill}
         stroke="#ffffff"
-        strokeWidth={0.8}
+        strokeWidth={0.9}
         strokeLinejoin="round"
       />
     </svg>
@@ -200,38 +259,28 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
   const [loading, setLoading] = useState(true);
   const [activeDifficulty, setActiveDifficulty] = useState(initialDifficulty || null);
 
-  const fetchLeaderboard = async (diffFilter) => {
-    setLoading(true);
-    try {
-      let query = supabase
-        .from("game_scores")
-        .select("id, score, time_seconds, wrong_taps, max_combo, difficulty, user_id, profiles:user_id(full_name, photo_url)")
-        .eq("game_mode", "jigsaw")
-        .order("score", { ascending: false })
-        .order("time_seconds", { ascending: true })
-        .order("wrong_taps", { ascending: true })
-        .limit(50);
-
-      if (diffFilter) {
-        query = query.eq("difficulty", diffFilter);
-      }
-
-      const { data, error } = await query;
-      if (error) {
-        console.error("Leaderboard fetch failed:", error);
-        setEntries([]);
-      } else {
-        setEntries(data || []);
-      }
-    } catch (e) {
-      console.error(e);
-      setEntries([]);
-    }
-    setLoading(false);
-  };
-
   useEffect(() => {
-    fetchLeaderboard(activeDifficulty);
+    (async () => {
+      setLoading(true);
+      try {
+        let query = supabase
+          .from("game_scores")
+          .select("id, score, time_seconds, wrong_taps, max_combo, difficulty, user_id, profiles:user_id(full_name, photo_url)")
+          .eq("game_mode", "jigsaw")
+          .order("score", { ascending: false })
+          .order("time_seconds", { ascending: true })
+          .order("wrong_taps", { ascending: true })
+          .limit(50);
+
+        if (activeDifficulty) query = query.eq("difficulty", activeDifficulty);
+
+        const { data, error } = await query;
+        if (!error) setEntries(data || []);
+      } catch (e) {
+        console.error(e);
+      }
+      setLoading(false);
+    })();
   }, [activeDifficulty]);
 
   const formatTime = (sec) => {
@@ -256,12 +305,8 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      ></div>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose}></div>
       <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-lg relative z-10 shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
         <div className="p-5 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
           <div>
             <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
@@ -280,14 +325,13 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
           </button>
         </div>
 
-        {/* Difficulty Filter */}
         <div className="px-5 py-3 flex gap-2 border-b border-gray-100 dark:border-gray-800 overflow-x-auto">
           <button
             onClick={() => setActiveDifficulty(null)}
             className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
               activeDifficulty === null
                 ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
             }`}
           >
             সব
@@ -299,7 +343,7 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
               className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
                 activeDifficulty === d.id
                   ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
               }`}
             >
               {d.title}
@@ -307,24 +351,15 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
           ))}
         </div>
 
-        {/* List */}
         <div className="flex-1 overflow-y-auto p-3">
           {loading ? (
             <div className="text-center py-10">
               <i className="fa-solid fa-spinner fa-spin text-2xl text-purple-500"></i>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                লোড হচ্ছে...
-              </p>
             </div>
           ) : entries.length === 0 ? (
             <div className="text-center py-10">
               <i className="fa-solid fa-inbox text-3xl text-gray-300 dark:text-gray-600"></i>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
-                এখনো কোনো স্কোর নেই
-              </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                প্রথম হওয়ার সুযোগ নিন!
-              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">এখনো কোনো স্কোর নেই</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -333,11 +368,8 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
                 const isMe = entry.user_id === currentUserId;
                 const profile = entry.profiles || {};
                 const name = profile.full_name || "Explorer";
-                const avatar =
-                  profile.photo_url ||
-                  `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=a855f7&color=fff`;
+                const avatar = profile.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=a855f7&color=fff`;
                 const medal = getMedalIcon(rank);
-
                 return (
                   <div
                     key={entry.id}
@@ -345,65 +377,30 @@ function LeaderboardModal({ onClose, currentUserId, initialDifficulty }) {
                       isMe ? "ring-2 ring-purple-500 ring-offset-1 dark:ring-offset-gray-900" : ""
                     }`}
                   >
-                    {/* Rank */}
                     <div className="w-8 shrink-0 text-center">
                       {medal ? (
                         <i className={`fa-solid ${medal} text-lg`}></i>
                       ) : (
-                        <span className="text-sm font-black text-gray-500 dark:text-gray-400">
-                          {e2b(rank)}
-                        </span>
+                        <span className="text-sm font-black text-gray-500 dark:text-gray-400">{e2b(rank)}</span>
                       )}
                     </div>
-
-                    {/* Avatar */}
-                    <img
-                      src={avatar}
-                      alt={name}
-                      className="w-9 h-9 rounded-full border-2 border-white dark:border-gray-700 shrink-0 object-cover"
-                    />
-
-                    {/* Name + details */}
+                    <img src={avatar} alt={name} className="w-9 h-9 rounded-full border-2 border-white dark:border-gray-700 shrink-0 object-cover" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-black text-gray-900 dark:text-white truncate">
                         {name}
-                        {isMe && (
-                          <span className="ml-1.5 text-[9px] text-purple-500 font-bold">
-                            (আপনি)
-                          </span>
-                        )}
+                        {isMe && <span className="ml-1.5 text-[9px] text-purple-500 font-bold">(আপনি)</span>}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5 text-[9px] text-gray-500 dark:text-gray-400 font-bold">
-                        <span className="uppercase">
-                          {entry.difficulty === "easy"
-                            ? "সহজ"
-                            : entry.difficulty === "medium"
-                            ? "মাঝারি"
-                            : entry.difficulty === "hard"
-                            ? "কঠিন"
-                            : ""}
-                        </span>
+                        <span>{entry.difficulty === "easy" ? "সহজ" : entry.difficulty === "medium" ? "মাঝারি" : "কঠিন"}</span>
                         <span>•</span>
-                        <span>
-                          <i className="fa-solid fa-stopwatch mr-0.5"></i>
-                          {formatTime(entry.time_seconds)}
-                        </span>
+                        <span><i className="fa-solid fa-stopwatch mr-0.5"></i>{formatTime(entry.time_seconds)}</span>
                         <span>•</span>
-                        <span>
-                          <i className="fa-solid fa-xmark mr-0.5"></i>
-                          {e2b(entry.wrong_taps)}
-                        </span>
+                        <span><i className="fa-solid fa-xmark mr-0.5"></i>{e2b(entry.wrong_taps)}</span>
                       </div>
                     </div>
-
-                    {/* Score */}
                     <div className="text-right shrink-0">
-                      <p className="text-base font-black text-purple-600 dark:text-purple-400">
-                        {e2b(entry.score)}
-                      </p>
-                      <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                        পয়েন্ট
-                      </p>
+                      <p className="text-base font-black text-purple-600 dark:text-purple-400">{e2b(entry.score)}</p>
+                      <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase">পয়েন্ট</p>
                     </div>
                   </div>
                 );
@@ -449,21 +446,20 @@ export default function JigsawPage() {
   const [timeBonusDisplay, setTimeBonusDisplay] = useState(0);
   const [wasWin, setWasWin] = useState(false);
 
-  // 🔴 NEW: Auth + Leaderboard states
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [scoreSubmitStatus, setScoreSubmitStatus] = useState("idle");
   const [userRank, setUserRank] = useState(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
-  // ============ AUTH CHECK ============
+  // ============ AUTH ============
   useEffect(() => {
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user || null);
       } catch (e) {
-        console.error("Auth check failed:", e);
+        console.error(e);
       }
       setAuthLoading(false);
     })();
@@ -478,7 +474,13 @@ export default function JigsawPage() {
         const topo = await res.json();
         const key = Object.keys(topo.objects)[0];
         const features = topojson.feature(topo, topo.objects[key]).features;
-        setAllDistricts(features);
+
+        // 🔴 SORT so bigger districts come first (for index/rsmKey stability)
+        const enriched = features.map((f) => ({
+          ...f,
+          _rawName: extractRawName(f),
+        }));
+        setAllDistricts(enriched);
       } catch (err) {
         console.error("Load failed:", err);
       }
@@ -509,6 +511,7 @@ export default function JigsawPage() {
 
   const pathGen = useMemo(() => (projection ? geoPath(projection) : null), [projection]);
 
+  // ============ CORRECT POSITIONS ============
   const correctPositions = useMemo(() => {
     if (!projection || !gamePieces.length) return {};
     const pos = {};
@@ -519,6 +522,12 @@ export default function JigsawPage() {
     });
     return pos;
   }, [projection, gamePieces]);
+
+  // ============ TARGET KEYS SET ============
+  const targetKeysSet = useMemo(
+    () => new Set(gamePieces.map((g) => g.rsmKey)),
+    [gamePieces]
+  );
 
   // ============ TIMER ============
   useEffect(() => {
@@ -555,114 +564,106 @@ export default function JigsawPage() {
     setUserRank(null);
 
     const shuffled = shuffle(allDistricts);
-    let selected;
-    if (diff.pieces >= allDistricts.length) {
-      selected = allDistricts;
-    } else {
-      selected = shuffled.slice(0, diff.pieces);
-    }
+    const selected =
+      diff.pieces >= allDistricts.length
+        ? allDistricts
+        : shuffled.slice(0, diff.pieces);
+
     setGamePieces(selected);
     setTrayOrder(shuffle([...selected.map((g) => g.rsmKey)]));
     setPhase("playing");
   };
 
-  // ============ SUBMIT SCORE TO SUPABASE ============
-  const submitScoreToSupabase = useCallback(async (payload) => {
-    if (!user) {
-      setScoreSubmitStatus("not_logged_in");
-      return;
-    }
-
-    setScoreSubmitStatus("pending");
-
-    try {
-      const { data, error } = await supabase.rpc("submit_game_score", {
-        p_game_mode: "jigsaw",
-        p_difficulty: payload.difficulty,
-        p_score: payload.score,
-        p_time_seconds: payload.timeSeconds,
-        p_wrong_taps: payload.wrongTaps,
-        p_max_combo: payload.maxCombo,
-        p_accuracy: payload.accuracy,
-        p_xp: payload.xp,
-      });
-
-      if (error) {
-        console.error("Score submit failed:", error);
-        setScoreSubmitStatus("error");
+  // ============ SUBMIT SCORE ============
+  const submitScoreToSupabase = useCallback(
+    async (payload) => {
+      if (!user) {
+        setScoreSubmitStatus("not_logged_in");
         return;
       }
+      setScoreSubmitStatus("pending");
+      try {
+        const { data, error } = await supabase.rpc("submit_game_score", {
+          p_game_mode: "jigsaw",
+          p_difficulty: payload.difficulty,
+          p_score: payload.score,
+          p_time_seconds: payload.timeSeconds,
+          p_wrong_taps: payload.wrongTaps,
+          p_max_combo: payload.maxCombo,
+          p_accuracy: payload.accuracy,
+          p_xp: payload.xp,
+        });
 
-      if (data?.saved) {
-        setScoreSubmitStatus("saved");
-        setUserRank(data.rank || null);
-      } else if (data?.qualified === false) {
-        setScoreSubmitStatus("not_qualified");
-      } else if (data?.saved === false && data?.qualified) {
-        setScoreSubmitStatus("existing_better");
-        setUserRank(data.rank || null);
-      } else {
+        if (error) {
+          setScoreSubmitStatus("error");
+          return;
+        }
+
+        if (data?.saved) {
+          setScoreSubmitStatus("saved");
+          setUserRank(data.rank || null);
+        } else if (data?.qualified === false) {
+          setScoreSubmitStatus("not_qualified");
+        } else if (data?.saved === false && data?.qualified) {
+          setScoreSubmitStatus("existing_better");
+          setUserRank(data.rank || null);
+        } else {
+          setScoreSubmitStatus("error");
+        }
+
+        if (data?.saved) {
+          try {
+            const { data: profileData } = await supabase
+              .from("profiles")
+              .select("game_xp, game_level")
+              .eq("id", user.id)
+              .single();
+            const currentXp = profileData?.game_xp || 0;
+            const newXp = currentXp + (payload.xp || 0);
+            const newLevel = Math.min(15, Math.floor(newXp / 500) + 1);
+            await supabase
+              .from("profiles")
+              .update({ game_xp: newXp, game_level: newLevel })
+              .eq("id", user.id);
+          } catch (e) {}
+        }
+      } catch (e) {
         setScoreSubmitStatus("error");
       }
-
-      // Update profile XP (single integer — negligible storage)
-      if (data?.saved) {
-        try {
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("game_xp, game_level")
-            .eq("id", user.id)
-            .single();
-
-          const currentXp = profileData?.game_xp || 0;
-          const newXp = currentXp + (payload.xp || 0);
-          const newLevel = Math.min(15, Math.floor(newXp / 500) + 1);
-
-          await supabase
-            .from("profiles")
-            .update({ game_xp: newXp, game_level: newLevel })
-            .eq("id", user.id);
-        } catch (e) {
-          console.warn("XP update failed:", e);
-        }
-      }
-    } catch (e) {
-      console.error("Submit error:", e);
-      setScoreSubmitStatus("error");
-    }
-  }, [user]);
+    },
+    [user]
+  );
 
   // ============ END GAME ============
   const endGame = (won = true) => {
     const finalTime = Math.floor((Date.now() - startTime) / 1000);
     setElapsed(finalTime);
-
     let timeBonus = 0;
     if (difficulty?.timer && won) {
       timeBonus = Math.max(0, difficulty.timer - finalTime) * 2;
     }
-
     const finalScore = score + timeBonus;
 
-    // Local storage (still kept for offline stats)
     try {
       const stats = JSON.parse(localStorage.getItem("game-hub-stats-v1") || "{}");
       const xpGain = Math.round(finalScore / 10) + 50;
-      const newStats = {
-        xp: (stats.xp || 0) + xpGain,
-        totalPlays: (stats.totalPlays || 0) + 1,
-        streak: stats.streak || 0,
-        lastPlayDate: new Date().toISOString().slice(0, 10),
-        unlockedAchievements: stats.unlockedAchievements || [],
-        bestScores: {
-          ...(stats.bestScores || {}),
-          [`jigsaw-${difficulty.id}`]: Math.max(
-            finalScore,
-            stats.bestScores?.[`jigsaw-${difficulty.id}`] || 0
-          ),
-        },
-      };
-      localStorage.setItem("game-hub-stats-v1", JSON.stringify(newStats));
+      localStorage.setItem(
+        "game-hub-stats-v1",
+        JSON.stringify({
+          xp: (stats.xp || 0) + xpGain,
+          totalPlays: (stats.totalPlays || 0) + 1,
+          streak: stats.streak || 0,
+          lastPlayDate: new Date().toISOString().slice(0, 10),
+          unlockedAchievements: stats.unlockedAchievements || [],
+          bestScores: {
+            ...(stats.bestScores || {}),
+            [`jigsaw-${difficulty.id}`]: Math.max(
+              finalScore,
+              stats.bestScores?.[`jigsaw-${difficulty.id}`] || 0
+            ),
+          },
+        })
+      );
     } catch {}
 
     if (won) sounds.win();
@@ -674,20 +675,20 @@ export default function JigsawPage() {
     setTimeBonusDisplay(timeBonus);
     setWasWin(won);
 
-    // Submit to Supabase
     const xpGain = Math.round(finalScore / 10) + 50;
-    const accuracy = gamePieces.length > 0
-      ? Math.round(((gamePieces.length - wrongTaps) / gamePieces.length) * 100 * 100) / 100
-      : 0;
+    const accuracy =
+      gamePieces.length > 0
+        ? Math.round(((gamePieces.length - wrongTaps) / gamePieces.length) * 100 * 100) / 100
+        : 0;
 
     setTimeout(() => {
       submitScoreToSupabase({
         difficulty: difficulty.id,
         score: finalScore,
         timeSeconds: finalTime,
-        wrongTaps: wrongTaps,
-        maxCombo: maxCombo,
-        accuracy: accuracy,
+        wrongTaps,
+        maxCombo,
+        accuracy,
         xp: xpGain,
       });
     }, 300);
@@ -701,27 +702,19 @@ export default function JigsawPage() {
     }
   }, [placed, gamePieces]);
 
-  // ============ DRAG HANDLERS ============
+  // ============ DRAG ============
   const handlePointerDown = (e, geo) => {
     if (placed.has(geo.rsmKey)) return;
     e.preventDefault();
     sounds.pick();
-    const target = e.currentTarget;
-    target.setPointerCapture?.(e.pointerId);
-    const drag = {
-      geo,
-      startX: e.clientX,
-      startY: e.clientY,
-      x: e.clientX,
-      y: e.clientY,
-    };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const drag = { geo, x: e.clientX, y: e.clientY };
     dragRef.current = drag;
     setDragging(drag);
   };
 
   useEffect(() => {
     if (!dragging) return;
-
     const onMove = (e) => {
       const d = dragRef.current;
       if (!d) return;
@@ -733,21 +726,18 @@ export default function JigsawPage() {
     const onUp = (e) => {
       const d = dragRef.current;
       if (!d) return;
-
       const mapRect = mapWrapRef.current?.getBoundingClientRect();
       if (!mapRect) {
         setDragging(null);
         dragRef.current = null;
         return;
       }
-
       const correct = correctPositions[d.geo.rsmKey];
       if (!correct) {
         setDragging(null);
         dragRef.current = null;
         return;
       }
-
       const dropX = e.clientX - mapRect.left;
       const dropY = e.clientY - mapRect.top;
       const dist = Math.hypot(dropX - correct.x, dropY - correct.y);
@@ -783,7 +773,6 @@ export default function JigsawPage() {
         setToast({ text: "ভুল!", type: "wrong" });
         setTimeout(() => setToast(null), 800);
       }
-
       setDragging(null);
       dragRef.current = null;
     };
@@ -791,7 +780,6 @@ export default function JigsawPage() {
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
-
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
@@ -799,14 +787,13 @@ export default function JigsawPage() {
     };
   }, [dragging, combo, correctPositions]);
 
-  // ============ RENDER HELPERS ============
-  const placedKeys = placed;
+  // ============ HELPERS ============
   const unplacedPieces = useMemo(() => {
     if (!gamePieces.length) return [];
     return trayOrder
       .map((k) => gamePieces.find((g) => g.rsmKey === k))
-      .filter((g) => g && !placedKeys.has(g.rsmKey));
-  }, [gamePieces, trayOrder, placedKeys]);
+      .filter((g) => g && !placed.has(g.rsmKey));
+  }, [gamePieces, trayOrder, placed]);
 
   const progressPct = gamePieces.length
     ? Math.round((placed.size / gamePieces.length) * 100)
@@ -863,7 +850,6 @@ export default function JigsawPage() {
               >
                 <div className="absolute -top-20 -right-20 w-44 h-44 bg-white/20 rounded-full blur-3xl group-hover:bg-white/30 transition-colors"></div>
                 <div className="absolute -bottom-20 -left-20 w-44 h-44 bg-black/10 rounded-full blur-3xl"></div>
-
                 <div className="relative z-10">
                   <div className="w-14 h-14 bg-white/25 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-5 border border-white/30 group-hover:scale-110 transition-transform">
                     <i className={`${diff.icon} text-white text-2xl`}></i>
@@ -880,49 +866,40 @@ export default function JigsawPage() {
           </div>
 
           {!allDistricts && (
-            <div className="mt-8 text-center" data-aos="fade-up">
+            <div className="mt-8 text-center">
               <i className="fa-solid fa-spinner fa-spin text-3xl text-purple-500"></i>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                ম্যাপ লোড হচ্ছে...
-              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">ম্যাপ লোড হচ্ছে...</p>
             </div>
           )}
 
-          {/* Auth hint */}
           {!authLoading && !user && (
-            <div className="mt-8 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 p-4 rounded-2xl flex items-start gap-3" data-aos="fade-up">
+            <div className="mt-8 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 p-4 rounded-2xl flex items-start gap-3">
               <i className="fa-solid fa-circle-info text-blue-500 text-lg mt-0.5"></i>
               <div className="flex-1">
-                <p className="text-sm font-bold text-blue-900 dark:text-blue-300 mb-1">
-                  গেস্ট হিসেবে খেলছেন
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-400 mb-3">
-                  স্কোর সেভ করতে ও লিডারবোর্ডে জায়গা পেতে লগইন করুন।
-                </p>
+                <p className="text-sm font-bold text-blue-900 dark:text-blue-300 mb-1">গেস্ট হিসেবে খেলছেন</p>
+                <p className="text-xs text-blue-700 dark:text-blue-400 mb-3">স্কোর সেভ করতে ও লিডারবোর্ডে জায়গা পেতে লগইন করুন।</p>
                 <Link
                   href="/login?redirect=/my-bangladesh/games/jigsaw"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-black rounded-lg transition-colors"
                 >
-                  <i className="fa-solid fa-right-to-bracket"></i>
-                  লগইন
+                  <i className="fa-solid fa-right-to-bracket"></i> লগইন
                 </Link>
               </div>
             </div>
           )}
 
-          <div className="mt-10 bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm" data-aos="fade-up">
+          <div className="mt-10 bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
             <h3 className="font-black text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-              <i className="fa-solid fa-circle-info text-blue-500"></i>
-              খেলার নিয়ম
+              <i className="fa-solid fa-circle-info text-blue-500"></i> খেলার নিয়ম
             </h3>
             <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
               <li className="flex items-start gap-2">
                 <i className="fa-solid fa-check text-emerald-500 mt-1 text-xs"></i>
-                নিচের tray থেকে জেলার টুকরো ম্যাপে টেনে আনুন
+                ম্যাপের faded অংশে জেলার dashed slot দেখাবে — সেখানেই সঠিক টুকরা বসাতে হবে
               </li>
               <li className="flex items-start gap-2">
                 <i className="fa-solid fa-check text-emerald-500 mt-1 text-xs"></i>
-                সঠিক জায়গার কাছে ছাড়লেই স্ন্যাপ হবে — <b>+১০০</b>
+                নিচের tray থেকে জেলার টুকরো টেনে সঠিক slot-এ ছাড়ুন — <b>+১০০</b>
               </li>
               <li className="flex items-start gap-2">
                 <i className="fa-solid fa-check text-emerald-500 mt-1 text-xs"></i>
@@ -933,8 +910,8 @@ export default function JigsawPage() {
                 টানা ৩টি সঠিক — <b>×১.৫</b>, টানা ৫টি — <b>×২</b>
               </li>
               <li className="flex items-start gap-2">
-                <i className="fa-solid fa-trophy text-amber-500 mt-1 text-xs"></i>
-                স্কোর টপ ৫০-এ ঢুকলে লিডারবোর্ডে save হবে
+                <i className="fa-solid fa-palette text-purple-500 mt-1 text-xs"></i>
+                প্রতিটি জেলা তার বিভাগ অনুযায়ী রঙিন হবে
               </li>
             </ul>
           </div>
@@ -956,37 +933,28 @@ export default function JigsawPage() {
     const won = wasWin;
     const xpGained = Math.round(finalScoreDisplay / 10) + 50;
 
-    // Score submit status display
     const renderSaveStatus = () => {
       if (scoreSubmitStatus === "pending") {
         return (
           <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3 mb-4 border border-white/20 flex items-center justify-center gap-2">
             <i className="fa-solid fa-spinner fa-spin text-white/90 text-sm"></i>
-            <span className="text-xs font-bold text-white/90">
-              স্কোর সংরক্ষণ হচ্ছে...
-            </span>
+            <span className="text-xs font-bold text-white/90">স্কোর সংরক্ষণ হচ্ছে...</span>
           </div>
         );
       }
-
       if (scoreSubmitStatus === "saved") {
         return (
           <div className="bg-gradient-to-r from-yellow-400/30 to-amber-500/30 backdrop-blur-sm rounded-xl p-3 mb-4 border border-yellow-300/50">
             <div className="flex items-center justify-center gap-2">
               <i className="fa-solid fa-trophy text-yellow-300 text-lg"></i>
               <div className="text-left">
-                <p className="text-xs font-black text-white">
-                  লিডারবোর্ডে #{(userRank || 0).toLocaleString("bn-BD")} হয়েছেন!
-                </p>
-                <p className="text-[9px] text-white/80 font-bold">
-                  স্কোর সফলভাবে সংরক্ষিত হয়েছে
-                </p>
+                <p className="text-xs font-black text-white">লিডারবোর্ডে #{e2b(userRank || 0)} হয়েছেন!</p>
+                <p className="text-[9px] text-white/80 font-bold">স্কোর সফলভাবে সংরক্ষিত হয়েছে</p>
               </div>
             </div>
           </div>
         );
       }
-
       if (scoreSubmitStatus === "not_qualified") {
         return (
           <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3 mb-4 border border-white/20">
@@ -997,7 +965,6 @@ export default function JigsawPage() {
           </div>
         );
       }
-
       if (scoreSubmitStatus === "existing_better") {
         return (
           <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3 mb-4 border border-white/20">
@@ -1008,7 +975,6 @@ export default function JigsawPage() {
           </div>
         );
       }
-
       if (scoreSubmitStatus === "not_logged_in") {
         return (
           <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 mb-4 border border-white/25">
@@ -1026,18 +992,16 @@ export default function JigsawPage() {
           </div>
         );
       }
-
       if (scoreSubmitStatus === "error") {
         return (
           <div className="bg-red-500/20 backdrop-blur-sm rounded-xl p-3 mb-4 border border-red-300/30">
             <p className="text-xs font-bold text-white/90 text-center">
               <i className="fa-solid fa-triangle-exclamation mr-1.5"></i>
-              স্কোর সেভ করা যায়নি — আবার চেষ্টা করুন
+              স্কোর সেভ করা যায়নি
             </p>
           </div>
         );
       }
-
       return null;
     };
 
@@ -1054,7 +1018,6 @@ export default function JigsawPage() {
           >
             <div className="absolute -top-24 -right-24 w-72 h-72 bg-white/15 rounded-full blur-3xl"></div>
             <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-black/10 rounded-full blur-3xl"></div>
-
             <div className="relative z-10">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm border-4 border-white/40 mb-4">
                 <i className={`fa-solid ${won ? "fa-crown" : "fa-clock"} text-white text-3xl`}></i>
@@ -1069,42 +1032,29 @@ export default function JigsawPage() {
               </p>
 
               <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-5 border border-white/25 mb-4">
-                <p className="text-white/80 text-[10px] font-black uppercase tracking-widest mb-1">
-                  চূড়ান্ত স্কোর
-                </p>
-                <p className="text-5xl font-black text-white mb-1">
-                  {e2b(finalScoreDisplay)}
-                </p>
-                <p className="text-white/70 text-[10px] font-bold">
-                  + {e2b(xpGained)} XP
-                </p>
+                <p className="text-white/80 text-[10px] font-black uppercase tracking-widest mb-1">চূড়ান্ত স্কোর</p>
+                <p className="text-5xl font-black text-white mb-1">{e2b(finalScoreDisplay)}</p>
+                <p className="text-white/70 text-[10px] font-bold">+ {e2b(xpGained)} XP</p>
               </div>
 
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl p-2.5 border border-white/20">
                   <i className="fa-solid fa-stopwatch text-white/70 text-xs mb-0.5"></i>
                   <p className="text-base font-black text-white">{formatTime(finalTimeDisplay)}</p>
-                  <p className="text-[8px] font-bold text-white/70 uppercase tracking-wider">
-                    সময়
-                  </p>
+                  <p className="text-[8px] font-bold text-white/70 uppercase">সময়</p>
                 </div>
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl p-2.5 border border-white/20">
                   <i className="fa-solid fa-bolt text-white/70 text-xs mb-0.5"></i>
                   <p className="text-base font-black text-white">{e2b(maxCombo)}</p>
-                  <p className="text-[8px] font-bold text-white/70 uppercase tracking-wider">
-                    সেরা কম্বো
-                  </p>
+                  <p className="text-[8px] font-bold text-white/70 uppercase">সেরা কম্বো</p>
                 </div>
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl p-2.5 border border-white/20">
                   <i className="fa-solid fa-xmark text-white/70 text-xs mb-0.5"></i>
                   <p className="text-base font-black text-white">{e2b(wrongTaps)}</p>
-                  <p className="text-[8px] font-bold text-white/70 uppercase tracking-wider">
-                    ভুল
-                  </p>
+                  <p className="text-[8px] font-bold text-white/70 uppercase">ভুল</p>
                 </div>
               </div>
 
-              {/* 🔴 SCORE SAVE STATUS */}
               {renderSaveStatus()}
 
               <div className="flex flex-col gap-2">
@@ -1113,23 +1063,20 @@ export default function JigsawPage() {
                     onClick={() => setPhase("menu")}
                     className="flex-1 py-3 bg-white/20 backdrop-blur-sm text-white font-black rounded-xl border border-white/30 hover:bg-white/30 transition-all text-xs"
                   >
-                    <i className="fa-solid fa-rotate-left mr-1.5"></i>
-                    আবার খেলুন
+                    <i className="fa-solid fa-rotate-left mr-1.5"></i> আবার খেলুন
                   </button>
                   <button
                     onClick={() => setShowLeaderboard(true)}
                     className="flex-1 py-3 bg-white/20 backdrop-blur-sm text-white font-black rounded-xl border border-white/30 hover:bg-white/30 transition-all text-xs"
                   >
-                    <i className="fa-solid fa-trophy mr-1.5"></i>
-                    লিডারবোর্ড
+                    <i className="fa-solid fa-trophy mr-1.5"></i> লিডারবোর্ড
                   </button>
                 </div>
                 <Link
                   href="/my-bangladesh/games"
                   className="w-full py-3 bg-white text-gray-900 font-black rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all text-center text-xs"
                 >
-                  <i className="fa-solid fa-home mr-1.5"></i>
-                  গেম হাব
+                  <i className="fa-solid fa-home mr-1.5"></i> গেম হাব
                 </Link>
               </div>
             </div>
@@ -1155,9 +1102,7 @@ export default function JigsawPage() {
         <div className="px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3">
           <button
             onClick={() => {
-              if (window.confirm("গেম থেকে বের হয়ে যাবেন?")) {
-                setPhase("menu");
-              }
+              if (window.confirm("গেম থেকে বের হয়ে যাবেন?")) setPhase("menu");
             }}
             className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           >
@@ -1179,12 +1124,10 @@ export default function JigsawPage() {
                   : formatTime(elapsed)}
               </span>
             </div>
-
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-black text-sm shadow-md">
               <i className="fa-solid fa-star text-xs"></i>
               <span>{e2b(score)}</span>
             </div>
-
             {combo >= 3 && (
               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-sm shadow-md animate-pulse">
                 <i className="fa-solid fa-bolt text-xs"></i>
@@ -1217,23 +1160,63 @@ export default function JigsawPage() {
           ></div>
         </div>
 
-        {projection && pathGen && (
+        {projection && pathGen && allDistricts && (
           <svg
             className="absolute inset-0 w-full h-full"
             viewBox={`0 0 ${mapDims.w} ${mapDims.h}`}
             preserveAspectRatio="xMidYMid meet"
           >
-            {gamePieces.map((geo) => {
-              const isPlaced = placed.has(geo.rsmKey);
+            {/* 🔴 LAYER 1: All districts — faded background (non-targets) */}
+            {allDistricts.map((geo) => {
+              if (targetKeysSet.has(geo.rsmKey)) return null;
               return (
                 <path
-                  key={`base-${geo.rsmKey}`}
+                  key={`bg-${geo.rsmKey}`}
                   d={pathGen(geo)}
-                  fill={isPlaced ? getColor(geo.properties?.adm2_name || geo.properties?.name || "") : "#cbd5e1"}
-                  stroke={isPlaced ? "rgba(255,255,255,0.9)" : "rgba(148,163,184,0.7)"}
-                  strokeWidth={isPlaced ? 0.9 : 0.5}
+                  fill="#cbd5e1"
+                  stroke="rgba(148,163,184,0.5)"
+                  strokeWidth={0.4}
+                  opacity={0.4}
+                  style={{ pointerEvents: "none" }}
+                />
+              );
+            })}
+
+            {/* 🔴 LAYER 2: Target slots — dashed outlines (unplaced) */}
+            {gamePieces.map((geo) => {
+              if (placed.has(geo.rsmKey)) return null;
+              const raw = geo._rawName || extractRawName(geo);
+              const color = getColorByRawName(raw);
+              return (
+                <path
+                  key={`slot-${geo.rsmKey}`}
+                  d={pathGen(geo)}
+                  fill={`${color}15`}
+                  stroke={color}
+                  strokeWidth={0.8}
+                  strokeDasharray="3 2"
+                  opacity={0.8}
+                  style={{ pointerEvents: "none" }}
+                />
+              );
+            })}
+
+            {/* 🔴 LAYER 3: Placed districts — full division color */}
+            {gamePieces.map((geo) => {
+              if (!placed.has(geo.rsmKey)) return null;
+              const raw = geo._rawName || extractRawName(geo);
+              const color = getColorByRawName(raw);
+              return (
+                <path
+                  key={`placed-${geo.rsmKey}`}
+                  d={pathGen(geo)}
+                  fill={color}
+                  stroke="#ffffff"
+                  strokeWidth={1}
+                  strokeLinejoin="round"
                   style={{
-                    transition: "fill 0.4s ease, stroke 0.4s ease",
+                    transition: "fill 0.4s ease",
+                    filter: `drop-shadow(0 0 4px ${color}80)`,
                   }}
                 />
               );
@@ -1260,10 +1243,10 @@ export default function JigsawPage() {
             style={{
               background:
                 toast.type === "wrong"
-                  ? "rgba(239,68,68,0.9)"
+                  ? "rgba(239,68,68,0.95)"
                   : toast.type === "perfect"
                   ? "rgba(251,191,36,0.95)"
-                  : "rgba(16,185,129,0.9)",
+                  : "rgba(16,185,129,0.95)",
               color: "#fff",
               borderColor: "rgba(255,255,255,0.3)",
             }}
@@ -1275,17 +1258,17 @@ export default function JigsawPage() {
         {progressPct === 0 && elapsed > 15 && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-4 py-2 rounded-full pointer-events-none">
             <i className="fa-solid fa-lightbulb text-amber-400 mr-1.5"></i>
-            টুকরো ম্যাপের সঠিক জায়গার কাছে ছাড়ুন
+            ম্যাপে dashed slot দেখুন — সেখানে টুকরা ছাড়ুন
           </div>
         )}
       </div>
 
       {/* TRAY */}
-      <div className="shrink-0 h-40 sm:h-44 bg-white dark:bg-gray-900 border-t-2 border-gray-200 dark:border-gray-800 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+      <div className="shrink-0 h-44 sm:h-48 bg-white dark:bg-gray-900 border-t-2 border-gray-200 dark:border-gray-800 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
         <div className="px-3 py-2 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
           <p className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
             <i className="fa-solid fa-hand-pointer mr-1 text-purple-500"></i>
-            টুকরো টেনে ম্যাপে ছাড়ুন
+            টুকরা টেনে ম্যাপে ছাড়ুন
           </p>
           <p className="text-[10px] font-black text-gray-500 dark:text-gray-400">
             {e2b(unplacedPieces.length)} বাকি
@@ -1301,20 +1284,20 @@ export default function JigsawPage() {
           ) : (
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
               {unplacedPieces.map((geo) => {
-                const name =
-                  geo.properties?.adm2_name ||
-                  geo.properties?.ADM2_EN ||
-                  geo.properties?.NAME_2 ||
-                  geo.properties?.name ||
-                  "Unknown";
+                const raw = geo._rawName || extractRawName(geo);
+                const color = getColorByRawName(raw);
+                const bn = getBnName(raw);
                 return (
                   <div
                     key={geo.rsmKey}
                     onPointerDown={(e) => handlePointerDown(e, geo)}
-                    className="touch-none select-none cursor-grab active:cursor-grabbing flex items-center justify-center p-1 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:scale-105 transition-all"
+                    className="touch-none select-none cursor-grab active:cursor-grabbing flex flex-col items-center p-1 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:scale-105 transition-all"
                     style={{ touchAction: "none" }}
                   >
-                    <DistrictPiece geo={geo} size={50} fill={getColor(name)} />
+                    <DistrictPiece geo={geo} size={44} fill={color} />
+                    <span className="text-[7px] font-bold text-gray-600 dark:text-gray-400 mt-0.5 truncate max-w-full">
+                      {bn}
+                    </span>
                   </div>
                 );
               })}
@@ -1337,13 +1320,7 @@ export default function JigsawPage() {
           <DistrictPiece
             geo={dragging.geo}
             size={64}
-            fill={getColor(
-              dragging.geo.properties?.adm2_name ||
-                dragging.geo.properties?.ADM2_EN ||
-                dragging.geo.properties?.NAME_2 ||
-                dragging.geo.properties?.name ||
-                ""
-            )}
+            fill={getColorByRawName(dragging.geo._rawName || extractRawName(dragging.geo))}
           />
         </div>
       )}
