@@ -13,6 +13,9 @@ export default function Navbar() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   
+  // 🔴 NEW: My Bangladesh dropdown state
+  const [isMyBangladeshExpanded, setIsMyBangladeshExpanded] = useState(false);
+  
   // থিম কন্ট্রোল স্টেট (ডিফল্ট লাইট/প্যাস্টেল)
   const [isDarkMode, setIsDarkMode] = useState(false);
   
@@ -28,6 +31,9 @@ export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname(); 
   const isActive = (path) => pathname === path;
+
+  // 🔴 NEW: My Bangladesh active detection
+  const isMyBangladeshActive = pathname?.startsWith("/my-bangladesh");
 
   useEffect(() => {
     // পেজ লোড হলে লোকাল স্টোরেজ থেকে থিম চেক করা
@@ -86,6 +92,13 @@ export default function Navbar() {
       }
     };
   }, []);
+
+  // 🔴 NEW: Auto-expand My Bangladesh menu when user is on a related route
+  useEffect(() => {
+    if (pathname?.startsWith("/my-bangladesh")) {
+      setIsMyBangladeshExpanded(true);
+    }
+  }, [pathname]);
 
   const toggleTheme = () => {
     const newTheme = !isDarkMode;
@@ -297,13 +310,73 @@ export default function Navbar() {
             <span className="font-bold text-sm">CAS ব্লাডব্যাংক</span>
           </Link>
 
-          <Link href="/my-bangladesh" onClick={() => setIsSidebarOpen(false)} 
-            className={`block py-3 px-4 rounded-2xl transition-all group flex items-center gap-4 border ${isActive('/my-bangladesh') ? 'bg-teal-500/10 text-pastel-text dark:text-white border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.2)]' : 'bg-white dark:bg-white/5 border-pastel-border dark:border-transparent hover:border-teal-500/30 hover:shadow-md dark:hover:shadow-[0_0_15px_rgba(20,184,166,0.15)] hover:text-pastel-text dark:hover:text-white'}`}>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-transform shadow-sm dark:shadow-none ${isActive('/my-bangladesh') ? 'bg-teal-500 text-white' : 'bg-teal-500/10 dark:bg-black/40 text-teal-500 group-hover:scale-110 group-hover:bg-teal-500 group-hover:text-white'}`}>
-              <i className="fa-solid fa-map-location-dot"></i>
+          {/* 🔴 NEW: My Bangladesh — Expandable Dropdown */}
+          <div>
+            <button
+              onClick={() => setIsMyBangladeshExpanded(!isMyBangladeshExpanded)}
+              className={`w-full text-left py-3 px-4 rounded-2xl transition-all group flex items-center gap-4 border ${
+                isMyBangladeshActive
+                  ? "bg-teal-500/10 text-pastel-text dark:text-white border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.2)]"
+                  : "bg-white dark:bg-white/5 border-pastel-border dark:border-transparent hover:border-teal-500/30 hover:shadow-md dark:hover:shadow-[0_0_15px_rgba(20,184,166,0.15)] hover:text-pastel-text dark:hover:text-white"
+              }`}
+            >
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-transform shadow-sm dark:shadow-none ${
+                  isMyBangladeshActive
+                    ? "bg-teal-500 text-white"
+                    : "bg-teal-500/10 dark:bg-black/40 text-teal-500 group-hover:scale-110 group-hover:bg-teal-500 group-hover:text-white"
+                }`}
+              >
+                <i className="fa-solid fa-map-location-dot"></i>
+              </div>
+              <span className="font-bold text-sm flex-1">আমার বাংলাদেশ</span>
+              <i
+                className={`fa-solid fa-chevron-down text-xs transition-transform duration-300 ${
+                  isMyBangladeshExpanded ? "rotate-180" : ""
+                }`}
+              ></i>
+            </button>
+
+            {/* Dropdown sub-items */}
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                isMyBangladeshExpanded
+                  ? "max-h-32 opacity-100 mt-2"
+                  : "max-h-0 opacity-0"
+              }`}
+            >
+              <div className="pl-4 space-y-1.5 border-l-2 border-teal-500/30 ml-6">
+                {/* Sub-item 1: Map Creator */}
+                <Link
+                  href="/my-bangladesh"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className={`block py-2.5 px-3 rounded-xl transition-all flex items-center gap-3 ${
+                    pathname === "/my-bangladesh"
+                      ? "bg-teal-500/15 text-teal-700 dark:text-teal-300 font-black"
+                      : "text-pastel-muted dark:text-gray-400 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-300"
+                  }`}
+                >
+                  <i className="fa-solid fa-palette text-teal-500 text-xs w-4 text-center"></i>
+                  <span className="text-xs font-bold">নিজস্ব ম্যাপ তৈরি</span>
+                </Link>
+
+                {/* Sub-item 2: Games */}
+                <Link
+                  href="/my-bangladesh/games"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className={`block py-2.5 px-3 rounded-xl transition-all flex items-center gap-3 ${
+                    pathname?.startsWith("/my-bangladesh/games")
+                      ? "bg-teal-500/15 text-teal-700 dark:text-teal-300 font-black"
+                      : "text-pastel-muted dark:text-gray-400 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-300"
+                  }`}
+                >
+                  <i className="fa-solid fa-gamepad text-teal-500 text-xs w-4 text-center"></i>
+                  <span className="text-xs font-bold">ম্যাপ গেম খেলুন</span>
+                </Link>
+              </div>
             </div>
-            <span className="font-bold text-sm">আমার বাংলাদেশ</span>
-          </Link>
+          </div>
+          {/* 🔴 END: My Bangladesh Dropdown */}
 
           <Link href="/behind-the-scenes" onClick={() => setIsSidebarOpen(false)} 
             className={`block py-3 px-4 rounded-2xl transition-all group flex items-center gap-4 border ${isActive('/behind-the-scenes') ? 'bg-pink-500/10 text-pastel-text dark:text-white border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.2)]' : 'bg-white dark:bg-white/5 border-pastel-border dark:border-transparent hover:border-pink-500/30 hover:shadow-md dark:hover:shadow-[0_0_15px_rgba(236,72,153,0.15)] hover:text-pastel-text dark:hover:text-white'}`}>
