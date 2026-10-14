@@ -666,11 +666,11 @@ export default function GameHubPage() {
                 ও ব্রোঞ্জ কার্ড!
               </p>
               <Link
-                href="/my-bangladesh/games/jigsaw"
+                href="/my-bangladesh/games/map-leaderboard"
                 className="inline-flex items-center gap-3 px-6 py-3 bg-white text-orange-600 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all"
               >
                 <i className="fa-solid fa-list-ol"></i>
-                লিডারবোর্ড দেখুন
+                ম্যাপ গেম লিডারবোর্ড
               </Link>
             </div>
 
