@@ -15,7 +15,7 @@ import {
 } from "framer-motion";
 
 /* ═══════════════════════════════════════════════════════════════
-   MOTION PRESETS — একবার লিখে সব জায়গায় ব্যবহার
+   MOTION PRESETS
    ═══════════════════════════════════════════════════════════════ */
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -24,18 +24,13 @@ const fadeUp = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.9, ease: EASE } },
 };
 
-const fadeIn = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 1, ease: EASE } },
-};
-
 const stagger = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   ANIMATED COUNTER — requestAnimationFrame, GPU-friendly
+   ANIMATED COUNTER
    ═══════════════════════════════════════════════════════════════ */
 function AnimatedNumber({ value = 0, suffix = "", duration = 1.8 }) {
   const ref = useRef(null);
@@ -68,7 +63,7 @@ function AnimatedNumber({ value = 0, suffix = "", duration = 1.8 }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SECTION HEADER — animated label + title + underline draw
+   SECTION HEADER
    ═══════════════════════════════════════════════════════════════ */
 function SectionHeader({ label, title, highlight, subtitle }) {
   return (
@@ -87,13 +82,15 @@ function SectionHeader({ label, title, highlight, subtitle }) {
           {label}
         </motion.p>
       )}
-      <motion.h2
-        variants={fadeUp}
-        className="text-3xl sm:text-5xl font-black text-pastel-text dark:text-white leading-tight"
-      >
-        {title}{" "}
-        {highlight && <span className="text-[#e76f51]">{highlight}</span>}
-      </motion.h2>
+      {(title || highlight) && (
+        <motion.h2
+          variants={fadeUp}
+          className="text-3xl sm:text-5xl font-black text-pastel-text dark:text-white leading-tight"
+        >
+          {title}{" "}
+          {highlight && <span className="text-[#e76f51]">{highlight}</span>}
+        </motion.h2>
+      )}
       {subtitle && (
         <motion.p
           variants={fadeUp}
@@ -111,7 +108,7 @@ function SectionHeader({ label, title, highlight, subtitle }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   HERO PARTICLES — ৮টা subtle dot (CSS-based, perf-safe)
+   HERO PARTICLES
    ═══════════════════════════════════════════════════════════════ */
 function HeroParticles() {
   const dots = [
@@ -149,19 +146,21 @@ function HeroParticles() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   MEMORY CARD — compact infinity scroll card
+   MEMORY CARD — compact
    ═══════════════════════════════════════════════════════════════ */
 function MemoryCard({ ev }) {
   return (
     <Link
       href={`/event-details?id=${ev.id}`}
-      className="group relative shrink-0 w-[180px] sm:w-[240px] h-[230px] sm:h-[300px] rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-black"
+      draggable={false}
+      className="group relative shrink-0 w-[180px] sm:w-[240px] h-[230px] sm:h-[300px] rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-black select-none"
     >
       {ev.cover_photo ? (
         <img
           src={ev.cover_photo}
           alt={ev.title}
           loading="lazy"
+          draggable={false}
           className="absolute inset-0 w-full h-full object-cover transition-transform duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
         />
       ) : (
@@ -190,6 +189,92 @@ function MemoryCard({ ev }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INFINITY MARQUEE ROW — auto-scroll + manual drag/touch + resume
+   ═══════════════════════════════════════════════════════════════ */
+function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
+  const containerRef = useRef(null);
+  const isPausedRef = useRef(false);
+  const rafRef = useRef(null);
+  const lastTimeRef = useRef(0);
+  const wheelTimerRef = useRef(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !items.length) return;
+
+    // Initialize right-direction start position (needs non-zero scrollLeft)
+    if (direction === "right") {
+      requestAnimationFrame(() => {
+        const cw = container.scrollWidth / 2;
+        if (cw > 0) container.scrollLeft = cw;
+      });
+    }
+
+    const tick = (time) => {
+      if (!lastTimeRef.current) lastTimeRef.current = time;
+      const delta = Math.min(time - lastTimeRef.current, 50);
+      lastTimeRef.current = time;
+
+      if (!isPausedRef.current && container) {
+        const contentWidth = container.scrollWidth / 2;
+        if (contentWidth > 20) {
+          const step = (speed * delta) / 16;
+          let next =
+            container.scrollLeft + (direction === "left" ? step : -step);
+          if (next >= contentWidth) next -= contentWidth;
+          if (next < 0) next += contentWidth;
+          container.scrollLeft = next;
+        }
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
+    };
+  }, [direction, speed, items.length]);
+
+  const pause = () => {
+    isPausedRef.current = true;
+  };
+  const resume = () => {
+    isPausedRef.current = false;
+  };
+
+  const handleWheel = () => {
+    pause();
+    if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
+    wheelTimerRef.current = setTimeout(resume, 1500);
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      onPointerDown={pause}
+      onPointerUp={resume}
+      onPointerCancel={resume}
+      onPointerLeave={resume}
+      onTouchStart={pause}
+      onTouchEnd={resume}
+      onWheel={handleWheel}
+      className="no-scrollbar flex gap-3 sm:gap-4 overflow-x-auto cursor-grab active:cursor-grabbing"
+      style={{
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+        WebkitOverflowScrolling: "touch",
+        touchAction: "pan-x",
+      }}
+    >
+      {items.map((ev, i) => (
+        <MemoryCard key={i} ev={ev} />
+      ))}
+    </div>
   );
 }
 
@@ -507,7 +592,7 @@ export default function HomePage() {
 
   const marqueeRow = pastEvents.length ? [...pastEvents, ...pastEvents] : [];
   const reverseRow = pastEvents.length
-    ? [...pastEvents.slice().reverse(), ...pastEvents.slice().reverse()]
+    ? [...pastEvents].reverse().concat([...pastEvents].reverse())
     : [];
 
   /* ═══════════════════════════════════════════════════════════
@@ -528,18 +613,6 @@ export default function HomePage() {
           white-space: nowrap;
           animation: scroll-text 20s linear infinite;
         }
-        @keyframes cas-marquee-l {
-          0%   { transform: translate3d(0,0,0); }
-          100% { transform: translate3d(-50%,0,0); }
-        }
-        @keyframes cas-marquee-r {
-          0%   { transform: translate3d(-50%,0,0); }
-          100% { transform: translate3d(0,0,0); }
-        }
-        .cas-marquee-l { animation: cas-marquee-l 55s linear infinite; will-change: transform; }
-        .cas-marquee-r { animation: cas-marquee-r 65s linear infinite; will-change: transform; }
-        .cas-marquee-wrap:hover .cas-marquee-l,
-        .cas-marquee-wrap:hover .cas-marquee-r { animation-play-state: paused; }
         @keyframes cas-float {
           0%, 100% { transform: translate3d(0, 0, 0); opacity: .35; }
           50%      { transform: translate3d(12px, -22px, 0); opacity: .75; }
@@ -554,6 +627,8 @@ export default function HomePage() {
           border-radius: inherit;
         }
         .card-shine:hover::before { opacity: 1; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
       `,
         }}
       />
@@ -625,9 +700,9 @@ export default function HomePage() {
       <div className="bg-orange-100 dark:bg-[#e76f51] text-orange-900 dark:text-[#030705] py-2 overflow-hidden flex items-center border-y border-orange-200 dark:border-y-yellow-500/30 shadow-sm dark:shadow-md relative z-20 transition-colors duration-500">
         <div className="whitespace-nowrap w-full">
           <span className="animate-marquee font-bold text-xs sm:text-sm tracking-wide">
-            <i className="fa-solid fa-bolt mr-2" /> চুয়েট অ্যাডভেঞ্চার
-            সোসাইটি — এক কাপ চা, এক ব্যাগ, আর বাকিটা পাহাড়। নিয়ম মেনে
-            ঘুরি, প্রকৃতিকে ভয় পাই না — ভয় পাই প্রকৃতির কাছে হেরে যাওয়ার।
+            <i className="fa-solid fa-bolt mr-2" /> চুয়েট অ্যাডভেঞ্চার সোসাইটি
+            একটি সম্পূর্ণ অলাভজনক এবং অরাজনৈতিক প্রতিষ্ঠান, ভ্রমণের মাধ্যমে
+            নিখাদ আনন্দ লাভ একমাত্র উদ্দেশ্য।{" "}
             <i className="fa-solid fa-bolt ml-2" />
           </span>
         </div>
@@ -708,62 +783,7 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ═══ 4. LIVE STATS COUNTER ═══ */}
-      {stats && (
-        <section className="relative pt-24 pb-16 px-6">
-          <div
-            aria-hidden
-            className="absolute inset-0 pointer-events-none opacity-60 dark:opacity-30"
-            style={{
-              background:
-                "radial-gradient(700px circle at 50% 40%, rgba(231,111,81,0.10), transparent 55%)",
-            }}
-          />
-          <div className="max-w-5xl mx-auto relative">
-            <SectionHeader
-              label="এক নজরে"
-              title="আমরা একা হাঁটিনি"
-              highlight="কখনো"
-              subtitle="এই সোসাইটির প্রতিটা সংখ্যা একেকটা গল্প — একটা পার্ক, একটা ট্রেইল, একটা নতুন বন্ধু।"
-            />
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-60px" }}
-              variants={stagger}
-              className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5"
-            >
-              {[
-                { i: "fa-solid fa-user-group", v: stats.members, l: "এক্সপ্লোরার", c: "text-emerald-500" },
-                { i: "fa-solid fa-mountain-sun", v: stats.events, l: "ট্যুর আয়োজিত", c: "text-[#e76f51]" },
-                { i: "fa-solid fa-ticket", v: stats.bookings, l: "সিট বুকড", c: "text-blue-500" },
-                { i: "fa-solid fa-droplet", v: stats.donors, l: "রক্তদাতা", c: "text-red-500" },
-                { i: "fa-solid fa-map-location-dot", v: stats.districts, l: "জেলা ছোঁয়া", c: "text-violet-500" },
-                { i: "fa-solid fa-gamepad", v: stats.games, l: "গেম সেশন", c: "text-amber-500" },
-              ].map((s, i) => (
-                <motion.div
-                  key={i}
-                  variants={fadeUp}
-                  whileHover={prefersReduced ? {} : { y: -6, scale: 1.02 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                  className="card-shine relative overflow-hidden bg-white/80 dark:bg-[#0a1c13]/80 backdrop-blur-sm border border-gray-100 dark:border-white/5 rounded-2xl p-5 flex flex-col items-center text-center"
-                >
-                  <i className={`${s.i} ${s.c} text-2xl sm:text-3xl mb-3`} />
-                  <div className="text-3xl sm:text-4xl font-black text-gray-800 dark:text-white">
-                    <AnimatedNumber value={s.v} />
-                    <span className="text-[#e76f51]">+</span>
-                  </div>
-                  <div className="text-[10px] sm:text-xs uppercase tracking-widest text-gray-500 dark:text-gray-400 mt-1">
-                    {s.l}
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-        </section>
-      )}
-
-      {/* ═══ 5. HERO (Mask reveal + parallax + particles) ═══ */}
+      {/* ═══ 4. HERO (top of content, as before) ═══ */}
       <section ref={heroRef} className="relative py-16 sm:py-24 px-6 overflow-hidden">
         {!prefersReduced && <HeroParticles />}
 
@@ -870,210 +890,8 @@ export default function HomePage() {
         </motion.div>
       </section>
 
-      {/* ═══ 6. FEATURED UPCOMING EVENTS ═══ */}
-      {featuredEvents.length > 0 && (
-        <section className="py-14 sm:py-20 px-6 border-t border-gray-200 dark:border-white/5">
-          <div className="max-w-6xl mx-auto">
-            <SectionHeader
-              label="আসছে"
-              title="পরের ট্যুরে"
-              highlight="পা বাড়াবেন?"
-              subtitle="যে ট্যুরগুলো এখন বুকিং ওপেন। আপনার পছন্দটা বেছে নিন — বাকিটা আমরা সামলে নেব।"
-            />
-
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-60px" }}
-              variants={stagger}
-              className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
-            >
-              {featuredEvents.map((ev) => (
-                <motion.div key={ev.id} variants={fadeUp}>
-                  <motion.div
-                    whileHover={prefersReduced ? {} : { y: -8 }}
-                    transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                  >
-                    <Link
-                      href={`/event-details?id=${ev.id}`}
-                      className="card-shine group relative block overflow-hidden rounded-3xl border border-gray-100 dark:border-white/5 bg-white dark:bg-[#0a1c13] shadow-soft dark:shadow-none"
-                    >
-                      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-black">
-                        {ev.cover_photo ? (
-                          <motion.img
-                            src={ev.cover_photo}
-                            alt={ev.title}
-                            loading="lazy"
-                            className="w-full h-full object-cover"
-                            whileHover={{ scale: 1.06 }}
-                            transition={{ duration: 0.7, ease: EASE }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-700">
-                            <i className="fa-solid fa-mountain-sun text-4xl" />
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-
-                        {ev.difficulty && (
-                          <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-widest bg-white/90 dark:bg-black/70 backdrop-blur px-2.5 py-1 rounded-full text-gray-700 dark:text-white">
-                            {ev.difficulty}
-                          </span>
-                        )}
-
-                        <div className="absolute bottom-3 left-3 right-3 text-white">
-                          <div className="text-[10px] font-bold uppercase tracking-widest opacity-90">
-                            {formatDate(ev.start_date)}
-                            {ev.destination ? ` • ${ev.destination}` : ""}
-                          </div>
-                          <h3 className="font-black text-lg sm:text-xl leading-tight line-clamp-1 mt-0.5">
-                            {ev.title}
-                          </h3>
-                        </div>
-                      </div>
-
-                      <div className="p-4 flex items-center justify-between">
-                        <div className="text-gray-500 dark:text-gray-400 text-xs">
-                          {ev.tour_vibe || "ট্রেইল ট্যুর"}
-                        </div>
-                        <div className="text-right">
-                          {ev.tour_fee ? (
-                            <>
-                              <div className="text-lg font-black text-gray-800 dark:text-white">
-                                ৳ {Number(ev.tour_fee).toLocaleString()}
-                              </div>
-                              <div className="text-[9px] uppercase tracking-widest text-gray-400">
-                                জনপ্রতি
-                              </div>
-                            </>
-                          ) : (
-                            <div className="text-xs text-gray-400">
-                              যোগাযোগ করুন
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                  </motion.div>
-                </motion.div>
-              ))}
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, ease: EASE, delay: 0.2 }}
-              className="text-center mt-10"
-            >
-              <Link
-                href="/events"
-                className="inline-flex items-center gap-3 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white px-7 py-3 rounded-xl font-bold transition-colors"
-              >
-                সব ইভেন্ট <i className="fa-solid fa-arrow-right" />
-              </Link>
-            </motion.div>
-          </div>
-        </section>
-      )}
-
-      {/* ═══ 7. FEATURE HUB ═══ */}
-      <section className="py-14 sm:py-20 px-6 border-t border-gray-200 dark:border-white/5">
-        <div className="max-w-5xl mx-auto">
-          <SectionHeader
-            label="এইখানে সব আছে"
-            title="আপনার জন্য যা যা"
-            highlight="রাখা আছে"
-            subtitle="বুকিং থেকে রক্তদান, গিয়ার ভাড়া থেকে জেলা ঘোরা — সব এক জায়গায়।"
-          />
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-60px" }}
-            variants={stagger}
-            className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-5"
-          >
-            {[
-              { href: "/bloodbank", i: "fa-solid fa-droplet", t: "ব্লাড ব্যাংক", d: "জরুরি মুহূর্তে পাশে দাঁড়ান, রক্ত দিন বা নিন।", c: "text-red-500", bg: "from-red-500/10" },
-              { href: "/store", i: "fa-solid fa-shop", t: "গিয়ার স্টোর", d: "ট্রেকিং-ক্যাম্পিং গিয়ার ভাড়া বা কিনুন।", c: "text-emerald-500", bg: "from-emerald-500/10" },
-              { href: "/my-bangladesh", i: "fa-solid fa-map-location-dot", t: "মাই বাংলাদেশ", d: "৬৪ জেলার ম্যাপে আপনার পদচিহ্ন বসান।", c: "text-violet-500", bg: "from-violet-500/10" },
-              { href: "/leaderboard", i: "fa-solid fa-trophy", t: "লিডারবোর্ড", d: "কে কতদূর হাঁটল, দেখে নিন একবার।", c: "text-amber-500", bg: "from-amber-500/10" },
-              { href: "/stories", i: "fa-solid fa-book-open", t: "ট্রেইল স্টোরিজ", d: "নিজের অভিজ্ঞতা লিখুন, অন্যকে উৎসাহ দিন।", c: "text-sky-500", bg: "from-sky-500/10" },
-              { href: "/certificate", i: "fa-solid fa-award", t: "সার্টিফিকেট", d: "প্রতিটা ট্রেইলের দাম দেওয়া রসিদ, ডিজিটাল।", c: "text-pink-500", bg: "from-pink-500/10" },
-            ].map((f, i) => (
-              <motion.div key={i} variants={fadeUp}>
-                <motion.div
-                  whileHover={prefersReduced ? {} : { y: -6, scale: 1.02 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                >
-                  <Link
-                    href={f.href}
-                    className="card-shine relative flex flex-col items-start gap-3 p-5 rounded-2xl border border-gray-100 dark:border-white/5 bg-white dark:bg-[#0a1c13] overflow-hidden group"
-                  >
-                    <div
-                      className={`absolute -top-12 -right-12 w-32 h-32 rounded-full bg-gradient-to-br ${f.bg} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
-                    />
-                    <i className={`${f.i} ${f.c} text-2xl sm:text-3xl`} />
-                    <h3 className="font-black text-gray-800 dark:text-white text-base sm:text-lg">
-                      {f.t}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                      {f.d}
-                    </p>
-                    <span className="text-[#e76f51] text-xs font-bold mt-1 flex items-center gap-1.5 group-hover:gap-3 transition-all">
-                      দেখুন <i className="fa-solid fa-arrow-right" />
-                    </span>
-                  </Link>
-                </motion.div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ═══ 8. MEMORY WALL — Infinity Scroll ═══ */}
-      {pastEvents.length >= 3 && (
-        <section className="py-14 sm:py-20 border-t border-gray-200 dark:border-white/5 bg-gray-50/60 dark:bg-[#050b08]">
-          <div className="max-w-6xl mx-auto px-6 mb-10">
-            <SectionHeader
-              label="স্মৃতির ঝুলি"
-              title="পুরনো ট্যুরগুলো"
-              highlight="একবার ঘুরে আসুন"
-              subtitle="যে পথগুলো আমরা হেঁটেছি, সেই গল্পগুলো এখনো ছবিতে বেঁচে আছে।"
-            />
-          </div>
-
-          <div className="cas-marquee-wrap relative overflow-hidden">
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-32 bg-gradient-to-r from-gray-50/90 dark:from-[#050b08]/95 to-transparent z-10" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-32 bg-gradient-to-l from-gray-50/90 dark:from-[#050b08]/95 to-transparent z-10" />
-
-            <div className="cas-marquee-l flex gap-3 sm:gap-4 w-max mb-3 sm:mb-4">
-              {marqueeRow.map((ev, i) => (
-                <MemoryCard key={`a-${i}`} ev={ev} />
-              ))}
-            </div>
-
-            <div className="cas-marquee-r flex gap-3 sm:gap-4 w-max">
-              {reverseRow.map((ev, i) => (
-                <MemoryCard key={`b-${i}`} ev={ev} />
-              ))}
-            </div>
-          </div>
-
-          <div className="text-center mt-10">
-            <Link
-              href="/past-events"
-              className="inline-flex items-center gap-3 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white px-7 py-3 rounded-xl font-bold transition-colors"
-            >
-              সব স্মৃতি <i className="fa-solid fa-arrow-right" />
-            </Link>
-          </div>
-        </section>
-      )}
-
-      {/* ═══ 9. LEADERBOARD ═══ */}
-      <section className="py-16 sm:py-24 max-w-4xl mx-auto px-6 border-t border-gray-200 dark:border-white/5">
+      {/* ═══ 5. LEADERBOARD (moved up) ═══ */}
+      <section className="py-16 sm:py-20 max-w-4xl mx-auto px-6 border-t border-gray-200 dark:border-white/5">
         <motion.div
           initial="hidden"
           whileInView="visible"
@@ -1191,6 +1009,265 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+
+      {/* ═══ 6. MEMORY WALL — Infinity + Manual Scroll ═══ */}
+      {pastEvents.length >= 3 && (
+        <section className="py-14 sm:py-20 border-t border-gray-200 dark:border-white/5 bg-gray-50/60 dark:bg-[#050b08]">
+          <div className="max-w-6xl mx-auto px-6 mb-10">
+            <SectionHeader
+              label="স্মৃতির ঝুলি"
+              title="পুরনো ট্যুরগুলো"
+              highlight="একবার ঘুরে আসুন"
+              subtitle="যে পথগুলো আমরা হেঁটেছি, সেই গল্পগুলো এখনো ছবিতে বেঁচে আছে। হাত বুলিয়ে দেখুন, ইচ্ছেমতো থামুন।"
+            />
+          </div>
+
+          <div className="relative overflow-hidden">
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-32 bg-gradient-to-r from-gray-50/90 dark:from-[#050b08]/95 to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-32 bg-gradient-to-l from-gray-50/90 dark:from-[#050b08]/95 to-transparent z-10" />
+
+            <div className="px-4 sm:px-6">
+              <InfinityMarqueeRow
+                items={marqueeRow}
+                direction="left"
+                speed={0.6}
+              />
+            </div>
+            <div className="px-4 sm:px-6 mt-3 sm:mt-4">
+              <InfinityMarqueeRow
+                items={reverseRow}
+                direction="right"
+                speed={0.7}
+              />
+            </div>
+          </div>
+
+          <div className="text-center mt-10">
+            <Link
+              href="/past-events"
+              className="inline-flex items-center gap-3 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white px-7 py-3 rounded-xl font-bold transition-colors"
+            >
+              সব স্মৃতি <i className="fa-solid fa-arrow-right" />
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* ═══ 7. FEATURED UPCOMING EVENTS ═══ */}
+      {featuredEvents.length > 0 && (
+        <section className="py-14 sm:py-20 px-6 border-t border-gray-200 dark:border-white/5">
+          <div className="max-w-6xl mx-auto">
+            <SectionHeader
+              label="আসছে"
+              title="পরের ট্যুরে"
+              highlight="পা বাড়াবেন?"
+              subtitle="যে ট্যুরগুলো এখন বুকিং ওপেন। আপনার পছন্দটা বেছে নিন — বাকিটা আমরা সামলে নেব।"
+            />
+
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={stagger}
+              className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {featuredEvents.map((ev) => (
+                <motion.div key={ev.id} variants={fadeUp}>
+                  <motion.div
+                    whileHover={prefersReduced ? {} : { y: -8 }}
+                    transition={{ type: "spring", stiffness: 260, damping: 22 }}
+                  >
+                    <Link
+                      href={`/event-details?id=${ev.id}`}
+                      className="card-shine group relative block overflow-hidden rounded-3xl border border-gray-100 dark:border-white/5 bg-white dark:bg-[#0a1c13] shadow-soft dark:shadow-none"
+                    >
+                      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-black">
+                        {ev.cover_photo ? (
+                          <motion.img
+                            src={ev.cover_photo}
+                            alt={ev.title}
+                            loading="lazy"
+                            className="w-full h-full object-cover"
+                            whileHover={{ scale: 1.06 }}
+                            transition={{ duration: 0.7, ease: EASE }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-700">
+                            <i className="fa-solid fa-mountain-sun text-4xl" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+
+                        {ev.difficulty && (
+                          <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-widest bg-white/90 dark:bg-black/70 backdrop-blur px-2.5 py-1 rounded-full text-gray-700 dark:text-white">
+                            {ev.difficulty}
+                          </span>
+                        )}
+
+                        <div className="absolute bottom-3 left-3 right-3 text-white">
+                          <div className="text-[10px] font-bold uppercase tracking-widest opacity-90">
+                            {formatDate(ev.start_date)}
+                            {ev.destination ? ` • ${ev.destination}` : ""}
+                          </div>
+                          <h3 className="font-black text-lg sm:text-xl leading-tight line-clamp-1 mt-0.5">
+                            {ev.title}
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div className="p-4 flex items-center justify-between">
+                        <div className="text-gray-500 dark:text-gray-400 text-xs">
+                          {ev.tour_vibe || "ট্রেইল ট্যুর"}
+                        </div>
+                        <div className="text-right">
+                          {ev.tour_fee ? (
+                            <>
+                              <div className="text-lg font-black text-gray-800 dark:text-white">
+                                ৳ {Number(ev.tour_fee).toLocaleString()}
+                              </div>
+                              <div className="text-[9px] uppercase tracking-widest text-gray-400">
+                                জনপ্রতি
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-xs text-gray-400">
+                              যোগাযোগ করুন
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                </motion.div>
+              ))}
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, ease: EASE, delay: 0.2 }}
+              className="text-center mt-10"
+            >
+              <Link
+                href="/events"
+                className="inline-flex items-center gap-3 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white px-7 py-3 rounded-xl font-bold transition-colors"
+              >
+                সব ইভেন্ট <i className="fa-solid fa-arrow-right" />
+              </Link>
+            </motion.div>
+          </div>
+        </section>
+      )}
+
+      {/* ═══ 8. FEATURE HUB — প্রয়োজনীয় ফিচারসমূহ ═══ */}
+      <section className="py-14 sm:py-20 px-6 border-t border-gray-200 dark:border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <SectionHeader
+            title="প্রয়োজনীয়"
+            highlight="ফিচারসমূহ"
+            subtitle="বুকিং থেকে রক্তদান, গিয়ার ভাড়া থেকে জেলা ঘোরা — সব এক জায়গায়।"
+          />
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-60px" }}
+            variants={stagger}
+            className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-5"
+          >
+            {[
+              { href: "/bloodbank", i: "fa-solid fa-droplet", t: "ব্লাড ব্যাংক", d: "জরুরি মুহূর্তে পাশে দাঁড়ান, রক্ত দিন বা নিন।", c: "text-red-500", bg: "from-red-500/10" },
+              { href: "/store", i: "fa-solid fa-shop", t: "গিয়ার স্টোর", d: "ট্রেকিং-ক্যাম্পিং গিয়ার ভাড়া বা কিনুন।", c: "text-emerald-500", bg: "from-emerald-500/10" },
+              { href: "/my-bangladesh", i: "fa-solid fa-map-location-dot", t: "মাই বাংলাদেশ", d: "৬৪ জেলার ম্যাপে আপনার পদচিহ্ন বসান।", c: "text-violet-500", bg: "from-violet-500/10" },
+              { href: "/leaderboard", i: "fa-solid fa-trophy", t: "লিডারবোর্ড", d: "কে কতদূর হাঁটল, দেখে নিন একবার।", c: "text-amber-500", bg: "from-amber-500/10" },
+              { href: "/stories", i: "fa-solid fa-book-open", t: "ট্রেইল স্টোরিজ", d: "নিজের অভিজ্ঞতা লিখুন, অন্যকে উৎসাহ দিন।", c: "text-sky-500", bg: "from-sky-500/10" },
+              { href: "/certificate", i: "fa-solid fa-award", t: "সার্টিফিকেট", d: "আপনার এডভেঞ্চার সার্টিফিকেট সংগ্রহ করুন", c: "text-pink-500", bg: "from-pink-500/10" },
+            ].map((f, i) => (
+              <motion.div key={i} variants={fadeUp}>
+                <motion.div
+                  whileHover={prefersReduced ? {} : { y: -6, scale: 1.02 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 22 }}
+                >
+                  <Link
+                    href={f.href}
+                    className="card-shine relative flex flex-col items-start gap-3 p-5 rounded-2xl border border-gray-100 dark:border-white/5 bg-white dark:bg-[#0a1c13] overflow-hidden group"
+                  >
+                    <div
+                      className={`absolute -top-12 -right-12 w-32 h-32 rounded-full bg-gradient-to-br ${f.bg} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
+                    />
+                    <i className={`${f.i} ${f.c} text-2xl sm:text-3xl`} />
+                    <h3 className="font-black text-gray-800 dark:text-white text-base sm:text-lg">
+                      {f.t}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                      {f.d}
+                    </p>
+                    <span className="text-[#e76f51] text-xs font-bold mt-1 flex items-center gap-1.5 group-hover:gap-3 transition-all">
+                      দেখুন <i className="fa-solid fa-arrow-right" />
+                    </span>
+                  </Link>
+                </motion.div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ═══ 9. STATS COUNTER (moved down from top) ═══ */}
+      {stats && (
+        <section className="relative py-16 sm:py-24 px-6 border-t border-gray-200 dark:border-white/5">
+          <div
+            aria-hidden
+            className="absolute inset-0 pointer-events-none opacity-60 dark:opacity-30"
+            style={{
+              background:
+                "radial-gradient(700px circle at 50% 40%, rgba(231,111,81,0.10), transparent 55%)",
+            }}
+          />
+          <div className="max-w-5xl mx-auto relative">
+            <SectionHeader
+              label="এক নজরে"
+              title="আমরা একা হাঁটিনি"
+              highlight="কখনো"
+              subtitle="এই সোসাইটির প্রতিটা সংখ্যা একেকটা গল্প — একটা পার্ক, একটা ট্রেইল, একটা নতুন বন্ধু।"
+            />
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={stagger}
+              className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5"
+            >
+              {[
+                { i: "fa-solid fa-user-group", v: stats.members, l: "এক্সপ্লোরার", c: "text-emerald-500" },
+                { i: "fa-solid fa-mountain-sun", v: stats.events, l: "ট্যুর আয়োজিত", c: "text-[#e76f51]" },
+                { i: "fa-solid fa-ticket", v: stats.bookings, l: "সিট বুকড", c: "text-blue-500" },
+                { i: "fa-solid fa-droplet", v: stats.donors, l: "রক্তদাতা", c: "text-red-500" },
+                { i: "fa-solid fa-map-location-dot", v: stats.districts, l: "জেলা ছোঁয়া", c: "text-violet-500" },
+                { i: "fa-solid fa-gamepad", v: stats.games, l: "গেম সেশন", c: "text-amber-500" },
+              ].map((s, i) => (
+                <motion.div
+                  key={i}
+                  variants={fadeUp}
+                  whileHover={prefersReduced ? {} : { y: -6, scale: 1.02 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 22 }}
+                  className="card-shine relative overflow-hidden bg-white/80 dark:bg-[#0a1c13]/80 backdrop-blur-sm border border-gray-100 dark:border-white/5 rounded-2xl p-5 flex flex-col items-center text-center"
+                >
+                  <i className={`${s.i} ${s.c} text-2xl sm:text-3xl mb-3`} />
+                  <div className="text-3xl sm:text-4xl font-black text-gray-800 dark:text-white">
+                    <AnimatedNumber value={s.v} />
+                    <span className="text-[#e76f51]">+</span>
+                  </div>
+                  <div className="text-[10px] sm:text-xs uppercase tracking-widest text-gray-500 dark:text-gray-400 mt-1">
+                    {s.l}
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </section>
+      )}
 
       {/* ═══ 10. SOCIAL ═══ */}
       <section className="py-16 sm:py-24 bg-gray-50 dark:bg-[#050b08] border-t border-gray-200 dark:border-white/5 px-6">
