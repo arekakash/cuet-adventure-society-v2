@@ -11,10 +11,46 @@ import Cropper from "react-easy-crop";
 const geoUrl = "/bd-districts.topo.json";
 
 // ============================================
+// HELPERS
+// ============================================
+const e2b = (num) => String(num).replace(/[0-9]/g, (d) => "০১২৩৪৫৬৭৮৯"[d]);
+const safeSvgId = (name) => String(name).replace(/[^a-zA-Z0-9]/g, "_");
+const genId = () =>
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+// ============================================
 // LOCAL STORAGE
 // ============================================
 const STORAGE_KEY = "family-map-data-v2";
 const STORAGE_LIMIT_MB = 4.5;
+
+const migrateData = (raw) => {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out = {};
+  Object.entries(raw).forEach(([district, val]) => {
+    if (Array.isArray(val)) {
+      // v2 — array of members
+      const members = val
+        .filter((m) => m && typeof m === "object")
+        .map((m) => ({
+          id: m.id || genId(),
+          relation: m.relation || "other",
+          photo: m.photo || null,
+        }));
+      if (members.length > 0) out[district] = members;
+    } else if (val && typeof val === "object" && "relation" in val) {
+      // v1 — single member object
+      out[district] = [
+        {
+          id: genId(),
+          relation: val.relation || "other",
+          photo: val.photo || null,
+        },
+      ];
+    }
+  });
+  return out;
+};
 
 const loadFromStorage = () => {
   try {
@@ -32,11 +68,13 @@ const saveToStorage = (data) => {
   try {
     const json = JSON.stringify(data);
     const sizeMB = new Blob([json]).size / (1024 * 1024);
-    if (sizeMB > STORAGE_LIMIT_MB) return { success: false, reason: "quota", size: sizeMB };
+    if (sizeMB > STORAGE_LIMIT_MB)
+      return { success: false, reason: "quota", size: sizeMB };
     localStorage.setItem(STORAGE_KEY, json);
     return { success: true, size: sizeMB };
   } catch (e) {
-    if (e.name === "QuotaExceededError") return { success: false, reason: "quota" };
+    if (e.name === "QuotaExceededError")
+      return { success: false, reason: "quota" };
     return { success: false, reason: "unknown", error: e.message };
   }
 };
@@ -45,7 +83,9 @@ const clearStorage = () => {
   try {
     localStorage.removeItem(STORAGE_KEY);
     return true;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 };
 
 const getStorageSize = () => {
@@ -53,25 +93,27 @@ const getStorageSize = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return 0;
     return new Blob([raw]).size / (1024 * 1024);
-  } catch { return 0; }
+  } catch {
+    return 0;
+  }
 };
 
 // ============================================
-// BACKGROUND COLORS
+// BACKGROUND COLORS  (with solid fallback for JPEG corners)
 // ============================================
 const bgColors = [
-  { name: "ক্লাসিক হোয়াইট", value: "linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)", isDark: false },
-  { name: "সফট ক্লাউড", value: "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)", isDark: false },
-  { name: "সানরাইজ পিচ", value: "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)", isDark: false },
-  { name: "ফ্রেশ মিন্ট", value: "linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)", isDark: false },
-  { name: "রোজ মিল্ক", value: "linear-gradient(135deg, #fddb92 0%, #d1fdff 100%)", isDark: false },
-  { name: "ন্যাচার গ্রিন", value: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)", isDark: false },
-  { name: "সানসেট অরেঞ্জ", value: "linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)", isDark: false },
-  { name: "রয়্যাল ব্লু", value: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)", isDark: true },
-  { name: "ডার্ক ফরেস্ট", value: "linear-gradient(135deg, #0f3420 0%, #06180e 100%)", isDark: true },
-  { name: "ডিপ ওশান", value: "linear-gradient(135deg, #0f172a 0%, #020617 100%)", isDark: true },
-  { name: "ম্যাজিক পার্পল", value: "linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%)", isDark: true },
-  { name: "চেরি রেড", value: "linear-gradient(135deg, #870000 0%, #190a05 100%)", isDark: true },
+  { name: "ক্লাসিক হোয়াইট", value: "linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)", solid: "#f5f6f7", isDark: false },
+  { name: "সফট ক্লাউড", value: "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)", solid: "#b7c4fe", isDark: false },
+  { name: "সানরাইজ পিচ", value: "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)", solid: "#fdd4b8", isDark: false },
+  { name: "ফ্রেশ মিন্ট", value: "linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)", solid: "#b5f18d", isDark: false },
+  { name: "রোজ মিল্ক", value: "linear-gradient(135deg, #fddb92 0%, #d1fdff 100%)", solid: "#e7ecc9", isDark: false },
+  { name: "ন্যাচার গ্রিন", value: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)", solid: "#24c48c", isDark: false },
+  { name: "সানসেট অরেঞ্জ", value: "linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)", solid: "#fe996d", isDark: false },
+  { name: "রয়্যাল ব্লু", value: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)", solid: "#244785", isDark: true },
+  { name: "ডার্ক ফরেস্ট", value: "linear-gradient(135deg, #0f3420 0%, #06180e 100%)", solid: "#0a2617", isDark: true },
+  { name: "ডিপ ওশান", value: "linear-gradient(135deg, #0f172a 0%, #020617 100%)", solid: "#080f20", isDark: true },
+  { name: "ম্যাজিক পার্পল", value: "linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%)", solid: "#6c17e1", isDark: true },
+  { name: "চেরি রেড", value: "linear-gradient(135deg, #870000 0%, #190a05 100%)", solid: "#500302", isDark: true },
 ];
 
 const unvisitedColors = [
@@ -80,7 +122,7 @@ const unvisitedColors = [
   { name: "হলকা নীল", value: "#e0f2fe" },
   { name: "মিন্ট গ্রিন", value: "#d1fae5" },
   { name: "সাদা", value: "#ffffff" },
-  { name: "ডার্ক গ্রে", value: "#1e293b" }
+  { name: "ডার্ক গ্রে", value: "#1e293b" },
 ];
 
 // ============================================
@@ -89,61 +131,80 @@ const unvisitedColors = [
 const sideColors = {
   paternal: { value: "#3b82f6", label: "বাবার দিকের আত্মীয়" },
   maternal: { value: "#ec4899", label: "মায়ের দিকের আত্মীয়" },
-  both:     { value: "#a855f7", label: "উভয় দিকের আত্মীয়" },
-  own:      { value: "#10b981", label: "নিজ প্রজন্মের আত্মীয়" },
-  in_law:   { value: "#f59e0b", label: "শ্বশুরবাড়ির আত্মীয়" },
-  other:    { value: "#64748b", label: "অন্যান্য আত্মীয়" },
+  both: { value: "#a855f7", label: "উভয় দিকের আত্মীয়" },
+  own: { value: "#10b981", label: "নিজ প্রজন্মের আত্মীয়" },
+  in_law: { value: "#f59e0b", label: "শ্বশুরবাড়ির আত্মীয়" },
+  other: { value: "#64748b", label: "অন্যান্য আত্মীয়" },
 };
 
 // ============================================
 // FAMILY RELATIONS
 // ============================================
 const familyRelations = [
-  { key: "father",       bn: "বাবা",   side: "paternal" },
-  { key: "grandfather_p",bn: "দাদা",   side: "paternal" },
-  { key: "grandmother_p",bn: "দাদি",   side: "paternal" },
-  { key: "uncle_p",      bn: "চাচা",   side: "paternal" },
-  { key: "aunt_p",       bn: "চাচি",   side: "paternal" },
-  { key: "aunt_p2",      bn: "ফুফু",   side: "paternal" },
-  { key: "uncle_p2",     bn: "ফুফা",   side: "paternal" },
-  { key: "mother",       bn: "মা",     side: "maternal" },
-  { key: "grandfather_m",bn: "নানা",   side: "maternal" },
-  { key: "grandmother_m",bn: "নানি",   side: "maternal" },
-  { key: "uncle_m",      bn: "মামা",   side: "maternal" },
-  { key: "aunt_m",       bn: "মামি",   side: "maternal" },
-  { key: "aunt_m2",      bn: "খালা",   side: "maternal" },
-  { key: "uncle_m2",     bn: "খালু",   side: "maternal" },
-  { key: "brother",      bn: "ভাই",    side: "own" },
-  { key: "sister",       bn: "বোন",    side: "own" },
-  { key: "cousin",       bn: "কাজিন",  side: "own" },
-  { key: "father_in_law",bn: "শ্বশুর",  side: "in_law" },
-  { key: "mother_in_law",bn: "শাশুড়ি", side: "in_law" },
-  { key: "other",        bn: "অন্যান্য",side: "other" },
+  { key: "father", bn: "বাবা", side: "paternal" },
+  { key: "grandfather_p", bn: "দাদা", side: "paternal" },
+  { key: "grandmother_p", bn: "দাদি", side: "paternal" },
+  { key: "uncle_p", bn: "চাচা", side: "paternal" },
+  { key: "aunt_p", bn: "চাচি", side: "paternal" },
+  { key: "aunt_p2", bn: "ফুফু", side: "paternal" },
+  { key: "uncle_p2", bn: "ফুফা", side: "paternal" },
+  { key: "mother", bn: "মা", side: "maternal" },
+  { key: "grandfather_m", bn: "নানা", side: "maternal" },
+  { key: "grandmother_m", bn: "নানি", side: "maternal" },
+  { key: "uncle_m", bn: "মামা", side: "maternal" },
+  { key: "aunt_m", bn: "মামি", side: "maternal" },
+  { key: "aunt_m2", bn: "খালা", side: "maternal" },
+  { key: "uncle_m2", bn: "খালু", side: "maternal" },
+  { key: "brother", bn: "ভাই", side: "own" },
+  { key: "sister", bn: "বোন", side: "own" },
+  { key: "cousin", bn: "কাজিন", side: "own" },
+  { key: "father_in_law", bn: "শ্বশুর", side: "in_law" },
+  { key: "mother_in_law", bn: "শাশুড়ি", side: "in_law" },
+  { key: "other", bn: "অন্যান্য", side: "other" },
 ];
 
-const getRelationLabel = (key) => familyRelations.find(r => r.key === key)?.bn || key;
-const getRelationSide = (key) => familyRelations.find(r => r.key === key)?.side || "other";
+const getRelationLabel = (key) =>
+  familyRelations.find((r) => r.key === key)?.bn || key;
+const getRelationSide = (key) =>
+  familyRelations.find((r) => r.key === key)?.side || "other";
+
+// Priority order for picking a district's display side (when multiple sides present)
+const SIDE_PRIORITY = ["paternal", "maternal", "own", "in_law", "other"];
+
+const getDistrictSide = (members) => {
+  if (!Array.isArray(members) || members.length === 0) return null;
+  const sides = new Set(members.map((m) => getRelationSide(m.relation)));
+  // If BOTH paternal AND maternal present → "both" color
+  if (sides.has("paternal") && sides.has("maternal")) return "both";
+  // Otherwise, pick the highest-priority side
+  for (const s of SIDE_PRIORITY) {
+    if (sides.has(s)) return s;
+  }
+  return "other";
+};
 
 // ============================================
-// HELPERS
+// NAME NORMALIZATION
 // ============================================
-const e2b = (num) => String(num).replace(/[0-9]/g, d => '০১২৩৪৫৬৭৮৯'[d]);
-const safeSvgId = (name) => String(name).replace(/[^a-zA-Z0-9]/g, '_');
-
 const standardMap = {
-  "Chapainababganj": "Chapainawabganj", "Nawabganj": "Chapainawabganj", "Netrakona": "Netrokona",
-  "Panchagar": "Panchagarh", "Bramhanbaria": "Brahmanbaria", "Chittagong": "Chattogram", "Coxs Bazar": "Cox's Bazar"
+  Chapainababganj: "Chapainawabganj",
+  Nawabganj: "Chapainawabganj",
+  Netrakona: "Netrokona",
+  Panchagar: "Panchagarh",
+  Bramhanbaria: "Brahmanbaria",
+  Chittagong: "Chattogram",
+  "Coxs Bazar": "Cox's Bazar",
 };
 
 const districtBn = {
-  "Barguna": "বরগুনা", "Barishal": "বরিশাল", "Bhola": "ভোলা", "Jhalokati": "ঝালকাঠি", "Patuakhali": "পটুয়াখালী", "Pirojpur": "পিরোজপুর",
-  "Bandarban": "বান্দরবান", "Brahmanbaria": "ব্রাহ্মণবাড়িয়া", "Chandpur": "চাঁদপুর", "Chattogram": "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", "Cumilla": "কুমিল্লা", "Feni": "ফেনী", "Khagrachhari": "খাগড়াছড়ি", "Lakshmipur": "লক্ষ্মীপুর", "Noakhali": "নোয়াখালী", "Rangamati": "রাঙামাটি",
-  "Dhaka": "ঢাকা", "Faridpur": "ফরিদপুর", "Gazipur": "গাজীপুর", "Gopalganj": "গোপালগঞ্জ", "Kishoreganj": "কিশোরগঞ্জ", "Madaripur": "মাদারীপুর", "Manikganj": "মানিকগঞ্জ", "Munshiganj": "মুন্সীগঞ্জ", "Narayanganj": "নারায়ণগঞ্জ", "Narsingdi": "নরসিংদী", "Rajbari": "রাজবাড়ী", "Shariatpur": "শরীয়তপুর", "Tangail": "টাঙ্গাইল",
-  "Bagerhat": "বাগেরহাট", "Chuadanga": "চুয়াডাঙ্গা", "Jashore": "যশোর", "Jhenaidah": "ঝিনাইদহ", "Khulna": "খুলনা", "Kushtia": "কুষ্টিয়া", "Magura": "মাগুরা", "Meherpur": "মেহেরপুর", "Narail": "নড়াইল", "Satkhira": "সাতক্ষীরা",
-  "Jamalpur": "জামালপুর", "Mymensingh": "ময়মনসিংহ", "Netrokona": "নেত্রকোনা", "Sherpur": "শেরপুর",
-  "Bogura": "বগুড়া", "Chapainawabganj": "চাঁপাইনবাবগঞ্জ", "Joypurhat": "জয়পুরহাট", "Naogaon": "নওগাঁ", "Natore": "নাটোর", "Pabna": "পাবনা", "Rajshahi": "রাজশাহী", "Sirajganj": "সিরাজগঞ্জ",
-  "Dinajpur": "দিনাজপুর", "Gaibandha": "গাইবান্ধা", "Kurigram": "কুড়িগ্রাম", "Lalmonirhat": "লালমনিরহাট", "Nilphamari": "নীলফামারী", "Panchagarh": "পঞ্চগড়", "Rangpur": "রংপুর", "Thakurgaon": "ঠাকুরগাঁও",
-  "Habiganj": "হবিগঞ্জ", "Moulvibazar": "মৌলভীবাজার", "Sunamganj": "সুনামগঞ্জ", "Sylhet": "সিলেট"
+  Barguna: "বরগুনা", Barishal: "বরিশাল", Bhola: "ভোলা", Jhalokati: "ঝালকাঠি", Patuakhali: "পটুয়াখালী", Pirojpur: "পিরোজপুর",
+  Bandarban: "বান্দরবান", Brahmanbaria: "ব্রাহ্মণবাড়িয়া", Chandpur: "চাঁদপুর", Chattogram: "চট্টগ্রাম", "Cox's Bazar": "কক্সবাজার", Cumilla: "কুমিল্লা", Feni: "ফেনী", Khagrachhari: "খাগড়াছড়ি", Lakshmipur: "লক্ষ্মীপুর", Noakhali: "নোয়াখালী", Rangamati: "রাঙামাটি",
+  Dhaka: "ঢাকা", Faridpur: "ফরিদপুর", Gazipur: "গাজীপুর", Gopalganj: "গোপালগঞ্জ", Kishoreganj: "কিশোরগঞ্জ", Madaripur: "মাদারীপুর", Manikganj: "মানিকগঞ্জ", Munshiganj: "মুন্সীগঞ্জ", Narayanganj: "নারায়ণগঞ্জ", Narsingdi: "নরসিংদী", Rajbari: "রাজবাড়ী", Shariatpur: "শরীয়তপুর", Tangail: "টাঙ্গাইল",
+  Bagerhat: "বাগেরহাট", Chuadanga: "চুয়াডাঙ্গা", Jashore: "যশোর", Jhenaidah: "ঝিনাইদহ", Khulna: "খুলনা", Kushtia: "কুষ্টিয়া", Magura: "মাগুরা", Meherpur: "মেহেরপুর", Narail: "নড়াইল", Satkhira: "সাতক্ষীরা",
+  Jamalpur: "জামালপুর", Mymensingh: "ময়মনসিংহ", Netrokona: "নেত্রকোনা", Sherpur: "শেরপুর",
+  Bogura: "বগুড়া", Chapainawabganj: "চাঁপাইনবাবগঞ্জ", Joypurhat: "জয়পুরহাট", Naogaon: "নওগাঁ", Natore: "নাটোর", Pabna: "পাবনা", Rajshahi: "রাজশাহী", Sirajganj: "সিরাজগঞ্জ",
+  Dinajpur: "দিনাজপুর", Gaibandha: "গাইবান্ধা", Kurigram: "কুড়িগ্রাম", Lalmonirhat: "লালমনিরহাট", Nilphamari: "নীলফামারী", Panchagarh: "পঞ্চগড়", Rangpur: "রংপুর", Thakurgaon: "ঠাকুরগাঁও",
+  Habiganj: "হবিগঞ্জ", Moulvibazar: "মৌলভীবাজার", Sunamganj: "সুনামগঞ্জ", Sylhet: "সিলেট",
 };
 
 const bangladeshDivisions = [
@@ -154,7 +215,7 @@ const bangladeshDivisions = [
   { name: "রাজশাহী", districts: ["Bogura", "Chapainawabganj", "Joypurhat", "Naogaon", "Natore", "Pabna", "Rajshahi", "Sirajganj"] },
   { name: "রংপুর", districts: ["Dinajpur", "Gaibandha", "Kurigram", "Lalmonirhat", "Nilphamari", "Panchagarh", "Rangpur", "Thakurgaon"] },
   { name: "বরিশাল", districts: ["Barguna", "Barishal", "Bhola", "Jhalokati", "Patuakhali", "Pirojpur"] },
-  { name: "ময়মনসিংহ", districts: ["Jamalpur", "Mymensingh", "Netrokona", "Sherpur"] }
+  { name: "ময়মনসিংহ", districts: ["Jamalpur", "Mymensingh", "Netrokona", "Sherpur"] },
 ];
 
 // ============================================
@@ -162,7 +223,7 @@ const bangladeshDivisions = [
 // ============================================
 const loadImageWithEXIF = async (file) => {
   try {
-    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
     const canvas = document.createElement("canvas");
     canvas.width = bitmap.width;
     canvas.height = bitmap.height;
@@ -196,7 +257,6 @@ const getCroppedImg = async (imageSrc, pixelCrop, maxSize = 300, quality = 0.75)
 
   canvas.width = targetWidth;
   canvas.height = targetHeight;
-
   ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, targetWidth, targetHeight);
 
   return canvas.toDataURL("image/jpeg", quality);
@@ -205,42 +265,140 @@ const getCroppedImg = async (imageSrc, pixelCrop, maxSize = 300, quality = 0.75)
 // ============================================
 // MEMOIZED GEOGRAPHY
 // ============================================
-const MemoizedGeography = memo(({ geo, districtName, fillColor, patternUrl, strokeColor, isDarkBg, onClick, hoverStroke }) => {
-  const fill = patternUrl ? `url(#pattern-${safeSvgId(districtName)})` : fillColor;
+const MemoizedGeography = memo(
+  function MemoizedGeography({ geo, districtName, fillColor, patternUrl, strokeColor, isDarkBg, onClick, hoverStroke }) {
+    const fill = patternUrl ? `url(#pattern-${safeSvgId(districtName)})` : fillColor;
 
-  return (
-    <Geography
-      geography={geo}
-      onClick={() => onClick(districtName)}
-      style={{
-        default: {
-          fill,
-          outline: "none",
-          stroke: strokeColor,
-          strokeWidth: patternUrl ? 1.2 : 0.7,
-          transition: "all 0.3s ease"
-        },
-        hover: {
-          fill: patternUrl ? `url(#pattern-${safeSvgId(districtName)})` : "#475569",
-          outline: "none",
-          stroke: hoverStroke,
-          strokeWidth: 2,
-          cursor: "pointer"
-        }
-      }}
-    />
-  );
-}, (prev, next) => {
-  return prev.geo === next.geo &&
-         prev.fillColor === next.fillColor &&
-         prev.patternUrl === next.patternUrl &&
-         prev.strokeColor === next.strokeColor &&
-         prev.isDarkBg === next.isDarkBg;
-});
-MemoizedGeography.displayName = 'MemoizedGeography';
+    return (
+      <Geography
+        geography={geo}
+        onClick={() => onClick(districtName)}
+        style={{
+          default: {
+            fill,
+            outline: "none",
+            stroke: strokeColor,
+            strokeWidth: patternUrl ? 1.2 : 0.7,
+            transition: "all 0.3s ease",
+          },
+          hover: {
+            fill: patternUrl ? `url(#pattern-${safeSvgId(districtName)})` : "#475569",
+            outline: "none",
+            stroke: hoverStroke,
+            strokeWidth: 2,
+            cursor: "pointer",
+          },
+        }}
+      />
+    );
+  },
+  (prev, next) =>
+    prev.geo === next.geo &&
+    prev.districtName === next.districtName &&
+    prev.fillColor === next.fillColor &&
+    prev.patternUrl === next.patternUrl &&
+    prev.strokeColor === next.strokeColor &&
+    prev.isDarkBg === next.isDarkBg &&
+    prev.hoverStroke === next.hoverStroke
+);
+MemoizedGeography.displayName = "MemoizedGeography";
 
 // ============================================
-// DISTRICT FORM SUB-COMPONENT
+// MEMBER LIST (district modal — list view)
+// ============================================
+function MemberList({ members, onEdit, onDelete, onAdd }) {
+  if (!members || members.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+          <i className="fa-solid fa-user-plus text-3xl text-gray-400"></i>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+          এই জেলায় এখনো কোনো আত্মীয় যোগ করা হয়নি
+        </p>
+        <button
+          onClick={onAdd}
+          className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-black text-sm rounded-xl shadow-lg hover:-translate-y-0.5 transition-all"
+        >
+          <i className="fa-solid fa-plus"></i> প্রথম আত্মীয় যোগ করুন
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {members.map((member) => {
+        const side = getRelationSide(member.relation);
+        const color = sideColors[side].value;
+        return (
+          <div
+            key={member.id}
+            className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700"
+          >
+            {/* Avatar */}
+            <div
+              className="w-12 h-12 rounded-full overflow-hidden border-2 shrink-0"
+              style={{ borderColor: color }}
+            >
+              {member.photo ? (
+                <img src={member.photo} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div
+                  className="w-full h-full flex items-center justify-center"
+                  style={{ background: color + "20" }}
+                >
+                  <i className="fa-solid fa-user text-lg" style={{ color }}></i>
+                </div>
+              )}
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-gray-900 dark:text-white text-sm truncate">
+                {getRelationLabel(member.relation)}
+              </p>
+              <p
+                className="text-[10px] font-bold mt-0.5 truncate"
+                style={{ color }}
+              >
+                {sideColors[side].label}
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-1.5 shrink-0">
+              <button
+                onClick={() => onEdit(member)}
+                aria-label="সম্পাদনা"
+                className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-500/20 flex items-center justify-center transition-colors"
+              >
+                <i className="fa-solid fa-pen text-xs"></i>
+              </button>
+              <button
+                onClick={() => onDelete(member.id)}
+                aria-label="মুছুন"
+                className="w-9 h-9 rounded-full bg-red-50 dark:bg-red-500/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-500/20 flex items-center justify-center transition-colors"
+              >
+                <i className="fa-solid fa-trash-can text-xs"></i>
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      <button
+        onClick={onAdd}
+        className="w-full py-3 rounded-xl font-bold text-sm border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-emerald-400 hover:text-emerald-500 dark:hover:border-emerald-500 dark:hover:text-emerald-400 transition-colors mt-2"
+      >
+        <i className="fa-solid fa-plus mr-1.5"></i> নতুন আত্মীয় যোগ করুন
+      </button>
+    </div>
+  );
+}
+
+// ============================================
+// DISTRICT FORM SUB-COMPONENT (add / edit)
 // ============================================
 function DistrictForm({
   formPhoto,
@@ -250,8 +408,7 @@ function DistrictForm({
   onRemovePhoto,
   onSave,
   onCancel,
-  onDelete,
-  hasExisting,
+  isEditing,
 }) {
   const selectedSide = getRelationSide(formRelation);
   const selectedColor = sideColors[selectedSide].value;
@@ -270,6 +427,7 @@ function DistrictForm({
             </div>
             <button
               onClick={onRemovePhoto}
+              aria-label="ছবি মুছুন"
               className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-red-500 text-white shadow-lg hover:bg-red-600 flex items-center justify-center transition-colors"
             >
               <i className="fa-solid fa-xmark"></i>
@@ -340,14 +498,6 @@ function DistrictForm({
 
       {/* Actions */}
       <div className="flex gap-3 pt-2">
-        {hasExisting && (
-          <button
-            onClick={onDelete}
-            className="px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors border border-red-200 dark:border-transparent flex items-center justify-center gap-1.5"
-          >
-            <i className="fa-solid fa-trash-can text-xs"></i> মুছুন
-          </button>
-        )}
         <button
           onClick={onCancel}
           className="flex-1 py-3 rounded-xl font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -362,7 +512,7 @@ function DistrictForm({
           }}
         >
           <i className="fa-solid fa-check mr-1.5"></i>
-          {hasExisting ? "আপডেট" : "যোগ করুন"}
+          {isEditing ? "আপডেট" : "যোগ করুন"}
         </button>
       </div>
     </div>
@@ -373,7 +523,7 @@ function DistrictForm({
 // MAIN COMPONENT
 // ============================================
 export default function FamilyMapPage() {
-  // familyData = { districtName: { relation, photo } }
+  // familyData = { districtName: [{ id, relation, photo }, ...] }
   const [familyData, setFamilyData] = useState({});
   const isInitialMount = useRef(true);
   const saveTimeoutRef = useRef(null);
@@ -389,9 +539,12 @@ export default function FamilyMapPage() {
 
   // Modal state
   const [familyModalDistrict, setFamilyModalDistrict] = useState(null);
+  const [modalView, setModalView] = useState("list"); // "list" | "form"
+  const [editingMemberId, setEditingMemberId] = useState(null);
+
+  // Form state
   const [formRelation, setFormRelation] = useState("father");
   const [formPhoto, setFormPhoto] = useState(null);
-  const [formOriginalPhoto, setFormOriginalPhoto] = useState(null);
 
   // Cropper state
   const [rawImage, setRawImage] = useState(null);
@@ -401,31 +554,16 @@ export default function FamilyMapPage() {
 
   const [downloading, setDownloading] = useState(false);
 
-  const isDarkBg = bgColors.find((c) => c.value === bgColor)?.isDark ?? true;
+  const currentBgObj = bgColors.find((c) => c.value === bgColor);
+  const isDarkBg = currentBgObj?.isDark ?? true;
+  const fallbackColor = currentBgObj?.solid || (isDarkBg ? "#0a1c13" : "#fcf9f2");
 
   // ============ EFFECTS ============
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
     const saved = loadFromStorage();
     if (saved && typeof saved === "object") {
-      // Migrate from v1 array format if needed
-      const migrated = {};
-      Object.entries(saved).forEach(([district, val]) => {
-        if (Array.isArray(val)) {
-          // v1 format: pick the first member
-          if (val.length > 0) {
-            migrated[district] = {
-              relation: val[0].relation || "other",
-              photo: val[0].photo || null,
-            };
-          }
-        } else if (val && typeof val === "object" && "relation" in val) {
-          migrated[district] = {
-            relation: val.relation || "other",
-            photo: val.photo || null,
-          };
-        }
-      });
+      const migrated = migrateData(saved);
       setFamilyData(migrated);
       setStorageStatus({ size: getStorageSize(), error: null });
     }
@@ -452,20 +590,30 @@ export default function FamilyMapPage() {
 
   // ============ STATS ============
   const stats = (() => {
-    let paternal = 0, maternal = 0, own = 0, inLaw = 0;
-    Object.values(familyData).forEach((data) => {
-      const side = getRelationSide(data.relation);
-      if (side === "paternal") paternal++;
+    let paternal = 0, maternal = 0, both = 0, own = 0, inLaw = 0, other = 0;
+    let totalMembers = 0;
+
+    Object.values(familyData).forEach((members) => {
+      if (!Array.isArray(members) || members.length === 0) return;
+      totalMembers += members.length;
+      const side = getDistrictSide(members);
+      if (side === "both") both++;
+      else if (side === "paternal") paternal++;
       else if (side === "maternal") maternal++;
       else if (side === "own") own++;
       else if (side === "in_law") inLaw++;
+      else other++;
     });
+
     return {
       paternal,
       maternal,
+      both,
       own,
       inLaw,
-      districts: Object.keys(familyData).length,
+      other,
+      districts: paternal + maternal + both + own + inLaw + other,
+      totalMembers,
     };
   })();
 
@@ -474,50 +622,114 @@ export default function FamilyMapPage() {
   // ============ MODAL HANDLERS ============
   const openDistrictModal = useCallback(
     (districtName) => {
-      const existing = familyData[districtName];
+      const members = familyData[districtName];
       setFamilyModalDistrict(districtName);
-      if (existing) {
-        setFormRelation(existing.relation || "father");
-        setFormPhoto(existing.photo || null);
-        setFormOriginalPhoto(existing.photo || null);
-      } else {
+      if (!Array.isArray(members) || members.length === 0) {
+        // Empty district — go straight to add form
+        setModalView("form");
+        setEditingMemberId(null);
         setFormRelation("father");
         setFormPhoto(null);
-        setFormOriginalPhoto(null);
+      } else {
+        setModalView("list");
+        setEditingMemberId(null);
+        setFormRelation("father");
+        setFormPhoto(null);
       }
     },
     [familyData]
   );
 
+  // Stable onClick wrapper (so memoized geography doesn't re-render on every familyData change)
+  const openDistrictModalRef = useRef(null);
+  openDistrictModalRef.current = openDistrictModal;
+  const stableOnMapClick = useCallback((name) => {
+    openDistrictModalRef.current?.(name);
+  }, []);
+
   const closeDistrictModal = () => {
     setFamilyModalDistrict(null);
+    setModalView("list");
+    setEditingMemberId(null);
     setFormRelation("father");
     setFormPhoto(null);
-    setFormOriginalPhoto(null);
   };
 
-  const saveDistrict = () => {
+  const startAddMember = () => {
+    setEditingMemberId(null);
+    setFormRelation("father");
+    setFormPhoto(null);
+    setModalView("form");
+  };
+
+  const startEditMember = (member) => {
+    setEditingMemberId(member.id);
+    setFormRelation(member.relation || "father");
+    setFormPhoto(member.photo || null);
+    setModalView("form");
+  };
+
+  const cancelForm = () => {
+    const members = familyData[familyModalDistrict] || [];
+    if (members.length > 0) {
+      // Return to list view
+      setModalView("list");
+      setEditingMemberId(null);
+      setFormRelation("father");
+      setFormPhoto(null);
+    } else {
+      // Empty district — close modal
+      closeDistrictModal();
+    }
+  };
+
+  const saveMember = () => {
     const district = familyModalDistrict;
     if (!district) return;
-    setFamilyData((prev) => ({
-      ...prev,
-      [district]: {
-        relation: formRelation,
-        photo: formPhoto,
-      },
-    }));
-    closeDistrictModal();
+
+    setFamilyData((prev) => {
+      const current = Array.isArray(prev[district]) ? prev[district] : [];
+      let updated;
+      if (editingMemberId) {
+        // Update existing member
+        updated = current.map((m) =>
+          m.id === editingMemberId
+            ? { ...m, relation: formRelation, photo: formPhoto }
+            : m
+        );
+      } else {
+        // Add new member
+        updated = [
+          ...current,
+          {
+            id: genId(),
+            relation: formRelation,
+            photo: formPhoto,
+          },
+        ];
+      }
+      return { ...prev, [district]: updated };
+    });
+
+    // Return to list view
+    setModalView("list");
+    setEditingMemberId(null);
+    setFormRelation("father");
+    setFormPhoto(null);
   };
 
-  const deleteDistrict = () => {
-    if (!window.confirm("এই জেলার তথ্য মুছে ফেলবেন?")) return;
+  const deleteMember = (memberId) => {
+    if (!window.confirm("এই আত্মীয়কে মুছে ফেলবেন?")) return;
     const district = familyModalDistrict;
     setFamilyData((prev) => {
-      const nd = { ...prev };
-      delete nd[district];
-      return nd;
+      const current = (prev[district] || []).filter((m) => m.id !== memberId);
+      if (current.length === 0) {
+        const nd = { ...prev };
+        delete nd[district];
+        return nd;
+      }
+      return { ...prev, [district]: current };
     });
-    closeDistrictModal();
   };
 
   // ============ PHOTO ============
@@ -562,9 +774,11 @@ export default function FamilyMapPage() {
     await new Promise((r) => setTimeout(r, 500));
 
     try {
+      // ← Fix: use solid fallback color instead of transparent, so rounded
+      //   corners get filled with a colour matching the theme (no black edges)
       const imgData = await toJpeg(mapRef.current, {
         quality: 1.0,
-        backgroundColor: "transparent",
+        backgroundColor: fallbackColor,
         pixelRatio: 5,
         cacheBust: false,
       });
@@ -617,7 +831,8 @@ export default function FamilyMapPage() {
       try {
         const parsed = JSON.parse(ev.target.result);
         if (parsed && typeof parsed === "object") {
-          setFamilyData(parsed);
+          const migrated = migrateData(parsed);
+          setFamilyData(migrated);
           alert("✅ ডেটা সফলভাবে লোড হয়েছে!");
         } else {
           alert("❌ ফাইলের format সঠিক নয়");
@@ -632,6 +847,7 @@ export default function FamilyMapPage() {
 
   const handleZoomIn = () => setMapZoom((p) => Math.min(p + 0.3, 3));
   const handleZoomOut = () => setMapZoom((p) => Math.max(p - 0.3, 1));
+
   const resetColors = () => {
     setBgColor(bgColors[0].value);
     setUnvisitedColor(unvisitedColors[0].value);
@@ -644,6 +860,10 @@ export default function FamilyMapPage() {
       setStorageStatus({ size: 0, error: null });
     }
   };
+
+  const currentMembers = familyModalDistrict
+    ? familyData[familyModalDistrict] || []
+    : [];
 
   // ============ RENDER ============
   return (
@@ -710,44 +930,58 @@ export default function FamilyMapPage() {
         </div>
       )}
 
-      {/* DISTRICT MODAL */}
+      {/* DISTRICT MODAL — list / form */}
       {familyModalDistrict && !rawImage && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={closeDistrictModal}
           ></div>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md relative z-10 shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-start">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md relative z-10 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-start shrink-0">
               <div>
                 <h3 className="text-2xl font-black text-gray-900 dark:text-white">
                   {districtBn[familyModalDistrict] || familyModalDistrict}
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {familyData[familyModalDistrict]
-                    ? "আত্মীয়ের তথ্য আপডেট করুন"
+                  {modalView === "list"
+                    ? `${e2b(currentMembers.length)} জন আত্মীয়`
+                    : editingMemberId
+                    ? "আত্মীয়ের তথ্য সম্পাদনা"
                     : "নতুন আত্মীয় যোগ করুন"}
                 </p>
               </div>
               <button
                 onClick={closeDistrictModal}
-                className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center transition-colors"
+                aria-label="বন্ধ করুন"
+                className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center transition-colors shrink-0"
               >
                 <i className="fa-solid fa-xmark text-gray-600 dark:text-gray-300"></i>
               </button>
             </div>
-            <div className="p-6">
-              <DistrictForm
-                formPhoto={formPhoto}
-                formRelation={formRelation}
-                setFormRelation={setFormRelation}
-                onPhotoClick={handlePhotoClick}
-                onRemovePhoto={removeFormPhoto}
-                onSave={saveDistrict}
-                onCancel={closeDistrictModal}
-                onDelete={deleteDistrict}
-                hasExisting={!!familyData[familyModalDistrict]}
-              />
+
+            {/* Body */}
+            <div className="p-6 overflow-y-auto flex-1">
+              {modalView === "list" ? (
+                <MemberList
+                  members={currentMembers}
+                  onEdit={startEditMember}
+                  onDelete={deleteMember}
+                  onAdd={startAddMember}
+                />
+              ) : (
+                <DistrictForm
+                  formPhoto={formPhoto}
+                  formRelation={formRelation}
+                  setFormRelation={setFormRelation}
+                  onPhotoClick={handlePhotoClick}
+                  onRemovePhoto={removeFormPhoto}
+                  onSave={saveMember}
+                  onCancel={cancelForm}
+                  isEditing={!!editingMemberId}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -771,7 +1005,10 @@ export default function FamilyMapPage() {
             </h1>
             <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm inline-block">
               <i className="fa-solid fa-people-roof text-blue-500 mr-2"></i>
-              আপনার পরিবার দেশের কোথায় কোথায় ছড়িয়ে আছে? প্রতিটা জেলায় একজন আত্মীয়ের সম্পর্ক ও ছবি যোগ করুন। আপনার data স্বয়ংক্রিয়ভাবে ব্রাউজারে save হবে — refresh করলেও থাকবে!
+              আপনার পরিবার দেশের কোথায় কোথায় ছড়িয়ে আছে? প্রতিটা জেলায় একাধিক
+              আত্মীয়ের সম্পর্ক ও ছবি যোগ করুন। বাবা-মা উভয় দিকের আত্মীয় একই
+              জেলায় থাকলে সেটি স্বয়ংক্রিয়ভাবে উভয় দিকের রঙে চিহ্নিত হবে। আপনার
+              data স্বয়ংক্রিয়ভাবে ব্রাউজারে save হবে — refresh করলেও থাকবে!
             </p>
           </div>
         </div>
@@ -787,7 +1024,7 @@ export default function FamilyMapPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {bangladeshDivisions.map((division) => {
               const divDistrictCount = division.districts.filter(
-                (d) => familyData[d]
+                (d) => Array.isArray(familyData[d]) && familyData[d].length > 0
               ).length;
 
               return (
@@ -808,11 +1045,14 @@ export default function FamilyMapPage() {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {division.districts.map((dist) => {
-                      const data = familyData[dist];
-                      const hasData = !!data;
-                      const side = hasData ? getRelationSide(data.relation) : null;
+                      const members = familyData[dist];
+                      const hasData = Array.isArray(members) && members.length > 0;
+                      const districtSide = hasData ? getDistrictSide(members) : null;
                       const bngName = districtBn[dist] || dist;
-                      const sideColor = side ? sideColors[side].value : null;
+                      const sideColor = districtSide
+                        ? sideColors[districtSide].value
+                        : null;
+                      const memberCount = hasData ? members.length : 0;
 
                       return (
                         <button
@@ -842,6 +1082,17 @@ export default function FamilyMapPage() {
                           >
                             {bngName}
                           </span>
+                          {memberCount > 1 && (
+                            <span
+                              className="text-[9px] font-black px-1.5 rounded-full"
+                              style={{
+                                background: sideColor + "25",
+                                color: sideColor,
+                              }}
+                            >
+                              {e2b(memberCount)}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -891,8 +1142,10 @@ export default function FamilyMapPage() {
                   >
                     <defs>
                       {viewMode === "photos" &&
-                        Object.entries(familyData).map(([district, data]) => {
-                          if (!data.photo) return null;
+                        Object.entries(familyData).map(([district, members]) => {
+                          if (!Array.isArray(members)) return null;
+                          const photoMember = members.find((m) => m.photo);
+                          if (!photoMember) return null;
                           return (
                             <pattern
                               key={`pattern-${district}`}
@@ -903,7 +1156,7 @@ export default function FamilyMapPage() {
                               preserveAspectRatio="xMidYMid slice"
                             >
                               <image
-                                href={data.photo}
+                                href={photoMember.photo}
                                 preserveAspectRatio="xMidYMid slice"
                                 width="1"
                                 height="1"
@@ -914,48 +1167,49 @@ export default function FamilyMapPage() {
                     </defs>
 
                     <Geographies geography={geoUrl}>
-                      {({ geographies }) => (
-                        <>
-                          {geographies.map((geo) => {
-                            const rawName =
-                              geo.properties.adm2_name ||
-                              geo.properties.ADM2_EN ||
-                              geo.properties.NAME_2 ||
-                              geo.properties.name ||
-                              geo.properties.Dist_Name ||
-                              geo.properties.district;
-                            const districtName = standardMap[rawName] || rawName;
-                            const data = familyData[districtName];
-                            const hasData = !!data;
-                            const side = hasData
-                              ? getRelationSide(data.relation)
-                              : null;
-                            const sideColor = hasData
-                              ? sideColors[side].value
-                              : unvisitedColor;
-                            const photoPatternUrl =
-                              viewMode === "photos" && data?.photo ? data.photo : null;
+                      {({ geographies }) =>
+                        geographies.map((geo) => {
+                          const rawName =
+                            geo.properties.adm2_name ||
+                            geo.properties.ADM2_EN ||
+                            geo.properties.NAME_2 ||
+                            geo.properties.name ||
+                            geo.properties.Dist_Name ||
+                            geo.properties.district;
+                          const districtName = standardMap[rawName] || rawName;
+                          const members = familyData[districtName];
+                          const hasData = Array.isArray(members) && members.length > 0;
+                          const districtSide = hasData ? getDistrictSide(members) : null;
+                          const sideColor = hasData
+                            ? sideColors[districtSide].value
+                            : unvisitedColor;
 
-                            return (
-                              <MemoizedGeography
-                                key={geo.rsmKey}
-                                geo={geo}
-                                districtName={districtName}
-                                fillColor={hasData ? sideColor : unvisitedColor}
-                                patternUrl={photoPatternUrl}
-                                strokeColor={
-                                  isDarkBg
-                                    ? "rgba(255,255,255,0.3)"
-                                    : "rgba(0,0,0,0.15)"
-                                }
-                                isDarkBg={isDarkBg}
-                                hoverStroke={isDarkBg ? "#ffffff" : "#1e293b"}
-                                onClick={openDistrictModal}
-                              />
-                            );
-                          })}
-                        </>
-                      )}
+                          // For photos mode, use the first member's photo
+                          const photoMember = hasData
+                            ? members.find((m) => m.photo)
+                            : null;
+                          const photoPatternUrl =
+                            viewMode === "photos" && photoMember
+                              ? photoMember.photo
+                              : null;
+
+                          return (
+                            <MemoizedGeography
+                              key={geo.rsmKey}
+                              geo={geo}
+                              districtName={districtName}
+                              fillColor={hasData ? sideColor : unvisitedColor}
+                              patternUrl={photoPatternUrl}
+                              strokeColor={
+                                isDarkBg ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.15)"
+                              }
+                              isDarkBg={isDarkBg}
+                              hoverStroke={isDarkBg ? "#ffffff" : "#1e293b"}
+                              onClick={stableOnMapClick}
+                            />
+                          );
+                        })
+                      }
                     </Geographies>
                   </ComposableMap>
                 </div>
@@ -1009,12 +1263,14 @@ export default function FamilyMapPage() {
               >
                 <button
                   onClick={handleZoomIn}
+                  aria-label="জুম ইন"
                   className="w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white/90 dark:bg-gray-800/90 backdrop-blur text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700"
                 >
                   <i className="fa-solid fa-plus text-sm"></i>
                 </button>
                 <button
                   onClick={handleZoomOut}
+                  aria-label="জুম আউট"
                   className="w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 bg-white/90 dark:bg-gray-800/90 backdrop-blur text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700"
                 >
                   <i className="fa-solid fa-minus text-sm"></i>
@@ -1026,9 +1282,7 @@ export default function FamilyMapPage() {
                 <p
                   className="text-[9px] sm:text-[10px] font-bold leading-tight mb-1"
                   style={{
-                    color: isDarkBg
-                      ? "rgba(255,255,255,0.9)"
-                      : "rgba(0,0,0,0.8)",
+                    color: isDarkBg ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.8)",
                   }}
                 >
                   আপনার শিকড় বাংলাদেশের{" "}
@@ -1048,17 +1302,14 @@ export default function FamilyMapPage() {
                 <div
                   className="h-1 rounded-full overflow-hidden mb-1.5"
                   style={{
-                    background: isDarkBg
-                      ? "rgba(0,0,0,0.4)"
-                      : "rgba(0,0,0,0.08)",
+                    background: isDarkBg ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.08)",
                   }}
                 >
                   <div
                     className="h-full rounded-full transition-all duration-700 ease-out"
                     style={{
                       width: `${Math.max(percentage, stats.districts > 0 ? 3 : 0)}%`,
-                      background:
-                        "linear-gradient(90deg, #3b82f6, #a855f7, #ec4899)",
+                      background: "linear-gradient(90deg, #3b82f6, #a855f7, #ec4899)",
                     }}
                   ></div>
                 </div>
@@ -1226,7 +1477,7 @@ export default function FamilyMapPage() {
                   জেলায় আত্মীয় যুক্ত
                 </p>
                 <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
-                  মোট ৬৪ জেলার মধ্যে
+                  মোট {e2b(stats.totalMembers)} জন আত্মীয়
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -1241,7 +1492,7 @@ export default function FamilyMapPage() {
                     {e2b(stats.paternal)}
                   </p>
                   <p className="text-[9px] font-bold text-gray-600 dark:text-gray-400">
-                    বাবার দিক
+                    শুধু বাবার দিক
                   </p>
                 </div>
                 <div
@@ -1255,7 +1506,21 @@ export default function FamilyMapPage() {
                     {e2b(stats.maternal)}
                   </p>
                   <p className="text-[9px] font-bold text-gray-600 dark:text-gray-400">
-                    মায়ের দিক
+                    শুধু মায়ের দিক
+                  </p>
+                </div>
+                <div
+                  className="rounded-lg p-2.5 text-center"
+                  style={{ background: sideColors.both.value + "20" }}
+                >
+                  <p
+                    className="text-lg font-black"
+                    style={{ color: sideColors.both.value }}
+                  >
+                    {e2b(stats.both)}
+                  </p>
+                  <p className="text-[9px] font-bold text-gray-600 dark:text-gray-400">
+                    উভয় দিক
                   </p>
                 </div>
                 <div
@@ -1286,6 +1551,22 @@ export default function FamilyMapPage() {
                     শ্বশুরবাড়ি
                   </p>
                 </div>
+                {stats.other > 0 && (
+                  <div
+                    className="rounded-lg p-2.5 text-center"
+                    style={{ background: sideColors.other.value + "20" }}
+                  >
+                    <p
+                      className="text-lg font-black"
+                      style={{ color: sideColors.other.value }}
+                    >
+                      {e2b(stats.other)}
+                    </p>
+                    <p className="text-[9px] font-bold text-gray-600 dark:text-gray-400">
+                      অন্যান্য
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
