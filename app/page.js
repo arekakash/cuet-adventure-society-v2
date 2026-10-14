@@ -146,7 +146,7 @@ function HeroParticles() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   MEMORY CARD — compact
+   MEMORY CARD
    ═══════════════════════════════════════════════════════════════ */
 function MemoryCard({ ev }) {
   return (
@@ -193,7 +193,7 @@ function MemoryCard({ ev }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INFINITY MARQUEE ROW — auto-scroll + manual drag/touch + resume
+   INFINITY MARQUEE ROW
    ═══════════════════════════════════════════════════════════════ */
 function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
   const containerRef = useRef(null);
@@ -206,7 +206,6 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
     const container = containerRef.current;
     if (!container || !items.length) return;
 
-    // Initialize right-direction start position (needs non-zero scrollLeft)
     if (direction === "right") {
       requestAnimationFrame(() => {
         const cw = container.scrollWidth / 2;
@@ -279,6 +278,81 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   LEADER CARD — separate component to keep things clean
+   ═══════════════════════════════════════════════════════════════ */
+function LeaderCard({ user, index, prefersReduced }) {
+  const isChampion = index === 0;
+  return (
+    <motion.div
+      variants={fadeUp}
+      whileHover={prefersReduced ? {} : { y: -4 }}
+      transition={{ type: "spring", stiffness: 260, damping: 22 }}
+      className={`flex items-center justify-between p-4 sm:p-5 rounded-2xl border transition-colors shadow-sm dark:shadow-none ${
+        isChampion
+          ? "border-yellow-200 dark:border-yellow-400/50 bg-yellow-50 dark:bg-yellow-400/10"
+          : "bg-white dark:bg-[#0a1c13] border-gray-100 dark:border-white/5"
+      }`}
+    >
+      <div className="flex items-center gap-4 sm:gap-6">
+        <div className="w-8 sm:w-10 text-center shrink-0">
+          <span
+            className={`text-2xl sm:text-3xl font-black ${
+              isChampion
+                ? "text-yellow-500 dark:text-yellow-400"
+                : index === 1
+                ? "text-gray-400 dark:text-gray-300"
+                : "text-amber-600 dark:text-amber-600"
+            }`}
+          >
+            #{index + 1}
+          </span>
+        </div>
+
+        <div className="relative shrink-0">
+          <img
+            src={
+              user.photo_url ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                user.full_name || "User"
+              )}&background=0a1c13&color=fff`
+            }
+            alt={user.full_name}
+            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 object-cover ${
+              isChampion
+                ? "border-yellow-400"
+                : "border-gray-200 dark:border-white/10"
+            }`}
+          />
+          {isChampion && (
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white dark:bg-[#050b08] border border-yellow-400 flex items-center justify-center text-[10px] text-yellow-500 dark:text-yellow-400 shadow-sm">
+              <i className="fa-solid fa-crown" />
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h4 className="text-gray-800 dark:text-white font-bold text-base sm:text-lg line-clamp-1">
+            {user.full_name || "Unknown Explorer"}
+          </h4>
+          <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">
+            {isChampion ? "Grand Champion" : "Top Explorer"}
+          </p>
+        </div>
+      </div>
+
+      <div className="text-right shrink-0">
+        <p className="text-xl sm:text-3xl font-black text-gray-800 dark:text-white">
+          {user.total_events || 0}
+        </p>
+        <p className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">
+          Events
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    MAIN PAGE
    ═══════════════════════════════════════════════════════════════ */
 export default function HomePage() {
@@ -286,6 +360,7 @@ export default function HomePage() {
   const [sliders, setSliders] = useState([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [topLeaders, setTopLeaders] = useState([]);
+  const [leadersLoaded, setLeadersLoaded] = useState(false);
 
   const [userId, setUserId] = useState(null);
   const [showNameModal, setShowNameModal] = useState(false);
@@ -317,7 +392,6 @@ export default function HomePage() {
 
   const prefersReduced = useReducedMotion();
 
-  // Scroll progress bar
   const { scrollYProgress } = useScroll();
   const progressX = useSpring(scrollYProgress, {
     stiffness: 120,
@@ -325,7 +399,6 @@ export default function HomePage() {
     restDelta: 0.001,
   });
 
-  // Hero parallax
   const heroRef = useRef(null);
   const { scrollYProgress: heroScroll } = useScroll({
     target: heroRef,
@@ -414,12 +487,18 @@ export default function HomePage() {
   };
 
   const fetchTopLeaders = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("id, full_name, photo_url, total_events")
       .order("total_events", { ascending: false, nullsFirst: false })
       .limit(3);
-    if (data) setTopLeaders(data);
+    if (error) {
+      console.warn("Leaderboard fetch error:", error);
+      setTopLeaders([]);
+    } else {
+      setTopLeaders(data || []);
+    }
+    setLeadersLoaded(true);
   };
 
   const fetchStats = async () => {
@@ -783,8 +862,11 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ═══ 4. HERO (top of content, as before) ═══ */}
-      <section ref={heroRef} className="relative py-16 sm:py-24 px-6 overflow-hidden">
+      {/* ═══ 4. HERO ═══ */}
+      <section
+        ref={heroRef}
+        className="relative py-16 sm:py-24 px-6 overflow-hidden"
+      >
         {!prefersReduced && <HeroParticles />}
 
         <motion.div
@@ -805,7 +887,6 @@ export default function HomePage() {
               সাল থেকে পথচলা
             </motion.div>
 
-            {/* Mask reveal for title */}
             <div className="overflow-hidden mb-8">
               <motion.h1
                 initial={{ y: "100%" }}
@@ -890,7 +971,7 @@ export default function HomePage() {
         </motion.div>
       </section>
 
-      {/* ═══ 5. LEADERBOARD (moved up) ═══ */}
+      {/* ═══ 5. LEADERBOARD — FIXED ═══ */}
       <section className="py-16 sm:py-20 max-w-4xl mx-auto px-6 border-t border-gray-200 dark:border-white/5">
         <motion.div
           initial="hidden"
@@ -913,92 +994,42 @@ export default function HomePage() {
           </motion.h2>
           <motion.p
             variants={fadeUp}
-            className="text-pastel-muted dark:text-gray-400 text-sm sm:text-base"
+            className="text-pastel-muted dark:text-gray-400 text-sm sm:text-base max-w-xl mx-auto"
           >
-            কে কতদূর হেঁটেছেন — এই মুহূর্তে সবার উপরে যাঁরা আছেন।
+            আমাদের সাথে সবচেয়ে বেশি ইভেন্ট কমপ্লিট করা প্রথম তিনজন:
           </motion.p>
         </motion.div>
 
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-60px" }}
-          variants={stagger}
-          className="space-y-4"
-        >
-          {topLeaders.map((user, index) => {
-            const isChampion = index === 0;
-            return (
-              <motion.div
+        {/* ✅ Only render the animated container when data is ready */}
+        {leadersLoaded && topLeaders.length > 0 && (
+          <motion.div
+            key={topLeaders.map((u) => u.id).join("-")}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-60px" }}
+            variants={stagger}
+            className="space-y-4"
+          >
+            {topLeaders.map((user, index) => (
+              <LeaderCard
                 key={user.id}
-                variants={fadeUp}
-                whileHover={prefersReduced ? {} : { y: -4 }}
-                transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                className={`flex items-center justify-between p-4 sm:p-5 rounded-2xl border transition-colors shadow-sm dark:shadow-none ${
-                  isChampion
-                    ? "border-yellow-200 dark:border-yellow-400/50 bg-yellow-50 dark:bg-yellow-400/10"
-                    : "bg-white dark:bg-[#0a1c13] border-gray-100 dark:border-white/5"
-                }`}
-              >
-                <div className="flex items-center gap-4 sm:gap-6">
-                  <div className="w-8 sm:w-10 text-center shrink-0">
-                    <span
-                      className={`text-2xl sm:text-3xl font-black ${
-                        isChampion
-                          ? "text-yellow-500 dark:text-yellow-400"
-                          : index === 1
-                          ? "text-gray-400 dark:text-gray-300"
-                          : "text-amber-600 dark:text-amber-600"
-                      }`}
-                    >
-                      #{index + 1}
-                    </span>
-                  </div>
+                user={user}
+                index={index}
+                prefersReduced={prefersReduced}
+              />
+            ))}
+          </motion.div>
+        )}
 
-                  <div className="relative shrink-0">
-                    <img
-                      src={
-                        user.photo_url ||
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                          user.full_name || "User"
-                        )}&background=0a1c13&color=fff`
-                      }
-                      alt={user.full_name}
-                      className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 object-cover ${
-                        isChampion
-                          ? "border-yellow-400"
-                          : "border-gray-200 dark:border-white/10"
-                      }`}
-                    />
-                    {isChampion && (
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white dark:bg-[#050b08] border border-yellow-400 flex items-center justify-center text-[10px] text-yellow-500 dark:text-yellow-400 shadow-sm">
-                        <i className="fa-solid fa-crown" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <h4 className="text-gray-800 dark:text-white font-bold text-base sm:text-lg line-clamp-1">
-                      {user.full_name || "Unknown Explorer"}
-                    </h4>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">
-                      {isChampion ? "Grand Champion" : "Top Explorer"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="text-right shrink-0">
-                  <p className="text-xl sm:text-3xl font-black text-gray-800 dark:text-white">
-                    {user.total_events || 0}
-                  </p>
-                  <p className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">
-                    Events
-                  </p>
-                </div>
-              </motion.div>
-            );
-          })}
-        </motion.div>
+        {/* Empty state — only after data loaded */}
+        {leadersLoaded && topLeaders.length === 0 && (
+          <div className="text-center py-12 bg-white dark:bg-[#0a1c13] border border-gray-100 dark:border-white/5 rounded-2xl">
+            <i className="fa-solid fa-users text-4xl text-gray-300 dark:text-gray-700 mb-3" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              এখনো কেউ লিডারবোর্ডে জায়গা করেনি।
+            </p>
+          </div>
+        )}
 
         <div className="text-center mt-10">
           <Link
@@ -1010,7 +1041,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══ 6. MEMORY WALL — Infinity + Manual Scroll ═══ */}
+      {/* ═══ 6. MEMORY WALL ═══ */}
       {pastEvents.length >= 3 && (
         <section className="py-14 sm:py-20 border-t border-gray-200 dark:border-white/5 bg-gray-50/60 dark:bg-[#050b08]">
           <div className="max-w-6xl mx-auto px-6 mb-10">
@@ -1160,7 +1191,7 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ═══ 8. FEATURE HUB — প্রয়োজনীয় ফিচারসমূহ ═══ */}
+      {/* ═══ 8. FEATURE HUB ═══ */}
       <section className="py-14 sm:py-20 px-6 border-t border-gray-200 dark:border-white/5">
         <div className="max-w-5xl mx-auto">
           <SectionHeader
@@ -1214,7 +1245,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══ 9. STATS COUNTER (moved down from top) ═══ */}
+      {/* ═══ 9. STATS ═══ */}
       {stats && (
         <section className="relative py-16 sm:py-24 px-6 border-t border-gray-200 dark:border-white/5">
           <div
@@ -1338,12 +1369,10 @@ export default function HomePage() {
             © {new Date().getFullYear()} CUET Adventure Society. সর্বস্বত্ব
             সংরক্ষিত।
           </p>
-          <p className="text-[10px] text-gray-400 dark:text-gray-600">
-          </p>
         </div>
       </footer>
 
-      {/* ═══ MODALS (all preserved) ═══ */}
+      {/* ═══ MODALS ═══ */}
 
       {showNameModal && (
         <div className="fixed inset-0 z-[120] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
