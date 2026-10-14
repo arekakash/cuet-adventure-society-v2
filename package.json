@@ -10,8 +10,10 @@
     "@supabase/supabase-js": "latest",
     "aos": "^2.3.4",
     "autoprefixer": "^10.4.17",
+    "clsx": "^2.1.1",
     "cropperjs": "^1.6.1",
     "d3-geo": "^3.1.0",
+    "framer-motion": "^11.11.17",
     "html-to-image": "^1.11.11",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
@@ -25,9 +27,9 @@
     "react-easy-crop": "^5.0.0",
     "react-quill": "^2.0.0",
     "react-simple-maps": "^3.0.0",
+    "tailwind-merge": "^2.5.4",
     "tailwindcss": "^3.4.1",
     "topojson-client": "^3.1.0",
-    "zustand": "^4.5.2",
-    "topojson-client": "^3.1.0"
+    "zustand": "^4.5.2"
   }
 }
