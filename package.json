@@ -2,9 +2,6 @@
   "name": "cuet-adventure-v2",
   "version": "1.0.0",
   "private": true,
-  "description": "Official website for CUET Adventure Society — events, store, blood bank, My Bangladesh explorer, and Campfire AI.",
-  "author": "CUET Adventure Society",
-  "license": "UNLICENSED",
   "engines": {
     "node": ">=18.18.0"
   },
@@ -12,11 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "clean": "rm -rf .next node_modules/.cache",
-    "pages:build": "npx @cloudflare/next-on-pages",
-    "pages:preview": "npm run pages:build && wrangler pages dev .vercel/output/static --compatibility-date=2024-09-23 --compatibility-flag=nodejs_compat",
-    "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static"
+    "lint": "next lint"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
@@ -42,11 +35,8 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.5",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.14",
-    "vercel": "^37.14.0",
-    "wrangler": "^3.80.0"
+    "tailwindcss": "^3.4.14"
   }
 }
