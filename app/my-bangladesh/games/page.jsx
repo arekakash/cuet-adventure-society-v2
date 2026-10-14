@@ -45,7 +45,7 @@ const getNextLevel = (xp) => {
 };
 
 // ============================================
-// GAME MODES DATA
+// GAME MODES DATA — UPDATED (৪টি available)
 // ============================================
 const games = [
   {
@@ -54,14 +54,15 @@ const games = [
     title: "জিগস পাজল",
     subtitle: "৬৪ জেলার টুকরো সাজান",
     description:
-      "ম্যাপের প্রতিটা জেলা সঠিক জায়গায় বসিয়ে পুরো বাংলাদেশ তৈরি করুন। সময়, কম্বো, নিখুঁত স্ন্যাপ — সব মিলিয়ে স্কোর!",
+      "ম্যাপের প্রতিটা জেলা সঠিক জায়গায় টেনে বসান। Perfect snap, combo multiplier, time bonus — সব মিলিয়ে হাই স্কোর!",
     icon: "fa-solid fa-puzzle-piece",
     gradient: "from-blue-500 via-purple-500 to-pink-500",
     shadow: "shadow-purple-500/30",
     available: true,
-    badge: null,
+    badge: "জনপ্রিয়",
     difficulty: "মাঝারি",
-    points: "১০০/সঠিক",
+    points: 100,
+    modes: 3,
   },
   {
     id: "tap-district",
@@ -69,14 +70,15 @@ const games = [
     title: "জেলা ট্যাপ",
     subtitle: "নাম শুনে ম্যাপে ট্যাপ",
     description:
-      "জেলার নাম বলা হবে, আপনি ম্যাপে সঠিক জায়গায় ট্যাপ করবেন। দ্রুত + কম ভুল = হাই স্কোর।",
+      "উপরে জেলার নাম দেখাবে, ম্যাপে সঠিক জায়গায় ট্যাপ করুন। দ্রুত + কম ভুল = হাই স্কোর। Time bonus সহ।",
     icon: "fa-solid fa-hand-pointer",
     gradient: "from-orange-500 via-red-500 to-pink-500",
     shadow: "shadow-orange-500/30",
     available: true,
     badge: "নতুন",
     difficulty: "সহজ",
-    points: "১০০/সঠিক",
+    points: 100,
+    modes: 3,
   },
   {
     id: "quiz",
@@ -84,14 +86,31 @@ const games = [
     title: "জেলা কুইজ",
     subtitle: "জেলা চিনুন, নাম বলুন",
     description:
-      "ম্যাপে জেলা highlight হবে, ৪টি অপশন থেকে সঠিক নাম বেছে নিন। ১৫ সেকেন্ডের মধ্যে উত্তর দিন।",
+      "ম্যাপে জেলা highlight হবে, ৪টি অপশন থেকে সঠিক নাম বেছে নিন। প্রতি প্রশ্নে ১০ সেকেন্ড সময়!",
     icon: "fa-solid fa-circle-question",
     gradient: "from-emerald-500 via-teal-500 to-blue-500",
     shadow: "shadow-emerald-500/30",
-    available: false,
-    badge: "শীঘ্রই",
+    available: true,
+    badge: "নতুন",
     difficulty: "সহজ",
-    points: "৫০/সঠিক",
+    points: 100,
+    modes: 3,
+  },
+  {
+    id: "shape",
+    href: "/my-bangladesh/games/shape",
+    title: "শেপ গেসার",
+    subtitle: "আকৃতি দেখে চিনুন",
+    description:
+      "শুধু জেলার silhouette দেখে সঠিক নাম বলুন। নাম-সীমানা নেই — শুধু আকৃতির চ্যালেঞ্জ!",
+    icon: "fa-solid fa-shapes",
+    gradient: "from-pink-500 via-rose-500 to-red-500",
+    shadow: "shadow-pink-500/30",
+    available: true,
+    badge: "নতুন",
+    difficulty: "কঠিন",
+    points: 100,
+    modes: 3,
   },
   {
     id: "sorter",
@@ -106,22 +125,8 @@ const games = [
     available: false,
     badge: "শীঘ্রই",
     difficulty: "মাঝারি",
-    points: "৩০/সঠিক",
-  },
-  {
-    id: "shape",
-    href: "/my-bangladesh/games/shape",
-    title: "শেপ গেসার",
-    subtitle: "আকৃতি দেখে চিনুন",
-    description:
-      "শুধু জেলার silhouette দেখে নাম বলুন। ৪টি difficulty level, চরম কঠিন মোড আছে!",
-    icon: "fa-solid fa-shapes",
-    gradient: "from-pink-500 via-rose-500 to-red-500",
-    shadow: "shadow-pink-500/30",
-    available: false,
-    badge: "শীঘ্রই",
-    difficulty: "কঠিন",
-    points: "১৫০/সঠিক",
+    points: 30,
+    modes: 0,
   },
   {
     id: "memory",
@@ -136,39 +141,77 @@ const games = [
     available: false,
     badge: "শীঘ্রই",
     difficulty: "কঠিন",
-    points: "৮০/সঠিক",
+    points: 80,
+    modes: 0,
   },
 ];
 
 // ============================================
-// ACHIEVEMENTS PREVIEW
+// ACHIEVEMENTS PREVIEW (8টি — 8/8 counter মিলবে)
 // ============================================
 const achievementsPreview = [
-  { id: "first-blood", icon: "fa-solid fa-fire", title: "প্রথম পদক্ষেপ", color: "#ef4444" },
-  { id: "puzzle-starter", icon: "fa-solid fa-puzzle-piece", title: "পাজল শুরু", color: "#3b82f6" },
-  { id: "combo-10", icon: "fa-solid fa-bolt", title: "কম্বো মাস্টার", color: "#a855f7" },
-  { id: "perfect-round", icon: "fa-solid fa-star", title: "পারফেক্ট রাউন্ড", color: "#f59e0b" },
-  { id: "all-64", icon: "fa-solid fa-crown", title: "সব ৬৪", color: "#10b981" },
-  { id: "speed-demon", icon: "fa-solid fa-gauge-high", title: "স্পিড ডেমন", color: "#ec4899" },
-  { id: "daily-3", icon: "fa-solid fa-calendar-check", title: "৩ দিন স্ট্রিক", color: "#14b8a6" },
-  { id: "ten-k", icon: "fa-solid fa-trophy", title: "১০ হাজার", color: "#eab308" },
+  {
+    id: "first-blood",
+    icon: "fa-solid fa-fire",
+    title: "প্রথম পদক্ষেপ",
+    hint: "প্রথম গেম খেলুন",
+    color: "#ef4444",
+  },
+  {
+    id: "puzzle-starter",
+    icon: "fa-solid fa-puzzle-piece",
+    title: "পাজল শুরু",
+    hint: "জিগস পাজল শেষ করুন",
+    color: "#3b82f6",
+  },
+  {
+    id: "combo-10",
+    icon: "fa-solid fa-bolt",
+    title: "কম্বো মাস্টার",
+    hint: "১০ কম্বো করুন",
+    color: "#a855f7",
+  },
+  {
+    id: "perfect-round",
+    icon: "fa-solid fa-star",
+    title: "পারফেক্ট রাউন্ড",
+    hint: "০ ভুলে শেষ করুন",
+    color: "#f59e0b",
+  },
+  {
+    id: "all-64",
+    icon: "fa-solid fa-crown",
+    title: "সব ৬৪",
+    hint: "৬৪ জেলা চিনুন",
+    color: "#10b981",
+  },
+  {
+    id: "speed-demon",
+    icon: "fa-solid fa-gauge-high",
+    title: "স্পিড ডেমন",
+    hint: "দ্রুততম সময়ে শেষ",
+    color: "#ec4899",
+  },
+  {
+    id: "daily-3",
+    icon: "fa-solid fa-calendar-check",
+    title: "৩ দিন স্ট্রিক",
+    hint: "৩ দিন টানা খেলুন",
+    color: "#14b8a6",
+  },
+  {
+    id: "ten-k",
+    icon: "fa-solid fa-trophy",
+    title: "১০ হাজার",
+    hint: "১০K XP অর্জন",
+    color: "#eab308",
+  },
 ];
 
 // ============================================
 // LOCAL STORAGE
 // ============================================
 const STATS_KEY = "game-hub-stats-v1";
-
-const loadStats = () => {
-  try {
-    if (typeof window === "undefined") return null;
-    const raw = localStorage.getItem(STATS_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-};
 
 const defaultStats = {
   xp: 0,
@@ -179,14 +222,40 @@ const defaultStats = {
   bestScores: {},
 };
 
+const loadStats = () => {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = localStorage.getItem(STATS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Normalize — fill missing keys safely
+    return {
+      xp: Number(parsed.xp) || 0,
+      totalPlays: Number(parsed.totalPlays) || 0,
+      streak: Number(parsed.streak) || 0,
+      lastPlayDate: parsed.lastPlayDate || null,
+      unlockedAchievements: Array.isArray(parsed.unlockedAchievements)
+        ? parsed.unlockedAchievements
+        : [],
+      bestScores:
+        parsed.bestScores && typeof parsed.bestScores === "object"
+          ? parsed.bestScores
+          : {},
+    };
+  } catch {
+    return null;
+  }
+};
+
 // ============================================
 // BEST SCORE HELPERS
 // ============================================
 const getBestForGame = (bestScores, gameId) => {
   if (!bestScores || !gameId) return 0;
-  const keys = Object.keys(bestScores).filter((k) => k.startsWith(`${gameId}-`));
+  const prefix = `${gameId}-`;
+  const keys = Object.keys(bestScores).filter((k) => k.startsWith(prefix));
   if (keys.length === 0) return 0;
-  return Math.max(...keys.map((k) => bestScores[k] || 0));
+  return Math.max(...keys.map((k) => Number(bestScores[k]) || 0));
 };
 
 // ============================================
@@ -194,13 +263,13 @@ const getBestForGame = (bestScores, gameId) => {
 // ============================================
 export default function GameHubPage() {
   const [stats, setStats] = useState(defaultStats);
-  const [mounted, setMounted] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     AOS.init({ once: true, offset: 50, duration: 800 });
     const loaded = loadStats();
-    if (loaded) setStats({ ...defaultStats, ...loaded });
-    setMounted(true);
+    if (loaded) setStats(loaded);
+    setHydrated(true);
   }, []);
 
   const currentLevel = getLevel(stats.xp);
@@ -213,11 +282,12 @@ export default function GameHubPage() {
 
   const availableGames = games.filter((g) => g.available);
   const comingSoonGames = games.filter((g) => !g.available);
+  const unlockedCount = stats.unlockedAchievements.length;
+  const totalAchievements = achievementsPreview.length;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans transition-colors duration-500">
       <div className="max-w-6xl mx-auto relative z-10 flex flex-col gap-10">
-
         {/* HERO */}
         <div className="flex flex-col mb-4" data-aos="fade-down">
           <div className="w-full">
@@ -235,7 +305,9 @@ export default function GameHubPage() {
             </h1>
             <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm inline-block">
               <i className="fa-solid fa-gamepad text-purple-500 mr-2"></i>
-              {e2b(availableGames.length)} টি গেম এখনই খেলার জন্য প্রস্তুত। ৬৪ জেলা চিনুন খেলতে খেলতে, স্কোর বাড়ান এবং লিডারবোর্ডে জায়গা করে নিন!
+              {e2b(availableGames.length)} টি গেম এখনই খেলার জন্য প্রস্তুত। ৬৪
+              জেলা চিনুন খেলতে খেলতে, স্কোর বাড়ান এবং লিডারবোর্ডে জায়গা করে
+              নিন!
             </p>
           </div>
         </div>
@@ -262,13 +334,13 @@ export default function GameHubPage() {
                 </span>
               </div>
               <p className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white">
-                {e2b(currentLevel.level)}
+                {hydrated ? e2b(currentLevel.level) : "—"}
               </p>
               <div className="mt-3 w-full h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-700"
                   style={{
-                    width: `${progressPercent}%`,
+                    width: `${hydrated ? progressPercent : 0}%`,
                     background: "linear-gradient(90deg, #a855f7, #ec4899)",
                   }}
                 ></div>
@@ -298,7 +370,7 @@ export default function GameHubPage() {
                 </span>
               </div>
               <p className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white">
-                {e2b(stats.xp)}
+                {hydrated ? e2b(stats.xp) : "—"}
               </p>
               <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-bold">
                 মোট অর্জিত XP
@@ -323,7 +395,7 @@ export default function GameHubPage() {
                 </span>
               </div>
               <p className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white">
-                {e2b(stats.totalPlays)}
+                {hydrated ? e2b(stats.totalPlays) : "—"}
               </p>
               <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-bold">
                 মোট ম্যাচ
@@ -348,7 +420,7 @@ export default function GameHubPage() {
                 </span>
               </div>
               <p className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white">
-                {e2b(stats.streak)}
+                {hydrated ? e2b(stats.streak) : "—"}
               </p>
               <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-bold">
                 টানা দিন
@@ -360,7 +432,10 @@ export default function GameHubPage() {
         {/* AVAILABLE GAMES */}
         {availableGames.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-6" data-aos="fade-up">
+            <div
+              className="flex items-center justify-between mb-6"
+              data-aos="fade-up"
+            >
               <div>
                 <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white flex items-center gap-3">
                   <span className="w-2 h-8 bg-gradient-to-b from-emerald-500 to-teal-500 rounded-full"></span>
@@ -379,12 +454,13 @@ export default function GameHubPage() {
                   <Link
                     key={game.id}
                     href={game.href}
-                    className="group block"
+                    aria-label={`${game.title} খেলুন`}
+                    className="group block focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 rounded-3xl"
                     data-aos="fade-up"
                     data-aos-delay={idx * 80}
                   >
                     <div
-                      className={`h-full relative overflow-hidden rounded-3xl bg-gradient-to-br ${game.gradient} p-6 shadow-xl ${game.shadow} hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col min-h-[300px]`}
+                      className={`h-full relative overflow-hidden rounded-3xl bg-gradient-to-br ${game.gradient} p-6 shadow-xl ${game.shadow} hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col min-h-[320px]`}
                     >
                       {/* Decorative circles */}
                       <div className="absolute -top-20 -right-20 w-44 h-44 bg-white/20 rounded-full blur-3xl group-hover:bg-white/30 transition-colors"></div>
@@ -401,7 +477,9 @@ export default function GameHubPage() {
 
                       <div className="relative z-10 flex flex-col h-full">
                         <div className="w-14 h-14 bg-white/25 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 border border-white/30 group-hover:scale-110 transition-transform duration-500">
-                          <i className={`${game.icon} text-white text-2xl`}></i>
+                          <i
+                            className={`${game.icon} text-white text-2xl`}
+                          ></i>
                         </div>
 
                         <h3 className="text-2xl font-black text-white mb-1">
@@ -414,10 +492,30 @@ export default function GameHubPage() {
                           {game.description}
                         </p>
 
+                        {/* Stats row: points + modes */}
+                        <div className="mt-4 flex items-center gap-2">
+                          <div className="flex-1 bg-white/15 backdrop-blur-sm rounded-lg px-2.5 py-1.5 border border-white/20">
+                            <p className="text-[9px] font-black text-white/70 uppercase tracking-widest">
+                              পয়েন্ট
+                            </p>
+                            <p className="text-xs font-black text-white">
+                              +{e2b(game.points)}/সঠিক
+                            </p>
+                          </div>
+                          <div className="flex-1 bg-white/15 backdrop-blur-sm rounded-lg px-2.5 py-1.5 border border-white/20">
+                            <p className="text-[9px] font-black text-white/70 uppercase tracking-widest">
+                              মোড
+                            </p>
+                            <p className="text-xs font-black text-white">
+                              {e2b(game.modes)} টি
+                            </p>
+                          </div>
+                        </div>
+
                         {/* Best Score row */}
                         {bestScore > 0 && (
-                          <div className="mt-4 bg-white/15 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/25 flex items-center justify-between">
-                            <span className="text-[10px] font-black text-white/85 uppercase tracking-widest">
+                          <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/30 flex items-center justify-between">
+                            <span className="text-[10px] font-black text-white/90 uppercase tracking-widest">
                               <i className="fa-solid fa-crown text-yellow-300 mr-1"></i>
                               সেরা স্কোর
                             </span>
@@ -449,7 +547,10 @@ export default function GameHubPage() {
         {/* COMING SOON GAMES */}
         {comingSoonGames.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-6" data-aos="fade-up">
+            <div
+              className="flex items-center justify-between mb-6"
+              data-aos="fade-up"
+            >
               <div>
                 <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white flex items-center gap-3">
                   <span className="w-2 h-8 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full"></span>
@@ -518,7 +619,7 @@ export default function GameHubPage() {
               <i className="fa-solid fa-trophy text-amber-500"></i> অ্যাচিভমেন্ট
             </h3>
             <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400">
-              {e2b(stats.unlockedAchievements.length)} / {e2b(20)}
+              {e2b(unlockedCount)} / {e2b(totalAchievements)}
             </span>
           </div>
 
@@ -531,15 +632,20 @@ export default function GameHubPage() {
                   className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all ${
                     unlocked
                       ? "bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/10 border border-amber-200 dark:border-amber-500/30"
-                      : "bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 opacity-50"
+                      : "bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 opacity-60"
                   }`}
-                  title={ach.title}
+                  title={unlocked ? ach.title : `লক করা — ${ach.hint}`}
                 >
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm transition-transform hover:scale-110"
+                    className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm transition-transform hover:scale-110 relative"
                     style={{ background: unlocked ? ach.color : "#cbd5e1" }}
                   >
                     <i className={`${ach.icon} text-white text-sm`}></i>
+                    {!unlocked && (
+                      <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center border-2 border-gray-200 dark:border-gray-700">
+                        <i className="fa-solid fa-lock text-gray-400 text-[8px]"></i>
+                      </span>
+                    )}
                   </div>
                   <p
                     className={`text-[9px] font-bold text-center leading-tight ${
@@ -583,7 +689,8 @@ export default function GameHubPage() {
                 সেরা খেলোয়াড়দের সাথে প্রতিযোগিতা করুন
               </h3>
               <p className="text-white/90 text-sm leading-relaxed mb-5">
-                টপ ৫০-এ জায়গা করে নিন। প্রথম তিনজন পাবেন বিশেষ গোল্ড, সিলভার ও ব্রোঞ্জ কার্ড!
+                টপ ৫০-এ জায়গা করে নিন। প্রথম তিনজন পাবেন বিশেষ গোল্ড, সিলভার
+                ও ব্রোঞ্জ কার্ড!
               </p>
               <Link
                 href="/my-bangladesh/games/jigsaw"
@@ -601,7 +708,9 @@ export default function GameHubPage() {
                   <i className="fa-solid fa-user text-white text-sm"></i>
                 </div>
                 <div className="w-16 h-12 bg-white/30 backdrop-blur-sm rounded-t-lg flex items-center justify-center">
-                  <span className="text-white font-black text-xl">{e2b(2)}</span>
+                  <span className="text-white font-black text-xl">
+                    {e2b(2)}
+                  </span>
                 </div>
               </div>
               <div className="flex flex-col items-center">
@@ -610,7 +719,9 @@ export default function GameHubPage() {
                   <i className="fa-solid fa-user text-white"></i>
                 </div>
                 <div className="w-16 h-20 bg-white/40 backdrop-blur-sm rounded-t-lg flex items-center justify-center">
-                  <span className="text-white font-black text-2xl">{e2b(1)}</span>
+                  <span className="text-white font-black text-2xl">
+                    {e2b(1)}
+                  </span>
                 </div>
               </div>
               <div className="flex flex-col items-center">
@@ -618,7 +729,9 @@ export default function GameHubPage() {
                   <i className="fa-solid fa-user text-white text-sm"></i>
                 </div>
                 <div className="w-16 h-10 bg-white/30 backdrop-blur-sm rounded-t-lg flex items-center justify-center">
-                  <span className="text-white font-black text-xl">{e2b(3)}</span>
+                  <span className="text-white font-black text-xl">
+                    {e2b(3)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -655,7 +768,6 @@ export default function GameHubPage() {
             Powered by CUET Adventure Society
           </p>
         </div>
-
       </div>
     </div>
   );
