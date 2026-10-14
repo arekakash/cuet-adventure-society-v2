@@ -267,7 +267,7 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
         scrollbarWidth: "none",
         msOverflowStyle: "none",
         WebkitOverflowScrolling: "touch",
-        touchAction: "pan-x",
+        touchAction: "pan-x pan-y",
       }}
     >
       {items.map((ev, i) => (
