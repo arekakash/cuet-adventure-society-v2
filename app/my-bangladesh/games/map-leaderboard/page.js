@@ -77,6 +77,7 @@ const difficulties = [
 export default function MapGameLeaderboardPage() {
   const [leaders, setLeaders] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
 
   const [activeMode, setActiveMode] = useState('jigsaw')
   const [filterDifficulty, setFilterDifficulty] = useState('all')
@@ -105,12 +106,13 @@ export default function MapGameLeaderboardPage() {
 
   const fetchLeaderboard = async () => {
     setLoading(true)
+    setFetchError(null)
 
     try {
       let query = supabase
         .from('game_scores')
         .select(
-          'id, score, time_seconds, wrong_taps, max_combo, accuracy, difficulty, user_id, created_at, profiles:user_id(full_name, photo_url)'
+          'id, score, time_seconds, wrong_taps, max_combo, difficulty, user_id, created_at, profiles:user_id(full_name, photo_url)'
         )
         .eq('game_mode', activeMode)
         .order('score', { ascending: false })
@@ -126,12 +128,14 @@ export default function MapGameLeaderboardPage() {
 
       if (error) {
         console.error('[MapGameLeaderboard] fetch error:', error)
+        setFetchError(error.message || 'ডেটা লোড করা যায়নি')
         setLeaders([])
       } else {
         setLeaders(data || [])
       }
     } catch (e) {
       console.error('[MapGameLeaderboard] exception:', e)
+      setFetchError(e.message || 'ডেটা লোড করা যায়নি')
       setLeaders([])
     }
     setLoading(false)
@@ -336,6 +340,16 @@ export default function MapGameLeaderboardPage() {
             {loading ? '...' : `${e2b(leaders.length)} জন`}
           </span>
         </div>
+
+        {/* ERROR BANNER */}
+        {!loading && fetchError && (
+          <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 p-3 rounded-xl mb-4">
+            <p className="text-xs font-bold text-red-600 dark:text-red-400">
+              <i className="fa-solid fa-circle-exclamation mr-1.5"></i>
+              {fetchError}
+            </p>
+          </div>
+        )}
 
         {/* LOADING / LIST */}
         {loading ? (
