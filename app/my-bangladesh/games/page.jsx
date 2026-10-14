@@ -45,7 +45,7 @@ const getNextLevel = (xp) => {
 };
 
 // ============================================
-// GAME MODES DATA — UPDATED (৪টি available)
+// GAME MODES DATA
 // ============================================
 const games = [
   {
@@ -147,65 +147,17 @@ const games = [
 ];
 
 // ============================================
-// ACHIEVEMENTS PREVIEW (8টি — 8/8 counter মিলবে)
+// ACHIEVEMENTS PREVIEW
 // ============================================
 const achievementsPreview = [
-  {
-    id: "first-blood",
-    icon: "fa-solid fa-fire",
-    title: "প্রথম পদক্ষেপ",
-    hint: "প্রথম গেম খেলুন",
-    color: "#ef4444",
-  },
-  {
-    id: "puzzle-starter",
-    icon: "fa-solid fa-puzzle-piece",
-    title: "পাজল শুরু",
-    hint: "জিগস পাজল শেষ করুন",
-    color: "#3b82f6",
-  },
-  {
-    id: "combo-10",
-    icon: "fa-solid fa-bolt",
-    title: "কম্বো মাস্টার",
-    hint: "১০ কম্বো করুন",
-    color: "#a855f7",
-  },
-  {
-    id: "perfect-round",
-    icon: "fa-solid fa-star",
-    title: "পারফেক্ট রাউন্ড",
-    hint: "০ ভুলে শেষ করুন",
-    color: "#f59e0b",
-  },
-  {
-    id: "all-64",
-    icon: "fa-solid fa-crown",
-    title: "সব ৬৪",
-    hint: "৬৪ জেলা চিনুন",
-    color: "#10b981",
-  },
-  {
-    id: "speed-demon",
-    icon: "fa-solid fa-gauge-high",
-    title: "স্পিড ডেমন",
-    hint: "দ্রুততম সময়ে শেষ",
-    color: "#ec4899",
-  },
-  {
-    id: "daily-3",
-    icon: "fa-solid fa-calendar-check",
-    title: "৩ দিন স্ট্রিক",
-    hint: "৩ দিন টানা খেলুন",
-    color: "#14b8a6",
-  },
-  {
-    id: "ten-k",
-    icon: "fa-solid fa-trophy",
-    title: "১০ হাজার",
-    hint: "১০K XP অর্জন",
-    color: "#eab308",
-  },
+  { id: "first-blood", icon: "fa-solid fa-fire", title: "প্রথম পদক্ষেপ", hint: "প্রথম গেম খেলুন", color: "#ef4444" },
+  { id: "puzzle-starter", icon: "fa-solid fa-puzzle-piece", title: "পাজল শুরু", hint: "জিগস পাজল শেষ করুন", color: "#3b82f6" },
+  { id: "combo-10", icon: "fa-solid fa-bolt", title: "কম্বো মাস্টার", hint: "১০ কম্বো করুন", color: "#a855f7" },
+  { id: "perfect-round", icon: "fa-solid fa-star", title: "পারফেক্ট রাউন্ড", hint: "০ ভুলে শেষ করুন", color: "#f59e0b" },
+  { id: "all-64", icon: "fa-solid fa-crown", title: "সব ৬৪", hint: "৬৪ জেলা চিনুন", color: "#10b981" },
+  { id: "speed-demon", icon: "fa-solid fa-gauge-high", title: "স্পিড ডেমন", hint: "দ্রুততম সময়ে শেষ", color: "#ec4899" },
+  { id: "daily-3", icon: "fa-solid fa-calendar-check", title: "৩ দিন স্ট্রিক", hint: "৩ দিন টানা খেলুন", color: "#14b8a6" },
+  { id: "ten-k", icon: "fa-solid fa-trophy", title: "১০ হাজার", hint: "১০K XP অর্জন", color: "#eab308" },
 ];
 
 // ============================================
@@ -228,7 +180,6 @@ const loadStats = () => {
     const raw = localStorage.getItem(STATS_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    // Normalize — fill missing keys safely
     return {
       xp: Number(parsed.xp) || 0,
       totalPlays: Number(parsed.totalPlays) || 0,
@@ -257,6 +208,150 @@ const getBestForGame = (bestScores, gameId) => {
   if (keys.length === 0) return 0;
   return Math.max(...keys.map((k) => Number(bestScores[k]) || 0));
 };
+
+// ============================================
+// COMPACT GAME CARD (available)
+// ============================================
+function GameCard({ game, bestScore, idx }) {
+  return (
+    <Link
+      href={game.href}
+      aria-label={`${game.title} খেলুন`}
+      className="group block focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 rounded-2xl"
+      data-aos="zoom-in"
+      data-aos-delay={idx * 60}
+    >
+      <div
+        className={`h-full relative overflow-hidden rounded-2xl bg-gradient-to-br ${game.gradient} p-4 shadow-lg ${game.shadow} hover:shadow-2xl transition-all duration-400 hover:-translate-y-1.5 flex flex-col min-h-[190px]`}
+      >
+        {/* Decorative circles */}
+        <div className="absolute -top-16 -right-16 w-32 h-32 bg-white/20 rounded-full blur-2xl group-hover:bg-white/30 transition-colors"></div>
+        <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-black/10 rounded-full blur-2xl"></div>
+
+        {/* Badge */}
+        {game.badge && (
+          <div className="absolute top-2.5 right-2.5 bg-white/25 backdrop-blur-sm px-2 py-0.5 rounded-full border border-white/40 z-10">
+            <span className="text-[8px] font-black text-white uppercase tracking-widest">
+              {game.badge}
+            </span>
+          </div>
+        )}
+
+        <div className="relative z-10 flex flex-col h-full">
+          {/* Icon */}
+          <div className="w-10 h-10 bg-white/25 backdrop-blur-sm rounded-xl flex items-center justify-center mb-2.5 border border-white/30 group-hover:scale-110 transition-transform duration-400">
+            <i className={`${game.icon} text-white text-base`}></i>
+          </div>
+
+          {/* Title + subtitle */}
+          <h3 className="text-base font-black text-white leading-tight">
+            {game.title}
+          </h3>
+          <p className="text-white/85 text-[10px] font-bold mt-0.5 mb-2 line-clamp-1">
+            {game.subtitle}
+          </p>
+
+          {/* Description — 2-line clamp */}
+          <p className="text-white/70 text-[10px] leading-snug flex-grow line-clamp-2">
+            {game.description}
+          </p>
+
+          {/* Compact stats */}
+          <div className="flex items-center gap-1.5 mt-2.5">
+            <div className="flex-1 bg-white/15 backdrop-blur-sm rounded-md px-2 py-1 border border-white/15">
+              <p className="text-[8px] font-black text-white/70 uppercase tracking-wider">
+                পয়েন্ট
+              </p>
+              <p className="text-[10px] font-black text-white leading-tight">
+                +{e2b(game.points)}
+              </p>
+            </div>
+            <div className="flex-1 bg-white/15 backdrop-blur-sm rounded-md px-2 py-1 border border-white/15">
+              <p className="text-[8px] font-black text-white/70 uppercase tracking-wider">
+                মোড
+              </p>
+              <p className="text-[10px] font-black text-white leading-tight">
+                {e2b(game.modes)}
+              </p>
+            </div>
+          </div>
+
+          {/* Best score */}
+          {bestScore > 0 && (
+            <div className="mt-2 bg-white/20 backdrop-blur-sm rounded-md px-2 py-1 border border-white/25 flex items-center justify-between">
+              <span className="text-[8px] font-black text-white/90 uppercase tracking-wider">
+                <i className="fa-solid fa-crown text-yellow-300 mr-0.5"></i>
+                সেরা
+              </span>
+              <span className="text-[11px] font-black text-white leading-tight">
+                {e2b(bestScore)}
+              </span>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/20">
+            <div className="flex items-center gap-1 text-white/75 text-[9px] font-bold uppercase tracking-wider">
+              <i className="fa-solid fa-signal text-[8px]"></i>
+              <span>{game.difficulty}</span>
+            </div>
+            <div className="flex items-center gap-1 text-white text-[10px] font-black uppercase tracking-wider group-hover:gap-2 transition-all">
+              খেলুন
+              <i className="fa-solid fa-arrow-right text-[9px]"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ============================================
+// COMPACT COMING SOON CARD
+// ============================================
+function ComingSoonCard({ game, idx }) {
+  return (
+    <div
+      className="h-full relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 flex flex-col min-h-[190px] hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
+      data-aos="zoom-in"
+      data-aos-delay={idx * 60}
+    >
+      <div className="flex justify-between items-start mb-2.5">
+        <div
+          className={`w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br ${game.gradient} opacity-80`}
+        >
+          <i className={`${game.icon} text-white text-base`}></i>
+        </div>
+        <div className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
+          <span className="text-[8px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+            {game.badge}
+          </span>
+        </div>
+      </div>
+
+      <h3 className="text-base font-black text-gray-900 dark:text-white leading-tight">
+        {game.title}
+      </h3>
+      <p className="text-gray-500 dark:text-gray-400 text-[10px] font-bold mt-0.5 mb-2 line-clamp-1">
+        {game.subtitle}
+      </p>
+      <p className="text-gray-400 dark:text-gray-500 text-[10px] leading-snug flex-grow line-clamp-2">
+        {game.description}
+      </p>
+
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500 text-[9px] font-bold uppercase tracking-wider">
+          <i className="fa-solid fa-signal text-[8px]"></i>
+          <span>{game.difficulty}</span>
+        </div>
+        <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500 text-[9px] font-black uppercase tracking-wider">
+          <i className="fa-solid fa-lock text-[8px]"></i>
+          শীঘ্রই
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ============================================
 // MAIN COMPONENT
@@ -288,8 +383,10 @@ export default function GameHubPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 lg:px-8 font-sans transition-colors duration-500">
       <div className="max-w-6xl mx-auto relative z-10 flex flex-col gap-10">
+        {/* ============================================ */}
         {/* HERO */}
-        <div className="flex flex-col mb-4" data-aos="fade-down">
+        {/* ============================================ */}
+        <div className="flex flex-col" data-aos="fade-down">
           <div className="w-full">
             <Link
               href="/my-bangladesh"
@@ -297,46 +394,75 @@ export default function GameHubPage() {
             >
               <i className="fa-solid fa-arrow-left"></i> My Bangladesh হোম
             </Link>
-            <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white mb-4 uppercase tracking-tight leading-tight">
+            <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white mb-3 uppercase tracking-tight leading-tight">
               ম্যাপ{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500">
                 গেমস
               </span>
             </h1>
-            <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm inline-block">
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 leading-relaxed">
               <i className="fa-solid fa-gamepad text-purple-500 mr-2"></i>
-              {e2b(availableGames.length)} টি গেম এখনই খেলার জন্য প্রস্তুত। ৬৪
-              জেলা চিনুন খেলতে খেলতে, স্কোর বাড়ান এবং লিডারবোর্ডে জায়গা করে
-              নিন!
+              {e2b(availableGames.length)} টি গেম এখনই খেলার জন্য প্রস্তুত —
+              ট্যাপ করে শুরু করুন!
             </p>
           </div>
         </div>
 
+        {/* ============================================ */}
+        {/* AVAILABLE GAMES — TOP PRIORITY, COMPACT GRID */}
+        {/* ============================================ */}
+        {availableGames.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4" data-aos="fade-up">
+              <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+                <span className="w-1.5 h-6 bg-gradient-to-b from-emerald-500 to-teal-500 rounded-full"></span>
+                এখনই খেলুন
+              </h2>
+              <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500">
+                {e2b(availableGames.length)} টি
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+              {availableGames.map((game, idx) => (
+                <GameCard
+                  key={game.id}
+                  game={game}
+                  bestScore={getBestForGame(stats.bestScores, game.id)}
+                  idx={idx}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ============================================ */}
         {/* PLAYER STATS */}
+        {/* ============================================ */}
         <div
           className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"
           data-aos="fade-up"
         >
           {/* Level Card */}
-          <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm relative overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm relative overflow-hidden">
             <div className="absolute -top-8 -right-8 w-20 h-20 rounded-full bg-purple-500/10 blur-2xl"></div>
             <div className="relative">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <i
-                  className="fa-solid fa-medal text-2xl text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500"
+                  className="fa-solid fa-medal text-xl text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500"
                   style={{
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                   }}
                 ></i>
-                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
                   লেভেল
                 </span>
               </div>
-              <p className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white">
+              <p className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
                 {hydrated ? e2b(currentLevel.level) : "—"}
               </p>
-              <div className="mt-3 w-full h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div className="mt-2 w-full h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-700"
                   style={{
@@ -345,271 +471,116 @@ export default function GameHubPage() {
                   }}
                 ></div>
               </div>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-bold">
+              <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1.5 font-bold">
                 {nextLevel
                   ? `${e2b(Math.max(nextLevel.xp - stats.xp, 0))} XP বাকি`
-                  : "সর্বোচ্চ লেভেল"}
+                  : "সর্বোচ্চ"}
               </p>
             </div>
           </div>
 
           {/* XP Card */}
-          <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm relative overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm relative overflow-hidden">
             <div className="absolute -top-8 -right-8 w-20 h-20 rounded-full bg-amber-500/10 blur-2xl"></div>
             <div className="relative">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <i
-                  className="fa-solid fa-star text-2xl text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500"
+                  className="fa-solid fa-star text-xl text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500"
                   style={{
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                   }}
                 ></i>
-                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
                   XP
                 </span>
               </div>
-              <p className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white">
+              <p className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
                 {hydrated ? e2b(stats.xp) : "—"}
               </p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-bold">
-                মোট অর্জিত XP
+              <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1.5 font-bold">
+                মোট অর্জিত
               </p>
             </div>
           </div>
 
           {/* Plays Card */}
-          <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm relative overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm relative overflow-hidden">
             <div className="absolute -top-8 -right-8 w-20 h-20 rounded-full bg-blue-500/10 blur-2xl"></div>
             <div className="relative">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <i
-                  className="fa-solid fa-play text-2xl text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-cyan-500"
+                  className="fa-solid fa-play text-xl text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-cyan-500"
                   style={{
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                   }}
                 ></i>
-                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
                   খেলা
                 </span>
               </div>
-              <p className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white">
+              <p className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
                 {hydrated ? e2b(stats.totalPlays) : "—"}
               </p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-bold">
+              <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1.5 font-bold">
                 মোট ম্যাচ
               </p>
             </div>
           </div>
 
           {/* Streak Card */}
-          <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm relative overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm relative overflow-hidden">
             <div className="absolute -top-8 -right-8 w-20 h-20 rounded-full bg-red-500/10 blur-2xl"></div>
             <div className="relative">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <i
-                  className="fa-solid fa-fire text-2xl text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-500"
+                  className="fa-solid fa-fire text-xl text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-500"
                   style={{
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                   }}
                 ></i>
-                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
                   স্ট্রিক
                 </span>
               </div>
-              <p className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white">
+              <p className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
                 {hydrated ? e2b(stats.streak) : "—"}
               </p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-bold">
+              <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1.5 font-bold">
                 টানা দিন
               </p>
             </div>
           </div>
         </div>
 
-        {/* AVAILABLE GAMES */}
-        {availableGames.length > 0 && (
-          <div>
-            <div
-              className="flex items-center justify-between mb-6"
-              data-aos="fade-up"
-            >
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white flex items-center gap-3">
-                  <span className="w-2 h-8 bg-gradient-to-b from-emerald-500 to-teal-500 rounded-full"></span>
-                  এখনই খেলুন
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {e2b(availableGames.length)} টি গেম আপনার জন্য প্রস্তুত
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-              {availableGames.map((game, idx) => {
-                const bestScore = getBestForGame(stats.bestScores, game.id);
-                return (
-                  <Link
-                    key={game.id}
-                    href={game.href}
-                    aria-label={`${game.title} খেলুন`}
-                    className="group block focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 rounded-3xl"
-                    data-aos="fade-up"
-                    data-aos-delay={idx * 80}
-                  >
-                    <div
-                      className={`h-full relative overflow-hidden rounded-3xl bg-gradient-to-br ${game.gradient} p-6 shadow-xl ${game.shadow} hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col min-h-[320px]`}
-                    >
-                      {/* Decorative circles */}
-                      <div className="absolute -top-20 -right-20 w-44 h-44 bg-white/20 rounded-full blur-3xl group-hover:bg-white/30 transition-colors"></div>
-                      <div className="absolute -bottom-20 -left-20 w-44 h-44 bg-black/10 rounded-full blur-3xl"></div>
-
-                      {/* Badge */}
-                      {game.badge && (
-                        <div className="absolute top-4 right-4 bg-white/25 backdrop-blur-sm px-3 py-1 rounded-full border border-white/40 z-10">
-                          <span className="text-[10px] font-black text-white uppercase tracking-widest">
-                            {game.badge}
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="relative z-10 flex flex-col h-full">
-                        <div className="w-14 h-14 bg-white/25 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 border border-white/30 group-hover:scale-110 transition-transform duration-500">
-                          <i
-                            className={`${game.icon} text-white text-2xl`}
-                          ></i>
-                        </div>
-
-                        <h3 className="text-2xl font-black text-white mb-1">
-                          {game.title}
-                        </h3>
-                        <p className="text-white/85 text-sm font-bold mb-3">
-                          {game.subtitle}
-                        </p>
-                        <p className="text-white/75 text-xs leading-relaxed flex-grow">
-                          {game.description}
-                        </p>
-
-                        {/* Stats row: points + modes */}
-                        <div className="mt-4 flex items-center gap-2">
-                          <div className="flex-1 bg-white/15 backdrop-blur-sm rounded-lg px-2.5 py-1.5 border border-white/20">
-                            <p className="text-[9px] font-black text-white/70 uppercase tracking-widest">
-                              পয়েন্ট
-                            </p>
-                            <p className="text-xs font-black text-white">
-                              +{e2b(game.points)}/সঠিক
-                            </p>
-                          </div>
-                          <div className="flex-1 bg-white/15 backdrop-blur-sm rounded-lg px-2.5 py-1.5 border border-white/20">
-                            <p className="text-[9px] font-black text-white/70 uppercase tracking-widest">
-                              মোড
-                            </p>
-                            <p className="text-xs font-black text-white">
-                              {e2b(game.modes)} টি
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Best Score row */}
-                        {bestScore > 0 && (
-                          <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/30 flex items-center justify-between">
-                            <span className="text-[10px] font-black text-white/90 uppercase tracking-widest">
-                              <i className="fa-solid fa-crown text-yellow-300 mr-1"></i>
-                              সেরা স্কোর
-                            </span>
-                            <span className="text-sm font-black text-white">
-                              {e2b(bestScore)}
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/20">
-                          <div className="flex items-center gap-2 text-white/80 text-[10px] font-bold uppercase tracking-wider">
-                            <i className="fa-solid fa-signal"></i>
-                            <span>{game.difficulty}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-white text-xs font-black uppercase tracking-wider group-hover:gap-4 transition-all">
-                            শুরু করুন
-                            <i className="fa-solid fa-arrow-right"></i>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
+        {/* ============================================ */}
         {/* COMING SOON GAMES */}
+        {/* ============================================ */}
         {comingSoonGames.length > 0 && (
           <div>
-            <div
-              className="flex items-center justify-between mb-6"
-              data-aos="fade-up"
-            >
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white flex items-center gap-3">
-                  <span className="w-2 h-8 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full"></span>
-                  শীঘ্রই আসছে
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  আরো {e2b(comingSoonGames.length)} টি মজার গেম প্রস্তুত হচ্ছে
-                </p>
-              </div>
+            <div className="flex items-center justify-between mb-4" data-aos="fade-up">
+              <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+                <span className="w-1.5 h-6 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full"></span>
+                শীঘ্রই আসছে
+              </h2>
+              <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500">
+                {e2b(comingSoonGames.length)} টি
+              </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               {comingSoonGames.map((game, idx) => (
-                <div
-                  key={game.id}
-                  className="h-full relative overflow-hidden rounded-3xl bg-white dark:bg-gray-800 p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 flex flex-col min-h-[280px] hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
-                  data-aos="fade-up"
-                  data-aos-delay={idx * 80}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div
-                      className={`w-14 h-14 rounded-2xl flex items-center justify-center bg-gradient-to-br ${game.gradient} opacity-80`}
-                    >
-                      <i className={`${game.icon} text-white text-2xl`}></i>
-                    </div>
-                    <div className="bg-gray-100 dark:bg-gray-700 px-2.5 py-1 rounded-full">
-                      <span className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
-                        {game.badge}
-                      </span>
-                    </div>
-                  </div>
-
-                  <h3 className="text-xl font-black text-gray-900 dark:text-white mb-1">
-                    {game.title}
-                  </h3>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs font-bold mb-2">
-                    {game.subtitle}
-                  </p>
-                  <p className="text-gray-400 dark:text-gray-500 text-xs leading-relaxed flex-grow">
-                    {game.description}
-                  </p>
-
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase tracking-wider">
-                      <i className="fa-solid fa-signal"></i>
-                      <span>{game.difficulty}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500 text-[10px] font-black uppercase tracking-wider">
-                      <i className="fa-solid fa-lock"></i>
-                      শীঘ্রই
-                    </div>
-                  </div>
-                </div>
+                <ComingSoonCard key={game.id} game={game} idx={idx} />
               ))}
             </div>
           </div>
         )}
 
+        {/* ============================================ */}
         {/* ACHIEVEMENTS PREVIEW */}
+        {/* ============================================ */}
         <div
           className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-[2rem] border border-gray-200 dark:border-gray-700 shadow-sm"
           data-aos="fade-up"
@@ -669,7 +640,9 @@ export default function GameHubPage() {
           </div>
         </div>
 
+        {/* ============================================ */}
         {/* LEADERBOARD CTA */}
+        {/* ============================================ */}
         <div
           className="bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 rounded-[2rem] p-8 sm:p-10 relative overflow-hidden shadow-2xl"
           data-aos="fade-up"
@@ -738,7 +711,9 @@ export default function GameHubPage() {
           </div>
         </div>
 
+        {/* ============================================ */}
         {/* DAILY CHALLENGE TEASER */}
+        {/* ============================================ */}
         <div
           className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-[2rem] border-2 border-dashed border-purple-200 dark:border-purple-500/30 shadow-sm text-center"
           data-aos="fade-up"
@@ -758,7 +733,9 @@ export default function GameHubPage() {
           </span>
         </div>
 
-        {/* FOOTER INFO */}
+        {/* ============================================ */}
+        {/* FOOTER */}
+        {/* ============================================ */}
         <div className="text-center pb-4">
           <p className="text-xs text-gray-400 dark:text-gray-500">
             <i className="fa-solid fa-shield-halved mr-1 text-emerald-500"></i>
