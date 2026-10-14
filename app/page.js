@@ -781,7 +781,7 @@ export default function HomePage() {
           <span className="animate-marquee font-bold text-xs sm:text-sm tracking-wide">
             <i className="fa-solid fa-bolt mr-2" /> চুয়েট অ্যাডভেঞ্চার সোসাইটি
             একটি সম্পূর্ণ অলাভজনক এবং অরাজনৈতিক প্রতিষ্ঠান, ভ্রমণের মাধ্যমে
-            নিখাদ আনন্দ লাভ একমাত্র উদ্দেশ্য।{" "}
+            নিখাদ আনন্দ লাভ আমাদের একমাত্র উদ্দেশ্য।{" "}
             <i className="fa-solid fa-bolt ml-2" />
           </span>
         </div>
