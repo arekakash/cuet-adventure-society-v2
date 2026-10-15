@@ -46,7 +46,7 @@ function SlipNum({ value, useBangla, prefix = "" }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SUMMARY SLIP — তালিখাতা style
+   SUMMARY SLIP
    ═══════════════════════════════════════════════════════════════ */
 function SummarySlip({
   eventData,
@@ -75,70 +75,49 @@ function SummarySlip({
       <div
         style={{
           border: "4px double #8B0000",
-          padding: "24px",
+          padding: "28px 24px",
           background: "rgba(255, 253, 245, 0.6)",
         }}
       >
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: "16px" }}>
+        {/* ── Modern Header: Big Event Title + Small credit ── */}
+        <div style={{ textAlign: "center", marginBottom: "20px" }}>
           <div
             style={{
-              fontSize: "11px",
-              color: "#8B0000",
-              fontWeight: "bold",
-              letterSpacing: "4px",
-              marginBottom: "8px",
-            }}
-          >
-            ॥ শ্রী ॥ শুভম্ ॥
-          </div>
-          <div
-            style={{
-              display: "inline-block",
-              padding: "4px 16px",
-              borderTop: "2px solid #8B0000",
-              borderBottom: "2px solid #8B0000",
-              fontSize: "20px",
+              fontSize: "30px",
               fontWeight: "900",
               color: "#8B0000",
-              letterSpacing: "2px",
+              lineHeight: "1.25",
+              wordBreak: "break-word",
+              paddingBottom: "6px",
+              borderBottom: "2px solid #8B0000",
+              display: "inline-block",
+              maxWidth: "100%",
             }}
           >
-            চুয়েট অ্যাডভেঞ্চার সোসাইটি
+            {eventData.name || "Unnamed Event"}
           </div>
           <div
             style={{
               fontSize: "13px",
               fontWeight: "bold",
               color: "#5C3317",
-              marginTop: "6px",
-              letterSpacing: "1px",
+              marginTop: "10px",
+              letterSpacing: "0.5px",
             }}
           >
-            ইভেন্ট হিসাবের তালিখাতা
+            সারসংক্ষেপ হিসাব স্লিপ
           </div>
-        </div>
-
-        {/* Event info */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: "12px",
-            marginBottom: "16px",
-            paddingBottom: "8px",
-            borderBottom: "1px dashed #B22222",
-            color: "#5C3317",
-            fontWeight: "bold",
-          }}
-        >
-          <div>
-            <span style={{ color: "#8B0000" }}>ইভেন্ট:</span>{" "}
-            {eventData.name || "Unnamed Event"}
-          </div>
-          <div>
-            <span style={{ color: "#8B0000" }}>তারিখ:</span>{" "}
-            {eventData.date || new Date().toLocaleDateString("en-GB")}
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#8B0000",
+              marginTop: "4px",
+              fontWeight: "bold",
+            }}
+          >
+            {eventData.date
+              ? `তারিখ: ${eventData.date}`
+              : `জেনারেটেড: ${new Date().toLocaleDateString("en-GB")}`}
           </div>
         </div>
 
@@ -693,38 +672,37 @@ function SummarySlip({
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer — small English credit */}
         <div
           style={{
-            marginTop: "20px",
+            marginTop: "24px",
             paddingTop: "12px",
             borderTop: "2px dotted #8B0000",
             textAlign: "center",
-            fontSize: "10px",
-            color: "#5C3317",
           }}
         >
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-              fontSize: "11px",
+              fontSize: "9px",
               color: "#8B0000",
+              letterSpacing: "1.5px",
+              fontWeight: "bold",
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
             }}
           >
-            <div>— স্বাক্ষর —</div>
-            <div>— স্বাক্ষর —</div>
+            Powered by CUET Adventure Society
           </div>
           <div
             style={{
-              marginTop: "12px",
-              fontSize: "9px",
+              fontSize: "8px",
+              color: "#5C3317",
               fontStyle: "italic",
-              letterSpacing: "1px",
+              letterSpacing: "0.5px",
+              marginTop: "3px",
             }}
           >
-            ক্যালকুলেটেড বাই CUET Adventure Society • cuetas.com
+            cuetas.com
           </div>
         </div>
       </div>
@@ -733,7 +711,7 @@ function SummarySlip({
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   MEMBER SLIP — individual slip
+   MEMBER SLIP
    ═══════════════════════════════════════════════════════════════ */
 function MemberSlip({ slip, eventData, useBangla }) {
   const { member, balance, consumed, paid, myTx } = slip;
@@ -755,46 +733,49 @@ function MemberSlip({ slip, eventData, useBangla }) {
       <div
         style={{
           border: "4px double #8B0000",
-          padding: "24px",
+          padding: "28px 24px",
           background: "rgba(255, 253, 245, 0.6)",
         }}
       >
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: "16px" }}>
+        {/* ── Modern Header: Big Event Title + Member name ── */}
+        <div style={{ textAlign: "center", marginBottom: "20px" }}>
+          <div
+            style={{
+              fontSize: "28px",
+              fontWeight: "900",
+              color: "#8B0000",
+              lineHeight: "1.25",
+              wordBreak: "break-word",
+              paddingBottom: "6px",
+              borderBottom: "2px solid #8B0000",
+              display: "inline-block",
+              maxWidth: "100%",
+            }}
+          >
+            {eventData.name || "Unnamed Event"}
+          </div>
+          <div
+            style={{
+              fontSize: "13px",
+              fontWeight: "bold",
+              color: "#5C3317",
+              marginTop: "10px",
+              letterSpacing: "0.5px",
+            }}
+          >
+            ব্যক্তিগত হিসাব স্লিপ
+          </div>
           <div
             style={{
               fontSize: "11px",
               color: "#8B0000",
+              marginTop: "4px",
               fontWeight: "bold",
-              letterSpacing: "4px",
-              marginBottom: "8px",
             }}
           >
-            ॥ শ্রী ॥ শুভম্ ॥
-          </div>
-          <div
-            style={{
-              display: "inline-block",
-              padding: "4px 16px",
-              borderTop: "2px solid #8B0000",
-              borderBottom: "2px solid #8B0000",
-              fontSize: "18px",
-              fontWeight: "900",
-              color: "#8B0000",
-              letterSpacing: "2px",
-            }}
-          >
-            ব্যক্তিগত হিসাবের তালিখাতা
-          </div>
-          <div
-            style={{
-              fontSize: "12px",
-              fontWeight: "bold",
-              color: "#5C3317",
-              marginTop: "6px",
-            }}
-          >
-            চুয়েট অ্যাডভেঞ্চার সোসাইটি
+            {eventData.date
+              ? `তারিখ: ${eventData.date}`
+              : `জেনারেটেড: ${new Date().toLocaleDateString("en-GB")}`}
           </div>
         </div>
 
@@ -813,32 +794,12 @@ function MemberSlip({ slip, eventData, useBangla }) {
             style={{
               display: "flex",
               justifyContent: "space-between",
-              marginBottom: "4px",
+              alignItems: "center",
             }}
           >
-            <span style={{ color: "#8B0000", fontWeight: "bold" }}>নাম:</span>
-            <span style={{ fontWeight: "900", fontSize: "14px" }}>
+            <span style={{ color: "#8B0000", fontWeight: "bold" }}>সদস্য:</span>
+            <span style={{ fontWeight: "900", fontSize: "15px" }}>
               {member.name}
-            </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px",
-            }}
-          >
-            <span style={{ color: "#8B0000", fontWeight: "bold" }}>
-              ইভেন্ট:
-            </span>
-            <span>{eventData.name || "Unnamed Event"}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "#8B0000", fontWeight: "bold" }}>
-              তারিখ:
-            </span>
-            <span>
-              {eventData.date || new Date().toLocaleDateString("en-GB")}
             </span>
           </div>
         </div>
@@ -1361,37 +1322,37 @@ function MemberSlip({ slip, eventData, useBangla }) {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer — small English credit */}
         <div
           style={{
+            marginTop: "24px",
             paddingTop: "12px",
             borderTop: "2px dotted #8B0000",
             textAlign: "center",
-            fontSize: "10px",
-            color: "#5C3317",
           }}
         >
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-              fontSize: "11px",
+              fontSize: "9px",
               color: "#8B0000",
+              letterSpacing: "1.5px",
+              fontWeight: "bold",
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
             }}
           >
-            <div>— স্বাক্ষর —</div>
-            <div>— স্বাক্ষর —</div>
+            Powered by CUET Adventure Society
           </div>
           <div
             style={{
-              marginTop: "12px",
-              fontSize: "9px",
+              fontSize: "8px",
+              color: "#5C3317",
               fontStyle: "italic",
-              letterSpacing: "1px",
+              letterSpacing: "0.5px",
+              marginTop: "3px",
             }}
           >
-            ক্যালকুলেটেড বাই CUET Adventure Society • cuetas.com
+            cuetas.com
           </div>
         </div>
       </div>
@@ -1793,10 +1754,7 @@ export default function EventCalculator() {
       multiPayers: {},
       consumers: pending.consumers,
     });
-    // ⚠️ DO NOT set editingExpenseId here — it must stay as-is.
-    // If we were editing an existing expense, editingExpenseId is already set.
-    // If this was a new expense, editingExpenseId is null — it should remain null
-    // so that Save creates a new expense instead of searching for a nonexistent one.
+    // ⚠️ editingExpenseId is intentionally NOT set here — see bug fix notes.
   };
 
   const handleFundWarningTopup = () => {
@@ -2335,7 +2293,7 @@ export default function EventCalculator() {
                   : "bg-gray-50 text-gray-600 dark:bg-transparent dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10"
               }`}
             >
-              <i className="fa-solid fa-scroll mr-2"></i>তালিখাতা
+              <i className="fa-solid fa-scroll mr-2"></i>স্লিপ
             </button>
           </div>
         )}
@@ -3094,11 +3052,11 @@ export default function EventCalculator() {
             <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-soft dark:shadow-xl">
               <h2 className="text-xl font-black text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <i className="fa-solid fa-scroll text-amber-500"></i>
-                তালিখাতা জেনারেটর
+                স্লিপ জেনারেটর
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">
-                প্রথাগত বাংলা মুদি দোকানের তালিখাতার স্টাইলে স্লিপ তৈরি করুন।
-                সব হিসাব স্বচ্ছভাবে দেখানো হবে।
+                প্রতিটি সদস্যের জন্য আলাদা স্লিপ অথবা সম্পূর্ণ ইভেন্টের
+                সারসংক্ষেপ স্লিপ — সব হিসাব স্বচ্ছভাবে ডাউনলোড করুন।
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
@@ -3115,7 +3073,7 @@ export default function EventCalculator() {
                 >
                   <i className="fa-solid fa-file-invoice text-2xl text-amber-500 mb-2"></i>
                   <p className="font-black text-gray-900 dark:text-white text-sm">
-                    সারসংক্ষেপ তালিখাতা
+                    সারসংক্ষেপ স্লিপ
                   </p>
                   <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
                     পুরো ইভেন্টের মোট হিসাব, সকল সদস্যের ব্যালান্স ও লেনদেন
@@ -3135,7 +3093,7 @@ export default function EventCalculator() {
                 >
                   <i className="fa-solid fa-users text-2xl text-amber-500 mb-2"></i>
                   <p className="font-black text-gray-900 dark:text-white text-sm">
-                    সকল সদস্যের আলাদা তালিখাতা
+                    সকল সদস্যের আলাদা স্লিপ
                   </p>
                   <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
                     প্রত্যেক সদস্যের জন্য আলাদা পৃষ্ঠা, একটাই PDF-এ
