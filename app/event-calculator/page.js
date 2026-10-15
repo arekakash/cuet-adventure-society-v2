@@ -203,7 +203,6 @@ function SummarySlip({
           </div>
         </div>
 
-        {/* Section 1: Expenses */}
         <div style={{ marginBottom: "18px" }}>
           <div
             style={{
@@ -380,7 +379,6 @@ function SummarySlip({
           </table>
         </div>
 
-        {/* Section 2: Member balances */}
         <div style={{ marginBottom: "18px" }}>
           <div
             style={{
@@ -531,7 +529,6 @@ function SummarySlip({
           </table>
         </div>
 
-        {/* Section 3: Transactions */}
         <div style={{ marginBottom: "18px" }}>
           <div
             style={{
@@ -1376,6 +1373,10 @@ export default function EventCalculator() {
   const [slipUseBanglaDigits, setSlipUseBanglaDigits] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  /* ── Bulk Fund Collection State ── */
+  const [bulkAmount, setBulkAmount] = useState("");
+  const [bulkMode, setBulkMode] = useState("all"); // 'all' | 'zero-only'
+
   const [expenseForm, setExpenseForm] = useState({
     desc: "",
     amount: "",
@@ -1559,6 +1560,64 @@ export default function EventCalculator() {
     );
   };
 
+  /* ── Bulk fund collection ── */
+  const bulkPreview = useMemo(() => {
+    const amount = round2(parseFloat(bulkAmount) || 0);
+    let targets = [];
+    if (bulkMode === "all") {
+      targets = members;
+    } else if (bulkMode === "zero-only") {
+      targets = members.filter((m) => !m.deposit || Number(m.deposit) === 0);
+    }
+    return {
+      amount,
+      count: targets.length,
+      total: round2(amount * targets.length),
+      targets,
+    };
+  }, [bulkAmount, bulkMode, members]);
+
+  const handleBulkCollect = () => {
+    const { amount, count, total, targets } = bulkPreview;
+
+    if (amount <= 0) {
+      alert("সঠিক টাকার পরিমাণ দিন (০ এর বেশি)!");
+      return;
+    }
+    if (count === 0) {
+      alert(
+        bulkMode === "zero-only"
+          ? "যাদের ফান্ডে এখনো কিছু জমা পড়েনি — এমন কোনো সদস্য নেই!"
+          : "প্রথমে মেম্বার যুক্ত করুন!"
+      );
+      return;
+    }
+
+    const modeText =
+      bulkMode === "all"
+        ? `সব ${count} জন`
+        : `যাদের ফান্ডে নেই (${count} জন)`;
+    if (
+      !window.confirm(
+        `${modeText} এর প্রত্যেকের কাছ থেকে ৳${formatMoney(
+          amount
+        )} করে যোগ হবে।\n\nমোট: ৳${formatMoney(total)}\n\nনিশ্চিত?`
+      )
+    ) {
+      return;
+    }
+
+    const targetIds = new Set(targets.map((t) => t.id));
+    setMembers((prev) =>
+      prev.map((m) =>
+        targetIds.has(m.id)
+          ? { ...m, deposit: round2((Number(m.deposit) || 0) + amount) }
+          : m
+      )
+    );
+    setBulkAmount("");
+  };
+
   const handleRemoveMember = (id) => {
     const targetMember = members.find((m) => m.id === id);
     if (!targetMember) return;
@@ -1700,7 +1759,6 @@ export default function EventCalculator() {
     return round2(currentGroupTotal - groupOutflow);
   };
 
-  /* ── Robust commit by id ── */
   const commitExpenseSafe = (payload) => {
     const exists = expenses.some((e) => e.id === payload.id);
     if (exists) {
@@ -2143,7 +2201,7 @@ export default function EventCalculator() {
      RENDER
      ═══════════════════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen bg-pastel-bg dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 relative text-gray-800 dark:text-gray-200 overflow-x-hidden transition-colors duration-500">
+    <div className="min-h-screen bg-pastel-bg dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 relative text-gray-800 dark:text-gray-100 overflow-x-hidden transition-colors duration-500">
       <div
         ref={slipRenderRef}
         aria-hidden
@@ -2195,7 +2253,7 @@ export default function EventCalculator() {
               ক্যালকুলেটর
             </span>
           </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-300 transition-colors">
+          <p className="text-sm text-gray-700 dark:text-gray-200 transition-colors">
             ট্যুরের যাবতীয় হিসাব-নিকাশের ম্যাজিক সমাধান
           </p>
         </div>
@@ -2209,7 +2267,7 @@ export default function EventCalculator() {
                   {eventData.name || "Unnamed Event"}
                 </p>
                 {eventData.date && (
-                  <p className="text-[10px] text-gray-600 dark:text-gray-300">
+                  <p className="text-[10px] text-gray-700 dark:text-gray-200">
                     তারিখ: {eventData.date}
                   </p>
                 )}
@@ -2218,14 +2276,14 @@ export default function EventCalculator() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setActiveTab("setup")}
-                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 hover:bg-purple-100 dark:hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-colors"
+                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-800 dark:text-gray-100 hover:bg-purple-100 dark:hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-200 transition-colors"
               >
                 <i className="fa-solid fa-folder-open mr-1.5"></i>ইভেন্ট
                 পরিবর্তন ({savedEvents.length})
               </button>
               <button
                 onClick={handleCreateNewEvent}
-                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-500/30 transition-colors"
+                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-200 hover:bg-purple-200 dark:hover:bg-purple-500/30 transition-colors"
               >
                 <i className="fa-solid fa-plus mr-1"></i>নতুন
               </button>
@@ -2240,7 +2298,7 @@ export default function EventCalculator() {
               className={`px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm dark:shadow-none ${
                 activeTab === "members"
                   ? "bg-purple-500 text-white"
-                  : "bg-gray-50 text-gray-700 dark:bg-transparent dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10"
+                  : "bg-gray-50 text-gray-800 dark:bg-transparent dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10"
               }`}
             >
               <i className="fa-solid fa-users mr-2"></i>মেম্বার ও ফান্ড
@@ -2259,7 +2317,7 @@ export default function EventCalculator() {
               className={`px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm dark:shadow-none ${
                 activeTab === "expenses"
                   ? "bg-pink-500 text-white"
-                  : "bg-gray-50 text-gray-700 dark:bg-transparent dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10"
+                  : "bg-gray-50 text-gray-800 dark:bg-transparent dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10"
               }`}
             >
               <i className="fa-solid fa-money-bill-wave mr-2"></i>খরচের খাতা
@@ -2269,7 +2327,7 @@ export default function EventCalculator() {
               className={`px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm dark:shadow-none ${
                 activeTab === "settlement"
                   ? "bg-emerald-500 text-white"
-                  : "bg-gray-50 text-gray-700 dark:bg-transparent dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10"
+                  : "bg-gray-50 text-gray-800 dark:bg-transparent dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10"
               }`}
             >
               <i className="fa-solid fa-check-double mr-2"></i>সেটেলমেন্ট
@@ -2279,7 +2337,7 @@ export default function EventCalculator() {
               className={`px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm dark:shadow-none ${
                 activeTab === "slips"
                   ? "bg-amber-500 text-white"
-                  : "bg-gray-50 text-gray-700 dark:bg-transparent dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10"
+                  : "bg-gray-50 text-gray-800 dark:bg-transparent dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10"
               }`}
             >
               <i className="fa-solid fa-scroll mr-2"></i>স্লিপ
@@ -2291,7 +2349,7 @@ export default function EventCalculator() {
         {activeTab === "setup" && (
           <div className="space-y-8" data-aos="zoom-in">
             <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 rounded-3xl p-8 max-w-md mx-auto shadow-soft dark:shadow-2xl transition-colors duration-500">
-              <div className="w-16 h-16 bg-purple-100 dark:bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-purple-200 dark:border-purple-500/40 text-purple-600 dark:text-purple-400 text-2xl transition-colors">
+              <div className="w-16 h-16 bg-purple-100 dark:bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-purple-200 dark:border-purple-500/40 text-purple-600 dark:text-purple-300 text-2xl transition-colors">
                 <i className="fa-solid fa-compass"></i>
               </div>
               <h2 className="text-2xl font-black text-gray-900 dark:text-white text-center mb-6 transition-colors">
@@ -2301,7 +2359,7 @@ export default function EventCalculator() {
               </h2>
               <form onSubmit={handleStartEvent} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1 transition-colors">
+                  <label className="block text-xs font-bold text-gray-800 dark:text-gray-100 mb-1 transition-colors">
                     ইভেন্টের নাম *
                   </label>
                   <input
@@ -2312,11 +2370,11 @@ export default function EventCalculator() {
                       setEventData({ ...eventData, name: e.target.value })
                     }
                     placeholder="e.g. Sajek Tour 2026"
-                    className="w-full bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-purple-500 outline-none transition-colors shadow-sm dark:shadow-none"
+                    className="w-full bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:border-purple-500 outline-none transition-colors shadow-sm dark:shadow-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1 transition-colors">
+                  <label className="block text-xs font-bold text-gray-800 dark:text-gray-100 mb-1 transition-colors">
                     তারিখ
                   </label>
                   <input
@@ -2341,7 +2399,7 @@ export default function EventCalculator() {
             {savedEvents.length > 0 && (
               <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 rounded-3xl p-6 max-w-2xl mx-auto shadow-soft dark:shadow-xl transition-colors">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-white/10 pb-3 mb-4">
-                  <h3 className="text-sm font-black text-gray-800 dark:text-white uppercase tracking-wider">
+                  <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">
                     <i className="fa-solid fa-clock-rotate-left mr-2 text-purple-500"></i>
                     সংরক্ষিত ইভেন্ট ({savedEvents.length})
                   </h3>
@@ -2375,7 +2433,7 @@ export default function EventCalculator() {
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-0.5">
+                          <p className="text-[11px] text-gray-700 dark:text-gray-200 mt-0.5">
                             মেম্বার: {evt.members?.length || 0} জন • মোট খরচ: ৳
                             {formatMoney(evtTotalExp)}
                           </p>
@@ -2394,7 +2452,7 @@ export default function EventCalculator() {
                                 evt.eventData?.name
                               )
                             }
-                            className="p-2 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 border border-red-200 dark:border-transparent transition-colors"
+                            className="p-2 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-500/20 border border-red-200 dark:border-red-500/30 transition-colors"
                           >
                             <i className="fa-solid fa-trash text-xs"></i>
                           </button>
@@ -2413,7 +2471,7 @@ export default function EventCalculator() {
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-emerald-50 dark:bg-gradient-to-br dark:from-emerald-900/40 dark:to-emerald-900/10 border border-emerald-200 dark:border-emerald-500/30 p-5 rounded-2xl text-center transition-colors">
-                <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold mb-1">
+                <p className="text-xs text-emerald-700 dark:text-emerald-200 font-bold mb-1">
                   মোট ফান্ড কালেকশন
                 </p>
                 <p className="text-3xl font-black text-emerald-900 dark:text-white">
@@ -2421,7 +2479,7 @@ export default function EventCalculator() {
                 </p>
               </div>
               <div className="bg-purple-50 dark:bg-gradient-to-br dark:from-purple-900/40 dark:to-purple-900/10 border border-purple-200 dark:border-purple-500/30 p-5 rounded-2xl text-center transition-colors">
-                <p className="text-xs text-purple-700 dark:text-purple-300 font-bold mb-1">
+                <p className="text-xs text-purple-700 dark:text-purple-200 font-bold mb-1">
                   মেম্বার সংখ্যা
                 </p>
                 <p className="text-3xl font-black text-purple-900 dark:text-white">
@@ -2430,9 +2488,96 @@ export default function EventCalculator() {
               </div>
             </div>
 
+            {/* ═══ BULK FUND COLLECTION ═══ */}
+            {members.length > 0 && (
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/20 border-2 border-amber-300 dark:border-amber-500/40 rounded-3xl p-6 shadow-soft dark:shadow-xl transition-colors">
+                <h3 className="text-lg font-black text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+                  <i className="fa-solid fa-bolt text-amber-500"></i>
+                  সবার কাছ থেকে ফান্ড কালেক্ট
+                </h3>
+                <p className="text-xs text-gray-700 dark:text-gray-200 mb-5">
+                  এক ক্লিকে সব সদস্যের কাছ থেকে নির্দিষ্ট পরিমাণ ফান্ড সংগ্রহ করুন
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 dark:text-gray-100 mb-1.5">
+                      প্রতি সদস্যের কাছ থেকে (৳)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-3 text-gray-500 dark:text-gray-300 font-bold">
+                        ৳
+                      </span>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        value={bulkAmount}
+                        onChange={(e) => setBulkAmount(e.target.value)}
+                        placeholder="যেমন: 500"
+                        className="w-full bg-white dark:bg-black/50 border border-amber-300 dark:border-amber-500/40 rounded-xl pl-8 pr-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 font-bold focus:border-amber-500 outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 dark:text-gray-100 mb-1.5">
+                      কারা যুক্ত হবে?
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setBulkMode("all")}
+                        className={`flex-1 py-3 rounded-xl text-xs font-bold border-2 transition-all ${
+                          bulkMode === "all"
+                            ? "bg-amber-100 dark:bg-amber-500/20 border-amber-400 dark:border-amber-500 text-amber-800 dark:text-amber-200"
+                            : "bg-white dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:border-amber-300"
+                        }`}
+                      >
+                        <i className="fa-solid fa-users mr-1"></i>সবাই
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBulkMode("zero-only")}
+                        className={`flex-1 py-3 rounded-xl text-xs font-bold border-2 transition-all ${
+                          bulkMode === "zero-only"
+                            ? "bg-amber-100 dark:bg-amber-500/20 border-amber-400 dark:border-amber-500 text-amber-800 dark:text-amber-200"
+                            : "bg-white dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:border-amber-300"
+                        }`}
+                      >
+                        <i className="fa-solid fa-user-slash mr-1"></i>যাদের নেই
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preview */}
+                {bulkPreview.amount > 0 && bulkPreview.count > 0 && (
+                  <div className="bg-white/70 dark:bg-black/40 rounded-xl p-3 mb-4 border border-amber-200 dark:border-amber-500/20">
+                    <p className="text-xs font-bold text-gray-800 dark:text-gray-100 text-center">
+                      {bulkPreview.count} জন × ৳{formatMoney(bulkPreview.amount)}{" "}
+                      ={" "}
+                      <span className="text-amber-700 dark:text-amber-300 text-base">
+                        ৳{formatMoney(bulkPreview.total)}
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleBulkCollect}
+                  disabled={bulkPreview.amount <= 0 || bulkPreview.count === 0}
+                  className="w-full bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3.5 rounded-xl font-black tracking-wider transition-all shadow-md hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                >
+                  <i className="fa-solid fa-hand-holding-dollar"></i>
+                  ফান্ডে যুক্ত করুন
+                </button>
+              </div>
+            )}
+
             <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-soft dark:shadow-xl transition-colors">
               <h3 className="text-lg font-black text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-white/5 pb-3">
-                মেম্বার ও ফান্ড জমা
+                মেম্বার ও ইন্ডিভিজুয়াল ফান্ড জমা
               </h3>
               <form onSubmit={handleAddMember} className="flex gap-2 mb-6">
                 <input
@@ -2440,7 +2585,7 @@ export default function EventCalculator() {
                   value={newMemberName}
                   onChange={(e) => setNewMemberName(e.target.value)}
                   placeholder="মেম্বারের নাম লিখুন..."
-                  className="flex-1 bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-purple-500 outline-none transition-colors shadow-sm dark:shadow-none"
+                  className="flex-1 bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:border-purple-500 outline-none transition-colors shadow-sm dark:shadow-none"
                 />
                 <button
                   type="submit"
@@ -2452,7 +2597,7 @@ export default function EventCalculator() {
 
               <div className="space-y-3">
                 {members.length === 0 && (
-                  <p className="text-center text-gray-600 dark:text-gray-300 py-4 text-sm">
+                  <p className="text-center text-gray-700 dark:text-gray-200 py-4 text-sm">
                     কোনো মেম্বার যুক্ত করা হয়নি।
                   </p>
                 )}
@@ -2461,15 +2606,15 @@ export default function EventCalculator() {
                     key={member.id}
                     className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors shadow-sm dark:shadow-none"
                   >
-                    <span className="font-bold text-gray-800 dark:text-white pl-2">
+                    <span className="font-bold text-gray-900 dark:text-white pl-2">
                       {member.name}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-gray-600 dark:text-gray-300 font-semibold mr-1">
+                      <span className="text-[11px] text-gray-700 dark:text-gray-200 font-semibold mr-1">
                         ফান্ডে জমা:
                       </span>
                       <div className="relative">
-                        <span className="absolute left-3 top-2 text-gray-500 dark:text-gray-400">
+                        <span className="absolute left-3 top-2 text-gray-500 dark:text-gray-300">
                           ৳
                         </span>
                         <input
@@ -2481,12 +2626,12 @@ export default function EventCalculator() {
                             handleUpdateDeposit(member.id, e.target.value)
                           }
                           placeholder="0"
-                          className="w-32 bg-white dark:bg-black/50 border border-gray-200 dark:border-white/10 rounded-lg pl-7 pr-3 py-2 text-emerald-600 dark:text-emerald-400 font-bold focus:border-emerald-500 outline-none transition-colors shadow-inner dark:shadow-none"
+                          className="w-32 bg-white dark:bg-black/50 border border-gray-200 dark:border-white/10 rounded-lg pl-7 pr-3 py-2 text-emerald-600 dark:text-emerald-300 font-bold focus:border-emerald-500 outline-none transition-colors shadow-inner dark:shadow-none"
                         />
                       </div>
                       <button
                         onClick={() => handleRemoveMember(member.id)}
-                        className="bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/30 p-2 rounded-lg transition-colors border border-red-200 dark:border-transparent"
+                        className="bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-500/20 p-2 rounded-lg transition-colors border border-red-200 dark:border-red-500/30"
                       >
                         <i className="fa-solid fa-trash"></i>
                       </button>
@@ -2503,7 +2648,7 @@ export default function EventCalculator() {
           <div className="space-y-6">
             <div className="bg-pink-50 dark:bg-gradient-to-br dark:from-pink-900/40 dark:to-pink-900/10 border border-pink-200 dark:border-pink-500/30 p-5 rounded-2xl flex flex-wrap justify-between items-center gap-4 transition-colors">
               <div>
-                <p className="text-xs text-pink-700 dark:text-pink-300 font-bold mb-1">
+                <p className="text-xs text-pink-700 dark:text-pink-200 font-bold mb-1">
                   মোট খরচ
                 </p>
                 <p className="text-3xl font-black text-pink-900 dark:text-white text-left">
@@ -2511,14 +2656,14 @@ export default function EventCalculator() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-gray-700 dark:text-gray-300 font-bold mb-1">
+                <p className="text-xs text-gray-800 dark:text-gray-100 font-bold mb-1">
                   গ্রুপ ফান্ডের ক্যাশ
                 </p>
                 <p
                   className={`text-xl font-black ${
                     groupFundBalance < -EPSILON
-                      ? "text-red-500"
-                      : "text-emerald-600 dark:text-emerald-400"
+                      ? "text-red-500 dark:text-red-400"
+                      : "text-emerald-600 dark:text-emerald-300"
                   }`}
                 >
                   ৳{formatMoney(groupFundBalance)}
@@ -2528,7 +2673,7 @@ export default function EventCalculator() {
 
             {orphanExpenses.length > 0 && (
               <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-2xl p-4">
-                <p className="text-xs font-bold text-red-700 dark:text-red-300">
+                <p className="text-xs font-bold text-red-700 dark:text-red-200">
                   <i className="fa-solid fa-triangle-exclamation mr-1.5"></i>
                   {orphanExpenses.length}টি খরচের হিসাব মেলানো যাচ্ছে না
                   (ভোগকারী রিমুভ হয়ে গেছে):{" "}
@@ -2545,7 +2690,7 @@ export default function EventCalculator() {
               <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-white/5 pb-3">
                 <h3 className="text-lg font-black text-gray-900 dark:text-white">
                   {editingExpenseId ? (
-                    <span className="text-amber-500">
+                    <span className="text-amber-500 dark:text-amber-400">
                       <i className="fa-solid fa-pen-to-square mr-2"></i>খরচ
                       এডিট করুন
                     </span>
@@ -2557,7 +2702,7 @@ export default function EventCalculator() {
                   <button
                     type="button"
                     onClick={resetExpenseForm}
-                    className="text-xs font-bold px-3 py-1 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 hover:bg-red-100 dark:hover:bg-red-500/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                    className="text-xs font-bold px-3 py-1 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-800 dark:text-gray-100 hover:bg-red-100 dark:hover:bg-red-500/20 hover:text-red-600 dark:hover:text-red-200 transition-colors"
                   >
                     <i className="fa-solid fa-xmark mr-1"></i>বাতিল
                   </button>
@@ -2566,7 +2711,7 @@ export default function EventCalculator() {
 
               {members.length === 0 ? (
                 <div className="text-center py-6 bg-amber-50 dark:bg-amber-500/10 rounded-2xl border border-amber-200 dark:border-amber-500/20">
-                  <p className="text-sm font-bold text-amber-800 dark:text-amber-300 mb-2">
+                  <p className="text-sm font-bold text-amber-800 dark:text-amber-200 mb-2">
                     খরচ যুক্ত করার আগে অন্তত একজন মেম্বার যুক্ত করুন!
                   </p>
                   <button
@@ -2588,7 +2733,7 @@ export default function EventCalculator() {
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-xs font-bold text-gray-800 dark:text-gray-100 mb-1">
                         কীসে খরচ হলো? *
                       </label>
                       <input
@@ -2601,11 +2746,11 @@ export default function EventCalculator() {
                           })
                         }
                         placeholder="যেমন: বাসের ভাড়া"
-                        className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white focus:border-pink-500 outline-none transition-colors"
+                        className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:border-pink-500 outline-none transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-xs font-bold text-gray-800 dark:text-gray-100 mb-1">
                         টাকার পরিমাণ (৳) *
                       </label>
                       <input
@@ -2620,13 +2765,13 @@ export default function EventCalculator() {
                           })
                         }
                         placeholder="0"
-                        className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white focus:border-pink-500 outline-none font-bold transition-colors"
+                        className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:border-pink-500 outline-none font-bold transition-colors"
                       />
                     </div>
                   </div>
 
                   <div className="bg-white dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/10 transition-colors">
-                    <label className="block text-xs font-bold text-pink-600 dark:text-pink-400 mb-3 uppercase tracking-widest">
+                    <label className="block text-xs font-bold text-pink-700 dark:text-pink-300 mb-3 uppercase tracking-widest">
                       <i className="fa-solid fa-wallet mr-1"></i> টাকাটা কে
                       দিয়েছে?
                     </label>
@@ -2640,8 +2785,8 @@ export default function EventCalculator() {
                           key={opt.val}
                           className={`cursor-pointer px-4 py-2 rounded-lg text-xs font-bold border transition-all ${
                             expenseForm.paymentMethod === opt.val
-                              ? "bg-pink-100 dark:bg-pink-500/20 border-pink-300 dark:border-pink-500 text-pink-700 dark:text-pink-300"
-                              : "bg-gray-50 dark:bg-black/50 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300"
+                              ? "bg-pink-100 dark:bg-pink-500/20 border-pink-300 dark:border-pink-500 text-pink-800 dark:text-pink-200"
+                              : "bg-gray-50 dark:bg-black/50 border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200"
                           }`}
                         >
                           <input
@@ -2674,7 +2819,7 @@ export default function EventCalculator() {
                             singlePayerId: e.target.value,
                           })
                         }
-                        className="w-full bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-800 dark:text-white focus:border-pink-500 outline-none mt-2 transition-colors"
+                        className="w-full bg-gray-50 dark:bg-black/50 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white focus:border-pink-500 outline-none mt-2 transition-colors"
                       >
                         <option value="">-- মেম্বার সিলেক্ট --</option>
                         {members.map((m) => (
@@ -2688,7 +2833,7 @@ export default function EventCalculator() {
                     {expenseForm.paymentMethod === "multiple" && (
                       <div className="space-y-3 mt-3">
                         <div className="flex justify-between items-center text-xs bg-gray-100 dark:bg-black/40 px-3 py-2 rounded-lg">
-                          <span className="text-gray-700 dark:text-gray-300 font-bold">
+                          <span className="text-gray-800 dark:text-gray-100 font-bold">
                             যোগফল:
                           </span>
                           <span
@@ -2697,8 +2842,8 @@ export default function EventCalculator() {
                                 currentMultiPayerSum -
                                   (parseFloat(expenseForm.amount) || 0)
                               ) <= EPSILON
-                                ? "text-emerald-600 dark:text-emerald-400"
-                                : "text-amber-600 dark:text-amber-400"
+                                ? "text-emerald-600 dark:text-emerald-300"
+                                : "text-amber-600 dark:text-amber-300"
                             }`}
                           >
                             ৳{formatMoney(currentMultiPayerSum)} / ৳
@@ -2711,7 +2856,7 @@ export default function EventCalculator() {
                               key={m.id}
                               className="bg-gray-50 dark:bg-black/40 p-2 rounded-lg border border-gray-200 dark:border-white/5"
                             >
-                              <span className="block text-[10px] text-gray-700 dark:text-gray-300 mb-1 truncate">
+                              <span className="block text-[10px] text-gray-800 dark:text-gray-100 mb-1 truncate">
                                 {m.name}
                               </span>
                               <input
@@ -2729,7 +2874,7 @@ export default function EventCalculator() {
                                     },
                                   })
                                 }
-                                className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-2 py-1 text-xs text-gray-800 dark:text-white focus:border-pink-500 outline-none"
+                                className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-2 py-1 text-xs text-gray-900 dark:text-white focus:border-pink-500 outline-none"
                               />
                             </div>
                           ))}
@@ -2740,7 +2885,7 @@ export default function EventCalculator() {
 
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+                      <label className="block text-xs font-bold text-gray-800 dark:text-gray-100">
                         কাদের জন্য প্রযোজ্য? ({expenseForm.consumers.length}/
                         {members.length})
                       </label>
@@ -2755,7 +2900,7 @@ export default function EventCalculator() {
                                 : members.map((m) => m.id),
                           })
                         }
-                        className="text-[10px] text-pink-700 dark:text-pink-300 font-bold bg-pink-50 dark:bg-pink-500/10 border border-pink-200 dark:border-transparent px-2 py-1 rounded"
+                        className="text-[10px] text-pink-800 dark:text-pink-200 font-bold bg-pink-50 dark:bg-pink-500/10 border border-pink-200 dark:border-pink-500/30 px-2 py-1 rounded"
                       >
                         {expenseForm.consumers.length === members.length
                           ? "সবাইকে বাদ দিন"
@@ -2782,8 +2927,8 @@ export default function EventCalculator() {
                             }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
                               isSelected
-                                ? "bg-pink-100 dark:bg-pink-500/20 border-pink-400 dark:border-pink-500 text-pink-700 dark:text-pink-300"
-                                : "bg-gray-50 dark:bg-black/50 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300"
+                                ? "bg-pink-100 dark:bg-pink-500/20 border-pink-400 dark:border-pink-500 text-pink-800 dark:text-pink-200"
+                                : "bg-gray-50 dark:bg-black/50 border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200"
                             }`}
                           >
                             {m.name}
@@ -2813,7 +2958,7 @@ export default function EventCalculator() {
 
               <div className="space-y-3">
                 {expenses.length === 0 && (
-                  <p className="text-center text-gray-600 dark:text-gray-300 py-4 text-sm">
+                  <p className="text-center text-gray-700 dark:text-gray-200 py-4 text-sm">
                     কোনো খরচ নেই।
                   </p>
                 )}
@@ -2842,15 +2987,15 @@ export default function EventCalculator() {
                       }`}
                     >
                       <div className="pl-2">
-                        <p className="font-bold text-gray-800 dark:text-white flex items-center gap-2 text-sm">
-                          <span className="bg-white dark:bg-white/10 border border-gray-200 dark:border-transparent text-[10px] px-2 py-0.5 rounded-md text-gray-700 dark:text-gray-200">
+                        <p className="font-bold text-gray-900 dark:text-white flex items-center gap-2 text-sm">
+                          <span className="bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 text-[10px] px-2 py-0.5 rounded-md text-gray-800 dark:text-gray-100">
                             {expenses.length - i}
                           </span>{" "}
                           {exp.desc}
                         </p>
-                        <p className="text-[10px] text-gray-600 dark:text-gray-300 mt-1">
+                        <p className="text-[10px] text-gray-700 dark:text-gray-200 mt-1">
                           পেমেন্ট:{" "}
-                          <span className="text-blue-500 dark:text-blue-300 font-bold">
+                          <span className="text-blue-600 dark:text-blue-300 font-bold">
                             {payerName}
                           </span>{" "}
                           • ভোগকারী:{" "}
@@ -2861,19 +3006,19 @@ export default function EventCalculator() {
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-base font-black text-pink-500 dark:text-pink-400">
+                        <p className="text-base font-black text-pink-600 dark:text-pink-400">
                           ৳{formatMoney(exp.amount)}
                         </p>
                         <div className="flex items-center justify-end gap-3 mt-1">
                           <button
                             onClick={() => handleEditExpense(exp)}
-                            className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase"
+                            className="text-[10px] text-amber-700 dark:text-amber-300 font-bold uppercase"
                           >
                             <i className="fa-solid fa-pen mr-1"></i>এডিট
                           </button>
                           <button
                             onClick={() => handleRemoveExpense(exp.id)}
-                            className="text-[10px] text-red-500 dark:text-red-400 font-bold uppercase"
+                            className="text-[10px] text-red-600 dark:text-red-300 font-bold uppercase"
                           >
                             <i className="fa-solid fa-trash mr-1"></i>ডিলিট
                           </button>
@@ -2895,22 +3040,22 @@ export default function EventCalculator() {
                 <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-1">
                   চূড়ান্ত হিসাব
                 </h2>
-                <p className="text-sm text-emerald-600 dark:text-emerald-400 font-bold">
+                <p className="text-sm text-emerald-600 dark:text-emerald-300 font-bold">
                   {eventData.name || "Unnamed Event"}
                 </p>
               </div>
 
               <div className="grid grid-cols-3 gap-3 mb-6">
                 <div className="text-center">
-                  <p className="text-[10px] text-gray-600 dark:text-gray-300 uppercase mb-1">
+                  <p className="text-[10px] text-gray-700 dark:text-gray-200 uppercase mb-1">
                     সংগ্রহ
                   </p>
-                  <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                  <p className="text-lg font-black text-emerald-600 dark:text-emerald-300">
                     ৳{formatMoney(totalCollected)}
                   </p>
                 </div>
                 <div className="text-center">
-                  <p className="text-[10px] text-gray-600 dark:text-gray-300 uppercase mb-1">
+                  <p className="text-[10px] text-gray-700 dark:text-gray-200 uppercase mb-1">
                     খরচ
                   </p>
                   <p className="text-lg font-black text-pink-600 dark:text-pink-400">
@@ -2918,14 +3063,14 @@ export default function EventCalculator() {
                   </p>
                 </div>
                 <div className="text-center">
-                  <p className="text-[10px] text-gray-600 dark:text-gray-300 uppercase mb-1">
+                  <p className="text-[10px] text-gray-700 dark:text-gray-200 uppercase mb-1">
                     গ্রুপ ফান্ড
                   </p>
                   <p
                     className={`text-lg font-black ${
                       groupFundBalance < -EPSILON
-                        ? "text-red-500"
-                        : "text-purple-600 dark:text-purple-400"
+                        ? "text-red-500 dark:text-red-400"
+                        : "text-purple-600 dark:text-purple-300"
                     }`}
                   >
                     ৳{formatMoney(groupFundBalance)}
@@ -2933,7 +3078,7 @@ export default function EventCalculator() {
                 </div>
               </div>
 
-              <p className="text-xs text-gray-700 dark:text-gray-200 font-bold uppercase mb-3">
+              <p className="text-xs text-gray-800 dark:text-gray-100 font-bold uppercase mb-3">
                 ব্যক্তিগত হিসাব:
               </p>
               <div className="space-y-3 mb-6">
@@ -2944,7 +3089,7 @@ export default function EventCalculator() {
                   return (
                     <div
                       key={data.id}
-                      className="bg-white dark:bg-black/40 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-transparent border-l-4 shadow-sm"
+                      className="bg-white dark:bg-black/40 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-white/10 border-l-4 shadow-sm"
                       style={{
                         borderLeftColor: isRecv
                           ? "#10b981"
@@ -2954,10 +3099,10 @@ export default function EventCalculator() {
                       }}
                     >
                       <div>
-                        <p className="font-bold text-gray-800 dark:text-white text-sm">
+                        <p className="font-bold text-gray-900 dark:text-white text-sm">
                           {data.name}
                         </p>
-                        <p className="text-[10px] text-gray-600 dark:text-gray-300 mt-0.5">
+                        <p className="text-[10px] text-gray-700 dark:text-gray-200 mt-0.5">
                           জমা: ৳{formatMoney(data.deposit)} | পকেট: ৳
                           {formatMoney(data.pocketPaid)} | ভোগ: ৳
                           {formatMoney(data.consumed)}
@@ -2965,15 +3110,15 @@ export default function EventCalculator() {
                       </div>
                       <div className="text-right shrink-0">
                         {isRecv ? (
-                          <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                          <span className="text-sm font-black text-emerald-600 dark:text-emerald-300">
                             +৳{formatMoney(net)}
                           </span>
                         ) : isPay ? (
-                          <span className="text-sm font-black text-red-600 dark:text-red-400">
+                          <span className="text-sm font-black text-red-600 dark:text-red-300">
                             -৳{formatMoney(Math.abs(net))}
                           </span>
                         ) : (
-                          <span className="text-xs font-bold text-gray-500 dark:text-gray-300">
+                          <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
                             ক্লিয়ার
                           </span>
                         )}
@@ -2983,12 +3128,12 @@ export default function EventCalculator() {
                 })}
               </div>
 
-              <p className="text-xs text-purple-700 dark:text-purple-300 font-black uppercase mb-3">
+              <p className="text-xs text-purple-700 dark:text-purple-200 font-black uppercase mb-3">
                 লেনদেন নির্দেশিকা:
               </p>
               {transactions.length === 0 ? (
                 <div className="bg-emerald-50/70 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl p-4 text-center">
-                  <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                  <p className="text-xs font-bold text-emerald-700 dark:text-emerald-200">
                     <i className="fa-solid fa-circle-check mr-1.5"></i>
                     সবার হিসাব ক্লিয়ার!
                   </p>
@@ -3004,20 +3149,20 @@ export default function EventCalculator() {
                         <span
                           className={`font-black px-2 py-1 rounded-lg ${
                             tx.fromIsFund
-                              ? "bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-200"
-                              : "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-200"
+                              ? "bg-purple-100 dark:bg-purple-500/20 text-purple-800 dark:text-purple-200"
+                              : "bg-red-100 dark:bg-red-500/20 text-red-800 dark:text-red-200"
                           }`}
                         >
                           {tx.from}
                         </span>
-                        <span className="text-gray-500 dark:text-gray-300 text-xs font-bold">
+                        <span className="text-gray-600 dark:text-gray-300 text-xs font-bold">
                           <i className="fa-solid fa-arrow-right"></i>
                         </span>
                         <span
                           className={`font-black px-2 py-1 rounded-lg ${
                             tx.toIsFund
-                              ? "bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-200"
-                              : "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-200"
+                              ? "bg-purple-100 dark:bg-purple-500/20 text-purple-800 dark:text-purple-200"
+                              : "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-200"
                           }`}
                         >
                           {tx.to}
@@ -3042,7 +3187,7 @@ export default function EventCalculator() {
                 <i className="fa-solid fa-scroll text-amber-500"></i>
                 স্লিপ জেনারেটর
               </h2>
-              <p className="text-xs text-gray-700 dark:text-gray-300 mb-6">
+              <p className="text-xs text-gray-700 dark:text-gray-200 mb-6">
                 প্রতিটি সদস্যের জন্য আলাদা স্লিপ অথবা সম্পূর্ণ ইভেন্টের
                 সারসংক্ষেপ স্লিপ — সব হিসাব স্বচ্ছভাবে ডাউনলোড করুন।
               </p>
@@ -3063,7 +3208,7 @@ export default function EventCalculator() {
                   <p className="font-black text-gray-900 dark:text-white text-sm">
                     সারসংক্ষেপ স্লিপ
                   </p>
-                  <p className="text-[10px] text-gray-700 dark:text-gray-300 mt-1">
+                  <p className="text-[10px] text-gray-700 dark:text-gray-200 mt-1">
                     পুরো ইভেন্টের মোট হিসাব, সকল সদস্যের ব্যালান্স ও লেনদেন
                   </p>
                 </button>
@@ -3083,14 +3228,14 @@ export default function EventCalculator() {
                   <p className="font-black text-gray-900 dark:text-white text-sm">
                     সকল সদস্যের আলাদা স্লিপ
                   </p>
-                  <p className="text-[10px] text-gray-700 dark:text-gray-300 mt-1">
+                  <p className="text-[10px] text-gray-700 dark:text-gray-200 mt-1">
                     প্রত্যেক সদস্যের জন্য আলাদা পৃষ্ঠা, একটাই PDF-এ
                   </p>
                 </button>
               </div>
 
               <div className="mb-5">
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-xs font-bold text-gray-800 dark:text-gray-100 mb-2">
                   অথবা একজন নির্দিষ্ট সদস্য বেছে নিন:
                 </label>
                 <select
@@ -3120,7 +3265,7 @@ export default function EventCalculator() {
                 />
                 <label
                   htmlFor="bn-digits"
-                  className="text-sm font-bold text-gray-700 dark:text-gray-200 cursor-pointer"
+                  className="text-sm font-bold text-gray-800 dark:text-gray-100 cursor-pointer"
                 >
                   বাংলা সংখ্যা ব্যবহার করুন (১, ২, ৩...)
                 </label>
@@ -3158,7 +3303,7 @@ export default function EventCalculator() {
 
             {slipMode !== "none" && (
               <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 rounded-3xl p-4 sm:p-6 overflow-x-auto">
-                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-4 uppercase tracking-widest">
+                <p className="text-xs font-bold text-gray-800 dark:text-gray-100 mb-4 uppercase tracking-widest">
                   <i className="fa-solid fa-eye mr-1.5"></i>
                   প্রিভিউ
                 </p>
@@ -3214,7 +3359,7 @@ export default function EventCalculator() {
         )}
       </div>
 
-      {/* ═══ GROUP FUND WARNING MODAL — redesigned ═══ */}
+      {/* ═══ GROUP FUND WARNING MODAL ═══ */}
       {fundWarning && (
         <div className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div
@@ -3228,7 +3373,7 @@ export default function EventCalculator() {
             <h3 className="text-xl font-black text-gray-900 dark:text-white text-center mb-2">
               গ্রুপ ফান্ড শেষ!
             </h3>
-            <p className="text-sm text-gray-700 dark:text-gray-300 text-center mb-5 leading-relaxed">
+            <p className="text-sm text-gray-700 dark:text-gray-200 text-center mb-5 leading-relaxed">
               এই খরচ যুক্ত করলে গ্রুপ ফান্ডে{" "}
               <span className="font-black text-red-500">
                 ৳{formatMoney(fundWarning.shortage)}
@@ -3237,7 +3382,6 @@ export default function EventCalculator() {
               বিকল্প একটা উপায় বেছে নিন।
             </p>
 
-            {/* Option 1: Personal pocket — inline save */}
             <div className="bg-emerald-50 dark:bg-emerald-500/10 border-2 border-emerald-200 dark:border-emerald-500/40 rounded-2xl p-4 mb-3">
               <p className="text-xs font-bold text-emerald-800 dark:text-emerald-200 mb-2 flex items-center gap-1.5">
                 <i className="fa-solid fa-user-check"></i>
@@ -3266,7 +3410,6 @@ export default function EventCalculator() {
               </button>
             </div>
 
-            {/* Option 2: Topup */}
             <button
               onClick={handleWarningGoToMembers}
               className="w-full bg-purple-600 hover:bg-purple-500 text-white py-3 rounded-xl font-bold mb-2.5 transition-all shadow-md hover:-translate-y-0.5 flex justify-center items-center gap-2"
@@ -3275,15 +3418,14 @@ export default function EventCalculator() {
               গ্রুপ ফান্ডে আরো টাকা জমা দিন
             </button>
 
-            {/* Option 3: Cancel */}
             <button
               onClick={handleWarningCancel}
-              className="w-full bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-3 rounded-xl font-bold transition-colors hover:bg-gray-200 dark:hover:bg-white/20"
+              className="w-full bg-gray-100 dark:bg-white/10 text-gray-800 dark:text-gray-100 py-3 rounded-xl font-bold transition-colors hover:bg-gray-200 dark:hover:bg-white/20"
             >
               <i className="fa-solid fa-xmark mr-1"></i>বাতিল করুন
             </button>
 
-            <p className="text-[10px] text-gray-500 dark:text-gray-400 text-center mt-3 italic">
+            <p className="text-[10px] text-gray-600 dark:text-gray-300 text-center mt-3 italic">
               খরচটি সংরক্ষিত হবে যখন আপনি উপরের যেকোনো একটা বাটনে ক্লিক করবেন
             </p>
           </div>
