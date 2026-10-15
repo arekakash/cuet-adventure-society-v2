@@ -15,12 +15,10 @@ const formatMoney = (num) => {
   return Number.isInteger(val) ? val.toString() : val.toFixed(2);
 };
 
-/* Bengali numerals — optional display */
 const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
 const toBn = (str) =>
   String(str).replace(/[0-9]/g, (d) => BN_DIGITS[Number(d)]);
 
-/* Split an amount into N shares with no lost paisa */
 const splitAmount = (total, count) => {
   if (count <= 0) return [];
   const base = round2(total / count);
@@ -34,38 +32,1399 @@ const splitAmount = (total, count) => {
 };
 
 /* ═══════════════════════════════════════════════════════════════
+   SLIP NUMBER HELPER
+   ═══════════════════════════════════════════════════════════════ */
+function SlipNum({ value, useBangla, prefix = "" }) {
+  const num = formatMoney(value);
+  const display = useBangla ? toBn(num) : num;
+  return (
+    <span>
+      {prefix}
+      {display}
+    </span>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUMMARY SLIP — তালিখাতা style
+   ═══════════════════════════════════════════════════════════════ */
+function SummarySlip({
+  eventData,
+  members,
+  expenses,
+  settlementData,
+  transactions,
+  totalCollected,
+  totalExpense,
+  groupFundBalance,
+  useBangla,
+}) {
+  return (
+    <div
+      data-slip-page
+      style={{
+        width: "760px",
+        background: "#FBF3E4",
+        padding: "32px",
+        fontFamily:
+          "'Noto Serif Bengali', 'Kalpurush', 'SolaimanLipi', Georgia, serif",
+        color: "#2B1810",
+        position: "relative",
+      }}
+    >
+      <div
+        style={{
+          border: "4px double #8B0000",
+          padding: "24px",
+          background: "rgba(255, 253, 245, 0.6)",
+        }}
+      >
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: "16px" }}>
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#8B0000",
+              fontWeight: "bold",
+              letterSpacing: "4px",
+              marginBottom: "8px",
+            }}
+          >
+            ॥ শ্রী ॥ শুভম্ ॥
+          </div>
+          <div
+            style={{
+              display: "inline-block",
+              padding: "4px 16px",
+              borderTop: "2px solid #8B0000",
+              borderBottom: "2px solid #8B0000",
+              fontSize: "20px",
+              fontWeight: "900",
+              color: "#8B0000",
+              letterSpacing: "2px",
+            }}
+          >
+            চুয়েট অ্যাডভেঞ্চার সোসাইটি
+          </div>
+          <div
+            style={{
+              fontSize: "13px",
+              fontWeight: "bold",
+              color: "#5C3317",
+              marginTop: "6px",
+              letterSpacing: "1px",
+            }}
+          >
+            ইভেন্ট হিসাবের তালিখাতা
+          </div>
+        </div>
+
+        {/* Event info */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: "12px",
+            marginBottom: "16px",
+            paddingBottom: "8px",
+            borderBottom: "1px dashed #B22222",
+            color: "#5C3317",
+            fontWeight: "bold",
+          }}
+        >
+          <div>
+            <span style={{ color: "#8B0000" }}>ইভেন্ট:</span>{" "}
+            {eventData.name || "Unnamed Event"}
+          </div>
+          <div>
+            <span style={{ color: "#8B0000" }}>তারিখ:</span>{" "}
+            {eventData.date || new Date().toLocaleDateString("en-GB")}
+          </div>
+        </div>
+
+        {/* Summary metrics */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: "8px",
+            marginBottom: "20px",
+            background: "#F5E6CE",
+            padding: "12px",
+            border: "1px solid #B22222",
+            borderRadius: "4px",
+          }}
+        >
+          <div style={{ textAlign: "center" }}>
+            <div
+              style={{
+                fontSize: "10px",
+                color: "#8B0000",
+                fontWeight: "bold",
+                marginBottom: "4px",
+              }}
+            >
+              মোট সংগ্রহ
+            </div>
+            <div
+              style={{
+                fontSize: "20px",
+                fontWeight: "900",
+                color: "#2B6A3F",
+              }}
+            >
+              ৳<SlipNum value={totalCollected} useBangla={useBangla} />
+            </div>
+          </div>
+          <div
+            style={{
+              textAlign: "center",
+              borderLeft: "1px dashed #B22222",
+              borderRight: "1px dashed #B22222",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "10px",
+                color: "#8B0000",
+                fontWeight: "bold",
+                marginBottom: "4px",
+              }}
+            >
+              মোট খরচ
+            </div>
+            <div
+              style={{
+                fontSize: "20px",
+                fontWeight: "900",
+                color: "#8B0000",
+              }}
+            >
+              ৳<SlipNum value={totalExpense} useBangla={useBangla} />
+            </div>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div
+              style={{
+                fontSize: "10px",
+                color: "#8B0000",
+                fontWeight: "bold",
+                marginBottom: "4px",
+              }}
+            >
+              গ্রুপ ফান্ড
+            </div>
+            <div
+              style={{
+                fontSize: "20px",
+                fontWeight: "900",
+                color: groupFundBalance < -0.01 ? "#B22222" : "#2B6A3F",
+              }}
+            >
+              ৳<SlipNum value={groupFundBalance} useBangla={useBangla} />
+            </div>
+          </div>
+        </div>
+
+        {/* Section 1: Expenses */}
+        <div style={{ marginBottom: "18px" }}>
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: "900",
+              color: "#8B0000",
+              marginBottom: "8px",
+              paddingBottom: "4px",
+              borderBottom: "2px solid #B22222",
+              letterSpacing: "1px",
+            }}
+          >
+            ১. খরচের বিবরণ
+          </div>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: "11px",
+            }}
+          >
+            <thead>
+              <tr style={{ background: "#EADBC8" }}>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px 4px",
+                    width: "30px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  ক্রম
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    textAlign: "left",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  বিবরণ
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  পরিমাণ
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  পেমেন্ট
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  ভোগকারী
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {expenses.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "10px",
+                      textAlign: "center",
+                      color: "#8B0000",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    কোনো খরচ নেই
+                  </td>
+                </tr>
+              )}
+              {expenses.map((exp, i) => {
+                let payerName = "গ্রুপ ফান্ড";
+                if (exp.paymentMethod === "single")
+                  payerName =
+                    members.find((m) => m.id === exp.singlePayerId)?.name ||
+                    "—";
+                else if (exp.paymentMethod === "multiple")
+                  payerName = "একাধিক";
+                const consumerNames =
+                  exp.consumers.length === members.length
+                    ? "সকল"
+                    : exp.consumers
+                        .map(
+                          (cid) =>
+                            members.find((m) => m.id === cid)?.name || "?"
+                        )
+                        .join(", ");
+                return (
+                  <tr
+                    key={exp.id}
+                    style={{
+                      background: i % 2 === 0 ? "#FBF3E4" : "#F5E6CE",
+                    }}
+                  >
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px 4px",
+                        textAlign: "center",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {useBangla ? toBn(i + 1) : i + 1}
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {exp.desc}
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px",
+                        textAlign: "right",
+                        fontWeight: "bold",
+                        color: "#8B0000",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      ৳<SlipNum value={exp.amount} useBangla={useBangla} />
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px",
+                        fontSize: "10px",
+                      }}
+                    >
+                      {payerName}
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px",
+                        fontSize: "10px",
+                        maxWidth: "200px",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {consumerNames}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Section 2: Member balances */}
+        <div style={{ marginBottom: "18px" }}>
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: "900",
+              color: "#8B0000",
+              marginBottom: "8px",
+              paddingBottom: "4px",
+              borderBottom: "2px solid #B22222",
+              letterSpacing: "1px",
+            }}
+          >
+            ২. সদস্যদের ব্যক্তিগত হিসাব
+          </div>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: "11px",
+            }}
+          >
+            <thead>
+              <tr style={{ background: "#EADBC8" }}>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    textAlign: "left",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  নাম
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  ফান্ডে জমা
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  পকেট থেকে
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  ভোগ
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  চূড়ান্ত
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.values(settlementData).map((data, i) => {
+                const isRecv = data.net > 0.01;
+                const isPay = data.net < -0.01;
+                return (
+                  <tr
+                    key={data.id}
+                    style={{
+                      background: i % 2 === 0 ? "#FBF3E4" : "#F5E6CE",
+                    }}
+                  >
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {data.name}
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px",
+                        textAlign: "right",
+                      }}
+                    >
+                      ৳<SlipNum value={data.deposit} useBangla={useBangla} />
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px",
+                        textAlign: "right",
+                      }}
+                    >
+                      ৳<SlipNum value={data.pocketPaid} useBangla={useBangla} />
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px",
+                        textAlign: "right",
+                      }}
+                    >
+                      ৳<SlipNum value={data.consumed} useBangla={useBangla} />
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px",
+                        textAlign: "right",
+                        fontWeight: "900",
+                        color: isRecv
+                          ? "#2B6A3F"
+                          : isPay
+                          ? "#8B0000"
+                          : "#5C3317",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {isRecv ? "+" : isPay ? "-" : ""}৳
+                      <SlipNum
+                        value={Math.abs(data.net)}
+                        useBangla={useBangla}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Section 3: Settlement transactions */}
+        <div style={{ marginBottom: "18px" }}>
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: "900",
+              color: "#8B0000",
+              marginBottom: "8px",
+              paddingBottom: "4px",
+              borderBottom: "2px solid #B22222",
+              letterSpacing: "1px",
+            }}
+          >
+            ৩. চূড়ান্ত লেনদেন (কে কাকে কত দেবে)
+          </div>
+          {transactions.length === 0 ? (
+            <div
+              style={{
+                background: "#E4F0E4",
+                border: "1px solid #2B6A3F",
+                padding: "10px",
+                textAlign: "center",
+                fontSize: "11px",
+                color: "#2B6A3F",
+                fontWeight: "bold",
+                borderRadius: "4px",
+              }}
+            >
+              ✓ সবার হিসাব ক্লিয়ার — কোনো লেনদেন বাকি নেই
+            </div>
+          ) : (
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: "11px",
+              }}
+            >
+              <thead>
+                <tr style={{ background: "#EADBC8" }}>
+                  <th
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "6px 4px",
+                      width: "30px",
+                      color: "#8B0000",
+                      fontWeight: "900",
+                    }}
+                  >
+                    ক্রম
+                  </th>
+                  <th
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "6px",
+                      color: "#8B0000",
+                      fontWeight: "900",
+                    }}
+                  >
+                    কে দেবে
+                  </th>
+                  <th
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "6px",
+                      color: "#8B0000",
+                      fontWeight: "900",
+                    }}
+                  >
+                    কাকে
+                  </th>
+                  <th
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "6px",
+                      color: "#8B0000",
+                      fontWeight: "900",
+                    }}
+                  >
+                    টাকা
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((tx, i) => (
+                  <tr
+                    key={i}
+                    style={{
+                      background: i % 2 === 0 ? "#FBF3E4" : "#F5E6CE",
+                    }}
+                  >
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px 4px",
+                        textAlign: "center",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {useBangla ? toBn(i + 1) : i + 1}
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px",
+                        fontWeight: "bold",
+                        color: tx.fromIsFund ? "#5C3317" : "#8B0000",
+                      }}
+                    >
+                      {tx.from}
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px",
+                        fontWeight: "bold",
+                        color: tx.toIsFund ? "#5C3317" : "#2B6A3F",
+                      }}
+                    >
+                      {tx.to}
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #B22222",
+                        padding: "6px",
+                        textAlign: "right",
+                        fontWeight: "900",
+                        color: "#8B0000",
+                      }}
+                    >
+                      ৳<SlipNum value={tx.amount} useBangla={useBangla} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            marginTop: "20px",
+            paddingTop: "12px",
+            borderTop: "2px dotted #8B0000",
+            textAlign: "center",
+            fontSize: "10px",
+            color: "#5C3317",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "8px",
+              fontSize: "11px",
+              color: "#8B0000",
+            }}
+          >
+            <div>— স্বাক্ষর —</div>
+            <div>— স্বাক্ষর —</div>
+          </div>
+          <div
+            style={{
+              marginTop: "12px",
+              fontSize: "9px",
+              fontStyle: "italic",
+              letterSpacing: "1px",
+            }}
+          >
+            ক্যালকুলেটেড বাই CUET Adventure Society • cuetas.com
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MEMBER SLIP — individual slip
+   ═══════════════════════════════════════════════════════════════ */
+function MemberSlip({ slip, eventData, useBangla }) {
+  const { member, balance, consumed, paid, myTx } = slip;
+  const isRecv = balance.net > 0.01;
+  const isPay = balance.net < -0.01;
+
+  return (
+    <div
+      data-slip-page
+      style={{
+        width: "760px",
+        background: "#FBF3E4",
+        padding: "32px",
+        fontFamily:
+          "'Noto Serif Bengali', 'Kalpurush', 'SolaimanLipi', Georgia, serif",
+        color: "#2B1810",
+      }}
+    >
+      <div
+        style={{
+          border: "4px double #8B0000",
+          padding: "24px",
+          background: "rgba(255, 253, 245, 0.6)",
+        }}
+      >
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: "16px" }}>
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#8B0000",
+              fontWeight: "bold",
+              letterSpacing: "4px",
+              marginBottom: "8px",
+            }}
+          >
+            ॥ শ্রী ॥ শুভম্ ॥
+          </div>
+          <div
+            style={{
+              display: "inline-block",
+              padding: "4px 16px",
+              borderTop: "2px solid #8B0000",
+              borderBottom: "2px solid #8B0000",
+              fontSize: "18px",
+              fontWeight: "900",
+              color: "#8B0000",
+              letterSpacing: "2px",
+            }}
+          >
+            ব্যক্তিগত হিসাবের তালিখাতা
+          </div>
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: "bold",
+              color: "#5C3317",
+              marginTop: "6px",
+            }}
+          >
+            চুয়েট অ্যাডভেঞ্চার সোসাইটি
+          </div>
+        </div>
+
+        {/* Member info */}
+        <div
+          style={{
+            background: "#F5E6CE",
+            padding: "12px",
+            border: "1px solid #B22222",
+            borderRadius: "4px",
+            marginBottom: "16px",
+            fontSize: "12px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "4px",
+            }}
+          >
+            <span style={{ color: "#8B0000", fontWeight: "bold" }}>নাম:</span>
+            <span style={{ fontWeight: "900", fontSize: "14px" }}>
+              {member.name}
+            </span>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "4px",
+            }}
+          >
+            <span style={{ color: "#8B0000", fontWeight: "bold" }}>
+              ইভেন্ট:
+            </span>
+            <span>{eventData.name || "Unnamed Event"}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ color: "#8B0000", fontWeight: "bold" }}>
+              তারিখ:
+            </span>
+            <span>
+              {eventData.date || new Date().toLocaleDateString("en-GB")}
+            </span>
+          </div>
+        </div>
+
+        {/* Summary */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: "8px",
+            marginBottom: "18px",
+            padding: "10px",
+            background: "#F5E6CE",
+            border: "1px solid #B22222",
+            borderRadius: "4px",
+          }}
+        >
+          <div style={{ textAlign: "center" }}>
+            <div
+              style={{
+                fontSize: "10px",
+                color: "#8B0000",
+                fontWeight: "bold",
+              }}
+            >
+              মোট জমা
+            </div>
+            <div
+              style={{
+                fontSize: "16px",
+                fontWeight: "900",
+                color: "#2B6A3F",
+              }}
+            >
+              ৳<SlipNum value={balance.paid} useBangla={useBangla} />
+            </div>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div
+              style={{
+                fontSize: "10px",
+                color: "#8B0000",
+                fontWeight: "bold",
+              }}
+            >
+              মোট ভোগ
+            </div>
+            <div
+              style={{
+                fontSize: "16px",
+                fontWeight: "900",
+                color: "#8B0000",
+              }}
+            >
+              ৳<SlipNum value={balance.consumed} useBangla={useBangla} />
+            </div>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div
+              style={{
+                fontSize: "10px",
+                color: "#8B0000",
+                fontWeight: "bold",
+              }}
+            >
+              চূড়ান্ত ব্যালান্স
+            </div>
+            <div
+              style={{
+                fontSize: "16px",
+                fontWeight: "900",
+                color: isRecv ? "#2B6A3F" : isPay ? "#8B0000" : "#5C3317",
+              }}
+            >
+              {isRecv ? "+" : isPay ? "-" : ""}৳
+              <SlipNum
+                value={Math.abs(balance.net)}
+                useBangla={useBangla}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Section 1: Consumed */}
+        <div style={{ marginBottom: "16px" }}>
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: "900",
+              color: "#8B0000",
+              marginBottom: "8px",
+              paddingBottom: "4px",
+              borderBottom: "2px solid #B22222",
+            }}
+          >
+            ১. যে খরচে অংশ নিয়েছেন
+          </div>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: "11px",
+            }}
+          >
+            <thead>
+              <tr style={{ background: "#EADBC8" }}>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px 4px",
+                    width: "30px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  ক্রম
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    textAlign: "left",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  বিবরণ
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  মোট
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  জন
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  আপনার অংশ
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {consumed.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "10px",
+                      textAlign: "center",
+                      fontStyle: "italic",
+                      color: "#8B0000",
+                    }}
+                  >
+                    কোনো খরচে অংশ নেননি
+                  </td>
+                </tr>
+              )}
+              {consumed.map((c, i) => (
+                <tr
+                  key={i}
+                  style={{ background: i % 2 === 0 ? "#FBF3E4" : "#F5E6CE" }}
+                >
+                  <td
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "6px 4px",
+                      textAlign: "center",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {useBangla ? toBn(i + 1) : i + 1}
+                  </td>
+                  <td
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "6px",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {c.desc}
+                    <span
+                      style={{
+                        fontSize: "9px",
+                        color: "#8B0000",
+                        marginLeft: "6px",
+                      }}
+                    >
+                      ({c.paidBy})
+                    </span>
+                  </td>
+                  <td
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "6px",
+                      textAlign: "right",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    ৳<SlipNum value={c.total} useBangla={useBangla} />
+                  </td>
+                  <td
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "6px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {useBangla ? toBn(c.consumers) : c.consumers}
+                  </td>
+                  <td
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "6px",
+                      textAlign: "right",
+                      fontWeight: "900",
+                      color: "#8B0000",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    ৳<SlipNum value={c.myShare} useBangla={useBangla} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Section 2: Payments */}
+        <div style={{ marginBottom: "16px" }}>
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: "900",
+              color: "#8B0000",
+              marginBottom: "8px",
+              paddingBottom: "4px",
+              borderBottom: "2px solid #B22222",
+            }}
+          >
+            ২. আপনার পরিশোধ
+          </div>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: "11px",
+            }}
+          >
+            <thead>
+              <tr style={{ background: "#EADBC8" }}>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px 4px",
+                    width: "30px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  ক্রম
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    textAlign: "left",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  বিবরণ
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    color: "#8B0000",
+                    fontWeight: "900",
+                  }}
+                >
+                  পরিমাণ
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ background: "#FBF3E4" }}>
+                <td
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px 4px",
+                    textAlign: "center",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {useBangla ? toBn(1) : 1}
+                </td>
+                <td
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    fontWeight: "bold",
+                  }}
+                >
+                  গ্রুপ ফান্ডে জমা
+                </td>
+                <td
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    textAlign: "right",
+                    color: "#2B6A3F",
+                    fontWeight: "900",
+                  }}
+                >
+                  ৳<SlipNum value={balance.deposit} useBangla={useBangla} />
+                </td>
+              </tr>
+              {paid.map((p, i) => (
+                <tr
+                  key={i}
+                  style={{ background: i % 2 === 0 ? "#F5E6CE" : "#FBF3E4" }}
+                >
+                  <td
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "6px 4px",
+                      textAlign: "center",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {useBangla ? toBn(i + 2) : i + 2}
+                  </td>
+                  <td
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "6px",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    নিজ পকেট থেকে: {p.desc}
+                  </td>
+                  <td
+                    style={{
+                      border: "1px solid #B22222",
+                      padding: "6px",
+                      textAlign: "right",
+                      color: "#2B6A3F",
+                      fontWeight: "900",
+                    }}
+                  >
+                    ৳<SlipNum value={p.amount} useBangla={useBangla} />
+                  </td>
+                </tr>
+              ))}
+              <tr style={{ background: "#EADBC8", fontWeight: "900" }}>
+                <td
+                  colSpan={2}
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    textAlign: "right",
+                    color: "#8B0000",
+                  }}
+                >
+                  মোট পরিশোধ:
+                </td>
+                <td
+                  style={{
+                    border: "1px solid #B22222",
+                    padding: "6px",
+                    textAlign: "right",
+                    color: "#2B6A3F",
+                    fontWeight: "900",
+                  }}
+                >
+                  ৳<SlipNum value={balance.paid} useBangla={useBangla} />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Section 3: Transactions */}
+        <div style={{ marginBottom: "16px" }}>
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: "900",
+              color: "#8B0000",
+              marginBottom: "8px",
+              paddingBottom: "4px",
+              borderBottom: "2px solid #B22222",
+            }}
+          >
+            ৩. আপনার চূড়ান্ত লেনদেন
+          </div>
+          {myTx.length === 0 ? (
+            <div
+              style={{
+                background: "#E4F0E4",
+                border: "1px solid #2B6A3F",
+                padding: "10px",
+                textAlign: "center",
+                fontSize: "11px",
+                color: "#2B6A3F",
+                fontWeight: "bold",
+                borderRadius: "4px",
+              }}
+            >
+              ✓ আপনার হিসাব সম্পূর্ণ পরিষ্কার
+            </div>
+          ) : (
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "6px" }}
+            >
+              {myTx.map((tx, i) => {
+                const isFromMe = tx.from === member.name;
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      background: isFromMe ? "#FDE8E8" : "#E8F5E8",
+                      border: `1px solid ${
+                        isFromMe ? "#8B0000" : "#2B6A3F"
+                      }`,
+                      padding: "10px",
+                      borderRadius: "4px",
+                      fontSize: "12px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ fontWeight: "bold" }}>
+                      {isFromMe ? (
+                        <>
+                          আপনি{" "}
+                          <span style={{ color: "#8B0000" }}>{tx.to}</span> কে
+                          দেবেন
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ color: "#2B6A3F" }}>{tx.from}</span>{" "}
+                          আপনাকে দেবেন
+                        </>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        fontWeight: "900",
+                        color: isFromMe ? "#8B0000" : "#2B6A3F",
+                        fontSize: "14px",
+                      }}
+                    >
+                      ৳<SlipNum value={tx.amount} useBangla={useBangla} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Final balance */}
+        <div
+          style={{
+            background: isRecv ? "#E8F5E8" : isPay ? "#FDE8E8" : "#F5F5F5",
+            border: `2px solid ${
+              isRecv ? "#2B6A3F" : isPay ? "#8B0000" : "#888"
+            }`,
+            padding: "12px",
+            borderRadius: "6px",
+            textAlign: "center",
+            marginBottom: "16px",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "11px",
+              fontWeight: "bold",
+              color: isRecv ? "#2B6A3F" : isPay ? "#8B0000" : "#666",
+              letterSpacing: "1px",
+            }}
+          >
+            {isRecv
+              ? "আপনি ফেরত পাবেন"
+              : isPay
+              ? "আপনাকে আরও দিতে হবে"
+              : "হিসাব ক্লিয়ার"}
+          </div>
+          <div
+            style={{
+              fontSize: "28px",
+              fontWeight: "900",
+              color: isRecv ? "#2B6A3F" : isPay ? "#8B0000" : "#666",
+              marginTop: "4px",
+            }}
+          >
+            ৳<SlipNum value={Math.abs(balance.net)} useBangla={useBangla} />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            paddingTop: "12px",
+            borderTop: "2px dotted #8B0000",
+            textAlign: "center",
+            fontSize: "10px",
+            color: "#5C3317",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "8px",
+              fontSize: "11px",
+              color: "#8B0000",
+            }}
+          >
+            <div>— স্বাক্ষর —</div>
+            <div>— স্বাক্ষর —</div>
+          </div>
+          <div
+            style={{
+              marginTop: "12px",
+              fontSize: "9px",
+              fontStyle: "italic",
+              letterSpacing: "1px",
+            }}
+          >
+            ক্যালকুলেটেড বাই CUET Adventure Society • cuetas.com
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════ */
 export default function EventCalculator() {
   const [isMounted, setIsMounted] = useState(false);
-  const slipRenderRef = useRef(null); // offscreen container for slip render
+  const slipRenderRef = useRef(null);
   const expenseFormRef = useRef(null);
 
-  /* ── Multi-Event Archive ── */
   const [savedEvents, setSavedEvents] = useState([]);
   const [currentEventId, setCurrentEventId] = useState(null);
 
-  /* ── Current Event ── */
   const [eventData, setEventData] = useState({ name: "", date: "" });
   const [members, setMembers] = useState([]);
   const [expenses, setExpenses] = useState([]);
 
-  /* ── UI ── */
   const [activeTab, setActiveTab] = useState("setup");
   const [newMemberName, setNewMemberName] = useState("");
   const [editingExpenseId, setEditingExpenseId] = useState(null);
 
-  /* ── Group Fund Warning Modal ── */
   const [fundWarning, setFundWarning] = useState(null);
-  /* fundWarning = { shortage, pendingExpense } | null */
 
-  /* ── Slip Generator ── */
-  const [slipMode, setSlipMode] = useState("none"); // none | summary | member | all
+  const [slipMode, setSlipMode] = useState("none");
   const [slipMemberId, setSlipMemberId] = useState("");
   const [slipUseBanglaDigits, setSlipUseBanglaDigits] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  /* ── Expense Form ── */
   const [expenseForm, setExpenseForm] = useState({
     desc: "",
     amount: "",
@@ -75,9 +1434,7 @@ export default function EventCalculator() {
     consumers: [],
   });
 
-  /* ═══════════════════════════════════════════════════════════
-     1. LOAD & MIGRATE
-     ═══════════════════════════════════════════════════════════ */
+  /* ── Load & migrate ── */
   useEffect(() => {
     AOS.init({ duration: 600, once: true });
 
@@ -131,9 +1488,7 @@ export default function EventCalculator() {
     setIsMounted(true);
   }, []);
 
-  /* ═══════════════════════════════════════════════════════════
-     2. AUTO-SYNC
-     ═══════════════════════════════════════════════════════════ */
+  /* ── Auto-sync ── */
   useEffect(() => {
     if (!isMounted || !currentEventId) return;
 
@@ -162,9 +1517,7 @@ export default function EventCalculator() {
     });
   }, [eventData, members, expenses, currentEventId, isMounted]);
 
-  /* ═══════════════════════════════════════════════════════════
-     3. EVENT SESSION HANDLERS
-     ═══════════════════════════════════════════════════════════ */
+  /* ── Event session handlers ── */
   const handleStartEvent = (e) => {
     e.preventDefault();
     if (!eventData.name.trim()) return alert("ইভেন্টের নাম দিন!");
@@ -214,9 +1567,7 @@ export default function EventCalculator() {
     }
   };
 
-  /* ═══════════════════════════════════════════════════════════
-     4. MEMBER HANDLERS
-     ═══════════════════════════════════════════════════════════ */
+  /* ── Member handlers ── */
   const handleAddMember = (e) => {
     e.preventDefault();
     const trimmed = newMemberName.trim();
@@ -307,9 +1658,7 @@ export default function EventCalculator() {
     }
   };
 
-  /* ═══════════════════════════════════════════════════════════
-     5. EXPENSE HANDLERS
-     ═══════════════════════════════════════════════════════════ */
+  /* ── Expense handlers ── */
   const resetExpenseForm = () => {
     setEditingExpenseId(null);
     setExpenseForm({
@@ -322,7 +1671,6 @@ export default function EventCalculator() {
     });
   };
 
-  /* Pre-validate & build payload */
   const buildExpensePayload = () => {
     const amountNum = round2(parseFloat(expenseForm.amount));
 
@@ -382,16 +1730,13 @@ export default function EventCalculator() {
     };
   };
 
-  /* Compute what group fund balance would become if this expense is added */
   const projectGroupFundBalance = (payload) => {
     const currentGroupTotal = round2(
       members.reduce((s, m) => s + (Number(m.deposit) || 0), 0)
     );
 
-    // Group expenses AFTER this payload is applied
     let groupOutflow = 0;
     for (const exp of expenses) {
-      // Skip the expense being edited (it will be replaced)
       if (editingExpenseId && exp.id === editingExpenseId) continue;
       if (exp.paymentMethod === "group") {
         groupOutflow = round2(groupOutflow + exp.amount);
@@ -404,12 +1749,22 @@ export default function EventCalculator() {
     return round2(currentGroupTotal - groupOutflow);
   };
 
+  const commitExpense = (payload) => {
+    if (editingExpenseId) {
+      setExpenses(
+        expenses.map((exp) => (exp.id === editingExpenseId ? payload : exp))
+      );
+    } else {
+      setExpenses([payload, ...expenses]);
+    }
+    resetExpenseForm();
+  };
+
   const handleSaveExpense = (e) => {
     e.preventDefault();
     const payload = buildExpensePayload();
     if (!payload) return;
 
-    // ── Group Fund Protection: block if it would go negative ──
     if (payload.paymentMethod === "group") {
       const projected = projectGroupFundBalance(payload);
       if (projected < -EPSILON) {
@@ -424,23 +1779,11 @@ export default function EventCalculator() {
     commitExpense(payload);
   };
 
-  const commitExpense = (payload) => {
-    if (editingExpenseId) {
-      setExpenses(
-        expenses.map((exp) => (exp.id === editingExpenseId ? payload : exp))
-      );
-    } else {
-      setExpenses([payload, ...expenses]);
-    }
-    resetExpenseForm();
-  };
-
-  /* ── Fund Warning Modal Actions ── */
+  /* ── Fund warning actions ── */
   const handleFundWarningSwitchToSingle = () => {
     if (!fundWarning?.pendingExpense) return;
     const pending = fundWarning.pendingExpense;
 
-    // Move to form: set paymentMethod to single, keep form data
     setFundWarning(null);
     setExpenseForm({
       desc: pending.desc,
@@ -450,10 +1793,10 @@ export default function EventCalculator() {
       multiPayers: {},
       consumers: pending.consumers,
     });
-    if (!editingExpenseId) {
-      // Mark so it doesn't get added again
-    }
-    setEditingExpenseId(pending.id);
+    // ⚠️ DO NOT set editingExpenseId here — it must stay as-is.
+    // If we were editing an existing expense, editingExpenseId is already set.
+    // If this was a new expense, editingExpenseId is null — it should remain null
+    // so that Save creates a new expense instead of searching for a nonexistent one.
   };
 
   const handleFundWarningTopup = () => {
@@ -490,12 +1833,9 @@ export default function EventCalculator() {
     }
   };
 
-  /* ═══════════════════════════════════════════════════════════
-     6. FINANCIAL CALCULATIONS
-     ═══════════════════════════════════════════════════════════ */
+  /* ── Financial calculations ── */
   const totalCollected = useMemo(
-    () =>
-      round2(members.reduce((sum, m) => sum + (Number(m.deposit) || 0), 0)),
+    () => round2(members.reduce((sum, m) => sum + (Number(m.deposit) || 0), 0)),
     [members]
   );
 
@@ -519,7 +1859,6 @@ export default function EventCalculator() {
     [totalCollected, groupExpensesTotal]
   );
 
-  /* ── Orphan expenses (all consumers removed) ── */
   const orphanExpenses = useMemo(() => {
     const ids = new Set(members.map((m) => m.id));
     return expenses.filter(
@@ -527,7 +1866,6 @@ export default function EventCalculator() {
     );
   }, [expenses, members]);
 
-  /* ── Settlement with rounding-safe distribution ── */
   const { settlementData, transactions } = useMemo(() => {
     const balances = {};
     members.forEach((m) => {
@@ -645,7 +1983,6 @@ export default function EventCalculator() {
     return { settlementData: balances, transactions: settlementTx };
   }, [members, expenses, groupFundBalance]);
 
-  /* ── Member-wise slip data ── */
   const memberSlips = useMemo(() => {
     return members
       .map((m) => {
@@ -680,7 +2017,8 @@ export default function EventCalculator() {
 
         const paid = expenses
           .filter((exp) => {
-            if (exp.paymentMethod === "single") return exp.singlePayerId === m.id;
+            if (exp.paymentMethod === "single")
+              return exp.singlePayerId === m.id;
             if (exp.paymentMethod === "multiple")
               return parseFloat(exp.multiPayers?.[m.id] || 0) > 0;
             return false;
@@ -702,9 +2040,17 @@ export default function EventCalculator() {
       .filter(Boolean);
   }, [members, expenses, settlementData, transactions]);
 
-  /* ═══════════════════════════════════════════════════════════
-     7. DOWNLOAD — PNG + Multi-page PDF
-     ═══════════════════════════════════════════════════════════ */
+  const currentMultiPayerSum = useMemo(() => {
+    if (expenseForm.paymentMethod !== "multiple") return 0;
+    return round2(
+      Object.values(expenseForm.multiPayers).reduce(
+        (sum, val) => sum + (parseFloat(val) || 0),
+        0
+      )
+    );
+  }, [expenseForm.multiPayers, expenseForm.paymentMethod]);
+
+  /* ── Download handlers ── */
   const renderSlipToCanvas = async (slipElement) => {
     const html2canvas = (await import("html2canvas")).default;
     const isDark = document.documentElement.classList.contains("dark");
@@ -770,7 +2116,6 @@ export default function EventCalculator() {
         const imgH = (canvas.height * imgW) / canvas.width;
 
         if (imgH <= usableH) {
-          // Fits on a single page
           if (!firstPage) pdf.addPage();
           pdf.addImage(
             canvas.toDataURL("image/jpeg", 0.95),
@@ -782,7 +2127,6 @@ export default function EventCalculator() {
           );
           firstPage = false;
         } else {
-          // Multi-page slice
           const pagesNeeded = Math.ceil(imgH / usableH);
           const pxPerSlice = Math.ceil(canvas.height / pagesNeeded);
 
@@ -837,20 +2181,8 @@ export default function EventCalculator() {
     }
   };
 
-  /* ── Live sum for multi payer UI ── */
-  const currentMultiPayerSum = useMemo(() => {
-    if (expenseForm.paymentMethod !== "multiple") return 0;
-    return round2(
-      Object.values(expenseForm.multiPayers).reduce(
-        (sum, val) => sum + (parseFloat(val) || 0),
-        0
-      )
-    );
-  }, [expenseForm.multiPayers, expenseForm.paymentMethod]);
-
   if (!isMounted) return null;
 
-  /* Get the slip list to render */
   const slipsToRender =
     slipMode === "member"
       ? memberSlips.filter((s) => s.member.id === slipMemberId)
@@ -861,7 +2193,7 @@ export default function EventCalculator() {
      ═══════════════════════════════════════════════════════════ */
   return (
     <div className="min-h-screen bg-pastel-bg dark:bg-[#050b08] pt-24 pb-16 px-4 sm:px-6 relative text-gray-800 dark:text-gray-300 overflow-x-hidden transition-colors duration-500">
-      {/* Hidden rendering container for slips */}
+      {/* Hidden slip render container */}
       <div
         ref={slipRenderRef}
         aria-hidden
@@ -906,7 +2238,7 @@ export default function EventCalculator() {
       </div>
 
       <div className="max-w-4xl mx-auto space-y-6 relative z-10">
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="text-center mb-6" data-aos="fade-down">
           <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight transition-colors">
             ইভেন্ট{" "}
@@ -919,7 +2251,7 @@ export default function EventCalculator() {
           </p>
         </div>
 
-        {/* ── Active Event Bar ── */}
+        {/* Active Event Bar */}
         {activeTab !== "setup" && (
           <div className="bg-white/80 dark:bg-white/5 border border-gray-200 dark:border-white/10 px-4 py-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-sm dark:shadow-none transition-colors">
             <div className="flex items-center gap-2.5">
@@ -953,7 +2285,7 @@ export default function EventCalculator() {
           </div>
         )}
 
-        {/* ── Tabs ── */}
+        {/* Tabs */}
         {activeTab !== "setup" && (
           <div className="flex flex-wrap justify-center gap-2 bg-white dark:bg-white/5 p-2 rounded-2xl mb-6 border border-gray-200 dark:border-white/10 shadow-soft dark:shadow-none transition-colors duration-500">
             <button
@@ -1247,7 +2579,6 @@ export default function EventCalculator() {
               </div>
             </div>
 
-            {/* Orphan expense warning */}
             {orphanExpenses.length > 0 && (
               <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-2xl p-4">
                 <p className="text-xs font-bold text-red-700 dark:text-red-400">
@@ -1757,7 +3088,7 @@ export default function EventCalculator() {
           </div>
         )}
 
-        {/* ═══ TAB 5: SLIP / TALIKHATA ═══ */}
+        {/* ═══ TAB 5: SLIPS ═══ */}
         {activeTab === "slips" && (
           <div className="space-y-6">
             <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-soft dark:shadow-xl">
@@ -1770,7 +3101,6 @@ export default function EventCalculator() {
                 সব হিসাব স্বচ্ছভাবে দেখানো হবে।
               </p>
 
-              {/* Member selection */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
                 <button
                   onClick={() => {
@@ -1813,7 +3143,6 @@ export default function EventCalculator() {
                 </button>
               </div>
 
-              {/* Individual member dropdown */}
               <div className="mb-5">
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">
                   অথবা একজন নির্দিষ্ট সদস্য বেছে নিন:
@@ -1835,7 +3164,6 @@ export default function EventCalculator() {
                 </select>
               </div>
 
-              {/* Bangla digits toggle */}
               <div className="flex items-center gap-3 mb-5 p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
                 <input
                   type="checkbox"
@@ -1852,7 +3180,6 @@ export default function EventCalculator() {
                 </label>
               </div>
 
-              {/* Download buttons */}
               {slipMode !== "none" && (
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200 dark:border-white/10">
                   <button
@@ -1883,7 +3210,6 @@ export default function EventCalculator() {
               )}
             </div>
 
-            {/* Live preview */}
             {slipMode !== "none" && (
               <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 rounded-3xl p-4 sm:p-6 overflow-x-auto">
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-4 uppercase tracking-widest">
@@ -1891,7 +3217,12 @@ export default function EventCalculator() {
                   প্রিভিউ
                 </p>
                 <div className="flex justify-center min-w-max">
-                  <div style={{ transform: "scale(0.85)", transformOrigin: "top center" }}>
+                  <div
+                    style={{
+                      transform: "scale(0.85)",
+                      transformOrigin: "top center",
+                    }}
+                  >
                     {slipMode === "summary" && (
                       <SummarySlip
                         eventData={eventData}
@@ -1995,1373 +3326,6 @@ export default function EventCalculator() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   TALIKHATA SLIP COMPONENTS — Bangladeshi traditional ledger style
-   ═══════════════════════════════════════════════════════════════ */
-
-/* Formatting helper inside slip */
-function SlipNum({ value, useBangla, prefix = "" }) {
-  const num = formatMoney(value);
-  const display = useBangla ? toBn(num) : num;
-  return (
-    <span>
-      {prefix}
-      {display}
-    </span>
-  );
-}
-
-/* ── Summary Slip ── */
-function SummarySlip({
-  eventData,
-  members,
-  expenses,
-  settlementData,
-  transactions,
-  totalCollected,
-  totalExpense,
-  groupFundBalance,
-  useBangla,
-}) {
-  return (
-    <div
-      data-slip-page
-      style={{
-        width: "760px",
-        background: "#FBF3E4",
-        padding: "32px",
-        fontFamily:
-          "'Noto Serif Bengali', 'Kalpurush', 'SolaimanLipi', Georgia, serif",
-        color: "#2B1810",
-        position: "relative",
-      }}
-    >
-      {/* Double red border — traditional talikhata style */}
-      <div
-        style={{
-          border: "4px double #8B0000",
-          padding: "24px",
-          background: "rgba(255, 253, 245, 0.6)",
-        }}
-      >
-        {/* Top ornamental header */}
-        <div style={{ textAlign: "center", marginBottom: "16px" }}>
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#8B0000",
-              fontWeight: "bold",
-              letterSpacing: "4px",
-              marginBottom: "8px",
-            }}
-          >
-            ॥ শ্রী ॥ শুভম্ ॥
-          </div>
-          <div
-            style={{
-              display: "inline-block",
-              padding: "4px 16px",
-              borderTop: "2px solid #8B0000",
-              borderBottom: "2px solid #8B0000",
-              fontSize: "20px",
-              fontWeight: "900",
-              color: "#8B0000",
-              letterSpacing: "2px",
-            }}
-          >
-            চুয়েট অ্যাডভেঞ্চার সোসাইটি
-          </div>
-          <div
-            style={{
-              fontSize: "13px",
-              fontWeight: "bold",
-              color: "#5C3317",
-              marginTop: "6px",
-              letterSpacing: "1px",
-            }}
-          >
-            ইভেন্ট হিসাবের তালিখাতা
-          </div>
-        </div>
-
-        {/* Event info */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: "12px",
-            marginBottom: "16px",
-            paddingBottom: "8px",
-            borderBottom: "1px dashed #B22222",
-            color: "#5C3317",
-            fontWeight: "bold",
-          }}
-        >
-          <div>
-            <span style={{ color: "#8B0000" }}>ইভেন্ট:</span>{" "}
-            {eventData.name || "Unnamed Event"}
-          </div>
-          <div>
-            <span style={{ color: "#8B0000" }}>তারিখ:</span>{" "}
-            {eventData.date || new Date().toLocaleDateString("en-GB")}
-          </div>
-        </div>
-
-        {/* Summary box */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: "8px",
-            marginBottom: "20px",
-            background: "#F5E6CE",
-            padding: "12px",
-            border: "1px solid #B22222",
-            borderRadius: "4px",
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: "10px",
-                color: "#8B0000",
-                fontWeight: "bold",
-                marginBottom: "4px",
-              }}
-            >
-              মোট সংগ্রহ
-            </div>
-            <div
-              style={{
-                fontSize: "20px",
-                fontWeight: "900",
-                color: "#2B6A3F",
-              }}
-            >
-              ৳<SlipNum value={totalCollected} useBangla={useBangla} />
-            </div>
-          </div>
-          <div
-            style={{
-              textAlign: "center",
-              borderLeft: "1px dashed #B22222",
-              borderRight: "1px dashed #B22222",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "10px",
-                color: "#8B0000",
-                fontWeight: "bold",
-                marginBottom: "4px",
-              }}
-            >
-              মোট খরচ
-            </div>
-            <div
-              style={{
-                fontSize: "20px",
-                fontWeight: "900",
-                color: "#8B0000",
-              }}
-            >
-              ৳<SlipNum value={totalExpense} useBangla={useBangla} />
-            </div>
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: "10px",
-                color: "#8B0000",
-                fontWeight: "bold",
-                marginBottom: "4px",
-              }}
-            >
-              গ্রুপ ফান্ড
-            </div>
-            <div
-              style={{
-                fontSize: "20px",
-                fontWeight: "900",
-                color: groupFundBalance < -0.01 ? "#B22222" : "#2B6A3F",
-              }}
-            >
-              ৳<SlipNum value={groupFundBalance} useBangla={useBangla} />
-            </div>
-          </div>
-        </div>
-
-        {/* ── SECTION 1: All expenses breakdown ── */}
-        <div style={{ marginBottom: "18px" }}>
-          <div
-            style={{
-              fontSize: "12px",
-              fontWeight: "900",
-              color: "#8B0000",
-              marginBottom: "8px",
-              paddingBottom: "4px",
-              borderBottom: "2px solid #B22222",
-              letterSpacing: "1px",
-            }}
-          >
-            ১. খরচের বিবরণ
-          </div>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: "11px",
-            }}
-          >
-            <thead>
-              <tr style={{ background: "#EADBC8" }}>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px 4px",
-                    width: "30px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  ক্রম
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    textAlign: "left",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  বিবরণ
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  পরিমাণ
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  পেমেন্ট
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  ভোগকারী
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "10px",
-                      textAlign: "center",
-                      color: "#8B0000",
-                      fontStyle: "italic",
-                    }}
-                  >
-                    কোনো খরচ নেই
-                  </td>
-                </tr>
-              )}
-              {expenses.map((exp, i) => {
-                let payerName = "গ্রুপ ফান্ড";
-                if (exp.paymentMethod === "single")
-                  payerName =
-                    members.find((m) => m.id === exp.singlePayerId)?.name ||
-                    "—";
-                else if (exp.paymentMethod === "multiple")
-                  payerName = "একাধিক";
-                const consumerNames =
-                  exp.consumers.length === members.length
-                    ? "সকল"
-                    : exp.consumers
-                        .map(
-                          (cid) =>
-                            members.find((m) => m.id === cid)?.name || "?"
-                        )
-                        .join(", ");
-                return (
-                  <tr
-                    key={exp.id}
-                    style={{
-                      background: i % 2 === 0 ? "#FBF3E4" : "#F5E6CE",
-                    }}
-                  >
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px 4px",
-                        textAlign: "center",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {useBangla ? toBn(i + 1) : i + 1}
-                    </td>
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px",
-                        wordBreak: "break-word",
-                      }}
-                    >
-                      {exp.desc}
-                    </td>
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px",
-                        textAlign: "right",
-                        fontWeight: "bold",
-                        color: "#8B0000",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      ৳<SlipNum value={exp.amount} useBangla={useBangla} />
-                    </td>
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px",
-                        fontSize: "10px",
-                      }}
-                    >
-                      {payerName}
-                    </td>
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px",
-                        fontSize: "10px",
-                        maxWidth: "200px",
-                        wordBreak: "break-word",
-                      }}
-                    >
-                      {consumerNames}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ── SECTION 2: Member balances ── */}
-        <div style={{ marginBottom: "18px" }}>
-          <div
-            style={{
-              fontSize: "12px",
-              fontWeight: "900",
-              color: "#8B0000",
-              marginBottom: "8px",
-              paddingBottom: "4px",
-              borderBottom: "2px solid #B22222",
-              letterSpacing: "1px",
-            }}
-          >
-            ২. সদস্যদের ব্যক্তিগত হিসাব
-          </div>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: "11px",
-            }}
-          >
-            <thead>
-              <tr style={{ background: "#EADBC8" }}>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    textAlign: "left",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  নাম
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  ফান্ডে জমা
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  পকেট থেকে
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  ভোগ
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  চূড়ান্ত
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.values(settlementData).map((data, i) => {
-                const isRecv = data.net > 0.01;
-                const isPay = data.net < -0.01;
-                return (
-                  <tr
-                    key={data.id}
-                    style={{
-                      background: i % 2 === 0 ? "#FBF3E4" : "#F5E6CE",
-                    }}
-                  >
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {data.name}
-                    </td>
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px",
-                        textAlign: "right",
-                      }}
-                    >
-                      ৳<SlipNum value={data.deposit} useBangla={useBangla} />
-                    </td>
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px",
-                        textAlign: "right",
-                      }}
-                    >
-                      ৳<SlipNum value={data.pocketPaid} useBangla={useBangla} />
-                    </td>
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px",
-                        textAlign: "right",
-                      }}
-                    >
-                      ৳<SlipNum value={data.consumed} useBangla={useBangla} />
-                    </td>
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px",
-                        textAlign: "right",
-                        fontWeight: "900",
-                        color: isRecv
-                          ? "#2B6A3F"
-                          : isPay
-                          ? "#8B0000"
-                          : "#5C3317",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {isRecv ? "+" : isPay ? "-" : ""}৳
-                      <SlipNum
-                        value={Math.abs(data.net)}
-                        useBangla={useBangla}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ── SECTION 3: Settlement transactions ── */}
-        <div style={{ marginBottom: "18px" }}>
-          <div
-            style={{
-              fontSize: "12px",
-              fontWeight: "900",
-              color: "#8B0000",
-              marginBottom: "8px",
-              paddingBottom: "4px",
-              borderBottom: "2px solid #B22222",
-              letterSpacing: "1px",
-            }}
-          >
-            ৩. চূড়ান্ত লেনদেন (কে কাকে কত দেবে)
-          </div>
-          {transactions.length === 0 ? (
-            <div
-              style={{
-                background: "#E4F0E4",
-                border: "1px solid #2B6A3F",
-                padding: "10px",
-                textAlign: "center",
-                fontSize: "11px",
-                color: "#2B6A3F",
-                fontWeight: "bold",
-                borderRadius: "4px",
-              }}
-            >
-              ✓ সবার হিসাব ক্লিয়ার — কোনো লেনদেন বাকি নেই
-            </div>
-          ) : (
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "11px",
-              }}
-            >
-              <thead>
-                <tr style={{ background: "#EADBC8" }}>
-                  <th
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "6px 4px",
-                      width: "30px",
-                      color: "#8B0000",
-                      fontWeight: "900",
-                    }}
-                  >
-                    ক্রম
-                  </th>
-                  <th
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "6px",
-                      color: "#8B0000",
-                      fontWeight: "900",
-                    }}
-                  >
-                    কে দেবে
-                  </th>
-                  <th
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "6px",
-                      color: "#8B0000",
-                      fontWeight: "900",
-                    }}
-                  >
-                    কাকে
-                  </th>
-                  <th
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "6px",
-                      color: "#8B0000",
-                      fontWeight: "900",
-                    }}
-                  >
-                    টাকা
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx, i) => (
-                  <tr
-                    key={i}
-                    style={{
-                      background: i % 2 === 0 ? "#FBF3E4" : "#F5E6CE",
-                    }}
-                  >
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px 4px",
-                        textAlign: "center",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {useBangla ? toBn(i + 1) : i + 1}
-                    </td>
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px",
-                        fontWeight: "bold",
-                        color: tx.fromIsFund ? "#5C3317" : "#8B0000",
-                      }}
-                    >
-                      {tx.from}
-                    </td>
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px",
-                        fontWeight: "bold",
-                        color: tx.toIsFund ? "#5C3317" : "#2B6A3F",
-                      }}
-                    >
-                      {tx.to}
-                    </td>
-                    <td
-                      style={{
-                        border: "1px solid #B22222",
-                        padding: "6px",
-                        textAlign: "right",
-                        fontWeight: "900",
-                        color: "#8B0000",
-                      }}
-                    >
-                      ৳<SlipNum value={tx.amount} useBangla={useBangla} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            marginTop: "20px",
-            paddingTop: "12px",
-            borderTop: "2px dotted #8B0000",
-            textAlign: "center",
-            fontSize: "10px",
-            color: "#5C3317",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-              fontSize: "11px",
-              color: "#8B0000",
-            }}
-          >
-            <div>— স্বাক্ষর —</div>
-            <div>— স্বাক্ষর —</div>
-          </div>
-          <div
-            style={{
-              marginTop: "12px",
-              fontSize: "9px",
-              fontStyle: "italic",
-              letterSpacing: "1px",
-            }}
-          >
-            ক্যালকুলেটেড বাই CUET Adventure Society • cuetas.com
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Individual Member Slip ── */
-function MemberSlip({ slip, eventData, useBangla }) {
-  const { member, balance, consumed, paid, myTx } = slip;
-  const isRecv = balance.net > 0.01;
-  const isPay = balance.net < -0.01;
-
-  return (
-    <div
-      data-slip-page
-      style={{
-        width: "760px",
-        background: "#FBF3E4",
-        padding: "32px",
-        fontFamily:
-          "'Noto Serif Bengali', 'Kalpurush', 'SolaimanLipi', Georgia, serif",
-        color: "#2B1810",
-      }}
-    >
-      <div
-        style={{
-          border: "4px double #8B0000",
-          padding: "24px",
-          background: "rgba(255, 253, 245, 0.6)",
-        }}
-      >
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: "16px" }}>
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#8B0000",
-              fontWeight: "bold",
-              letterSpacing: "4px",
-              marginBottom: "8px",
-            }}
-          >
-            ॥ শ্রী ॥ শুভম্ ॥
-          </div>
-          <div
-            style={{
-              display: "inline-block",
-              padding: "4px 16px",
-              borderTop: "2px solid #8B0000",
-              borderBottom: "2px solid #8B0000",
-              fontSize: "18px",
-              fontWeight: "900",
-              color: "#8B0000",
-              letterSpacing: "2px",
-            }}
-          >
-            ব্যক্তিগত হিসাবের তালিখাতা
-          </div>
-          <div
-            style={{
-              fontSize: "12px",
-              fontWeight: "bold",
-              color: "#5C3317",
-              marginTop: "6px",
-            }}
-          >
-            চুয়েট অ্যাডভেঞ্চার সোসাইটি
-          </div>
-        </div>
-
-        {/* Member info */}
-        <div
-          style={{
-            background: "#F5E6CE",
-            padding: "12px",
-            border: "1px solid #B22222",
-            borderRadius: "4px",
-            marginBottom: "16px",
-            fontSize: "12px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px",
-            }}
-          >
-            <span style={{ color: "#8B0000", fontWeight: "bold" }}>নাম:</span>
-            <span style={{ fontWeight: "900", fontSize: "14px" }}>
-              {member.name}
-            </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px",
-            }}
-          >
-            <span style={{ color: "#8B0000", fontWeight: "bold" }}>
-              ইভেন্ট:
-            </span>
-            <span>{eventData.name || "Unnamed Event"}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "#8B0000", fontWeight: "bold" }}>
-              তারিখ:
-            </span>
-            <span>
-              {eventData.date || new Date().toLocaleDateString("en-GB")}
-            </span>
-          </div>
-        </div>
-
-        {/* Summary */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: "8px",
-            marginBottom: "18px",
-            padding: "10px",
-            background: "#F5E6CE",
-            border: "1px solid #B22222",
-            borderRadius: "4px",
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: "10px",
-                color: "#8B0000",
-                fontWeight: "bold",
-              }}
-            >
-              মোট জমা
-            </div>
-            <div
-              style={{
-                fontSize: "16px",
-                fontWeight: "900",
-                color: "#2B6A3F",
-              }}
-            >
-              ৳<SlipNum value={balance.paid} useBangla={useBangla} />
-            </div>
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: "10px",
-                color: "#8B0000",
-                fontWeight: "bold",
-              }}
-            >
-              মোট ভোগ
-            </div>
-            <div
-              style={{
-                fontSize: "16px",
-                fontWeight: "900",
-                color: "#8B0000",
-              }}
-            >
-              ৳<SlipNum value={balance.consumed} useBangla={useBangla} />
-            </div>
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: "10px",
-                color: "#8B0000",
-                fontWeight: "bold",
-              }}
-            >
-              চূড়ান্ত ব্যালান্স
-            </div>
-            <div
-              style={{
-                fontSize: "16px",
-                fontWeight: "900",
-                color: isRecv ? "#2B6A3F" : isPay ? "#8B0000" : "#5C3317",
-              }}
-            >
-              {isRecv ? "+" : isPay ? "-" : ""}৳
-              <SlipNum
-                value={Math.abs(balance.net)}
-                useBangla={useBangla}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Section: Expenses this member consumed */}
-        <div style={{ marginBottom: "16px" }}>
-          <div
-            style={{
-              fontSize: "12px",
-              fontWeight: "900",
-              color: "#8B0000",
-              marginBottom: "8px",
-              paddingBottom: "4px",
-              borderBottom: "2px solid #B22222",
-            }}
-          >
-            ১. যে খরচে অংশ নিয়েছেন
-          </div>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: "11px",
-            }}
-          >
-            <thead>
-              <tr style={{ background: "#EADBC8" }}>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px 4px",
-                    width: "30px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  ক্রম
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    textAlign: "left",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  বিবরণ
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  মোট
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  জন
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  আপনার অংশ
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {consumed.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "10px",
-                      textAlign: "center",
-                      fontStyle: "italic",
-                      color: "#8B0000",
-                    }}
-                  >
-                    কোনো খরচে অংশ নেননি
-                  </td>
-                </tr>
-              )}
-              {consumed.map((c, i) => (
-                <tr
-                  key={i}
-                  style={{ background: i % 2 === 0 ? "#FBF3E4" : "#F5E6CE" }}
-                >
-                  <td
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "6px 4px",
-                      textAlign: "center",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {useBangla ? toBn(i + 1) : i + 1}
-                  </td>
-                  <td
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "6px",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {c.desc}
-                    <span
-                      style={{
-                        fontSize: "9px",
-                        color: "#8B0000",
-                        marginLeft: "6px",
-                      }}
-                    >
-                      ({c.paidBy})
-                    </span>
-                  </td>
-                  <td
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "6px",
-                      textAlign: "right",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    ৳<SlipNum value={c.total} useBangla={useBangla} />
-                  </td>
-                  <td
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "6px",
-                      textAlign: "center",
-                    }}
-                  >
-                    {useBangla ? toBn(c.consumers) : c.consumers}
-                  </td>
-                  <td
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "6px",
-                      textAlign: "right",
-                      fontWeight: "900",
-                      color: "#8B0000",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    ৳<SlipNum value={c.myShare} useBangla={useBangla} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Section: Payments made by this member */}
-        <div style={{ marginBottom: "16px" }}>
-          <div
-            style={{
-              fontSize: "12px",
-              fontWeight: "900",
-              color: "#8B0000",
-              marginBottom: "8px",
-              paddingBottom: "4px",
-              borderBottom: "2px solid #B22222",
-            }}
-          >
-            ২. আপনার পরিশোধ
-          </div>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: "11px",
-            }}
-          >
-            <thead>
-              <tr style={{ background: "#EADBC8" }}>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px 4px",
-                    width: "30px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  ক্রম
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    textAlign: "left",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  বিবরণ
-                </th>
-                <th
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    color: "#8B0000",
-                    fontWeight: "900",
-                  }}
-                >
-                  পরিমাণ
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr style={{ background: "#FBF3E4" }}>
-                <td
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px 4px",
-                    textAlign: "center",
-                    fontWeight: "bold",
-                  }}
-                >
-                  {useBangla ? toBn(1) : 1}
-                </td>
-                <td
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    fontWeight: "bold",
-                  }}
-                >
-                  গ্রুপ ফান্ডে জমা
-                </td>
-                <td
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    textAlign: "right",
-                    color: "#2B6A3F",
-                    fontWeight: "900",
-                  }}
-                >
-                  ৳<SlipNum value={balance.deposit} useBangla={useBangla} />
-                </td>
-              </tr>
-              {paid.map((p, i) => (
-                <tr
-                  key={i}
-                  style={{ background: i % 2 === 0 ? "#F5E6CE" : "#FBF3E4" }}
-                >
-                  <td
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "6px 4px",
-                      textAlign: "center",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {useBangla ? toBn(i + 2) : i + 2}
-                  </td>
-                  <td
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "6px",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    নিজ পকেট থেকে: {p.desc}
-                  </td>
-                  <td
-                    style={{
-                      border: "1px solid #B22222",
-                      padding: "6px",
-                      textAlign: "right",
-                      color: "#2B6A3F",
-                      fontWeight: "900",
-                    }}
-                  >
-                    ৳<SlipNum value={p.amount} useBangla={useBangla} />
-                  </td>
-                </tr>
-              ))}
-              <tr style={{ background: "#EADBC8", fontWeight: "900" }}>
-                <td
-                  colSpan={2}
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    textAlign: "right",
-                    color: "#8B0000",
-                  }}
-                >
-                  মোট পরিশোধ:
-                </td>
-                <td
-                  style={{
-                    border: "1px solid #B22222",
-                    padding: "6px",
-                    textAlign: "right",
-                    color: "#2B6A3F",
-                    fontWeight: "900",
-                  }}
-                >
-                  ৳<SlipNum value={balance.paid} useBangla={useBangla} />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Section: Your transactions */}
-        <div style={{ marginBottom: "16px" }}>
-          <div
-            style={{
-              fontSize: "12px",
-              fontWeight: "900",
-              color: "#8B0000",
-              marginBottom: "8px",
-              paddingBottom: "4px",
-              borderBottom: "2px solid #B22222",
-            }}
-          >
-            ৩. আপনার চূড়ান্ত লেনদেন
-          </div>
-          {myTx.length === 0 ? (
-            <div
-              style={{
-                background: "#E4F0E4",
-                border: "1px solid #2B6A3F",
-                padding: "10px",
-                textAlign: "center",
-                fontSize: "11px",
-                color: "#2B6A3F",
-                fontWeight: "bold",
-                borderRadius: "4px",
-              }}
-            >
-              ✓ আপনার হিসাব সম্পূর্ণ পরিষ্কার
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {myTx.map((tx, i) => {
-                const isFromMe = tx.from === member.name;
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      background: isFromMe ? "#FDE8E8" : "#E8F5E8",
-                      border: `1px solid ${isFromMe ? "#8B0000" : "#2B6A3F"}`,
-                      padding: "10px",
-                      borderRadius: "4px",
-                      fontSize: "12px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div style={{ fontWeight: "bold" }}>
-                      {isFromMe ? (
-                        <>
-                          <i className="fa-solid fa-arrow-right" /> আপনি{" "}
-                          <span style={{ color: "#8B0000" }}>
-                            {tx.to}
-                          </span>{" "}
-                          কে দেবেন
-                        </>
-                      ) : (
-                        <>
-                          <i className="fa-solid fa-arrow-left" />{" "}
-                          <span style={{ color: "#2B6A3F" }}>{tx.from}</span>{" "}
-                          আপনাকে দেবেন
-                        </>
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        fontWeight: "900",
-                        color: isFromMe ? "#8B0000" : "#2B6A3F",
-                        fontSize: "14px",
-                      }}
-                    >
-                      ৳<SlipNum value={tx.amount} useBangla={useBangla} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Final balance */}
-        <div
-          style={{
-            background:
-              isRecv ? "#E8F5E8" : isPay ? "#FDE8E8" : "#F5F5F5",
-            border: `2px solid ${
-              isRecv ? "#2B6A3F" : isPay ? "#8B0000" : "#888"
-            }`,
-            padding: "12px",
-            borderRadius: "6px",
-            textAlign: "center",
-            marginBottom: "16px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "11px",
-              fontWeight: "bold",
-              color: isRecv ? "#2B6A3F" : isPay ? "#8B0000" : "#666",
-              letterSpacing: "1px",
-            }}
-          >
-            {isRecv
-              ? "আপনি ফেরত পাবেন"
-              : isPay
-              ? "আপনাকে আরও দিতে হবে"
-              : "হিসাব ক্লিয়ার"}
-          </div>
-          <div
-            style={{
-              fontSize: "28px",
-              fontWeight: "900",
-              color: isRecv ? "#2B6A3F" : isPay ? "#8B0000" : "#666",
-              marginTop: "4px",
-            }}
-          >
-            ৳<SlipNum value={Math.abs(balance.net)} useBangla={useBangla} />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            paddingTop: "12px",
-            borderTop: "2px dotted #8B0000",
-            textAlign: "center",
-            fontSize: "10px",
-            color: "#5C3317",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-              fontSize: "11px",
-              color: "#8B0000",
-            }}
-          >
-            <div>— স্বাক্ষর —</div>
-            <div>— স্বাক্ষর —</div>
-          </div>
-          <div
-            style={{
-              marginTop: "12px",
-              fontSize: "9px",
-              fontStyle: "italic",
-              letterSpacing: "1px",
-            }}
-          >
-            ক্যালকুলেটেড বাই CUET Adventure Society • cuetas.com
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
