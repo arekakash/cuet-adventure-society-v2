@@ -31,10 +31,10 @@ const stagger = {
 
 /* ═══════════════════════════════════════════════════════════════
    🌌 CINEMATIC BACKGROUND — Aurora + Particles + Glow + Grain
-   - Fixed layer, behind content
-   - Bold intensity, both light & dark mode
-   - Zero React re-renders for mouse glow (CSS vars)
-   - Respects prefers-reduced-motion
+   OPTIMIZED:
+   - Blur radius হ্রাস (90→48 / 100→52 / 110→56)
+   - aurora blobs-এ 'cas-aurora-blob' ক্লাস → ট্যাবলেটে আরও হালকা
+   - contain: layout paint style → GPU isolation
    ═══════════════════════════════════════════════════════════════ */
 function CinematicBackground() {
   const containerRef = useRef(null);
@@ -44,7 +44,6 @@ function CinematicBackground() {
   useEffect(() => {
     if (prefersReduced) return;
     if (typeof window === "undefined") return;
-    // Disable on touch devices (no mouse)
     const hasMouse = window.matchMedia("(hover: hover)").matches;
     if (!hasMouse) return;
 
@@ -80,7 +79,6 @@ function CinematicBackground() {
 
   if (prefersReduced) return null;
 
-  // Particle seeds — deterministic, no re-randomize per render
   const particles = [
     { left: 4, dur: 22, delay: 0, size: 4, op: 0.55 },
     { left: 11, dur: 26, delay: 3, size: 6, op: 0.68 },
@@ -107,34 +105,38 @@ function CinematicBackground() {
       ref={containerRef}
       aria-hidden
       className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+      style={{ contain: "layout paint style" }}
     >
-      {/* ── Layer 1: Aurora Mesh Gradient (3 blobs) ── */}
+      {/* ── Layer 1: Aurora Mesh Gradient (3 blobs) — OPTIMIZED blur ── */}
       <div className="absolute inset-0">
         <div
-          className="absolute -top-[25%] -left-[20%] w-[70%] h-[70%] rounded-full"
+          className="cas-aurora-blob absolute -top-[25%] -left-[20%] w-[70%] h-[70%] rounded-full"
           style={{
             background:
               "radial-gradient(circle, var(--cas-aurora-1) 0%, transparent 70%)",
-            filter: "blur(90px)",
+            filter: "blur(48px)",
             animation: "cas-aurora-1 34s ease-in-out infinite",
+            transform: "translateZ(0)",
           }}
         />
         <div
-          className="absolute top-[25%] -right-[25%] w-[75%] h-[75%] rounded-full"
+          className="cas-aurora-blob absolute top-[25%] -right-[25%] w-[75%] h-[75%] rounded-full"
           style={{
             background:
               "radial-gradient(circle, var(--cas-aurora-2) 0%, transparent 70%)",
-            filter: "blur(100px)",
+            filter: "blur(52px)",
             animation: "cas-aurora-2 42s ease-in-out infinite",
+            transform: "translateZ(0)",
           }}
         />
         <div
-          className="absolute -bottom-[30%] left-[20%] w-[65%] h-[65%] rounded-full"
+          className="cas-aurora-blob absolute -bottom-[30%] left-[20%] w-[65%] h-[65%] rounded-full"
           style={{
             background:
               "radial-gradient(circle, var(--cas-aurora-3) 0%, transparent 70%)",
-            filter: "blur(110px)",
+            filter: "blur(56px)",
             animation: "cas-aurora-3 38s ease-in-out infinite",
+            transform: "translateZ(0)",
           }}
         />
       </div>
@@ -221,7 +223,7 @@ function SectionHeader({ label, title, highlight, subtitle }) {
     <motion.div
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-80px" }}
+      viewport={{ once: true, margin: "-40px" }}
       variants={stagger}
       className="text-center mb-12"
     >
@@ -259,7 +261,7 @@ function SectionHeader({ label, title, highlight, subtitle }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   HERO PARTICLES (in-hero accent, coexists with global background)
+   HERO PARTICLES
    ═══════════════════════════════════════════════════════════════ */
 function HeroParticles() {
   const dots = [
@@ -344,7 +346,7 @@ function MemoryCard({ ev }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INFINITY MARQUEE ROW
+   INFINITY MARQUEE ROW — UNCHANGED (all features preserved)
    ═══════════════════════════════════════════════════════════════ */
 function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
   const containerRef = useRef(null);
@@ -549,6 +551,7 @@ export default function HomePage() {
     stiffness: 120,
     damping: 30,
     restDelta: 0.001,
+    layoutEffect: false, // ← OPTIMIZED: SSR-safe, tablet-এ jank কমায়
   });
 
   const heroRef = useRef(null);
@@ -556,7 +559,11 @@ export default function HomePage() {
     target: heroRef,
     offset: ["start start", "end start"],
   });
-  const heroY = useSpring(heroScroll, { stiffness: 60, damping: 20 });
+  const heroY = useSpring(heroScroll, {
+    stiffness: 60,
+    damping: 20,
+    layoutEffect: false, // ← OPTIMIZED
+  });
 
   /* ─── Countdown ─── */
   useEffect(() => {
@@ -593,7 +600,12 @@ export default function HomePage() {
 
   /* ─── Initial ─── */
   useEffect(() => {
-    AOS.init({ once: true, offset: 50 });
+    AOS.init({
+      once: true,
+      offset: 50,
+      initClassName: "aos-init", // ← OPTIMIZED: flicker-free init
+      animatedClassName: "aos-animate",
+    });
     checkUserStatus();
     fetchSliders();
     fetchTopLeaders();
@@ -831,11 +843,11 @@ export default function HomePage() {
      ═══════════════════════════════════════════════════════════ */
   return (
     <main className="relative bg-pastel-bg dark:bg-[#030705] text-pastel-text dark:text-gray-300 font-sans antialiased overflow-x-hidden min-h-screen flex flex-col transition-colors duration-500">
-      {/* ── Global CSS: keyframes + aurora variables (light + dark) ── */}
+      {/* ── Global CSS: keyframes + aurora variables + OPTIMIZATIONS ── */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        /* ─── Aurora color tokens — bold in both modes ─── */
+        /* ─── Aurora color tokens ─── */
         :root {
           --cas-aurora-1: rgba(231, 111, 81, 0.26);
           --cas-aurora-2: rgba(52, 211, 153, 0.22);
@@ -853,7 +865,16 @@ export default function HomePage() {
           --cas-grain-opacity: 0.075;
         }
 
-        /* ─── Existing: ticker marquee ─── */
+        /* ─── AOS init state (flicker-free) ─── */
+        [data-aos].aos-init:not(.aos-animate) {
+          opacity: 0;
+          will-change: opacity, transform;
+        }
+        [data-aos].aos-animate {
+          will-change: auto;
+        }
+
+        /* ─── Ticker marquee ─── */
         @keyframes scroll-text {
           0%   { transform: translateX(100%); }
           100% { transform: translateX(-100%); }
@@ -864,13 +885,13 @@ export default function HomePage() {
           animation: scroll-text 20s linear infinite;
         }
 
-        /* ─── Existing: hero dots ─── */
+        /* ─── Hero dots ─── */
         @keyframes cas-float {
           0%, 100% { transform: translate3d(0, 0, 0); opacity: .35; }
           50%      { transform: translate3d(12px, -22px, 0); opacity: .75; }
         }
 
-        /* ─── NEW: Aurora blobs (very slow drift, GPU-only) ─── */
+        /* ─── Aurora blobs ─── */
         @keyframes cas-aurora-1 {
           0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
           33%      { transform: translate3d(8%, -6%, 0) scale(1.15); }
@@ -885,7 +906,7 @@ export default function HomePage() {
           50%      { transform: translate3d(12%, -10%, 0) scale(0.95); }
         }
 
-        /* ─── NEW: Floating particle rise ─── */
+        /* ─── Floating particle rise ─── */
         @keyframes cas-particle-rise {
           0%   { transform: translate3d(0, 20vh, 0) scale(0.4); opacity: 0; }
           12%  { opacity: 1; }
@@ -893,7 +914,7 @@ export default function HomePage() {
           100% { transform: translate3d(24px, -105vh, 0) scale(1); opacity: 0; }
         }
 
-        /* ─── NEW: Film grain shift ─── */
+        /* ─── Film grain shift ─── */
         @keyframes cas-grain-shift {
           0%, 100% { transform: translate3d(0, 0, 0); }
           25%      { transform: translate3d(-2%, 3%, 0); }
@@ -901,7 +922,7 @@ export default function HomePage() {
           75%      { transform: translate3d(-3%, -3%, 0); }
         }
 
-        /* ─── Existing: card shine ─── */
+        /* ─── Card shine ─── */
         .card-shine::before {
           content: "";
           position: absolute; inset: 0;
@@ -913,14 +934,61 @@ export default function HomePage() {
         }
         .card-shine:hover::before { opacity: 1; }
 
-        /* ─── Existing: no-scrollbar utility ─── */
+        /* ─── No-scrollbar utility ─── */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+
+        /* ═══════════════════════════════════════════════════════
+           ✅ TABLET OPTIMIZATIONS  (≤ 1024px)
+           ভারী GPU-গ্রাসী ইফেক্টগুলো ট্যাবলেটে হালকা করা হয়
+           — কোনো ফাংশনালিটি বা লেআউট পরিবর্তন নয়
+           ═══════════════════════════════════════════════════════ */
+        @media (max-width: 1024px) and (min-width: 641px) {
+          /* Aurora blobs আরও হালকা blur */
+          .cas-aurora-blob {
+            filter: blur(28px) !important;
+          }
+
+          /* Backdrop-blur কমানো — glassmorphism feel থাকবে কিন্তু হালকা */
+          .backdrop-blur-xl {
+            -webkit-backdrop-filter: blur(6px) !important;
+            backdrop-filter: blur(6px) !important;
+          }
+          .backdrop-blur-md {
+            -webkit-backdrop-filter: blur(5px) !important;
+            backdrop-filter: blur(5px) !important;
+          }
+          .backdrop-blur-sm,
+          .backdrop-blur {
+            -webkit-backdrop-filter: blur(3px) !important;
+            backdrop-filter: blur(3px) !important;
+          }
+
+          /* Film grain opacity কমানো */
+          .cas-grain {
+            opacity: 0.035 !important;
+          }
+
+          /* Section contain — layout thrash কমায় */
+          section {
+            contain: layout style;
+          }
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           ✅ MOBILE OPTIMIZATIONS  (≤ 640px)
+           মোবাইল আগে থেকেই ভালো — শুধু নিরাপদ সীমা
+           ═══════════════════════════════════════════════════════ */
+        @media (max-width: 640px) {
+          .cas-aurora-blob {
+            filter: blur(24px) !important;
+          }
+        }
       `,
         }}
       />
 
-      {/* ═══ 🌌 CINEMATIC BACKGROUND (4 layers, bold) ═══ */}
+      {/* ═══ 🌌 CINEMATIC BACKGROUND ═══ */}
       <CinematicBackground />
 
       {/* ── Scroll Progress Bar ── */}
@@ -929,12 +997,12 @@ export default function HomePage() {
         className="fixed top-0 left-0 right-0 h-[3px] z-[999] bg-gradient-to-r from-[#e76f51] via-orange-400 to-yellow-400"
       />
 
-      {/* ═══ CONTENT WRAPPER (above background) ═══ */}
+      {/* ═══ CONTENT WRAPPER ═══ */}
       <div className="relative z-10 flex flex-col flex-1">
         {/* ═══ 1. SLIDER ═══ */}
         <section className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-gray-100 dark:bg-[#0a1c13] overflow-hidden mt-16 shadow-soft dark:shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
           <div
-            className="flex w-full h-full transition-transform duration-[1400ms] ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform"
+            className="flex w-full h-full transition-transform duration-[1400ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
             style={{ transform: `translateX(-${currentSlide * 100}%)` }}
           >
             {sliders.length === 0 ? (
@@ -1006,7 +1074,7 @@ export default function HomePage() {
             <motion.div
               initial={{ opacity: 0, y: 40, scale: 0.96 }}
               whileInView={{ opacity: 1, y: 0, scale: 1 }}
-              viewport={{ once: true, margin: "-80px" }}
+              viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.9, ease: EASE }}
               className="bg-white/80 dark:bg-[#0a1c13]/80 backdrop-blur-xl border border-orange-100 dark:border-[#e76f51]/40 p-5 sm:p-8 rounded-[2rem] shadow-soft dark:shadow-[0_0_40px_rgba(231,111,81,0.15)] max-w-2xl w-full flex flex-col items-center text-center"
             >
@@ -1189,7 +1257,7 @@ export default function HomePage() {
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
+            viewport={{ once: true, margin: "-40px" }}
             variants={stagger}
             className="text-center mb-10"
           >
@@ -1218,7 +1286,7 @@ export default function HomePage() {
               key={topLeaders.map((u) => u.id).join("-")}
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: true, margin: "-60px" }}
+              viewport={{ once: true, margin: "-30px" }}
               variants={stagger}
               className="space-y-4"
             >
@@ -1309,7 +1377,7 @@ export default function HomePage() {
               <motion.div
                 initial="hidden"
                 whileInView="visible"
-                viewport={{ once: true, margin: "-60px" }}
+                viewport={{ once: true, margin: "-30px" }}
                 variants={stagger}
                 className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
               >
@@ -1414,7 +1482,7 @@ export default function HomePage() {
             <motion.div
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: true, margin: "-60px" }}
+              viewport={{ once: true, margin: "-30px" }}
               variants={stagger}
               className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-5"
             >
@@ -1477,7 +1545,7 @@ export default function HomePage() {
               <motion.div
                 initial="hidden"
                 whileInView="visible"
-                viewport={{ once: true, margin: "-60px" }}
+                viewport={{ once: true, margin: "-30px" }}
                 variants={stagger}
                 className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5"
               >
@@ -1517,7 +1585,7 @@ export default function HomePage() {
             <motion.div
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: true, margin: "-80px" }}
+              viewport={{ once: true, margin: "-40px" }}
               variants={stagger}
             >
               <motion.h3
@@ -1584,7 +1652,7 @@ export default function HomePage() {
         </footer>
       </div>
 
-      {/* ═══ MODALS (outside z-10 wrapper, sit above everything) ═══ */}
+      {/* ═══ MODALS ═══ */}
 
       {showNameModal && (
         <div className="fixed inset-0 z-[120] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
