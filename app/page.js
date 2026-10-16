@@ -28,7 +28,7 @@ const stagger = {
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   STATIC BACKGROUND — শুধুই CSS গ্রেডিয়েন্ট, কোনো JS/এনিমেশন নেই
+   STATIC BACKGROUND — শুধু CSS গ্রেডিয়েন্ট, zero animation, zero JS
    ═══════════════════════════════════════════════════════════════ */
 function StaticBackground() {
   return (
@@ -37,7 +37,6 @@ function StaticBackground() {
       className="pointer-events-none fixed inset-0 z-0"
       style={{ contain: "strict" }}
     >
-      {/* Light mode layered gradients */}
       <div
         className="absolute inset-0 dark:hidden"
         style={{
@@ -49,8 +48,6 @@ function StaticBackground() {
           `,
         }}
       />
-
-      {/* Dark mode layered gradients */}
       <div
         className="absolute inset-0 hidden dark:block"
         style={{
@@ -160,7 +157,7 @@ function MemoryCard({ ev }) {
           alt={ev.title}
           loading="lazy"
           draggable={false}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-gray-300 dark:text-gray-700">
@@ -171,7 +168,7 @@ function MemoryCard({ ev }) {
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
 
       {ev.difficulty && (
-        <span className="absolute top-2.5 left-2.5 text-[9px] font-bold uppercase tracking-widest bg-white/90 dark:bg-black/70 text-gray-700 dark:text-white px-2 py-0.5 rounded-full backdrop-blur">
+        <span className="absolute top-2.5 left-2.5 text-[9px] font-bold uppercase tracking-widest bg-white/95 dark:bg-black/80 text-gray-700 dark:text-white px-2 py-0.5 rounded-full">
           {ev.difficulty}
         </span>
       )}
@@ -192,24 +189,80 @@ function MemoryCard({ ev }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INFINITY MARQUEE ROW
+   INFINITY MARQUEE ROW — FULLY FIXED VERSION
+   ✅ FIX 1: Pointer-based drag-to-scroll (with click suppression)
+   ✅ FIX 2: ResizeObserver preserves relative position (no jump)
+   ✅ FIX 3: Respects prefers-reduced-motion (stops RAF entirely)
+   - transform: translate3d() only (compositor-only, no layout reflow)
+   - IntersectionObserver auto-pause when offscreen
    ═══════════════════════════════════════════════════════════════ */
 function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
-  const containerRef = useRef(null);
+  const viewportRef = useRef(null);
+  const trackRef = useRef(null);
   const isPausedRef = useRef(false);
+  const isVisibleRef = useRef(true);
+  const isDraggingRef = useRef(false);
+  const readyRef = useRef(false);
   const rafRef = useRef(null);
   const lastTimeRef = useRef(0);
+  const offsetRef = useRef(0);
+  const setWidthRef = useRef(0);
   const wheelTimerRef = useRef(null);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !items.length) return;
+  // Drag state — সব mutable ref-এ, যাতে কোনো re-render না হয়
+  const dragRef = useRef({
+    pointerId: null,
+    startX: 0,
+    startOffset: 0,
+    movedDistance: 0,
+  });
 
-    if (direction === "right") {
-      requestAnimationFrame(() => {
-        const cw = container.scrollWidth / 2;
-        if (cw > 0) container.scrollLeft = cw;
-      });
+  // ✅ FIX 3: respect prefers-reduced-motion
+  const prefersReduced = useReducedMotion();
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const track = trackRef.current;
+    if (!viewport || !track || !items.length) return;
+
+    // ✅ FIX 2: preserve position on re-measure (image load / resize)
+    const measure = () => {
+      const single = track.scrollWidth / 2;
+      if (single <= 0) return;
+
+      const prevWidth = setWidthRef.current;
+      setWidthRef.current = single;
+
+      if (!readyRef.current) {
+        // First measurement — set initial offset based on direction
+        offsetRef.current = direction === "right" ? single : 0;
+        track.style.transform = `translate3d(${-offsetRef.current}px, 0, 0)`;
+        readyRef.current = true;
+      } else if (prevWidth > 0 && Math.abs(prevWidth - single) > 1) {
+        // Width changed — preserve relative position instead of resetting
+        const ratio = offsetRef.current / prevWidth;
+        offsetRef.current = ratio * single;
+        track.style.transform = `translate3d(${-offsetRef.current}px, 0, 0)`;
+      }
+    };
+
+    // Measure after first layout tick
+    requestAnimationFrame(measure);
+
+    let ro;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(measure);
+      ro.observe(track);
+    }
+
+    lastTimeRef.current = 0;
+
+    // ✅ FIX 3: if reduced motion, don't start RAF loop at all
+    if (prefersReduced) {
+      return () => {
+        if (ro) ro.disconnect();
+        if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
+      };
     }
 
     const tick = (time) => {
@@ -217,27 +270,56 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
       const delta = Math.min(time - lastTimeRef.current, 50);
       lastTimeRef.current = time;
 
-      if (!isPausedRef.current && container) {
-        const contentWidth = container.scrollWidth / 2;
-        if (contentWidth > 20) {
-          const step = (speed * delta) / 16;
-          let next =
-            container.scrollLeft + (direction === "left" ? step : -step);
-          if (next >= contentWidth) next -= contentWidth;
-          if (next < 0) next += contentWidth;
-          container.scrollLeft = next;
+      if (
+        readyRef.current &&
+        !isPausedRef.current &&
+        !isDraggingRef.current &&
+        isVisibleRef.current &&
+        setWidthRef.current > 20
+      ) {
+        const step = (speed * delta) / 16;
+        if (direction === "left") {
+          offsetRef.current += step;
+          if (offsetRef.current >= setWidthRef.current) {
+            offsetRef.current -= setWidthRef.current;
+          }
+        } else {
+          offsetRef.current -= step;
+          if (offsetRef.current <= 0) {
+            offsetRef.current += setWidthRef.current;
+          }
         }
+        track.style.transform = `translate3d(${-offsetRef.current}px, 0, 0)`;
       }
       rafRef.current = requestAnimationFrame(tick);
     };
 
     rafRef.current = requestAnimationFrame(tick);
+
     return () => {
       cancelAnimationFrame(rafRef.current);
+      if (ro) ro.disconnect();
       if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
     };
-  }, [direction, speed, items.length]);
+  }, [direction, speed, items.length, prefersReduced]);
 
+  // Pause when offscreen (battery saver)
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          isVisibleRef.current = e.isIntersecting;
+        });
+      },
+      { rootMargin: "120px" }
+    );
+    io.observe(viewport);
+    return () => io.disconnect();
+  }, []);
+
+  // ─── Helpers ───
   const pause = () => {
     isPausedRef.current = true;
   };
@@ -246,33 +328,106 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
   };
 
   const handleWheel = () => {
+    if (prefersReduced) return;
     pause();
     if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
     wheelTimerRef.current = setTimeout(resume, 1500);
   };
 
+  const applyOffset = (next) => {
+    const w = setWidthRef.current;
+    if (w > 20) {
+      next = ((next % w) + w) % w;
+    }
+    offsetRef.current = next;
+    if (trackRef.current) {
+      trackRef.current.style.transform = `translate3d(${-next}px, 0, 0)`;
+    }
+  };
+
+  // ✅ FIX 1: pointer-based drag-to-scroll
+  const onPointerDown = (e) => {
+    if (prefersReduced) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    dragRef.current.pointerId = e.pointerId;
+    dragRef.current.startX = e.clientX;
+    dragRef.current.startOffset = offsetRef.current;
+    dragRef.current.movedDistance = 0;
+    isDraggingRef.current = true;
+    isPausedRef.current = true;
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const onPointerMove = (e) => {
+    if (!isDraggingRef.current) return;
+    if (e.pointerId !== dragRef.current.pointerId) return;
+
+    const delta = dragRef.current.startX - e.clientX;
+    const abs = Math.abs(delta);
+    if (abs > dragRef.current.movedDistance) {
+      dragRef.current.movedDistance = abs;
+    }
+
+    applyOffset(dragRef.current.startOffset + delta);
+  };
+
+  const endDrag = (e) => {
+    if (!isDraggingRef.current) return;
+    if (e.pointerId !== dragRef.current.pointerId) return;
+
+    isDraggingRef.current = false;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    dragRef.current.pointerId = null;
+
+    if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
+    wheelTimerRef.current = setTimeout(() => {
+      isPausedRef.current = false;
+    }, 800);
+  };
+
+  // Suppress click on cards if the user actually dragged
+  const onClickCapture = (e) => {
+    if (dragRef.current.movedDistance > 8) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    dragRef.current.movedDistance = 0;
+  };
+
   return (
     <div
-      ref={containerRef}
-      onPointerDown={pause}
-      onPointerUp={resume}
-      onPointerCancel={resume}
-      onPointerLeave={resume}
-      onTouchStart={pause}
-      onTouchEnd={resume}
+      ref={viewportRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
       onWheel={handleWheel}
-      className="no-scrollbar flex gap-3 sm:gap-4 overflow-x-auto cursor-grab active:cursor-grabbing"
+      onClickCapture={onClickCapture}
+      className={`overflow-hidden select-none ${
+        prefersReduced
+          ? "cursor-default"
+          : "cursor-grab active:cursor-grabbing"
+      }`}
       style={{
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
-        WebkitOverflowScrolling: "touch",
-        touchAction: "pan-x pan-y",
-        overscrollBehaviorX: "contain",
+        contain: "strict",
+        touchAction: "pan-y",
       }}
     >
-      {items.map((ev, i) => (
-        <MemoryCard key={i} ev={ev} />
-      ))}
+      <div
+        ref={trackRef}
+        className="flex gap-3 sm:gap-4"
+        style={{ backfaceVisibility: "hidden" }}
+      >
+        {items.map((ev, i) => (
+          <MemoryCard key={i} ev={ev} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -392,7 +547,6 @@ export default function HomePage() {
 
   const prefersReduced = useReducedMotion();
 
-  // Scroll progress bar (top of page) — kept, but no hero parallax
   const { scrollYProgress } = useScroll();
   const progressX = useSpring(scrollYProgress, {
     stiffness: 120,
@@ -677,28 +831,29 @@ export default function HomePage() {
      RENDER
      ═══════════════════════════════════════════════════════════ */
   return (
-    <main className="relative bg-pastel-bg dark:bg-[#030705] text-pastel-text dark:text-gray-300 font-sans antialiased overflow-x-hidden min-h-screen flex flex-col transition-colors duration-500">
+    <main className="relative bg-pastel-bg dark:bg-[#030705] text-pastel-text dark:text-gray-300 font-sans antialiased overflow-x-hidden min-h-screen flex flex-col transition-colors duration-300">
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        /* ─── Ticker marquee ─── */
+        /* ─── Ticker marquee (transform-only keyframes) ─── */
         @keyframes scroll-text {
-          0%   { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
+          0%   { transform: translate3d(100%, 0, 0); }
+          100% { transform: translate3d(-100%, 0, 0); }
         }
         .animate-marquee {
           display: inline-block;
           white-space: nowrap;
           animation: scroll-text 20s linear infinite;
+          will-change: transform;
         }
 
-        /* ─── Card shine ─── */
+        /* ─── Card shine (only on hover) ─── */
         .card-shine::before {
           content: "";
           position: absolute; inset: 0;
-          background: radial-gradient(600px circle at var(--mx,50%) var(--my,50%), rgba(231,111,81,0.18), transparent 45%);
+          background: radial-gradient(600px circle at 50% 50%, rgba(231,111,81,0.18), transparent 45%);
           opacity: 0;
-          transition: opacity .4s ease;
+          transition: opacity .3s ease;
           pointer-events: none;
           border-radius: inherit;
         }
@@ -708,39 +863,22 @@ export default function HomePage() {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 
-        /* ═══════════════════════════════════════════════════════
-           TABLET / MOBILE OPTIMIZATIONS
-           — backdrop-blur কমানো, যাতে জ্যাংক না হয়
-           ═══════════════════════════════════════════════════════ */
-        @media (max-width: 1024px) {
-          .backdrop-blur-xl {
-            -webkit-backdrop-filter: blur(6px) !important;
-            backdrop-filter: blur(6px) !important;
-          }
-          .backdrop-blur-md {
-            -webkit-backdrop-filter: blur(4px) !important;
-            backdrop-filter: blur(4px) !important;
-          }
-          .backdrop-blur-sm,
-          .backdrop-blur {
-            -webkit-backdrop-filter: blur(3px) !important;
-            backdrop-filter: blur(3px) !important;
-          }
+        /* ─── prefers-reduced-motion safety ─── */
+        @media (prefers-reduced-motion: reduce) {
+          .animate-marquee { animation: none; }
         }
       `,
         }}
       />
 
-      {/* ═══ STATIC BACKGROUND (zero animation) ═══ */}
       <StaticBackground />
 
-      {/* ── Scroll Progress Bar ── */}
+      {/* ── Scroll Progress Bar (compositor-only via scaleX) ── */}
       <motion.div
         style={{ scaleX: progressX, transformOrigin: "0% 50%" }}
         className="fixed top-0 left-0 right-0 h-[3px] z-[999] bg-gradient-to-r from-[#e76f51] via-orange-400 to-yellow-400"
       />
 
-      {/* ═══ CONTENT WRAPPER ═══ */}
       <div className="relative z-10 flex flex-col flex-1">
         {/* ═══ 1. SLIDER ═══ */}
         <section className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-gray-100 dark:bg-[#0a1c13] overflow-hidden mt-16 shadow-soft dark:shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
@@ -777,7 +915,7 @@ export default function HomePage() {
                   key={i}
                   onClick={() => setCurrentSlide(i)}
                   aria-label={`Slide ${i + 1}`}
-                  className={`h-1.5 rounded-full transition-all duration-500 ${
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
                     i === currentSlide
                       ? "w-8 bg-[#e76f51]"
                       : "w-2 bg-white/60 hover:bg-white"
@@ -791,7 +929,7 @@ export default function HomePage() {
             <div className="absolute top-4 right-4 z-30">
               <button
                 onClick={() => setIsAdminPanelOpen(true)}
-                className="bg-white/80 dark:bg-black/60 hover:bg-[#e76f51] dark:hover:bg-[#e76f51] backdrop-blur-md text-gray-800 hover:text-white dark:text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-lg border border-gray-200 dark:border-white/20"
+                className="bg-white/90 dark:bg-black/70 hover:bg-[#e76f51] dark:hover:bg-[#e76f51] text-gray-800 hover:text-white dark:text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-lg border border-gray-200 dark:border-white/20"
               >
                 <i className="fa-solid fa-gear" />
               </button>
@@ -800,7 +938,7 @@ export default function HomePage() {
         </section>
 
         {/* ═══ 2. TICKER ═══ */}
-        <div className="bg-orange-100 dark:bg-[#e76f51] text-orange-900 dark:text-[#030705] py-2 overflow-hidden flex items-center border-y border-orange-200 dark:border-y-yellow-500/30 shadow-sm dark:shadow-md relative z-20 transition-colors duration-500">
+        <div className="bg-orange-100 dark:bg-[#e76f51] text-orange-900 dark:text-[#030705] py-2 overflow-hidden flex items-center border-y border-orange-200 dark:border-y-yellow-500/30 shadow-sm dark:shadow-md relative z-20 transition-colors duration-300">
           <div className="whitespace-nowrap w-full">
             <span className="animate-marquee font-bold text-xs sm:text-sm tracking-wide">
               <i className="fa-solid fa-bolt mr-2" /> চুয়েট অ্যাডভেঞ্চার সোসাইটি
@@ -819,7 +957,7 @@ export default function HomePage() {
               whileInView={{ opacity: 1, y: 0, scale: 1 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.9, ease: EASE }}
-              className="bg-white/80 dark:bg-[#0a1c13]/80 backdrop-blur-xl border border-orange-100 dark:border-[#e76f51]/40 p-5 sm:p-8 rounded-[2rem] shadow-soft dark:shadow-[0_0_40px_rgba(231,111,81,0.15)] max-w-2xl w-full flex flex-col items-center text-center"
+              className="bg-white/95 dark:bg-[#0a1c13]/95 border border-orange-100 dark:border-[#e76f51]/40 p-5 sm:p-8 rounded-[2rem] shadow-soft max-w-2xl w-full flex flex-col items-center text-center"
             >
               <h3 className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#e76f51] animate-pulse" />
@@ -842,7 +980,7 @@ export default function HomePage() {
                       <div
                         className={`text-xl sm:text-3xl font-black mb-4 ${
                           b.hi
-                            ? "text-[#e76f51] animate-pulse"
+                            ? "text-[#e76f51]"
                             : "text-gray-300 dark:text-gray-600"
                         }`}
                       >
@@ -850,7 +988,7 @@ export default function HomePage() {
                       </div>
                     )}
                     <div
-                      className={`flex flex-col items-center rounded-2xl w-16 h-16 sm:w-20 sm:h-20 justify-center shadow-inner transition-colors duration-500 ${
+                      className={`flex flex-col items-center rounded-2xl w-16 h-16 sm:w-20 sm:h-20 justify-center shadow-inner transition-colors duration-300 ${
                         b.hi
                           ? "bg-orange-50 dark:bg-[#e76f51]/10 border border-orange-200 dark:border-[#e76f51]/40"
                           : "bg-gray-50 dark:bg-black/60 border border-gray-100 dark:border-white/10"
@@ -887,17 +1025,13 @@ export default function HomePage() {
         )}
 
         {/* ═══ 4. HERO ═══ */}
+        {/* ✅ FIX 4: whileInView → animate (Hero always in view) */}
         <section className="relative py-16 sm:py-24 px-6 overflow-hidden">
           <motion.div className="max-w-4xl mx-auto text-center relative z-10">
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={stagger}
-            >
+            <motion.div initial="hidden" animate="visible" variants={stagger}>
               <motion.div
                 variants={fadeUp}
-                className="inline-block px-4 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-bold text-xs sm:text-sm mb-8 bg-white/50 dark:bg-white/5 backdrop-blur-sm"
+                className="inline-block px-4 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-bold text-xs sm:text-sm mb-8 bg-white/70 dark:bg-white/10"
               >
                 <i className="fa-solid fa-fire text-[#e76f51] mr-2" /> ২০১৫
                 সাল থেকে পথচলা
@@ -906,8 +1040,7 @@ export default function HomePage() {
               <div className="overflow-hidden mb-8">
                 <motion.h1
                   initial={{ y: "100%" }}
-                  whileInView={{ y: 0 }}
-                  viewport={{ once: true }}
+                  animate={{ y: 0 }}
                   transition={{ duration: 1.1, ease: EASE }}
                   className="text-4xl sm:text-5xl md:text-7xl font-black leading-[1.05] tracking-tight text-pastel-text dark:text-white"
                 >
@@ -931,7 +1064,7 @@ export default function HomePage() {
                 {userId ? (
                   <>
                     <motion.div
-                      whileHover={{ y: -3, scale: 1.02 }}
+                      whileHover={prefersReduced ? {} : { y: -3, scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <Link
@@ -942,7 +1075,7 @@ export default function HomePage() {
                       </Link>
                     </motion.div>
                     <motion.div
-                      whileHover={{ y: -3, scale: 1.02 }}
+                      whileHover={prefersReduced ? {} : { y: -3, scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <Link
@@ -957,7 +1090,7 @@ export default function HomePage() {
                 ) : (
                   <>
                     <motion.div
-                      whileHover={{ y: -3, scale: 1.02 }}
+                      whileHover={prefersReduced ? {} : { y: -3, scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <Link
@@ -969,7 +1102,7 @@ export default function HomePage() {
                       </Link>
                     </motion.div>
                     <motion.div
-                      whileHover={{ y: -3, scale: 1.02 }}
+                      whileHover={prefersReduced ? {} : { y: -3, scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <Link
@@ -998,7 +1131,7 @@ export default function HomePage() {
           >
             <motion.div
               variants={fadeUp}
-              className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-50 dark:bg-yellow-500/10 mb-4 shadow-sm dark:shadow-[0_0_30px_rgba(234,179,8,0.2)]"
+              className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-50 dark:bg-yellow-500/10 mb-4 shadow-sm"
             >
               <i className="fa-solid fa-trophy text-3xl text-yellow-500" />
             </motion.div>
@@ -1048,7 +1181,7 @@ export default function HomePage() {
           <div className="text-center mt-10">
             <Link
               href="/leaderboard"
-              className="inline-flex items-center justify-center gap-3 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white px-8 py-3.5 rounded-xl font-bold transition-all hover:border-gray-300 dark:hover:border-white/30"
+              className="inline-flex items-center justify-center gap-3 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white px-8 py-3.5 rounded-xl font-bold transition-colors"
             >
               পূর্ণ লিডারবোর্ড <i className="fa-solid fa-arrow-right" />
             </Link>
@@ -1133,8 +1266,8 @@ export default function HomePage() {
                               alt={ev.title}
                               loading="lazy"
                               className="w-full h-full object-cover"
-                              whileHover={{ scale: 1.06 }}
-                              transition={{ duration: 0.7, ease: EASE }}
+                              whileHover={prefersReduced ? {} : { scale: 1.06 }}
+                              transition={{ duration: 0.6, ease: EASE }}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-700">
@@ -1144,7 +1277,7 @@ export default function HomePage() {
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
 
                           {ev.difficulty && (
-                            <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-widest bg-white/90 dark:bg-black/70 backdrop-blur px-2.5 py-1 rounded-full text-gray-700 dark:text-white">
+                            <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-widest bg-white/95 dark:bg-black/80 px-2.5 py-1 rounded-full text-gray-700 dark:text-white">
                               {ev.difficulty}
                             </span>
                           )}
@@ -1297,7 +1430,7 @@ export default function HomePage() {
                     variants={fadeUp}
                     whileHover={prefersReduced ? {} : { y: -6, scale: 1.02 }}
                     transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                    className="card-shine relative overflow-hidden bg-white/80 dark:bg-[#0a1c13]/80 backdrop-blur-sm border border-gray-100 dark:border-white/5 rounded-2xl p-5 flex flex-col items-center text-center"
+                    className="card-shine relative overflow-hidden bg-white/95 dark:bg-[#0a1c13]/95 border border-gray-100 dark:border-white/5 rounded-2xl p-5 flex flex-col items-center text-center"
                   >
                     <i className={`${s.i} ${s.c} text-2xl sm:text-3xl mb-3`} />
                     <div className="text-3xl sm:text-4xl font-black text-gray-800 dark:text-white">
@@ -1315,7 +1448,7 @@ export default function HomePage() {
         )}
 
         {/* ═══ 10. SOCIAL ═══ */}
-        <section className="py-16 sm:py-24 bg-gray-50/80 dark:bg-[#050b08]/80 backdrop-blur-sm border-t border-gray-200 dark:border-white/5 px-6">
+        <section className="py-16 sm:py-24 bg-gray-50/90 dark:bg-[#050b08]/90 border-t border-gray-200 dark:border-white/5 px-6">
           <div className="max-w-5xl mx-auto text-center">
             <motion.div
               initial="hidden"
@@ -1356,7 +1489,7 @@ export default function HomePage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: i * 0.05, ease: EASE }}
-                  whileHover={{ y: -8 }}
+                  whileHover={prefersReduced ? {} : { y: -8 }}
                   className="group bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 p-4 w-32 sm:w-40 rounded-2xl flex flex-col items-center justify-center shadow-soft dark:shadow-none transition-colors"
                   style={{ "--brand": `#${s.c}` }}
                 >
@@ -1373,7 +1506,7 @@ export default function HomePage() {
         </section>
 
         {/* ═══ 11. FOOTER ═══ */}
-        <footer className="mt-auto bg-gray-100/90 dark:bg-[#020504]/90 backdrop-blur-sm border-t border-gray-200 dark:border-white/10 py-8 px-6 text-center">
+        <footer className="mt-auto bg-gray-100/95 dark:bg-[#020504]/95 border-t border-gray-200 dark:border-white/10 py-8 px-6 text-center">
           <div className="max-w-4xl mx-auto flex flex-col items-center">
             <div className="text-2xl font-black tracking-widest text-gray-800 dark:text-white mb-2">
               <span className="text-[#e76f51]">C</span>UET{" "}
@@ -1390,12 +1523,12 @@ export default function HomePage() {
       {/* ═══ MODALS ═══ */}
 
       {showNameModal && (
-        <div className="fixed inset-0 z-[120] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[120] bg-black/70 dark:bg-black/85 flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.94, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: EASE }}
-            className="bg-white dark:bg-[#0a1c13] border border-orange-200 dark:border-[#e76f51]/50 rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-2xl dark:shadow-[0_0_40px_rgba(231,111,81,0.2)] relative"
+            transition={{ duration: 0.4, ease: EASE }}
+            className="bg-white dark:bg-[#0a1c13] border border-orange-200 dark:border-[#e76f51]/50 rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-2xl relative"
           >
             <button
               onClick={() => setShowNameModal(false)}
@@ -1434,7 +1567,7 @@ export default function HomePage() {
               <button
                 type="submit"
                 disabled={isUpdatingName}
-                className="w-full bg-[#e76f51] hover:bg-orange-600 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md dark:shadow-[0_0_20px_rgba(231,111,81,0.3)] flex justify-center items-center gap-2 disabled:opacity-70"
+                className="w-full bg-[#e76f51] hover:bg-orange-600 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md flex justify-center items-center gap-2 disabled:opacity-70"
               >
                 {isUpdatingName ? (
                   <i className="fa-solid fa-circle-notch fa-spin" />
@@ -1450,7 +1583,7 @@ export default function HomePage() {
 
       {isAdminPanelOpen && (
         <div
-          className="fixed inset-0 z-[100] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] bg-black/70 dark:bg-black/85 flex items-center justify-center p-4"
           onClick={(e) =>
             e.target === e.currentTarget && setIsAdminPanelOpen(false)
           }
