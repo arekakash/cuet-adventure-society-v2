@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import AOS from "aos";
-import "aos/dist/aos.css";
 import { supabase } from "@/lib/supabase";
 import Cropper from "react-easy-crop";
 import {
@@ -31,10 +29,7 @@ const stagger = {
 
 /* ═══════════════════════════════════════════════════════════════
    🌌 CINEMATIC BACKGROUND — Aurora + Particles + Glow + Grain
-   OPTIMIZED:
-   - Blur radius হ্রাস (90→48 / 100→52 / 110→56)
-   - aurora blobs-এ 'cas-aurora-blob' ক্লাস → ট্যাবলেটে আরও হালকা
-   - contain: layout paint style → GPU isolation
+   - Fixed GPU Overload: Removed heavy CSS blurs from radial gradients
    ═══════════════════════════════════════════════════════════════ */
 function CinematicBackground() {
   const containerRef = useRef(null);
@@ -105,38 +100,35 @@ function CinematicBackground() {
       ref={containerRef}
       aria-hidden
       className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
-      style={{ contain: "layout paint style" }}
+      style={{ contain: "paint" }}
     >
-      {/* ── Layer 1: Aurora Mesh Gradient (3 blobs) — OPTIMIZED blur ── */}
+      {/* ── Layer 1: Aurora Mesh Gradient (GPU Optimized - No extra blur filter) ── */}
       <div className="absolute inset-0">
         <div
-          className="cas-aurora-blob absolute -top-[25%] -left-[20%] w-[70%] h-[70%] rounded-full"
+          className="absolute -top-[25%] -left-[20%] w-[70%] h-[70%] rounded-full"
           style={{
-            background:
-              "radial-gradient(circle, var(--cas-aurora-1) 0%, transparent 70%)",
-            filter: "blur(48px)",
+            background: "radial-gradient(circle, var(--cas-aurora-1) 0%, transparent 60%)",
             animation: "cas-aurora-1 34s ease-in-out infinite",
             transform: "translateZ(0)",
+            willChange: "transform",
           }}
         />
         <div
-          className="cas-aurora-blob absolute top-[25%] -right-[25%] w-[75%] h-[75%] rounded-full"
+          className="absolute top-[25%] -right-[25%] w-[75%] h-[75%] rounded-full"
           style={{
-            background:
-              "radial-gradient(circle, var(--cas-aurora-2) 0%, transparent 70%)",
-            filter: "blur(52px)",
+            background: "radial-gradient(circle, var(--cas-aurora-2) 0%, transparent 60%)",
             animation: "cas-aurora-2 42s ease-in-out infinite",
             transform: "translateZ(0)",
+            willChange: "transform",
           }}
         />
         <div
-          className="cas-aurora-blob absolute -bottom-[30%] left-[20%] w-[65%] h-[65%] rounded-full"
+          className="absolute -bottom-[30%] left-[20%] w-[65%] h-[65%] rounded-full"
           style={{
-            background:
-              "radial-gradient(circle, var(--cas-aurora-3) 0%, transparent 70%)",
-            filter: "blur(56px)",
+            background: "radial-gradient(circle, var(--cas-aurora-3) 0%, transparent 60%)",
             animation: "cas-aurora-3 38s ease-in-out infinite",
             transform: "translateZ(0)",
+            willChange: "transform",
           }}
         />
       </div>
@@ -153,14 +145,13 @@ function CinematicBackground() {
               height: p.size,
               background: "var(--cas-particle)",
               opacity: p.op,
-              filter: "blur(0.4px)",
               animation: `cas-particle-rise ${p.dur}s linear ${p.delay}s infinite`,
             }}
           />
         ))}
       </div>
 
-      {/* ── Layer 3: Mouse-follow glow (desktop only) ── */}
+      {/* ── Layer 3: Mouse-follow glow ── */}
       <div
         className="hidden md:block absolute inset-0"
         style={{
@@ -290,7 +281,6 @@ function HeroParticles() {
             width: d.size,
             height: d.size,
             animation: `cas-float ${d.dur}s ease-in-out ${d.delay}s infinite`,
-            filter: "blur(0.5px)",
           }}
         />
       ))}
@@ -346,7 +336,7 @@ function MemoryCard({ ev }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INFINITY MARQUEE ROW — UNCHANGED (all features preserved)
+   INFINITY MARQUEE ROW
    ═══════════════════════════════════════════════════════════════ */
 function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
   const containerRef = useRef(null);
@@ -530,6 +520,8 @@ export default function HomePage() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  // ⚠️ Environment variable ব্যবহার করার জন্য রিকমেন্ডেশন দেওয়া হলো, 
+  // তবে আপাতত কোড ব্রেক না করার জন্য তোমারটাই রাখলাম।
   const IMGBB_API_KEY = "c8e142b508f46f59807dbb6a3a2ccb23";
 
   const [upcomingEvent, setUpcomingEvent] = useState(null);
@@ -551,7 +543,7 @@ export default function HomePage() {
     stiffness: 120,
     damping: 30,
     restDelta: 0.001,
-    layoutEffect: false, // ← OPTIMIZED: SSR-safe, tablet-এ jank কমায়
+    layoutEffect: false,
   });
 
   const heroRef = useRef(null);
@@ -562,7 +554,7 @@ export default function HomePage() {
   const heroY = useSpring(heroScroll, {
     stiffness: 60,
     damping: 20,
-    layoutEffect: false, // ← OPTIMIZED
+    layoutEffect: false, 
   });
 
   /* ─── Countdown ─── */
@@ -584,7 +576,10 @@ export default function HomePage() {
         const target = new Date(data.start_date).getTime();
         interval = setInterval(() => {
           const dist = target - Date.now();
-          if (dist < 0) return clearInterval(interval);
+          if (dist < 0) {
+            clearInterval(interval);
+            return;
+          }
           setTimeLeft({
             days: Math.floor(dist / 86400000),
             hours: Math.floor((dist % 86400000) / 3600000),
@@ -595,17 +590,13 @@ export default function HomePage() {
       }
     };
     fetchUpcoming();
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   /* ─── Initial ─── */
   useEffect(() => {
-    AOS.init({
-      once: true,
-      offset: 50,
-      initClassName: "aos-init", // ← OPTIMIZED: flicker-free init
-      animatedClassName: "aos-animate",
-    });
     checkUserStatus();
     fetchSliders();
     fetchTopLeaders();
@@ -793,7 +784,7 @@ export default function HomePage() {
       let q = 0.9;
       let b64 = canvas.toDataURL("image/jpeg", q);
       while (b64.length > 270000 && q > 0.2) {
-        q -= 0.1;
+        q = Number((q - 0.1).toFixed(1)); 
         b64 = canvas.toDataURL("image/jpeg", q);
       }
 
@@ -843,7 +834,6 @@ export default function HomePage() {
      ═══════════════════════════════════════════════════════════ */
   return (
     <main className="relative bg-pastel-bg dark:bg-[#030705] text-pastel-text dark:text-gray-300 font-sans antialiased overflow-x-hidden min-h-screen flex flex-col transition-colors duration-500">
-      {/* ── Global CSS: keyframes + aurora variables + OPTIMIZATIONS ── */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -863,15 +853,6 @@ export default function HomePage() {
           --cas-glow:     rgba(231, 111, 81, 0.22);
           --cas-particle: #f7b267;
           --cas-grain-opacity: 0.075;
-        }
-
-        /* ─── AOS init state (flicker-free) ─── */
-        [data-aos].aos-init:not(.aos-animate) {
-          opacity: 0;
-          will-change: opacity, transform;
-        }
-        [data-aos].aos-animate {
-          will-change: auto;
         }
 
         /* ─── Ticker marquee ─── */
@@ -939,49 +920,24 @@ export default function HomePage() {
         .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 
         /* ═══════════════════════════════════════════════════════
-           ✅ TABLET OPTIMIZATIONS  (≤ 1024px)
-           ভারী GPU-গ্রাসী ইফেক্টগুলো ট্যাবলেটে হালকা করা হয়
-           — কোনো ফাংশনালিটি বা লেআউট পরিবর্তন নয়
+           ✅ TABLET OPTIMIZATIONS 
            ═══════════════════════════════════════════════════════ */
         @media (max-width: 1024px) and (min-width: 641px) {
-          /* Aurora blobs আরও হালকা blur */
-          .cas-aurora-blob {
-            filter: blur(28px) !important;
-          }
-
-          /* Backdrop-blur কমানো — glassmorphism feel থাকবে কিন্তু হালকা */
           .backdrop-blur-xl {
+            -webkit-backdrop-filter: blur(8px) !important;
+            backdrop-filter: blur(8px) !important;
+          }
+          .backdrop-blur-md {
             -webkit-backdrop-filter: blur(6px) !important;
             backdrop-filter: blur(6px) !important;
           }
-          .backdrop-blur-md {
-            -webkit-backdrop-filter: blur(5px) !important;
-            backdrop-filter: blur(5px) !important;
-          }
           .backdrop-blur-sm,
           .backdrop-blur {
-            -webkit-backdrop-filter: blur(3px) !important;
-            backdrop-filter: blur(3px) !important;
+            -webkit-backdrop-filter: blur(4px) !important;
+            backdrop-filter: blur(4px) !important;
           }
-
-          /* Film grain opacity কমানো */
           .cas-grain {
             opacity: 0.035 !important;
-          }
-
-          /* Section contain — layout thrash কমায় */
-          section {
-            contain: layout style;
-          }
-        }
-
-        /* ═══════════════════════════════════════════════════════
-           ✅ MOBILE OPTIMIZATIONS  (≤ 640px)
-           মোবাইল আগে থেকেই ভালো — শুধু নিরাপদ সীমা
-           ═══════════════════════════════════════════════════════ */
-        @media (max-width: 640px) {
-          .cas-aurora-blob {
-            filter: blur(24px) !important;
           }
         }
       `,
@@ -1652,7 +1608,7 @@ export default function HomePage() {
         </footer>
       </div>
 
-      {/* ═══ MODALS ═══ */}
+      {/* ═══ MODALS (outside z-10 wrapper, sit above everything) ═══ */}
 
       {showNameModal && (
         <div className="fixed inset-0 z-[120] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1823,3 +1779,7 @@ export default function HomePage() {
     </main>
   );
 }
+
+এই কোডটা রান করার পর আমার সাইটের সবগুলো সেকশন আবার ভিজিবল হয়েছে । ট্যাবলেটে এখন আর আগের মত কোন সমস্যা নেই , তবে আমি চাচ্ছি ট্যাবলেটে যেমন আমি অপটিমাইজেশন গুলো এনেছি যেন সাইট সুন্দর মত রান করে তেমনি মোবাইলের জন্য কি কোন অপটিমাইজেশন করার প্রয়োজন আছে ? নাকি মোবাইলে যেহেতু আগে থেকেই ভালো রান করতো তাই আর কোন অপটিমাইজেশন প্রয়োজন নেই?  বিষয়টা তুমি একটু বুঝিয়ে আমাকে বলো ।
+
+এরপর দ্বিতীয় আরেকটি বিষয় হচ্ছে ,  আমার এই ল্যান্ডিং পেইজ টা যে আমি ডিজাইন করেছি তোমার কি মনে হয় এর ভেতরে কি আরো কোন বিষয় আপডেট করা উচিত ? নাকি এই ল্যান্ডিং পেইজ টাই একদম পারফেক্ট।  আর যদি মনে হয় যে আপডেট করা উচিত তবে কি কি আপডেট করা যেতে পারে তার একটা তালিকা দাও । আমি এপ্রুভ করলে এরপর আপডেট করে আমাকে কোড দিবে ।
