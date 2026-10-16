@@ -28,8 +28,16 @@ const stagger = {
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   STATIC BACKGROUND — শুধু CSS গ্রেডিয়েন্ট, zero animation, zero JS
-   ✅ FIX: contain "strict" → "layout paint" (size বাদ, যাতে height collapse না হয়)
+   CINEMATIC INTRO — single-source-of-truth durations
+   ═══════════════════════════════════════════════════════════════ */
+const INTRO_WORD_DURATION = 600;   // ms — প্রতিটি শব্দ কত সময় থাকবে
+const INTRO_WORD_STAGGER = 400;    // ms — পরের শব্দ কত পরে শুরু
+const INTRO_OVERLAY_FADE_START = 1300; // ms — overlay fade শুরু
+const INTRO_OVERLAY_FADE_DURATION = 500; // ms
+const INTRO_TOTAL = INTRO_OVERLAY_FADE_START + INTRO_OVERLAY_FADE_DURATION; // 1800ms
+
+/* ═══════════════════════════════════════════════════════════════
+   STATIC BACKGROUND
    ═══════════════════════════════════════════════════════════════ */
 function StaticBackground() {
   return (
@@ -190,13 +198,7 @@ function MemoryCard({ ev }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INFINITY MARQUEE ROW — FULLY FIXED VERSION
-   ✅ FIX 1: Pointer-based drag-to-scroll (with click suppression)
-   ✅ FIX 2: ResizeObserver preserves relative position (no jump)
-   ✅ FIX 3: Respects prefers-reduced-motion (stops RAF entirely)
-   ✅ FIX 4: contain "strict" → "layout paint" (size বাদ → height collapse ঠিক)
-   - transform: translate3d() only (compositor-only, no layout reflow)
-   - IntersectionObserver auto-pause when offscreen
+   INFINITY MARQUEE ROW
    ═══════════════════════════════════════════════════════════════ */
 function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
   const viewportRef = useRef(null);
@@ -211,7 +213,6 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
   const setWidthRef = useRef(0);
   const wheelTimerRef = useRef(null);
 
-  // Drag state — সব mutable ref-এ, যাতে কোনো re-render না হয়
   const dragRef = useRef({
     pointerId: null,
     startX: 0,
@@ -219,7 +220,6 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
     movedDistance: 0,
   });
 
-  // ✅ Respect prefers-reduced-motion
   const prefersReduced = useReducedMotion();
 
   useEffect(() => {
@@ -227,7 +227,6 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
     const track = trackRef.current;
     if (!viewport || !track || !items.length) return;
 
-    // ✅ FIX 2: preserve position on re-measure (image load / resize)
     const measure = () => {
       const single = track.scrollWidth / 2;
       if (single <= 0) return;
@@ -236,19 +235,16 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
       setWidthRef.current = single;
 
       if (!readyRef.current) {
-        // First measurement — set initial offset based on direction
         offsetRef.current = direction === "right" ? single : 0;
         track.style.transform = `translate3d(${-offsetRef.current}px, 0, 0)`;
         readyRef.current = true;
       } else if (prevWidth > 0 && Math.abs(prevWidth - single) > 1) {
-        // Width changed — preserve relative position instead of resetting
         const ratio = offsetRef.current / prevWidth;
         offsetRef.current = ratio * single;
         track.style.transform = `translate3d(${-offsetRef.current}px, 0, 0)`;
       }
     };
 
-    // Measure after first layout tick
     requestAnimationFrame(measure);
 
     let ro;
@@ -259,7 +255,6 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
 
     lastTimeRef.current = 0;
 
-    // ✅ FIX 3: if reduced motion, don't start RAF loop at all
     if (prefersReduced) {
       return () => {
         if (ro) ro.disconnect();
@@ -305,7 +300,6 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
     };
   }, [direction, speed, items.length, prefersReduced]);
 
-  // Pause when offscreen (battery saver)
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport || typeof IntersectionObserver === "undefined") return;
@@ -321,7 +315,6 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
     return () => io.disconnect();
   }, []);
 
-  // ─── Helpers ───
   const pause = () => {
     isPausedRef.current = true;
   };
@@ -347,7 +340,6 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
     }
   };
 
-  // ✅ FIX 1: pointer-based drag-to-scroll
   const onPointerDown = (e) => {
     if (prefersReduced) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -393,7 +385,6 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
     }, 800);
   };
 
-  // Suppress click on cards if the user actually dragged
   const onClickCapture = (e) => {
     if (dragRef.current.movedDistance > 8) {
       e.preventDefault();
@@ -417,7 +408,6 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
           : "cursor-grab active:cursor-grabbing"
       }`}
       style={{
-        // ✅ FIX: "strict" → "layout paint" — size বাদ দেওয়া হলো যাতে height collapse না হয়
         contain: "layout paint",
         touchAction: "pan-y",
       }}
@@ -548,6 +538,9 @@ export default function HomePage() {
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [pastEvents, setPastEvents] = useState([]);
 
+  /* ═══ CINEMATIC INTRO STATE ═══ */
+  const [showIntro, setShowIntro] = useState(false);
+
   const prefersReduced = useReducedMotion();
 
   const { scrollYProgress } = useScroll();
@@ -557,6 +550,61 @@ export default function HomePage() {
     restDelta: 0.001,
     layoutEffect: false,
   });
+
+  /* ─── Cinematic Intro: decide + schedule unmount ─── */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // 1) Skip on reduced-motion
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+
+    // 2) Skip if already shown in this session
+    try {
+      if (sessionStorage.getItem("cas_intro_shown") === "1") return;
+    } catch {
+      // sessionStorage disabled (private mode) — treat as "not shown"
+    }
+
+    // 3) Skip on low-end devices (rough heuristics)
+    try {
+      const cores = navigator.hardwareConcurrency || 4;
+      const memory = navigator.deviceMemory || 4;
+      const conn = navigator.connection || {};
+      if (cores <= 2) return;
+      if (memory <= 2) return;
+      if (conn.saveData === true) return;
+      if (
+        conn.effectiveType === "slow-2g" ||
+        conn.effectiveType === "2g"
+      ) {
+        return;
+      }
+    } catch {
+      // ignore — show intro if we can't determine
+    }
+
+    // 4) All good — show intro
+    setShowIntro(true);
+    try {
+      sessionStorage.setItem("cas_intro_shown", "1");
+    } catch {}
+
+    // 5) Safety: force unmount shortly after animation completes
+    const t = setTimeout(() => setShowIntro(false), INTRO_TOTAL + 200);
+    return () => clearTimeout(t);
+  }, []);
+
+  /* ─── Lock body scroll while intro is showing ─── */
+  useEffect(() => {
+    if (!showIntro) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [showIntro]);
 
   /* ─── Countdown ─── */
   useEffect(() => {
@@ -838,7 +886,7 @@ export default function HomePage() {
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        /* ─── Ticker marquee (transform-only keyframes) ─── */
+        /* ─── Ticker marquee ─── */
         @keyframes scroll-text {
           0%   { transform: translate3d(100%, 0, 0); }
           100% { transform: translate3d(-100%, 0, 0); }
@@ -850,7 +898,7 @@ export default function HomePage() {
           will-change: transform;
         }
 
-        /* ─── Card shine (only on hover) ─── */
+        /* ─── Card shine ─── */
         .card-shine::before {
           content: "";
           position: absolute; inset: 0;
@@ -866,17 +914,85 @@ export default function HomePage() {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 
+        /* ═══════════════════════════════════════════════════════
+           🎬 CINEMATIC INTRO — pure CSS, compositor-only
+           ═══════════════════════════════════════════════════════ */
+        .cas-intro-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          background: #030705;
+          overflow: hidden;
+          contain: layout paint;
+          pointer-events: auto;
+          animation: cas-intro-out ${INTRO_OVERLAY_FADE_DURATION}ms ease-out ${INTRO_OVERLAY_FADE_START}ms forwards;
+        }
+
+        .cas-intro-word {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: clamp(2.5rem, 10vw, 7rem);
+          font-weight: 900;
+          letter-spacing: 0.02em;
+          color: #e76f51;
+          text-align: center;
+          padding: 0 1rem;
+          opacity: 0;
+          will-change: opacity, transform;
+          animation: cas-intro-word ${INTRO_WORD_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        @keyframes cas-intro-word {
+          0%   { opacity: 0; transform: translate3d(0, 50px, 0) scale(0.85); }
+          30%  { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+          70%  { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+          100% { opacity: 0; transform: translate3d(0, -50px, 0) scale(1.08); }
+        }
+
+        @keyframes cas-intro-out {
+          0%   { opacity: 1; }
+          100% { opacity: 0; visibility: hidden; }
+        }
+
         /* ─── prefers-reduced-motion safety ─── */
         @media (prefers-reduced-motion: reduce) {
           .animate-marquee { animation: none; }
+          .cas-intro-overlay { display: none; }
         }
       `,
         }}
       />
 
+      {/* ═══ 🎬 CINEMATIC INTRO ═══ */}
+      {showIntro && (
+        <div className="cas-intro-overlay" aria-hidden="true">
+          <span
+            className="cas-intro-word"
+            style={{ animationDelay: "0ms" }}
+          >
+            চুয়েট
+          </span>
+          <span
+            className="cas-intro-word"
+            style={{ animationDelay: `${INTRO_WORD_STAGGER}ms` }}
+          >
+            অ্যাডভেঞ্চার
+          </span>
+          <span
+            className="cas-intro-word"
+            style={{ animationDelay: `${INTRO_WORD_STAGGER * 2}ms` }}
+          >
+            সোসাইটি
+          </span>
+        </div>
+      )}
+
       <StaticBackground />
 
-      {/* ── Scroll Progress Bar (compositor-only via scaleX) ── */}
+      {/* ── Scroll Progress Bar ── */}
       <motion.div
         style={{ scaleX: progressX, transformOrigin: "0% 50%" }}
         className="fixed top-0 left-0 right-0 h-[3px] z-[999] bg-gradient-to-r from-[#e76f51] via-orange-400 to-yellow-400"
