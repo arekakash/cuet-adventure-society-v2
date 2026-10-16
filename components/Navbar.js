@@ -13,18 +13,13 @@ export default function Navbar() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   
-  // 🔴 NEW: My Bangladesh dropdown state
   const [isMyBangladeshExpanded, setIsMyBangladeshExpanded] = useState(false);
-  
-  // থিম কন্ট্রোল স্টেট (ডিফল্ট লাইট/প্যাস্টেল)
   const [isDarkMode, setIsDarkMode] = useState(false);
   
-  // Zustand Global State
   const cart = useCartStore((state) => state.cart);
   const cartTotal = useCartStore((state) => state.getCartTotal());
   const setCart = useCartStore((state) => state.setCart); 
   
-  // Dynamic State
   const [session, setSession] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   
@@ -32,16 +27,10 @@ export default function Navbar() {
   const pathname = usePathname(); 
   const isActive = (path) => pathname === path;
 
-  // 🔴 NEW: My Bangladesh active detection
   const isMyBangladeshActive = pathname?.startsWith("/my-bangladesh");
-
-  // 🔴 NEW: Hide navbar on individual game pages (immersive fullscreen experience)
-  // Hub page /my-bangladesh/games — navbar দেখাবে
-  // Game pages /my-bangladesh/games/xxx — navbar লুকাবে
   const isGamePage = pathname?.startsWith("/my-bangladesh/games/");
 
   useEffect(() => {
-    // পেজ লোড হলে লোকাল স্টোরেজ থেকে থিম চেক করা
     const storedTheme = localStorage.getItem("theme");
     if (storedTheme === "dark") {
       setIsDarkMode(true);
@@ -98,7 +87,6 @@ export default function Navbar() {
     };
   }, []);
 
-  // 🔴 NEW: Auto-expand My Bangladesh menu when user is on a related route
   useEffect(() => {
     if (pathname?.startsWith("/my-bangladesh")) {
       setIsMyBangladeshExpanded(true);
@@ -147,14 +135,14 @@ export default function Navbar() {
   const isAdmin = userProfile?.role === 'admin';
   const avatarUrl = userProfile?.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.full_name || 'User')}&background=e76f51&color=fff`;
 
-  // 🔴 Hide navbar entirely on game pages for immersive fullscreen gameplay
   if (isGamePage) {
     return null;
   }
 
   return (
     <>
-      <nav className="fixed w-full z-40 bg-pastel-bg/80 dark:bg-moss/80 backdrop-blur-md transition-colors duration-500 shadow-soft dark:shadow-md border-b border-pastel-border dark:border-white/5">
+      {/* 🔴 FIX: GPU Optimization -> lg:backdrop-blur-md backdrop-blur-sm & increased base opacity to prevent tablet lag over animations */}
+      <nav className="fixed w-full z-40 bg-pastel-bg/95 dark:bg-[#08130e]/95 lg:bg-pastel-bg/80 lg:dark:bg-moss/80 backdrop-blur-sm lg:backdrop-blur-md transition-colors duration-500 shadow-soft dark:shadow-md border-b border-pastel-border dark:border-white/5" style={{ transform: 'translateZ(0)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
           <div className="flex items-center gap-4 sm:gap-6">
             <button onClick={() => setIsSidebarOpen(true)} className="text-pastel-text dark:text-white text-xl sm:text-2xl hover:text-campfire dark:hover:text-campfire transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-campfire rounded-lg p-1">
@@ -162,23 +150,20 @@ export default function Navbar() {
             </button>
             
             <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
-              {/* Premium Adventure Track (Tiny Humans Climbing the Logo) */}
               <div className="relative inline-flex items-center justify-center w-14 h-14 sm:w-[60px] sm:h-[60px]">
                 
-                {/* 🔴 Circular Dashed Track (Added hover opacity, will-change-transform) */}
-                <div className="absolute inset-0 rounded-full border border-dashed border-gray-400/50 dark:border-gray-500/50 opacity-60 dark:opacity-80 group-hover:opacity-100 transition-opacity duration-300 animate-[spin_15s_linear_infinite] motion-reduce:animate-none will-change-transform z-0">
-                  {/* Trekker (Top) */}
+                {/* 🔴 FIX: Forced Hardware Acceleration for Spin Animation */}
+                <div 
+                  className="absolute inset-0 rounded-full border border-dashed border-gray-400/50 dark:border-gray-500/50 opacity-60 dark:opacity-80 group-hover:opacity-100 transition-opacity duration-300 animate-[spin_15s_linear_infinite] motion-reduce:animate-none z-0"
+                  style={{ willChange: 'transform', transform: 'translateZ(0)' }}
+                >
                   <i className="fa-solid fa-person-hiking absolute -top-1.5 sm:-top-2 left-1/2 -translate-x-1/2 text-[10px] sm:text-[12px] text-emerald-500 drop-shadow-sm"></i>
-                  {/* Cyclist (Right) */}
                   <i className="fa-solid fa-bicycle absolute top-1/2 -right-1.5 sm:-right-2 -translate-y-1/2 rotate-90 text-[10px] sm:text-[12px] text-blue-500 drop-shadow-sm"></i>
-                  {/* Runner (Bottom) */}
                   <i className="fa-solid fa-person-running absolute -bottom-1.5 sm:-bottom-2 left-1/2 -translate-x-1/2 rotate-180 text-[10px] sm:text-[12px] text-campfire drop-shadow-sm"></i>
-                  {/* 🔴 Swimmer (Left) - Thematic Mismatch Fixed */}
                   <i className="fa-solid fa-person-swimming absolute top-1/2 -left-1.5 sm:-left-2 -translate-y-1/2 -rotate-90 text-[10px] sm:text-[12px] text-purple-500 drop-shadow-sm"></i>
                 </div>
                 
-                {/* CAS Logo Body */}
-                <div className="relative bg-white/90 dark:bg-darkForest/90 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-pastel-border dark:border-white/10 shadow-sm z-10 transition-colors">
+                <div className="relative bg-white/95 dark:bg-[#0a1c13]/95 lg:bg-white/90 lg:dark:bg-darkForest/90 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-pastel-border dark:border-white/10 shadow-sm z-10 transition-colors">
                   <span className="font-black text-xl sm:text-2xl tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-campfire to-red-500 dark:from-yellow-400 dark:via-campfire dark:to-red-500">
                     CAS
                   </span>
@@ -320,7 +305,6 @@ export default function Navbar() {
             <span className="font-bold text-sm">CAS ব্লাডব্যাংক</span>
           </Link>
 
-          {/* 🔴 NEW: My Bangladesh — Expandable Dropdown */}
           <div>
             <button
               onClick={() => setIsMyBangladeshExpanded(!isMyBangladeshExpanded)}
@@ -347,16 +331,14 @@ export default function Navbar() {
               ></i>
             </button>
 
-            {/* Dropdown sub-items */}
             <div
               className={`overflow-hidden transition-all duration-300 ease-in-out ${
                 isMyBangladeshExpanded
-                  ? "max-h-32 opacity-100 mt-2"
+                  ? "max-h-56 opacity-100 mt-2"
                   : "max-h-0 opacity-0"
               }`}
             >
               <div className="pl-4 space-y-1.5 border-l-2 border-teal-500/30 ml-6">
-                {/* Sub-item 1: Map Creator */}
                 <Link
                   href="/my-bangladesh"
                   onClick={() => setIsSidebarOpen(false)}
@@ -366,11 +348,49 @@ export default function Navbar() {
                       : "text-pastel-muted dark:text-gray-400 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-300"
                   }`}
                 >
+                  <i className="fa-solid fa-house text-teal-500 text-xs w-4 text-center"></i>
+                  <span className="text-xs font-bold">হোম</span>
+                </Link>
+                
+                <Link
+                  href="/my-bangladesh/color-map"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className={`block py-2.5 px-3 rounded-xl transition-all flex items-center gap-3 ${
+                    pathname === "/my-bangladesh/color-map"
+                      ? "bg-teal-500/15 text-teal-700 dark:text-teal-300 font-black"
+                      : "text-pastel-muted dark:text-gray-400 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-300"
+                  }`}
+                >
                   <i className="fa-solid fa-palette text-teal-500 text-xs w-4 text-center"></i>
-                  <span className="text-xs font-bold">নিজস্ব ম্যাপ তৈরি</span>
+                  <span className="text-xs font-bold">কালার ম্যাপ</span>
                 </Link>
 
-                {/* Sub-item 2: Games */}
+                <Link
+                  href="/my-bangladesh/photo-map"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className={`block py-2.5 px-3 rounded-xl transition-all flex items-center gap-3 ${
+                    pathname === "/my-bangladesh/photo-map"
+                      ? "bg-teal-500/15 text-teal-700 dark:text-teal-300 font-black"
+                      : "text-pastel-muted dark:text-gray-400 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-300"
+                  }`}
+                >
+                  <i className="fa-solid fa-camera text-teal-500 text-xs w-4 text-center"></i>
+                  <span className="text-xs font-bold">ফটো ম্যাপ</span>
+                </Link>
+
+                <Link
+                  href="/my-bangladesh/trip-planner"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className={`block py-2.5 px-3 rounded-xl transition-all flex items-center gap-3 ${
+                    pathname === "/my-bangladesh/trip-planner"
+                      ? "bg-teal-500/15 text-teal-700 dark:text-teal-300 font-black"
+                      : "text-pastel-muted dark:text-gray-400 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-300"
+                  }`}
+                >
+                  <i className="fa-solid fa-route text-teal-500 text-xs w-4 text-center"></i>
+                  <span className="text-xs font-bold">ট্রিপ প্ল্যানার</span>
+                </Link>
+
                 <Link
                   href="/my-bangladesh/games"
                   onClick={() => setIsSidebarOpen(false)}
@@ -381,12 +401,11 @@ export default function Navbar() {
                   }`}
                 >
                   <i className="fa-solid fa-gamepad text-teal-500 text-xs w-4 text-center"></i>
-                  <span className="text-xs font-bold">ম্যাপ গেম খেলুন</span>
+                  <span className="text-xs font-bold">ম্যাপ গেম</span>
                 </Link>
               </div>
             </div>
           </div>
-          {/* 🔴 END: My Bangladesh Dropdown */}
 
           <Link href="/behind-the-scenes" onClick={() => setIsSidebarOpen(false)} 
             className={`block py-3 px-4 rounded-2xl transition-all group flex items-center gap-4 border ${isActive('/behind-the-scenes') ? 'bg-pink-500/10 text-pastel-text dark:text-white border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.2)]' : 'bg-white dark:bg-white/5 border-pastel-border dark:border-transparent hover:border-pink-500/30 hover:shadow-md dark:hover:shadow-[0_0_15px_rgba(236,72,153,0.15)] hover:text-pastel-text dark:hover:text-white'}`}>
