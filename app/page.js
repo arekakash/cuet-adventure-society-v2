@@ -30,11 +30,11 @@ const stagger = {
 /* ═══════════════════════════════════════════════════════════════
    CINEMATIC INTRO — single-source-of-truth durations
    ═══════════════════════════════════════════════════════════════ */
-const INTRO_WORD_DURATION = 600;   // ms — প্রতিটি শব্দ কত সময় থাকবে
-const INTRO_WORD_STAGGER = 400;    // ms — পরের শব্দ কত পরে শুরু
-const INTRO_OVERLAY_FADE_START = 1300; // ms — overlay fade শুরু
-const INTRO_OVERLAY_FADE_DURATION = 500; // ms
-const INTRO_TOTAL = INTRO_OVERLAY_FADE_START + INTRO_OVERLAY_FADE_DURATION; // 1800ms
+const INTRO_WORD_DURATION = 1000;         // প্রতিটি শব্দ কত ms থাকবে
+const INTRO_WORD_STAGGER = 850;           // পরের শব্দ কত ms পরে শুরু
+const INTRO_OVERLAY_FADE_START = 2750;    // overlay fade কখন শুরু
+const INTRO_OVERLAY_FADE_DURATION = 850;  // overlay fade কত ms
+const INTRO_TOTAL = INTRO_OVERLAY_FADE_START + INTRO_OVERLAY_FADE_DURATION; // 3600ms
 
 /* ═══════════════════════════════════════════════════════════════
    STATIC BACKGROUND
@@ -551,23 +551,16 @@ export default function HomePage() {
     layoutEffect: false,
   });
 
-  /* ─── Cinematic Intro: decide + schedule unmount ─── */
+  /* ─── Cinematic Intro: show on every page load ─── */
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // 1) Skip on reduced-motion
+    // 1) Skip on reduced-motion (accessibility)
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       return;
     }
 
-    // 2) Skip if already shown in this session
-    try {
-      if (sessionStorage.getItem("cas_intro_shown") === "1") return;
-    } catch {
-      // sessionStorage disabled (private mode) — treat as "not shown"
-    }
-
-    // 3) Skip on low-end devices (rough heuristics)
+    // 2) Skip on truly low-end devices / slow network / data-saver
     try {
       const cores = navigator.hardwareConcurrency || 4;
       const memory = navigator.deviceMemory || 4;
@@ -585,13 +578,10 @@ export default function HomePage() {
       // ignore — show intro if we can't determine
     }
 
-    // 4) All good — show intro
+    // 3) Show intro on every page load
     setShowIntro(true);
-    try {
-      sessionStorage.setItem("cas_intro_shown", "1");
-    } catch {}
 
-    // 5) Safety: force unmount shortly after animation completes
+    // 4) Safety: force unmount shortly after animation completes
     const t = setTimeout(() => setShowIntro(false), INTRO_TOTAL + 200);
     return () => clearTimeout(t);
   }, []);
@@ -946,10 +936,10 @@ export default function HomePage() {
         }
 
         @keyframes cas-intro-word {
-          0%   { opacity: 0; transform: translate3d(0, 50px, 0) scale(0.85); }
-          30%  { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-          70%  { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-          100% { opacity: 0; transform: translate3d(0, -50px, 0) scale(1.08); }
+          0%   { opacity: 0; transform: translate3d(0, 70px, 0) scale(0.85); }
+          22%  { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+          65%  { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+          100% { opacity: 0; transform: translate3d(0, -70px, 0) scale(1.1); }
         }
 
         @keyframes cas-intro-out {
