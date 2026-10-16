@@ -29,13 +29,14 @@ const stagger = {
 
 /* ═══════════════════════════════════════════════════════════════
    STATIC BACKGROUND — শুধু CSS গ্রেডিয়েন্ট, zero animation, zero JS
+   ✅ FIX: contain "strict" → "layout paint" (size বাদ, যাতে height collapse না হয়)
    ═══════════════════════════════════════════════════════════════ */
 function StaticBackground() {
   return (
     <div
       aria-hidden
       className="pointer-events-none fixed inset-0 z-0"
-      style={{ contain: "strict" }}
+      style={{ contain: "layout paint" }}
     >
       <div
         className="absolute inset-0 dark:hidden"
@@ -193,6 +194,7 @@ function MemoryCard({ ev }) {
    ✅ FIX 1: Pointer-based drag-to-scroll (with click suppression)
    ✅ FIX 2: ResizeObserver preserves relative position (no jump)
    ✅ FIX 3: Respects prefers-reduced-motion (stops RAF entirely)
+   ✅ FIX 4: contain "strict" → "layout paint" (size বাদ → height collapse ঠিক)
    - transform: translate3d() only (compositor-only, no layout reflow)
    - IntersectionObserver auto-pause when offscreen
    ═══════════════════════════════════════════════════════════════ */
@@ -217,7 +219,7 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
     movedDistance: 0,
   });
 
-  // ✅ FIX 3: respect prefers-reduced-motion
+  // ✅ Respect prefers-reduced-motion
   const prefersReduced = useReducedMotion();
 
   useEffect(() => {
@@ -415,7 +417,8 @@ function InfinityMarqueeRow({ items, direction = "left", speed = 0.6 }) {
           : "cursor-grab active:cursor-grabbing"
       }`}
       style={{
-        contain: "strict",
+        // ✅ FIX: "strict" → "layout paint" — size বাদ দেওয়া হলো যাতে height collapse না হয়
+        contain: "layout paint",
         touchAction: "pan-y",
       }}
     >
@@ -1025,7 +1028,6 @@ export default function HomePage() {
         )}
 
         {/* ═══ 4. HERO ═══ */}
-        {/* ✅ FIX 4: whileInView → animate (Hero always in view) */}
         <section className="relative py-16 sm:py-24 px-6 overflow-hidden">
           <motion.div className="max-w-4xl mx-auto text-center relative z-10">
             <motion.div initial="hidden" animate="visible" variants={stagger}>
