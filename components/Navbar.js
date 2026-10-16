@@ -572,7 +572,7 @@ export default function Navbar() {
             >
               <div className="pl-4 space-y-1.5 border-l-2 border-teal-500/30 ml-6">
                 <Link
-                  href="/my-bangladesh/color-map"
+                  href="/my-bangladesh"
                   onClick={() => setIsSidebarOpen(false)}
                   className={`block py-2.5 px-3 rounded-xl transition-all flex items-center gap-3 ${
                     isCustomMapActive
