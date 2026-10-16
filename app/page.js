@@ -28,145 +28,38 @@ const stagger = {
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   🌌 CINEMATIC BACKGROUND — Aurora + Particles + Glow + Grain
-   - Fixed GPU Overload: Removed heavy CSS blurs from radial gradients
+   STATIC BACKGROUND — শুধুই CSS গ্রেডিয়েন্ট, কোনো JS/এনিমেশন নেই
    ═══════════════════════════════════════════════════════════════ */
-function CinematicBackground() {
-  const containerRef = useRef(null);
-  const targetRef = useRef({ x: 50, y: 50 });
-  const prefersReduced = useReducedMotion();
-
-  useEffect(() => {
-    if (prefersReduced) return;
-    if (typeof window === "undefined") return;
-    const hasMouse = window.matchMedia("(hover: hover)").matches;
-    if (!hasMouse) return;
-
-    const el = containerRef.current;
-    if (!el) return;
-
-    const handleMove = (e) => {
-      targetRef.current = {
-        x: (e.clientX / window.innerWidth) * 100,
-        y: (e.clientY / window.innerHeight) * 100,
-      };
-    };
-
-    let raf;
-    let last = 0;
-    const tick = (time) => {
-      if (time - last > 60) {
-        last = time;
-        el.style.setProperty("--mx", `${targetRef.current.x}%`);
-        el.style.setProperty("--my", `${targetRef.current.y}%`);
-      }
-      raf = requestAnimationFrame(tick);
-    };
-
-    window.addEventListener("mousemove", handleMove, { passive: true });
-    raf = requestAnimationFrame(tick);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [prefersReduced]);
-
-  if (prefersReduced) return null;
-
-  const particles = [
-    { left: 4, dur: 22, delay: 0, size: 4, op: 0.55 },
-    { left: 11, dur: 26, delay: 3, size: 6, op: 0.68 },
-    { left: 18, dur: 19, delay: 6, size: 3, op: 0.45 },
-    { left: 25, dur: 28, delay: 1.5, size: 5, op: 0.62 },
-    { left: 32, dur: 23, delay: 8, size: 4, op: 0.58 },
-    { left: 39, dur: 25, delay: 2, size: 7, op: 0.72 },
-    { left: 46, dur: 20, delay: 5, size: 3, op: 0.42 },
-    { left: 53, dur: 27, delay: 9, size: 5, op: 0.65 },
-    { left: 60, dur: 22, delay: 1, size: 4, op: 0.55 },
-    { left: 67, dur: 29, delay: 4, size: 6, op: 0.70 },
-    { left: 74, dur: 24, delay: 7, size: 3, op: 0.48 },
-    { left: 81, dur: 21, delay: 2.5, size: 5, op: 0.60 },
-    { left: 88, dur: 26, delay: 6.5, size: 4, op: 0.62 },
-    { left: 95, dur: 23, delay: 0.5, size: 6, op: 0.68 },
-    { left: 15, dur: 30, delay: 10, size: 3, op: 0.40 },
-    { left: 42, dur: 33, delay: 11, size: 4, op: 0.52 },
-    { left: 70, dur: 31, delay: 12, size: 5, op: 0.58 },
-    { left: 90, dur: 28, delay: 4.5, size: 3, op: 0.45 },
-  ];
-
+function StaticBackground() {
   return (
     <div
-      ref={containerRef}
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
-      style={{ contain: "paint" }}
+      className="pointer-events-none fixed inset-0 z-0"
+      style={{ contain: "strict" }}
     >
-      {/* ── Layer 1: Aurora Mesh Gradient (GPU Optimized - No extra blur filter) ── */}
-      <div className="absolute inset-0">
-        <div
-          className="absolute -top-[25%] -left-[20%] w-[70%] h-[70%] rounded-full"
-          style={{
-            background: "radial-gradient(circle, var(--cas-aurora-1) 0%, transparent 60%)",
-            animation: "cas-aurora-1 34s ease-in-out infinite",
-            transform: "translateZ(0)",
-            willChange: "transform",
-          }}
-        />
-        <div
-          className="absolute top-[25%] -right-[25%] w-[75%] h-[75%] rounded-full"
-          style={{
-            background: "radial-gradient(circle, var(--cas-aurora-2) 0%, transparent 60%)",
-            animation: "cas-aurora-2 42s ease-in-out infinite",
-            transform: "translateZ(0)",
-            willChange: "transform",
-          }}
-        />
-        <div
-          className="absolute -bottom-[30%] left-[20%] w-[65%] h-[65%] rounded-full"
-          style={{
-            background: "radial-gradient(circle, var(--cas-aurora-3) 0%, transparent 60%)",
-            animation: "cas-aurora-3 38s ease-in-out infinite",
-            transform: "translateZ(0)",
-            willChange: "transform",
-          }}
-        />
-      </div>
-
-      {/* ── Layer 2: Floating Particles ── */}
-      <div className="absolute inset-0">
-        {particles.map((p, i) => (
-          <span
-            key={i}
-            className="absolute bottom-0 rounded-full"
-            style={{
-              left: `${p.left}%`,
-              width: p.size,
-              height: p.size,
-              background: "var(--cas-particle)",
-              opacity: p.op,
-              animation: `cas-particle-rise ${p.dur}s linear ${p.delay}s infinite`,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* ── Layer 3: Mouse-follow glow ── */}
+      {/* Light mode layered gradients */}
       <div
-        className="hidden md:block absolute inset-0"
+        className="absolute inset-0 dark:hidden"
         style={{
-          background:
-            "radial-gradient(520px circle at var(--mx, 50%) var(--my, 50%), var(--cas-glow) 0%, transparent 65%)",
+          background: `
+            radial-gradient(900px 600px at 10% 0%, rgba(231, 111, 81, 0.10), transparent 60%),
+            radial-gradient(800px 700px at 95% 20%, rgba(52, 211, 153, 0.08), transparent 60%),
+            radial-gradient(700px 600px at 50% 100%, rgba(139, 92, 246, 0.07), transparent 65%),
+            linear-gradient(180deg, #f7f5f0 0%, #f3efe8 100%)
+          `,
         }}
       />
 
-      {/* ── Layer 4: Film Grain ── */}
+      {/* Dark mode layered gradients */}
       <div
-        className="absolute inset-0 mix-blend-overlay"
+        className="absolute inset-0 hidden dark:block"
         style={{
-          opacity: "var(--cas-grain-opacity, 0.07)",
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-          animation: "cas-grain-shift 7s steps(5) infinite",
+          background: `
+            radial-gradient(900px 600px at 10% 0%, rgba(231, 111, 81, 0.14), transparent 60%),
+            radial-gradient(800px 700px at 95% 20%, rgba(52, 211, 153, 0.10), transparent 60%),
+            radial-gradient(700px 600px at 50% 100%, rgba(139, 92, 246, 0.12), transparent 65%),
+            linear-gradient(180deg, #030705 0%, #050b08 100%)
+          `,
         }}
       />
     </div>
@@ -248,43 +141,6 @@ function SectionHeader({ label, title, highlight, subtitle }) {
         className="mt-5 mx-auto h-[3px] w-16 rounded-full bg-gradient-to-r from-[#e76f51] to-orange-300"
       />
     </motion.div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   HERO PARTICLES
-   ═══════════════════════════════════════════════════════════════ */
-function HeroParticles() {
-  const dots = [
-    { x: "8%", y: "20%", size: 4, delay: 0, dur: 14 },
-    { x: "22%", y: "70%", size: 6, delay: 2, dur: 16 },
-    { x: "38%", y: "15%", size: 3, delay: 1.5, dur: 18 },
-    { x: "55%", y: "80%", size: 5, delay: 0.8, dur: 15 },
-    { x: "68%", y: "25%", size: 4, delay: 3, dur: 17 },
-    { x: "82%", y: "65%", size: 6, delay: 1.2, dur: 19 },
-    { x: "92%", y: "35%", size: 3, delay: 2.5, dur: 13 },
-    { x: "48%", y: "50%", size: 4, delay: 0.4, dur: 16 },
-  ];
-
-  return (
-    <div
-      aria-hidden
-      className="absolute inset-0 pointer-events-none overflow-hidden"
-    >
-      {dots.map((d, i) => (
-        <span
-          key={i}
-          className="absolute rounded-full bg-[#e76f51]/40 dark:bg-[#e76f51]/50"
-          style={{
-            left: d.x,
-            top: d.y,
-            width: d.size,
-            height: d.size,
-            animation: `cas-float ${d.dur}s ease-in-out ${d.delay}s infinite`,
-          }}
-        />
-      ))}
-    </div>
   );
 }
 
@@ -520,8 +376,6 @@ export default function HomePage() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // ⚠️ Environment variable ব্যবহার করার জন্য রিকমেন্ডেশন দেওয়া হলো, 
-  // তবে আপাতত কোড ব্রেক না করার জন্য তোমারটাই রাখলাম।
   const IMGBB_API_KEY = "c8e142b508f46f59807dbb6a3a2ccb23";
 
   const [upcomingEvent, setUpcomingEvent] = useState(null);
@@ -538,23 +392,13 @@ export default function HomePage() {
 
   const prefersReduced = useReducedMotion();
 
+  // Scroll progress bar (top of page) — kept, but no hero parallax
   const { scrollYProgress } = useScroll();
   const progressX = useSpring(scrollYProgress, {
     stiffness: 120,
     damping: 30,
     restDelta: 0.001,
     layoutEffect: false,
-  });
-
-  const heroRef = useRef(null);
-  const { scrollYProgress: heroScroll } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end start"],
-  });
-  const heroY = useSpring(heroScroll, {
-    stiffness: 60,
-    damping: 20,
-    layoutEffect: false, 
   });
 
   /* ─── Countdown ─── */
@@ -784,7 +628,7 @@ export default function HomePage() {
       let q = 0.9;
       let b64 = canvas.toDataURL("image/jpeg", q);
       while (b64.length > 270000 && q > 0.2) {
-        q = Number((q - 0.1).toFixed(1)); 
+        q = Number((q - 0.1).toFixed(1));
         b64 = canvas.toDataURL("image/jpeg", q);
       }
 
@@ -837,24 +681,6 @@ export default function HomePage() {
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        /* ─── Aurora color tokens ─── */
-        :root {
-          --cas-aurora-1: rgba(231, 111, 81, 0.26);
-          --cas-aurora-2: rgba(52, 211, 153, 0.22);
-          --cas-aurora-3: rgba(139, 92, 246, 0.20);
-          --cas-glow:     rgba(231, 111, 81, 0.16);
-          --cas-particle: #e76f51;
-          --cas-grain-opacity: 0.07;
-        }
-        .dark {
-          --cas-aurora-1: rgba(231, 111, 81, 0.32);
-          --cas-aurora-2: rgba(52, 211, 153, 0.26);
-          --cas-aurora-3: rgba(139, 92, 246, 0.26);
-          --cas-glow:     rgba(231, 111, 81, 0.22);
-          --cas-particle: #f7b267;
-          --cas-grain-opacity: 0.075;
-        }
-
         /* ─── Ticker marquee ─── */
         @keyframes scroll-text {
           0%   { transform: translateX(100%); }
@@ -864,43 +690,6 @@ export default function HomePage() {
           display: inline-block;
           white-space: nowrap;
           animation: scroll-text 20s linear infinite;
-        }
-
-        /* ─── Hero dots ─── */
-        @keyframes cas-float {
-          0%, 100% { transform: translate3d(0, 0, 0); opacity: .35; }
-          50%      { transform: translate3d(12px, -22px, 0); opacity: .75; }
-        }
-
-        /* ─── Aurora blobs ─── */
-        @keyframes cas-aurora-1 {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-          33%      { transform: translate3d(8%, -6%, 0) scale(1.15); }
-          66%      { transform: translate3d(-6%, 5%, 0) scale(0.95); }
-        }
-        @keyframes cas-aurora-2 {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-          50%      { transform: translate3d(-10%, 8%, 0) scale(1.2); }
-        }
-        @keyframes cas-aurora-3 {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
-          50%      { transform: translate3d(12%, -10%, 0) scale(0.95); }
-        }
-
-        /* ─── Floating particle rise ─── */
-        @keyframes cas-particle-rise {
-          0%   { transform: translate3d(0, 20vh, 0) scale(0.4); opacity: 0; }
-          12%  { opacity: 1; }
-          88%  { opacity: 1; }
-          100% { transform: translate3d(24px, -105vh, 0) scale(1); opacity: 0; }
-        }
-
-        /* ─── Film grain shift ─── */
-        @keyframes cas-grain-shift {
-          0%, 100% { transform: translate3d(0, 0, 0); }
-          25%      { transform: translate3d(-2%, 3%, 0); }
-          50%      { transform: translate3d(3%, -2%, 0); }
-          75%      { transform: translate3d(-3%, -3%, 0); }
         }
 
         /* ─── Card shine ─── */
@@ -920,32 +709,30 @@ export default function HomePage() {
         .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 
         /* ═══════════════════════════════════════════════════════
-           ✅ TABLET OPTIMIZATIONS 
+           TABLET / MOBILE OPTIMIZATIONS
+           — backdrop-blur কমানো, যাতে জ্যাংক না হয়
            ═══════════════════════════════════════════════════════ */
-        @media (max-width: 1024px) and (min-width: 641px) {
+        @media (max-width: 1024px) {
           .backdrop-blur-xl {
-            -webkit-backdrop-filter: blur(8px) !important;
-            backdrop-filter: blur(8px) !important;
-          }
-          .backdrop-blur-md {
             -webkit-backdrop-filter: blur(6px) !important;
             backdrop-filter: blur(6px) !important;
           }
-          .backdrop-blur-sm,
-          .backdrop-blur {
+          .backdrop-blur-md {
             -webkit-backdrop-filter: blur(4px) !important;
             backdrop-filter: blur(4px) !important;
           }
-          .cas-grain {
-            opacity: 0.035 !important;
+          .backdrop-blur-sm,
+          .backdrop-blur {
+            -webkit-backdrop-filter: blur(3px) !important;
+            backdrop-filter: blur(3px) !important;
           }
         }
       `,
         }}
       />
 
-      {/* ═══ 🌌 CINEMATIC BACKGROUND ═══ */}
-      <CinematicBackground />
+      {/* ═══ STATIC BACKGROUND (zero animation) ═══ */}
+      <StaticBackground />
 
       {/* ── Scroll Progress Bar ── */}
       <motion.div
@@ -1100,16 +887,8 @@ export default function HomePage() {
         )}
 
         {/* ═══ 4. HERO ═══ */}
-        <section
-          ref={heroRef}
-          className="relative py-16 sm:py-24 px-6 overflow-hidden"
-        >
-          {!prefersReduced && <HeroParticles />}
-
-          <motion.div
-            style={prefersReduced ? {} : { y: heroY }}
-            className="max-w-4xl mx-auto text-center relative z-10"
-          >
+        <section className="relative py-16 sm:py-24 px-6 overflow-hidden">
+          <motion.div className="max-w-4xl mx-auto text-center relative z-10">
             <motion.div
               initial="hidden"
               whileInView="visible"
@@ -1608,7 +1387,7 @@ export default function HomePage() {
         </footer>
       </div>
 
-      {/* ═══ MODALS (outside z-10 wrapper, sit above everything) ═══ */}
+      {/* ═══ MODALS ═══ */}
 
       {showNameModal && (
         <div className="fixed inset-0 z-[120] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
