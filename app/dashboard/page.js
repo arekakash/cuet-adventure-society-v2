@@ -1,17 +1,52 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AOS from 'aos'
 import 'aos/dist/aos.css'
 
+/* ═══════════════════════════════════════════════════════════════
+   CONFIG
+   ═══════════════════════════════════════════════════════════════ */
+const REQUIRED_PROFILE_FIELDS = [
+  'student_id',
+  'phone',
+  'blood_group',
+  'department',
+  'batch',
+  'hall',
+  'tshirt_size',
+  'emergency_contact',
+  'emergency_relation',
+  'swimming_skill',
+  'has_bicycle',
+  'experience_level',
+  'gender',
+]
+
+const EMPTY_FORM = {
+  student_id: '',
+  phone: '',
+  department: '',
+  batch: '',
+  gender: '',
+  blood_group: '',
+  hall: '',
+  tshirt_size: '',
+  emergency_contact: '',
+  emergency_relation: '',
+  swimming_skill: '',
+  has_bicycle: '',
+  experience_level: '',
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
-  
+
   // States
   const [bookings, setBookings] = useState([])
   const [storeOrders, setStoreOrders] = useState([])
@@ -20,60 +55,108 @@ export default function DashboardPage() {
 
   const [showCompletionForm, setShowCompletionForm] = useState(false)
   const [updating, setUpdating] = useState(false)
-  const [formData, setFormData] = useState({
-    student_id: '', phone: '', department: '', batch: '', gender: '', blood_group: '',
-    hall: '', tshirt_size: '', emergency_contact: '', emergency_relation: '',
-    swimming_skill: '', has_bicycle: '', experience_level: ''
-  })
+  const [formData, setFormData] = useState(EMPTY_FORM)
+
+  // Lifecycle ref
+  const isMountedRef = useRef(true)
 
   const years = Array.from({ length: 2050 - 1968 + 1 }, (_, i) => 2050 - i)
 
   const maleHalls = [
-    "Dr. Qudrat-E-Khuda Hall", "Kabi Kazi Nazrul Islam Hall", "Muktijoddha Hall",
-    "Shaheed Abu Sayeed Hall", "Shaheed Mohammad Shah Hall", "Shaheed Tareq Huda Hall"
+    'Dr. Qudrat-E-Khuda Hall',
+    'Kabi Kazi Nazrul Islam Hall',
+    'Muktijoddha Hall',
+    'Shaheed Abu Sayeed Hall',
+    'Shaheed Mohammad Shah Hall',
+    'Shaheed Tareq Huda Hall',
   ]
 
   const femaleHalls = [
-    "Sufia Kamal Hall", "Shamsennahar Khan Hall", "Taposhi Rabeya Hall"
+    'Sufia Kamal Hall',
+    'Shamsennahar Khan Hall',
+    'Taposhi Rabeya Hall',
   ]
 
+  /* ═══════════════════════════════════════════════════════════
+     MAIN INIT — AOS + data + realtime unread listener
+     ═══════════════════════════════════════════════════════════ */
   useEffect(() => {
-    AOS.init({ once: true, offset: 50 })
-    let isMounted = true
+    isMountedRef.current = true
+
+    AOS.init({
+      once: true,
+      offset: 50,
+      // ✅ FIX: disable AOS on tablet/mobile to reduce jank
+      disable: () =>
+        typeof window !== 'undefined' && window.innerWidth <= 1024,
+    })
+
+    let messageChannel = null
 
     const initializeDashboard = async () => {
-      if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
-        await new Promise(resolve => setTimeout(resolve, 800))
+      if (
+        typeof window !== 'undefined' &&
+        window.location.hash.includes('access_token')
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 800))
       }
 
-      const { data: { session } } = await supabase.auth.getSession()
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
       if (!session) {
-        if (isMounted) router.push('/login')
+        if (isMountedRef.current) router.push('/login')
         return
       }
 
       await fetchUserData(session.user.id)
-      await fetchUnreadMessages(session.user.id) 
+      await fetchUnreadMessages(session.user.id)
+
+      // ✅ FIX C-1: realtime listener keeps unread badge fresh
+      if (!isMountedRef.current) return
+
+      messageChannel = supabase
+        .channel(`dashboard_unread_${session.user.id}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'cas_messages',
+            filter: `receiver_id=eq.${session.user.id}`,
+          },
+          () => {
+            if (isMountedRef.current) {
+              fetchUnreadMessages(session.user.id)
+            }
+          }
+        )
+        .subscribe()
     }
 
     initializeDashboard()
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        fetchUserData(session.user.id)
-        fetchUnreadMessages(session.user.id)
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          fetchUserData(session.user.id)
+          fetchUnreadMessages(session.user.id)
+        }
       }
-    })
+    )
 
     return () => {
-      isMounted = false
-      if (authListener && authListener.subscription) {
-        authListener.subscription.unsubscribe()
-      }
+      isMountedRef.current = false
+      if (authListener?.subscription) authListener.subscription.unsubscribe()
+      if (messageChannel) supabase.removeChannel(messageChannel)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router])
 
+  /* ═══════════════════════════════════════════════════════════
+     FETCH UNREAD COUNT
+     ═══════════════════════════════════════════════════════════ */
   const fetchUnreadMessages = async (userId) => {
     try {
       const { count, error } = await supabase
@@ -81,30 +164,38 @@ export default function DashboardPage() {
         .select('*', { count: 'exact', head: true })
         .eq('receiver_id', userId)
         .eq('is_read', false)
-      
-      if (!error) {
+
+      if (!error && isMountedRef.current) {
         setUnreadMessagesCount(count || 0)
       }
     } catch (err) {
-      console.error("Error fetching messages count:", err)
+      console.error('Error fetching messages count:', err)
     }
   }
 
+  /* ═══════════════════════════════════════════════════════════
+     FETCH USER DATA — profile guard + prefill + all fetches
+     ═══════════════════════════════════════════════════════════ */
   const fetchUserData = async (userId) => {
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('*, survival_iq, total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, total_runs, running_distance')
+        .select(
+          '*, survival_iq, total_events, total_treks, total_distance, total_rides, cycling_distance, total_swims, swimming_distance, total_runs, running_distance'
+        )
         .eq('id', userId)
         .single()
 
       if (profileError) {
-        if (profileError.code === 'PGRST116') { 
-          const { data: { session } } = await supabase.auth.getSession()
-          setUser({ 
-            id: userId, 
-            full_name: session?.user?.user_metadata?.full_name || 'Explorer', 
-            photo_url: session?.user?.user_metadata?.avatar_url || '' 
+        if (profileError.code === 'PGRST116') {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession()
+          if (!isMountedRef.current) return
+          setUser({
+            id: userId,
+            full_name: session?.user?.user_metadata?.full_name || 'Explorer',
+            photo_url: session?.user?.user_metadata?.avatar_url || '',
           })
           setShowCompletionForm(true)
           setLoading(false)
@@ -112,92 +203,140 @@ export default function DashboardPage() {
         }
         throw profileError
       }
-      
+
+      if (!isMountedRef.current) return
       setUser(profileData)
 
-      if (!profileData.student_id || !profileData.phone || !profileData.blood_group) {
+      // ✅ FIX I-2: check ALL required fields; prefill from existing data
+      const isProfileIncomplete = REQUIRED_PROFILE_FIELDS.some(
+        (field) => !profileData[field]
+      )
+
+      if (isProfileIncomplete) {
+        setFormData({
+          student_id: profileData.student_id || '',
+          phone: profileData.phone || '',
+          department: profileData.department || '',
+          batch: profileData.batch || '',
+          gender: profileData.gender || '',
+          blood_group: profileData.blood_group || '',
+          hall: profileData.hall || '',
+          tshirt_size: profileData.tshirt_size || '',
+          emergency_contact: profileData.emergency_contact || '',
+          emergency_relation: profileData.emergency_relation || '',
+          swimming_skill: profileData.swimming_skill || '',
+          has_bicycle: profileData.has_bicycle || '',
+          experience_level: profileData.experience_level || '',
+        })
         setShowCompletionForm(true)
       }
 
-      const totalActivities = (profileData.total_treks || 0) + (profileData.total_rides || 0) + (profileData.total_swims || 0) + (profileData.total_runs || 0)
+      // Rank calculation
+      const totalActivities =
+        (profileData.total_treks || 0) +
+        (profileData.total_rides || 0) +
+        (profileData.total_swims || 0) +
+        (profileData.total_runs || 0)
+
       if (totalActivities > 0 || profileData.survival_iq > 0) {
         const { count, error: rankError } = await supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true })
-          .gt('survival_iq', profileData.survival_iq || 0) 
-        
-        if (!rankError) setRank(count + 1)
+          .gt('survival_iq', profileData.survival_iq || 0)
+
+        if (!rankError && isMountedRef.current) setRank(count + 1)
       }
 
+      // Bookings
       const { data: bookingData, error: bookingError } = await supabase
         .from('bookings')
-        .select(`
+        .select(
+          `
           id, status, trx_id, payment_method, created_at,
           events!inner (id, title, start_date, cover_photo, destination, category, deleted_at)
-        `)
+        `
+        )
         .eq('user_id', userId)
         .is('events.deleted_at', null)
         .order('created_at', { ascending: false })
 
-      if (!bookingError && bookingData) setBookings(bookingData)
+      if (!bookingError && bookingData && isMountedRef.current) {
+        setBookings(bookingData)
+      }
 
+      // Store orders
       const { data: storeData, error: storeError } = await supabase
         .from('store_orders')
-        .select(`
+        .select(
+          `
           id, total_amount, trx_id, payment_method, status, order_type, created_at,
           store_order_items (
             quantity, size_selected, color_selected, rent_start_date, rent_end_date, price_at_time,
             store_products (name, image_url, gallery, category)
           )
-        `)
+        `
+        )
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
-      if (!storeError && storeData) setStoreOrders(storeData)
-
+      if (!storeError && storeData && isMountedRef.current) {
+        setStoreOrders(storeData)
+      }
     } catch (error) {
       console.error('ড্যাশবোর্ড ডেটা লোড করতে সমস্যা:', error.message)
     } finally {
-      setLoading(false)
+      if (isMountedRef.current) setLoading(false)
     }
   }
 
+  /* ═══════════════════════════════════════════════════════════
+     FORM HANDLERS
+     ═══════════════════════════════════════════════════════════ */
   const handleFormChange = (e) => {
-    const { id, value } = e.target;
+    const { id, value } = e.target
     if (id === 'gender') {
-      setFormData((prev) => ({ ...prev, gender: value, hall: '' }));
+      setFormData((prev) => ({ ...prev, gender: value, hall: '' }))
     } else {
-      setFormData((prev) => ({ ...prev, [id]: value }));
+      setFormData((prev) => ({ ...prev, [id]: value }))
     }
   }
 
   const handleProfileComplete = async (e) => {
     e.preventDefault()
-    
+
     const studentIdStr = formData.student_id.toString().trim()
-    const validDeptCodes = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
-    
+    const validDeptCodes = [
+      '01', '02', '03', '04', '05', '06',
+      '07', '08', '09', '10', '11', '12',
+    ]
+
     if (studentIdStr.length !== 7 || isNaN(studentIdStr)) {
-      alert('⚠️ ইনভ্যালিড চুয়েট আইডি! স্টুডেন্ট আইডি অবশ্যই ৭ ডিজিটের নাম্বার হতে হবে (যেমন: 2101001)।')
+      alert(
+        '⚠️ ইনভ্যালিড চুয়েট আইডি! স্টুডেন্ট আইডি অবশ্যই ৭ ডিজিটের নাম্বার হতে হবে (যেমন: 2101001)।'
+      )
       return
     }
 
-    const deptCode = studentIdStr.substring(2, 4) 
+    const deptCode = studentIdStr.substring(2, 4)
     if (!validDeptCodes.includes(deptCode)) {
-      alert(`⚠️ ইনভ্যালিড আইডি! '${deptCode}' নামে চুয়েটে কোনো ডিপার্টমেন্ট কোড নেই। দয়া করে সঠিক স্টুডেন্ট আইডি দিন।`)
+      alert(
+        `⚠️ ইনভ্যালিড আইডি! '${deptCode}' নামে চুয়েটে কোনো ডিপার্টমেন্ট কোড নেই। দয়া করে সঠিক স্টুডেন্ট আইডি দিন।`
+      )
       return
     }
 
     setUpdating(true)
     try {
-      const { data: existingUser, error: checkError } = await supabase
+      const { data: existingUser } = await supabase
         .from('profiles')
         .select('id, student_id')
         .eq('student_id', studentIdStr)
         .single()
 
       if (existingUser && existingUser.id !== user.id) {
-        alert('❌ এই স্টুডেন্ট আইডি দিয়ে ইতোমধ্যে অন্য একটি অ্যাকাউন্ট তৈরি করা হয়েছে! দয়া করে আপনার নিজের আইডি দিন।')
+        alert(
+          '❌ এই স্টুডেন্ট আইডি দিয়ে ইতোমধ্যে অন্য একটি অ্যাকাউন্ট তৈরি করা হয়েছে! দয়া করে আপনার নিজের আইডি দিন।'
+        )
         setUpdating(false)
         return
       }
@@ -219,80 +358,184 @@ export default function DashboardPage() {
         emergency_relation: formData.emergency_relation,
         swimming_skill: formData.swimming_skill,
         has_bicycle: formData.has_bicycle,
-        experience_level: formData.experience_level
+        experience_level: formData.experience_level,
       })
       if (error) throw error
 
-      setUser({ ...user, ...formData, student_id: studentIdStr })
-      setShowCompletionForm(false)
-      alert('✅ অ্যাডভেঞ্চার প্রোফাইল সফলভাবে আপডেট হয়েছে!')
+      if (isMountedRef.current) {
+        setUser({ ...user, ...formData, student_id: studentIdStr })
+        setShowCompletionForm(false)
+      }
+      alert('✅ অ্যাডভেঞ্চার প্রোফাইল সফলভাবে আপডেট হয়েছে!')
     } catch (err) {
       alert('প্রোফাইল আপডেট ফেইল করেছে: ' + err.message)
     } finally {
-      setUpdating(false)
+      if (isMountedRef.current) setUpdating(false)
     }
   }
 
-
+  /* ═══════════════════════════════════════════════════════════
+     STATUS BADGE HELPER
+     ═══════════════════════════════════════════════════════════ */
   const getStatusBadge = (status) => {
-    switch(status) {
-      case 'approved': return <span className="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors"><i className="fa-solid fa-check-circle mr-1"></i> কনফার্মড</span>
-      case 'pending': return <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest animate-pulse transition-colors"><i className="fa-solid fa-clock mr-1"></i> পেন্ডিং</span>
-      case 'rejected': return <span className="bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors"><i className="fa-solid fa-xmark mr-1"></i> বাতিল</span>
-      case 'returned': return <span className="bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400 border border-purple-300 dark:border-purple-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors"><i className="fa-solid fa-rotate-left mr-1"></i> রিটার্নড</span>
-      case 'free_booking': return <span className="bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 border border-yellow-300 dark:border-yellow-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors"><i className="fa-solid fa-ticket mr-1"></i> ফ্রি বুকিং</span>
-      case 'interested': return <span className="bg-pink-100 dark:bg-pink-500/20 text-pink-700 dark:text-pink-400 border border-pink-300 dark:border-pink-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors"><i className="fa-solid fa-heart mr-1"></i> ইন্টারেস্টেড</span>
-      default: return <span className="bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors">Unknown</span>
+    switch (status) {
+      case 'approved':
+        return (
+          <span className="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors">
+            <i className="fa-solid fa-check-circle mr-1"></i> কনফার্মড
+          </span>
+        )
+      case 'pending':
+        return (
+          <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest animate-pulse transition-colors">
+            <i className="fa-solid fa-clock mr-1"></i> পেন্ডিং
+          </span>
+        )
+      case 'rejected':
+        return (
+          <span className="bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors">
+            <i className="fa-solid fa-xmark mr-1"></i> বাতিল
+          </span>
+        )
+      case 'returned':
+        return (
+          <span className="bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400 border border-purple-300 dark:border-purple-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors">
+            <i className="fa-solid fa-rotate-left mr-1"></i> রিটার্নড
+          </span>
+        )
+      case 'free_booking':
+        return (
+          <span className="bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 border border-yellow-300 dark:border-yellow-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors">
+            <i className="fa-solid fa-ticket mr-1"></i> ফ্রি বুকিং
+          </span>
+        )
+      case 'interested':
+        return (
+          <span className="bg-pink-100 dark:bg-pink-500/20 text-pink-700 dark:text-pink-400 border border-pink-300 dark:border-pink-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors">
+            <i className="fa-solid fa-heart mr-1"></i> ইন্টারেস্টেড
+          </span>
+        )
+      default:
+        return (
+          <span className="bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors">
+            Unknown
+          </span>
+        )
     }
   }
 
+  /* ═══════════════════════════════════════════════════════════
+     GUARD RENDERS
+     ═══════════════════════════════════════════════════════════ */
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-pastel-bg dark:bg-[#050b08] transition-colors duration-500"><i className="fa-solid fa-compass fa-spin text-4xl text-[#e76f51]"></i></div>
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-pastel-bg dark:bg-[#050b08] transition-colors duration-500">
+        <i className="fa-solid fa-compass fa-spin text-4xl text-[#e76f51]"></i>
+      </div>
+    )
   }
 
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-4 bg-pastel-bg dark:bg-[#050b08] transition-colors duration-500">
         <i className="fa-solid fa-triangle-exclamation text-5xl text-[#e76f51] mb-4"></i>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 transition-colors">ডেটা সিঙ্কিং ফেইলর</h2>
-        <p className="text-gray-600 dark:text-gray-400 max-w-md mb-6 transition-colors">আপনার অ্যাকাউন্টের তথ্য সার্ভার থেকে লোড করা সম্ভব হয়নি। অনুগ্রহ করে পেজটি রিলোড করুন অথবা পুনরায় লগইন করুন.</p>
-        <button onClick={() => window.location.reload()} className="bg-[#2d6a4f] hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold shadow-md transition-all">রিলোড করুন</button>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 transition-colors">
+          ডেটা সিঙ্কিং ফেইলর
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400 max-w-md mb-6 transition-colors">
+          আপনার অ্যাকাউন্টের তথ্য সার্ভার থেকে লোড করা সম্ভব হয়নি। অনুগ্রহ করে
+          পেজটি রিলোড করুন অথবা পুনরায় লগইন করুন.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-[#2d6a4f] hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold shadow-md transition-all"
+        >
+          রিলোড করুন
+        </button>
       </div>
     )
   }
 
-  const avatarUrl = user.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=0a1c13&color=fff&size=128`
+  const avatarUrl =
+    user.photo_url ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      user.full_name || 'User'
+    )}&background=0a1c13&color=fff&size=128`
 
+  /* ═══════════════════════════════════════════════════════════
+     RENDER
+     ═══════════════════════════════════════════════════════════ */
   return (
-    // 🔴 Main Wrapper: Added min-h-screen and background to fix the dark gap issue
     <main className="min-h-screen bg-pastel-bg dark:bg-[#050b08] transition-colors duration-500 pb-16">
+      {/* ✅ Tablet optimizations (safety net for AOS + reduce backdrop-blur) */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @media (max-width: 1024px) {
+              /* Safety net: if AOS is disabled, ensure [data-aos] elements stay visible */
+              [data-aos] {
+                opacity: 1 !important;
+                transform: none !important;
+                transition: none !important;
+              }
+              /* Reduce expensive backdrop-blur on tablet */
+              .backdrop-blur-md {
+                -webkit-backdrop-filter: blur(6px) !important;
+                backdrop-filter: blur(6px) !important;
+              }
+              .backdrop-blur-xl {
+                -webkit-backdrop-filter: blur(6px) !important;
+                backdrop-filter: blur(6px) !important;
+              }
+            }
+          `,
+        }}
+      />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10 pt-24">
-        
-        {/* LEFT COLUMN: Profile Info & Inbox */}
+        {/* ═══════════════════════════════════════════════════
+            LEFT COLUMN: Profile + Inbox
+            ═══════════════════════════════════════════════════ */}
         <div className="space-y-6">
           {/* Profile Card */}
-          <div className="bg-white/80 dark:bg-[#0a1c13]/70 backdrop-blur-md border border-emerald-100 dark:border-white/10 rounded-2xl shadow-soft dark:shadow-xl overflow-hidden relative transition-colors duration-500" data-aos="fade-right" data-aos-delay="100">
+          <div
+            className="bg-white/80 dark:bg-[#0a1c13]/70 backdrop-blur-md border border-emerald-100 dark:border-white/10 rounded-2xl shadow-soft dark:shadow-xl overflow-hidden relative transition-colors duration-500"
+            data-aos="fade-right"
+            data-aos-delay="100"
+          >
             <div className="h-24 bg-gradient-to-r from-emerald-100 via-emerald-200 to-emerald-100 dark:from-[#0a1c13] dark:via-[#2d6a4f]/40 dark:to-[#0a1c13] border-b border-emerald-100 dark:border-white/5 transition-colors"></div>
-            <div className="px-6 pb-6 relative pt-12"> 
+            <div className="px-6 pb-6 relative pt-12">
               <div className="w-20 h-20 rounded-2xl border-4 border-white dark:border-[#050b08] overflow-hidden bg-gray-100 dark:bg-[#0a1c13] absolute -top-10 left-6 shadow-md dark:shadow-lg transform hover:-translate-y-1 transition-all">
-                <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                <img
+                  src={avatarUrl}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="mt-4">
-                <h2 className="text-2xl font-black text-gray-900 dark:text-white drop-shadow-sm dark:drop-shadow-md leading-tight transition-colors">{user.full_name}</h2>
+                <h2 className="text-2xl font-black text-gray-900 dark:text-white drop-shadow-sm dark:drop-shadow-md leading-tight transition-colors">
+                  {user.full_name}
+                </h2>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   <span className="text-xs font-bold text-emerald-700 dark:text-[#2d6a4f] bg-emerald-50 dark:bg-[#2d6a4f]/10 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-[#2d6a4f]/20 transition-colors">
                     {user.department} '{String(user.batch).slice(-2)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-2 text-sm text-gray-600 dark:text-gray-400 font-medium transition-colors">
-                  <i className="fa-solid fa-building-user text-emerald-600 dark:text-[#2d6a4f]"></i> <span>{user.hall}</span>
+                  <i className="fa-solid fa-building-user text-emerald-600 dark:text-[#2d6a4f]"></i>{' '}
+                  <span>{user.hall}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-1 text-sm text-gray-600 dark:text-gray-400 font-medium transition-colors">
-                  <i className="fa-solid fa-fingerprint text-emerald-600 dark:text-[#2d6a4f]"></i> ID: <span className="text-gray-800 dark:text-gray-300 font-bold tracking-widest">{user.student_id}</span>
+                  <i className="fa-solid fa-fingerprint text-emerald-600 dark:text-[#2d6a4f]"></i>{' '}
+                  ID:{' '}
+                  <span className="text-gray-800 dark:text-gray-300 font-bold tracking-widest">
+                    {user.student_id}
+                  </span>
                 </div>
                 <div className="mt-5 pt-4 border-t border-gray-100 dark:border-white/10 flex gap-2 transition-colors">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-500/30 transition-colors animate-pulse">
-                    <i className="fa-solid fa-shield-check"></i> <span>Identity Verified</span>
+                    <i className="fa-solid fa-shield-check"></i>{' '}
+                    <span>Identity Verified</span>
                   </span>
                 </div>
               </div>
@@ -300,24 +543,29 @@ export default function DashboardPage() {
           </div>
 
           {/* CAS Messenger (Inbox) Card */}
-          <Link 
-            href="/dashboard/inbox" 
-            className="block group" 
-            data-aos="fade-right" 
+          <Link
+            href="/dashboard/inbox"
+            className="block group"
+            data-aos="fade-right"
             data-aos-delay="200"
           >
             <div className="bg-blue-50/80 dark:bg-gradient-to-br dark:from-blue-600/20 dark:to-blue-900/20 backdrop-blur-md border border-blue-200 dark:border-blue-500/30 rounded-2xl p-6 shadow-soft dark:shadow-xl hover:shadow-md dark:hover:shadow-[0_0_25px_rgba(37,99,235,0.3)] transition-all duration-300 flex items-center justify-between relative overflow-hidden">
               <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
                 <i className="fa-brands fa-facebook-messenger text-8xl text-blue-500 dark:text-blue-400"></i>
               </div>
-              
+
               <div className="relative z-10 flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center border border-blue-200 dark:border-blue-500/40 shrink-0 group-hover:bg-blue-500 dark:group-hover:bg-blue-500 transition-colors">
                   <i className="fa-solid fa-paper-plane text-blue-600 dark:text-blue-400 group-hover:text-white text-xl transition-colors"></i>
                 </div>
                 <div>
-                  <h3 className="font-black text-blue-900 dark:text-white text-lg leading-tight transition-colors">CAS Messenger</h3>
-                  <p className="text-xs text-blue-600 dark:text-blue-200 mt-1 font-medium transition-colors">অ্যাডমিনের মেসেজ ও রিসিট</p>
+                  <h3 className="font-black text-blue-900 dark:text-white text-lg leading-tight transition-colors">
+                    CAS Messenger
+                  </h3>
+                  {/* ✅ FIX I-1: misleading copy corrected */}
+                  <p className="text-xs text-blue-600 dark:text-blue-200 mt-1 font-medium transition-colors">
+                    সব মেসেজ ও রিসিট এক জায়গায়
+                  </p>
                 </div>
               </div>
 
@@ -336,220 +584,410 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* RIGHT COLUMN: Stats, Tactical Data, & Bookings */}
+        {/* ═══════════════════════════════════════════════════
+            RIGHT COLUMN: Stats + Tactical + Bookings + Orders
+            ═══════════════════════════════════════════════════ */}
         <div className="lg:col-span-2 space-y-6">
-          
-          {/* 🔴 Proud Stats Grid with Animated Border/Orb Effects */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4" data-aos="fade-up">
-            
-            {/* Rank - Yellow (Animated Glowing Border) */}
+          {/* Stats Grid */}
+          <div
+            className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4"
+            data-aos="fade-up"
+          >
+            {/* Rank */}
             <div className="relative rounded-2xl overflow-hidden p-[1.5px] shadow-soft dark:shadow-xl group transition-all duration-300 hover:scale-[1.02]">
-              {/* Spinning Orb / Gradient */}
               <div className="absolute inset-[-100%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,transparent_0%,transparent_75%,#eab308_100%)] opacity-70 group-hover:opacity-100 transition-opacity duration-500"></div>
-              {/* Inner Content */}
               <div className="relative h-full w-full bg-yellow-50/95 dark:bg-[#0a1c13]/95 backdrop-blur-xl rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-colors duration-500">
-                <div className="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-500/20 text-yellow-600 dark:text-yellow-500 flex items-center justify-center text-base mb-1.5 transition-colors"><i className="fa-solid fa-crown"></i></div>
-                <p className="text-xl font-black text-gray-900 dark:text-white transition-colors">#{rank}</p>
-                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Rank</p>
+                <div className="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-500/20 text-yellow-600 dark:text-yellow-500 flex items-center justify-center text-base mb-1.5 transition-colors">
+                  <i className="fa-solid fa-crown"></i>
+                </div>
+                <p className="text-xl font-black text-gray-900 dark:text-white transition-colors">
+                  #{rank}
+                </p>
+                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                  Rank
+                </p>
               </div>
             </div>
-            
-            {/* Survival IQ - Green (Animated Glowing Border) */}
+
+            {/* Survival IQ */}
             <div className="relative rounded-2xl overflow-hidden p-[1.5px] shadow-soft dark:shadow-xl group transition-all duration-300 hover:scale-[1.02]">
               <div className="absolute inset-[-100%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,transparent_0%,transparent_75%,#34d399_100%)] opacity-70 group-hover:opacity-100 transition-opacity duration-500"></div>
               <div className="relative h-full w-full bg-emerald-50/95 dark:bg-[#0a1c13]/95 backdrop-blur-xl rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-colors duration-500">
-                <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-[#34d399]/20 text-emerald-600 dark:text-[#34d399] flex items-center justify-center text-base mb-1.5 transition-colors"><i className="fa-solid fa-brain"></i></div>
-                <p className="text-xl font-black text-gray-900 dark:text-white transition-colors">{user.survival_iq || 0}</p>
-                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Survival IQ</p>
+                <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-[#34d399]/20 text-emerald-600 dark:text-[#34d399] flex items-center justify-center text-base mb-1.5 transition-colors">
+                  <i className="fa-solid fa-brain"></i>
+                </div>
+                <p className="text-xl font-black text-gray-900 dark:text-white transition-colors">
+                  {user.survival_iq || 0}
+                </p>
+                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                  Survival IQ
+                </p>
               </div>
             </div>
-            
-            {/* Total Events - Orange (Animated Glowing Border) */}
+
+            {/* Total Events */}
             <div className="relative rounded-2xl overflow-hidden p-[1.5px] shadow-soft dark:shadow-xl group sm:col-span-2 transition-all duration-300 hover:scale-[1.02]">
               <div className="absolute inset-[-100%] animate-[spin_5s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,transparent_0%,transparent_80%,#e76f51_100%)] opacity-70 group-hover:opacity-100 transition-opacity duration-500"></div>
               <div className="relative h-full w-full bg-orange-50/95 dark:bg-[#0a1c13]/95 backdrop-blur-xl rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-colors duration-500">
-                <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-[#e76f51]/20 text-orange-600 dark:text-[#e76f51] flex items-center justify-center text-base mb-1.5 transition-colors"><i className="fa-solid fa-tent"></i></div>
-                <p className="text-xl font-black text-gray-900 dark:text-white transition-colors">{user.total_events || 0}</p>
-                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Total Events</p>
+                <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-[#e76f51]/20 text-orange-600 dark:text-[#e76f51] flex items-center justify-center text-base mb-1.5 transition-colors">
+                  <i className="fa-solid fa-tent"></i>
+                </div>
+                <p className="text-xl font-black text-gray-900 dark:text-white transition-colors">
+                  {user.total_events || 0}
+                </p>
+                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                  Total Events
+                </p>
               </div>
             </div>
 
-            {/* Trekking - Teal */}
+            {/* Trekking */}
             <div className="bg-teal-50/80 dark:bg-[#0a1c13]/70 backdrop-blur-md border border-teal-100 dark:border-emerald-500/20 p-4 rounded-2xl shadow-soft dark:shadow-xl flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-md dark:hover:border-emerald-500/50">
-              <div className="w-8 h-8 rounded-full bg-teal-100 dark:bg-emerald-500/20 text-teal-600 dark:text-emerald-500 flex items-center justify-center text-base mb-1.5 transition-colors"><i className="fa-solid fa-mountain"></i></div>
-              <p className="text-xl font-black text-gray-900 dark:text-white transition-colors">{user.total_treks || 0} <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1 transition-colors">{user.total_distance || 0} km</span></p>
-              <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Trekking</p>
+              <div className="w-8 h-8 rounded-full bg-teal-100 dark:bg-emerald-500/20 text-teal-600 dark:text-emerald-500 flex items-center justify-center text-base mb-1.5 transition-colors">
+                <i className="fa-solid fa-mountain"></i>
+              </div>
+              <p className="text-xl font-black text-gray-900 dark:text-white transition-colors">
+                {user.total_treks || 0}{' '}
+                <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1 transition-colors">
+                  {user.total_distance || 0} km
+                </span>
+              </p>
+              <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                Trekking
+              </p>
             </div>
-            
-            {/* Cycling - Blue */}
+
+            {/* Cycling */}
             <div className="bg-blue-50/80 dark:bg-[#0a1c13]/70 backdrop-blur-md border border-blue-100 dark:border-blue-500/20 p-4 rounded-2xl shadow-soft dark:shadow-xl flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-md dark:hover:border-blue-500/50">
-              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-500 flex items-center justify-center text-base mb-1.5 transition-colors"><i className="fa-solid fa-bicycle"></i></div>
-              <p className="text-lg font-black text-gray-900 dark:text-white transition-colors">{user.total_rides || 0} <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400 ml-0.5 transition-colors">{user.cycling_distance || 0} km</span></p>
-              <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Cycling</p>
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-500 flex items-center justify-center text-base mb-1.5 transition-colors">
+                <i className="fa-solid fa-bicycle"></i>
+              </div>
+              <p className="text-lg font-black text-gray-900 dark:text-white transition-colors">
+                {user.total_rides || 0}{' '}
+                <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400 ml-0.5 transition-colors">
+                  {user.cycling_distance || 0} km
+                </span>
+              </p>
+              <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                Cycling
+              </p>
             </div>
-            
-            {/* Swimming - Cyan */}
+
+            {/* Swimming */}
             <div className="bg-cyan-50/80 dark:bg-[#0a1c13]/70 backdrop-blur-md border border-cyan-100 dark:border-cyan-500/20 p-4 rounded-2xl shadow-soft dark:shadow-xl flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-md dark:hover:border-cyan-500/50">
-              <div className="w-8 h-8 rounded-full bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-500 flex items-center justify-center text-base mb-1.5 transition-colors"><i className="fa-solid fa-person-swimming"></i></div>
-              <p className="text-lg font-black text-gray-900 dark:text-white transition-colors">{user.total_swims || 0} <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400 ml-0.5 transition-colors">{user.swimming_distance || 0} m</span></p>
-              <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Swimming</p>
+              <div className="w-8 h-8 rounded-full bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-500 flex items-center justify-center text-base mb-1.5 transition-colors">
+                <i className="fa-solid fa-person-swimming"></i>
+              </div>
+              <p className="text-lg font-black text-gray-900 dark:text-white transition-colors">
+                {user.total_swims || 0}{' '}
+                <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400 ml-0.5 transition-colors">
+                  {user.swimming_distance || 0} m
+                </span>
+              </p>
+              <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                Swimming
+              </p>
             </div>
-            
-            {/* Running - Rose */}
+
+            {/* Running */}
             <div className="bg-rose-50/80 dark:bg-[#0a1c13]/70 backdrop-blur-md border border-rose-100 dark:border-orange-500/20 p-4 rounded-2xl shadow-soft dark:shadow-xl flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-md dark:hover:border-orange-500/50">
-              <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-orange-500/20 text-rose-600 dark:text-orange-500 flex items-center justify-center text-base mb-1.5 transition-colors"><i className="fa-solid fa-person-running"></i></div>
-              <p className="text-xl font-black text-gray-900 dark:text-white transition-colors">{user.total_runs || 0} <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1 transition-colors">{user.running_distance || 0} km</span></p>
-              <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Running</p>
+              <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-orange-500/20 text-rose-600 dark:text-orange-500 flex items-center justify-center text-base mb-1.5 transition-colors">
+                <i className="fa-solid fa-person-running"></i>
+              </div>
+              <p className="text-xl font-black text-gray-900 dark:text-white transition-colors">
+                {user.total_runs || 0}{' '}
+                <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1 transition-colors">
+                  {user.running_distance || 0} km
+                </span>
+              </p>
+              <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                Running
+              </p>
             </div>
           </div>
 
-          {/* Tactical Data Section */}
-          <div className="bg-white/80 dark:bg-[#0a1c13]/70 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl shadow-soft dark:shadow-xl p-6 transition-colors duration-500" data-aos="fade-up" data-aos-delay="100">
+          {/* Tactical Data */}
+          <div
+            className="bg-white/80 dark:bg-[#0a1c13]/70 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl shadow-soft dark:shadow-xl p-6 transition-colors duration-500"
+            data-aos="fade-up"
+            data-aos-delay="100"
+          >
             <div className="flex justify-between items-center mb-5 border-b border-gray-100 dark:border-white/10 pb-3 transition-colors">
               <h3 className="text-sm font-bold tracking-widest text-gray-600 dark:text-gray-500 uppercase flex items-center gap-2">
-                <i className="fa-solid fa-microchip text-[#e76f51] animate-pulse"></i> <span>ট্যাকটিক্যাল ডেটা</span>
+                <i className="fa-solid fa-microchip text-[#e76f51] animate-pulse"></i>{' '}
+                <span>ট্যাকটিক্যাল ডেটা</span>
               </h3>
-              <Link href="/edit-profile" className="text-xs font-bold text-emerald-600 dark:text-[#2d6a4f] hover:text-emerald-800 dark:hover:text-white transition-colors">এডিট করুন</Link>
+              <Link
+                href="/edit-profile"
+                className="text-xs font-bold text-emerald-600 dark:text-[#2d6a4f] hover:text-emerald-800 dark:hover:text-white transition-colors"
+              >
+                এডিট করুন
+              </Link>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-3 bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/5 rounded-xl transition-colors">
-                <p className="text-[9px] uppercase font-bold text-gray-500 mb-1">Blood Group</p>
-                <p className="font-black text-red-500 text-sm flex items-center gap-2"><i className="fa-solid fa-droplet"></i> <span>{user.blood_group || 'N/A'}</span></p>
+                <p className="text-[9px] uppercase font-bold text-gray-500 mb-1">
+                  Blood Group
+                </p>
+                <p className="font-black text-red-500 text-sm flex items-center gap-2">
+                  <i className="fa-solid fa-droplet"></i>{' '}
+                  <span>{user.blood_group || 'N/A'}</span>
+                </p>
               </div>
               <div className="p-3 bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/5 rounded-xl transition-colors">
-                <p className="text-[9px] uppercase font-bold text-gray-500 mb-1">Combat Gear</p>
-                <p className="font-black text-emerald-600 dark:text-[#2d6a4f] text-sm flex items-center gap-2"><i className="fa-solid fa-shirt"></i> <span>{user.tshirt_size || 'N/A'}</span></p>
+                <p className="text-[9px] uppercase font-bold text-gray-500 mb-1">
+                  Combat Gear
+                </p>
+                <p className="font-black text-emerald-600 dark:text-[#2d6a4f] text-sm flex items-center gap-2">
+                  <i className="fa-solid fa-shirt"></i>{' '}
+                  <span>{user.tshirt_size || 'N/A'}</span>
+                </p>
               </div>
               <div className="p-3 bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/5 rounded-xl transition-colors">
-                <p className="text-[9px] uppercase font-bold text-gray-500 mb-1">Swimming Skill</p>
-                <p className="font-black text-cyan-600 dark:text-cyan-400 text-sm flex items-center gap-2 transition-colors"><i className="fa-solid fa-water"></i> <span>{user.swimming_skill || 'N/A'}</span></p>
+                <p className="text-[9px] uppercase font-bold text-gray-500 mb-1">
+                  Swimming Skill
+                </p>
+                <p className="font-black text-cyan-600 dark:text-cyan-400 text-sm flex items-center gap-2 transition-colors">
+                  <i className="fa-solid fa-water"></i>{' '}
+                  <span>{user.swimming_skill || 'N/A'}</span>
+                </p>
               </div>
               <div className="p-3 bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/5 rounded-xl transition-colors">
-                <p className="text-[9px] uppercase font-bold text-gray-500 mb-1">Has Bicycle</p>
-                <p className="font-black text-blue-600 dark:text-blue-400 text-sm flex items-center gap-2 transition-colors"><i className="fa-solid fa-bicycle"></i> <span>{user.has_bicycle || 'N/A'}</span></p>
+                <p className="text-[9px] uppercase font-bold text-gray-500 mb-1">
+                  Has Bicycle
+                </p>
+                <p className="font-black text-blue-600 dark:text-blue-400 text-sm flex items-center gap-2 transition-colors">
+                  <i className="fa-solid fa-bicycle"></i>{' '}
+                  <span>{user.has_bicycle || 'N/A'}</span>
+                </p>
               </div>
               <div className="p-3 bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/5 rounded-xl sm:col-span-2 transition-colors">
-                <p className="text-[9px] uppercase font-bold text-gray-500 mb-1">Experience Level</p>
-                <p className="font-black text-yellow-600 dark:text-yellow-500 text-sm flex items-center gap-2 transition-colors"><i className="fa-solid fa-star"></i> <span>{user.experience_level || 'N/A'}</span></p>
+                <p className="text-[9px] uppercase font-bold text-gray-500 mb-1">
+                  Experience Level
+                </p>
+                <p className="font-black text-yellow-600 dark:text-yellow-500 text-sm flex items-center gap-2 transition-colors">
+                  <i className="fa-solid fa-star"></i>{' '}
+                  <span>{user.experience_level || 'N/A'}</span>
+                </p>
               </div>
               <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl sm:col-span-2 transition-colors">
-                <p className="text-[9px] uppercase font-bold text-red-500 dark:text-red-400 mb-1 transition-colors">SOS Emergency Contact</p>
-                <p className="font-bold text-red-700 dark:text-red-300 text-xs flex items-center gap-2 transition-colors"><i className="fa-solid fa-phone-volume"></i> <span>{user.emergency_contact || 'N/A'} ({user.emergency_relation || 'N/A'})</span></p>
+                <p className="text-[9px] uppercase font-bold text-red-500 dark:text-red-400 mb-1 transition-colors">
+                  SOS Emergency Contact
+                </p>
+                <p className="font-bold text-red-700 dark:text-red-300 text-xs flex items-center gap-2 transition-colors">
+                  <i className="fa-solid fa-phone-volume"></i>{' '}
+                  <span>
+                    {user.emergency_contact || 'N/A'} (
+                    {user.emergency_relation || 'N/A'})
+                  </span>
+                </p>
               </div>
             </div>
           </div>
 
-          {/* 1. Event Bookings Section */}
-          <div className="bg-white/80 dark:bg-[#0a1c13]/70 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl shadow-soft dark:shadow-xl overflow-hidden transition-colors duration-500" data-aos="fade-up" data-aos-delay="200">
+          {/* Event Bookings */}
+          <div
+            className="bg-white/80 dark:bg-[#0a1c13]/70 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl shadow-soft dark:shadow-xl overflow-hidden transition-colors duration-500"
+            data-aos="fade-up"
+            data-aos-delay="200"
+          >
             <div className="p-6 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-gray-50/80 dark:bg-black/20 transition-colors">
               <h3 className="text-sm font-bold text-gray-800 dark:text-white tracking-widest uppercase flex items-center gap-2 transition-colors">
-                <i className="fa-solid fa-ticket text-[#e76f51]"></i> <span>আমার ইভেন্ট বুকিংস</span>
+                <i className="fa-solid fa-ticket text-[#e76f51]"></i>{' '}
+                <span>আমার ইভেন্ট বুকিংস</span>
               </h3>
             </div>
-            
+
             {bookings.length > 0 ? (
               <div className="p-6 space-y-4">
                 {bookings.map((booking) => (
-                  <div key={booking.id} className="bg-gray-50/80 dark:bg-[#050b08] border border-gray-200 dark:border-white/10 p-4 rounded-2xl flex flex-col sm:flex-row gap-5 items-start sm:items-center transition-colors">
+                  <div
+                    key={booking.id}
+                    className="bg-gray-50/80 dark:bg-[#050b08] border border-gray-200 dark:border-white/10 p-4 rounded-2xl flex flex-col sm:flex-row gap-5 items-start sm:items-center transition-colors"
+                  >
                     <div className="relative w-full sm:w-24 h-16 shrink-0 shadow-sm">
-                      <img src={booking.events?.cover_photo || 'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80'} className="w-full h-full object-cover rounded-xl" alt="Cover" />
+                      <img
+                        src={
+                          booking.events?.cover_photo ||
+                          'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80'
+                        }
+                        className="w-full h-full object-cover rounded-xl"
+                        alt="Cover"
+                      />
                     </div>
                     <div className="flex-grow">
-                        <h4 className="font-bold text-gray-900 dark:text-white text-sm mb-1 transition-colors">{booking.events?.title || 'Unknown Event'}</h4>
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400 transition-colors"><i className="fa-solid fa-calendar text-blue-500 dark:text-blue-400 mr-1"></i> {booking.events?.start_date ? new Date(booking.events.start_date).toLocaleDateString('en-GB') : ''}</p>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-sm mb-1 transition-colors">
+                        {booking.events?.title || 'Unknown Event'}
+                      </h4>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 transition-colors">
+                        <i className="fa-solid fa-calendar text-blue-500 dark:text-blue-400 mr-1"></i>{' '}
+                        {booking.events?.start_date
+                          ? new Date(
+                              booking.events.start_date
+                            ).toLocaleDateString('en-GB')
+                          : ''}
+                      </p>
                     </div>
                     <div className="flex flex-col gap-2 w-full sm:w-auto shrink-0 items-start sm:items-end">
-                        {getStatusBadge(booking.status)}
+                      {getStatusBadge(booking.status)}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="p-10 text-center">
-                <p className="text-sm font-medium text-gray-500">আপনার কোনো ইভেন্ট বুকিং নেই।</p>
+                <p className="text-sm font-medium text-gray-500">
+                  আপনার কোনো ইভেন্ট বুকিং নেই।
+                </p>
               </div>
             )}
           </div>
 
-          {/* 2. Store Orders Section (My Orders) */}
-          <div className="bg-white/80 dark:bg-[#0a1c13]/70 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl shadow-soft dark:shadow-xl overflow-hidden transition-colors duration-500" data-aos="fade-up" data-aos-delay="300">
+          {/* Store Orders */}
+          <div
+            className="bg-white/80 dark:bg-[#0a1c13]/70 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl shadow-soft dark:shadow-xl overflow-hidden transition-colors duration-500"
+            data-aos="fade-up"
+            data-aos-delay="300"
+          >
             <div className="p-6 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-gray-50/80 dark:bg-black/20 transition-colors">
               <h3 className="text-sm font-bold text-gray-800 dark:text-white tracking-widest uppercase flex items-center gap-2 transition-colors">
-                <i className="fa-solid fa-bag-shopping text-emerald-500 dark:text-emerald-400"></i> <span>স্টোর অর্ডারস ও গিয়ার রেন্টাল</span>
+                <i className="fa-solid fa-bag-shopping text-emerald-500 dark:text-emerald-400"></i>{' '}
+                <span>স্টোর অর্ডারস ও গিয়ার রেন্টাল</span>
               </h3>
-              <Link href="/store" className="text-[10px] bg-emerald-50 dark:bg-white/5 border border-emerald-200 dark:border-white/10 hover:bg-emerald-100 hover:border-emerald-300 dark:hover:border-emerald-500/50 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg transition-colors font-bold uppercase tracking-widest">
+              <Link
+                href="/store"
+                className="text-[10px] bg-emerald-50 dark:bg-white/5 border border-emerald-200 dark:border-white/10 hover:bg-emerald-100 hover:border-emerald-300 dark:hover:border-emerald-500/50 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg transition-colors font-bold uppercase tracking-widest"
+              >
                 স্টোরে যান
               </Link>
             </div>
-            
+
             {storeOrders.length > 0 ? (
               <div className="p-6 space-y-6">
                 {storeOrders.map((order) => (
-                  <div key={order.id} className="bg-gray-50/80 dark:bg-[#050b08] border border-gray-200 dark:border-white/10 p-5 rounded-2xl hover:border-emerald-300 dark:hover:border-emerald-500/30 transition-all shadow-sm dark:shadow-md">
-                    
+                  <div
+                    key={order.id}
+                    className="bg-gray-50/80 dark:bg-[#050b08] border border-gray-200 dark:border-white/10 p-5 rounded-2xl hover:border-emerald-300 dark:hover:border-emerald-500/30 transition-all shadow-sm dark:shadow-md"
+                  >
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-200 dark:border-white/5 pb-4 mb-4 gap-4 transition-colors">
                       <div>
                         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                          Order ID: <span className="text-gray-800 dark:text-gray-300 transition-colors">{order.id.slice(0, 8)}</span>
+                          Order ID:{' '}
+                          <span className="text-gray-800 dark:text-gray-300 transition-colors">
+                            {order.id.slice(0, 8)}
+                          </span>
                         </p>
                         <p className="text-[10px] text-gray-500 dark:text-gray-400 transition-colors">
-                          <i className="fa-solid fa-calendar-days mr-1 text-blue-500 dark:text-blue-400"></i> 
-                          {new Date(order.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                          <i className="fa-solid fa-calendar-days mr-1 text-blue-500 dark:text-blue-400"></i>
+                          {new Date(order.created_at).toLocaleString('en-GB', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
                         </p>
                       </div>
 
                       <div className="text-left sm:text-right w-full sm:w-auto bg-white dark:bg-black/40 sm:bg-transparent p-4 sm:p-0 rounded-xl sm:rounded-none border border-gray-200 dark:border-white/5 sm:border-none flex flex-col gap-3 transition-colors">
                         <div className="flex justify-between sm:justify-end items-center gap-6">
                           <div className="text-left sm:text-right">
-                            <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">TrxID</p>
-                            <p className="text-xs font-mono font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded border border-gray-200 dark:border-white/10 transition-colors">{order.trx_id || 'N/A'}</p>
+                            <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">
+                              TrxID
+                            </p>
+                            <p className="text-xs font-mono font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded border border-gray-200 dark:border-white/10 transition-colors">
+                              {order.trx_id || 'N/A'}
+                            </p>
                           </div>
                           <div className="text-right border-l border-gray-200 dark:border-white/10 pl-6 transition-colors">
-                            <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Payment via</p>
-                            <p className="text-[11px] font-black text-orange-500 dark:text-orange-400 tracking-wider truncate max-w-[120px] sm:max-w-none transition-colors">{order.payment_method || 'N/A'}</p>
+                            <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">
+                              Payment via
+                            </p>
+                            <p className="text-[11px] font-black text-orange-500 dark:text-orange-400 tracking-wider truncate max-w-[120px] sm:max-w-none transition-colors">
+                              {order.payment_method || 'N/A'}
+                            </p>
                           </div>
                         </div>
                         <div className="flex justify-between sm:justify-end items-center gap-4 pt-3 border-t border-gray-200 dark:border-white/5 sm:border-none sm:pt-0 transition-colors">
-                          <div className="mb-0">{getStatusBadge(order.status)}</div>
-                          <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 transition-colors">Total: ৳{order.total_amount}</p>
+                          <div className="mb-0">
+                            {getStatusBadge(order.status)}
+                          </div>
+                          <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 transition-colors">
+                            Total: ৳{order.total_amount}
+                          </p>
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-3">
                       {order.store_order_items?.map((item, idx) => {
-                        const productName = item.store_products?.name || 'Product Unavailable / Deleted';
-                        const productImage = item.store_products?.gallery?.[0]?.url || item.store_products?.image_url || null;
+                        const productName =
+                          item.store_products?.name ||
+                          'Product Unavailable / Deleted'
+                        const productImage =
+                          item.store_products?.gallery?.[0]?.url ||
+                          item.store_products?.image_url ||
+                          null
 
                         return (
-                          <div key={idx} className="flex items-start sm:items-center gap-4 bg-white dark:bg-white/5 p-3 rounded-xl border border-gray-200 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/10 transition-colors shadow-sm dark:shadow-none">
-                            
+                          <div
+                            key={idx}
+                            className="flex items-start sm:items-center gap-4 bg-white dark:bg-white/5 p-3 rounded-xl border border-gray-200 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/10 transition-colors shadow-sm dark:shadow-none"
+                          >
                             {productImage ? (
-                              <img src={productImage} alt="Product" className="w-12 h-12 rounded-lg object-contain bg-gray-50 dark:bg-black/40 p-1 shrink-0 border border-gray-100 dark:border-white/5 transition-colors" />
+                              <img
+                                src={productImage}
+                                alt="Product"
+                                className="w-12 h-12 rounded-lg object-contain bg-gray-50 dark:bg-black/40 p-1 shrink-0 border border-gray-100 dark:border-white/5 transition-colors"
+                              />
                             ) : (
                               <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-black/40 flex items-center justify-center border border-gray-200 dark:border-white/5 shrink-0 transition-colors">
                                 <i className="fa-solid fa-box-open text-gray-400 dark:text-gray-600 text-xl"></i>
                               </div>
                             )}
-                            
+
                             <div className="flex-grow min-w-0">
-                              <h4 className={`text-sm font-bold truncate pr-2 transition-colors ${item.store_products ? 'text-gray-800 dark:text-white' : 'text-gray-400 dark:text-gray-500 line-through'}`}>{productName}</h4>
-                              
+                              <h4
+                                className={`text-sm font-bold truncate pr-2 transition-colors ${
+                                  item.store_products
+                                    ? 'text-gray-800 dark:text-white'
+                                    : 'text-gray-400 dark:text-gray-500 line-through'
+                                }`}
+                              >
+                                {productName}
+                              </h4>
+
                               <div className="text-[10px] mt-1.5 flex flex-wrap gap-2">
-                                <span className="font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-black/40 px-2 py-0.5 rounded border border-gray-200 dark:border-white/10 transition-colors">Qty: {item.quantity}</span>
-                                
-                                {item.size_selected && <span className="text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/30 bg-purple-50 dark:bg-purple-500/10 px-2 py-0.5 rounded font-bold transition-colors">Size: {item.size_selected}</span>}
-                                {item.color_selected && <span className="text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded font-bold transition-colors">Color: {item.color_selected}</span>}
-                                
+                                <span className="font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-black/40 px-2 py-0.5 rounded border border-gray-200 dark:border-white/10 transition-colors">
+                                  Qty: {item.quantity}
+                                </span>
+
+                                {item.size_selected && (
+                                  <span className="text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/30 bg-purple-50 dark:bg-purple-500/10 px-2 py-0.5 rounded font-bold transition-colors">
+                                    Size: {item.size_selected}
+                                  </span>
+                                )}
+                                {item.color_selected && (
+                                  <span className="text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded font-bold transition-colors">
+                                    Color: {item.color_selected}
+                                  </span>
+                                )}
+
                                 {item.rent_start_date && (
                                   <span className="text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded font-bold flex items-center gap-1 transition-colors">
-                                    <i className="fa-solid fa-calendar-check"></i> {new Date(item.rent_start_date).toLocaleDateString('en-GB')} to {new Date(item.rent_end_date).toLocaleDateString('en-GB')}
+                                    <i className="fa-solid fa-calendar-check"></i>{' '}
+                                    {new Date(
+                                      item.rent_start_date
+                                    ).toLocaleDateString('en-GB')}{' '}
+                                    to{' '}
+                                    {new Date(
+                                      item.rent_end_date
+                                    ).toLocaleDateString('en-GB')}
                                   </span>
                                 )}
                               </div>
                             </div>
                             <div className="shrink-0 text-right self-center">
-                              <p className="text-xs font-black text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-black/30 px-2 py-1 rounded-lg transition-colors">৳{item.price_at_time}</p>
+                              <p className="text-xs font-black text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-black/30 px-2 py-1 rounded-lg transition-colors">
+                                ৳{item.price_at_time}
+                              </p>
                             </div>
                           </div>
                         )
@@ -561,142 +999,309 @@ export default function DashboardPage() {
             ) : (
               <div className="p-10 text-center flex flex-col items-center justify-center">
                 <i className="fa-solid fa-box-open text-5xl text-gray-300 dark:text-gray-600 mb-4 transform -translate-y-2 animate-bounce transition-colors"></i>
-                <p className="text-sm font-bold text-gray-500 dark:text-gray-400 transition-colors">আপনি স্টোর থেকে এখনো কোনো কেনাকাটা বা রেন্ট করেননি।</p>
+                <p className="text-sm font-bold text-gray-500 dark:text-gray-400 transition-colors">
+                  আপনি স্টোর থেকে এখনো কোনো কেনাকাটা বা রেন্ট করেননি।
+                </p>
               </div>
             )}
           </div>
-
         </div>
 
-        {/* Profile Completion Form Modal */}
+        {/* ═══════════════════════════════════════════════════
+            PROFILE COMPLETION MODAL
+            ═══════════════════════════════════════════════════ */}
         {showCompletionForm && (
           <div className="fixed inset-0 bg-white/80 dark:bg-[#050b08]/95 flex items-center justify-center z-[100] p-4 backdrop-blur-md transition-colors duration-500">
             <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 p-6 sm:p-8 rounded-3xl max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar transition-colors duration-500">
               <div className="text-center mb-6">
-                  <i className="fa-solid fa-user-shield text-4xl text-[#e76f51] mb-3"></i>
-                  <h2 className="text-2xl font-black text-gray-900 dark:text-white transition-colors">প্রোফাইল সম্পূর্ণ করুন</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 transition-colors">অ্যাডভেঞ্চারে অংশ নিতে আপনার কিছু গুরুত্বপূর্ণ তথ্য প্রয়োজন</p>
+                <i className="fa-solid fa-user-shield text-4xl text-[#e76f51] mb-3"></i>
+                <h2 className="text-2xl font-black text-gray-900 dark:text-white transition-colors">
+                  প্রোফাইল সম্পূর্ণ করুন
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 transition-colors">
+                  অ্যাডভেঞ্চারে অংশ নিতে আপনার কিছু গুরুত্বপূর্ণ তথ্য প্রয়োজন
+                </p>
               </div>
 
               <form onSubmit={handleProfileComplete} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">স্টুডেন্ট আইডি *</label>
-                    <input type="number" id="student_id" required value={formData.student_id} onChange={handleFormChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] transition-colors shadow-sm dark:shadow-none" placeholder="e.g. 1904001" />
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">
+                      স্টুডেন্ট আইডি *
+                    </label>
+                    <input
+                      type="number"
+                      id="student_id"
+                      required
+                      value={formData.student_id}
+                      onChange={handleFormChange}
+                      className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] transition-colors shadow-sm dark:shadow-none"
+                      placeholder="e.g. 1904001"
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">ফোন নম্বর *</label>
-                    <input type="tel" id="phone" required value={formData.phone} onChange={handleFormChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] transition-colors shadow-sm dark:shadow-none" placeholder="01XXXXXXXXX" />
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">
+                      ফোন নম্বর *
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      required
+                      value={formData.phone}
+                      onChange={handleFormChange}
+                      className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] transition-colors shadow-sm dark:shadow-none"
+                      placeholder="01XXXXXXXXX"
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">ডিপার্টমেন্ট *</label>
-                    <input type="text" id="department" required value={formData.department} onChange={handleFormChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] uppercase transition-colors shadow-sm dark:shadow-none" placeholder="CSE" />
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">
+                      ডিপার্টমেন্ট *
+                    </label>
+                    <input
+                      type="text"
+                      id="department"
+                      required
+                      value={formData.department}
+                      onChange={handleFormChange}
+                      className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] uppercase transition-colors shadow-sm dark:shadow-none"
+                      placeholder="CSE"
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">ব্যাচ *</label>
-                    <select id="batch" required value={formData.batch} onChange={handleFormChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] transition-colors shadow-sm dark:shadow-none appearance-none">
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">
+                      ব্যাচ *
+                    </label>
+                    <select
+                      id="batch"
+                      required
+                      value={formData.batch}
+                      onChange={handleFormChange}
+                      className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] transition-colors shadow-sm dark:shadow-none appearance-none"
+                    >
                       <option value="">নির্বাচন করুন</option>
-                      {years.map(year => <option key={year} value={year}>{year}</option>)}
+                      {years.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">জেন্ডার *</label>
-                    <select id="gender" required value={formData.gender} onChange={handleFormChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] transition-colors shadow-sm dark:shadow-none appearance-none">
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">
+                      জেন্ডার *
+                    </label>
+                    <select
+                      id="gender"
+                      required
+                      value={formData.gender}
+                      onChange={handleFormChange}
+                      className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] transition-colors shadow-sm dark:shadow-none appearance-none"
+                    >
                       <option value="">নির্বাচন করুন</option>
                       <option value="Male">Male (ছাত্র)</option>
                       <option value="Female">Female (ছাত্রী)</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">রক্তের গ্রুপ *</label>
-                    <select id="blood_group" required value={formData.blood_group} onChange={handleFormChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] transition-colors shadow-sm dark:shadow-none appearance-none">
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">
+                      রক্তের গ্রুপ *
+                    </label>
+                    <select
+                      id="blood_group"
+                      required
+                      value={formData.blood_group}
+                      onChange={handleFormChange}
+                      className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] transition-colors shadow-sm dark:shadow-none appearance-none"
+                    >
                       <option value="">নির্বাচন করুন</option>
-                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(
+                        (bg) => (
+                          <option key={bg} value={bg}>
+                            {bg}
+                          </option>
+                        )
+                      )}
                     </select>
                   </div>
-                  
+
                   {formData.gender && (
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">হল (Hall) *</label>
-                      <select id="hall" required value={formData.hall} onChange={handleFormChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] transition-colors shadow-sm dark:shadow-none appearance-none">
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">
+                        হল (Hall) *
+                      </label>
+                      <select
+                        id="hall"
+                        required
+                        value={formData.hall}
+                        onChange={handleFormChange}
+                        className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] transition-colors shadow-sm dark:shadow-none appearance-none"
+                      >
                         <option value="">হল নির্বাচন করুন</option>
-                        {(formData.gender === 'Male' ? maleHalls : femaleHalls).map(hall => <option key={hall} value={hall}>{hall}</option>)}
-                        <option value="Non-Residential / Outside">Non-Residential / Outside</option>
+                        {(formData.gender === 'Male'
+                          ? maleHalls
+                          : femaleHalls
+                        ).map((hall) => (
+                          <option key={hall} value={hall}>
+                            {hall}
+                          </option>
+                        ))}
+                        <option value="Non-Residential / Outside">
+                          Non-Residential / Outside
+                        </option>
                       </select>
                     </div>
                   )}
                 </div>
 
                 <div className="border-t border-gray-200 dark:border-white/10 pt-5 mt-5 transition-colors">
-                  <h3 className="text-[#e76f51] font-bold text-sm mb-4 uppercase tracking-widest"><i className="fa-solid fa-kit-medical mr-2"></i> ইমার্জেন্সি কন্টাক্ট</h3>
+                  <h3 className="text-[#e76f51] font-bold text-sm mb-4 uppercase tracking-widest">
+                    <i className="fa-solid fa-kit-medical mr-2"></i> ইমার্জেন্সি
+                    কন্টাক্ট
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 transition-colors">ফোন নম্বর (পিতা/মাতা/অভিভাবক) *</label>
-                      <input type="tel" id="emergency_contact" required value={formData.emergency_contact} onChange={handleFormChange} className="w-full bg-red-50 dark:bg-black/40 border border-red-200 dark:border-red-500/20 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-red-500 transition-colors shadow-sm dark:shadow-none" placeholder="01XXXXXXXXX" />
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 transition-colors">
+                        ফোন নম্বর (পিতা/মাতা/অভিভাবক) *
+                      </label>
+                      <input
+                        type="tel"
+                        id="emergency_contact"
+                        required
+                        value={formData.emergency_contact}
+                        onChange={handleFormChange}
+                        className="w-full bg-red-50 dark:bg-black/40 border border-red-200 dark:border-red-500/20 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-red-500 transition-colors shadow-sm dark:shadow-none"
+                        placeholder="01XXXXXXXXX"
+                      />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 transition-colors">সম্পর্ক *</label>
-                      <select id="emergency_relation" required value={formData.emergency_relation} onChange={handleFormChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-red-500 transition-colors shadow-sm dark:shadow-none appearance-none">
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 transition-colors">
+                        সম্পর্ক *
+                      </label>
+                      <select
+                        id="emergency_relation"
+                        required
+                        value={formData.emergency_relation}
+                        onChange={handleFormChange}
+                        className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-red-500 transition-colors shadow-sm dark:shadow-none appearance-none"
+                      >
                         <option value="">নির্বাচন করুন</option>
                         <option value="Father">পিতা (Father)</option>
                         <option value="Mother">মাতা (Mother)</option>
                         <option value="Brother">ভাই (Brother)</option>
                         <option value="Sister">বোন (Sister)</option>
                         <option value="Spouse">স্বামী/স্ত্রী (Spouse)</option>
-                        <option value="Local Guardian">স্থানীয় অভিভাবক</option>
+                        <option value="Local Guardian">
+                          স্থানীয় অভিভাবক
+                        </option>
                       </select>
                     </div>
                   </div>
                 </div>
 
                 <div className="border-t border-gray-200 dark:border-white/10 pt-5 mt-5 transition-colors">
-                  <h3 className="text-emerald-600 dark:text-[#34d399] font-bold text-sm mb-4 uppercase tracking-widest transition-colors"><i className="fa-solid fa-person-hiking mr-2"></i> ট্যাকটিক্যাল ইনফো</h3>
+                  <h3 className="text-emerald-600 dark:text-[#34d399] font-bold text-sm mb-4 uppercase tracking-widest transition-colors">
+                    <i className="fa-solid fa-person-hiking mr-2"></i>{' '}
+                    ট্যাকটিক্যাল ইনফো
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">টি-শার্ট সাইজ *</label>
-                      <select id="tshirt_size" required value={formData.tshirt_size} onChange={handleFormChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-emerald-500 dark:focus:border-[#34d399] transition-colors shadow-sm dark:shadow-none appearance-none">
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">
+                        টি-শার্ট সাইজ *
+                      </label>
+                      <select
+                        id="tshirt_size"
+                        required
+                        value={formData.tshirt_size}
+                        onChange={handleFormChange}
+                        className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-emerald-500 dark:focus:border-[#34d399] transition-colors shadow-sm dark:shadow-none appearance-none"
+                      >
                         <option value="">নির্বাচন করুন</option>
-                        {['S', 'M', 'L', 'XL', 'XXL'].map(size => <option key={size} value={size}>{size}</option>)}
+                        {['S', 'M', 'L', 'XL', 'XXL'].map((size) => (
+                          <option key={size} value={size}>
+                            {size}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">সাঁতার জানেন? *</label>
-                      <select id="swimming_skill" required value={formData.swimming_skill} onChange={handleFormChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-emerald-500 dark:focus:border-[#34d399] transition-colors shadow-sm dark:shadow-none appearance-none">
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">
+                        সাঁতার জানেন? *
+                      </label>
+                      <select
+                        id="swimming_skill"
+                        required
+                        value={formData.swimming_skill}
+                        onChange={handleFormChange}
+                        className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-emerald-500 dark:focus:border-[#34d399] transition-colors shadow-sm dark:shadow-none appearance-none"
+                      >
                         <option value="">নির্বাচন করুন</option>
-                        <option value="Yes - Expert">হ্যাঁ (খুব ভালো পারি)</option>
-                        <option value="Yes - Basic">মোটামুটি (ভয় পাই ভয় নাই)</option>
+                        <option value="Yes - Expert">
+                          হ্যাঁ (খুব ভালো পারি)
+                        </option>
+                        <option value="Yes - Basic">
+                          মোটামুটি (ভয় পাই ভয় নাই)
+                        </option>
                         <option value="No">না (পারি না)</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">নিজের সাইকেল আছে? *</label>
-                      <select id="has_bicycle" required value={formData.has_bicycle} onChange={handleFormChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-emerald-500 dark:focus:border-[#34d399] transition-colors shadow-sm dark:shadow-none appearance-none">
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">
+                        নিজের সাইকেল আছে? *
+                      </label>
+                      <select
+                        id="has_bicycle"
+                        required
+                        value={formData.has_bicycle}
+                        onChange={handleFormChange}
+                        className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-emerald-500 dark:focus:border-[#34d399] transition-colors shadow-sm dark:shadow-none appearance-none"
+                      >
                         <option value="">নির্বাচন করুন</option>
                         <option value="Yes">হ্যাঁ, আছে</option>
                         <option value="No">না, নেই</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">ট্রেকিং এক্সপেরিয়েন্স *</label>
-                      <select id="experience_level" required value={formData.experience_level} onChange={handleFormChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-emerald-500 dark:focus:border-[#34d399] transition-colors shadow-sm dark:shadow-none appearance-none">
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase transition-colors">
+                        ট্রেকিং এক্সপেরিয়েন্স *
+                      </label>
+                      <select
+                        id="experience_level"
+                        required
+                        value={formData.experience_level}
+                        onChange={handleFormChange}
+                        className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-emerald-500 dark:focus:border-[#34d399] transition-colors shadow-sm dark:shadow-none appearance-none"
+                      >
                         <option value="">নির্বাচন করুন</option>
-                        <option value="Beginner">Beginner (কখনো পাহাড়ে যাইনি)</option>
-                        <option value="Intermediate">Intermediate (মাঝারি মানের ট্রেকিং করেছি)</option>
-                        <option value="Pro">Pro (হার্ডকোর ট্রেইল করেছি)</option>
+                        <option value="Beginner">
+                          Beginner (কখনো পাহাড়ে যাইনি)
+                        </option>
+                        <option value="Intermediate">
+                          Intermediate (মাঝারি মানের ট্রেকিং করেছি)
+                        </option>
+                        <option value="Pro">
+                          Pro (হার্ডকোর ট্রেইল করেছি)
+                        </option>
                       </select>
                     </div>
                   </div>
                 </div>
 
-                <button type="submit" disabled={updating} className="w-full bg-[#e76f51] hover:bg-orange-600 text-white font-black text-lg py-4 rounded-xl mt-6 transition-all shadow-md dark:shadow-[0_0_20px_rgba(231,111,81,0.3)] flex justify-center items-center gap-2 hover:-translate-y-1">
-                  {updating ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-cloud-arrow-up"></i>}
+                <button
+                  type="submit"
+                  disabled={updating}
+                  className="w-full bg-[#e76f51] hover:bg-orange-600 text-white font-black text-lg py-4 rounded-xl mt-6 transition-all shadow-md dark:shadow-[0_0_20px_rgba(231,111,81,0.3)] flex justify-center items-center gap-2 hover:-translate-y-1"
+                >
+                  {updating ? (
+                    <i className="fa-solid fa-circle-notch fa-spin"></i>
+                  ) : (
+                    <i className="fa-solid fa-cloud-arrow-up"></i>
+                  )}
                   প্রোফাইল সেভ করুন
                 </button>
               </form>
             </div>
           </div>
         )}
-
       </div>
     </main>
   )
