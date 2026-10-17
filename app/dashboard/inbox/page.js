@@ -687,6 +687,9 @@ export default function GlobalInboxPage() {
                     <p className="text-sm text-gray-400">
                       কোনো মেসেজ নেই। প্রথম মেসেজ পাঠান!
                     </p>
+                    <p className="text-[10px] text-gray-600 mt-2">
+                      মেসেজগুলো ৯০ দিন পর স্বয়ংক্রিয়ভাবে মুছে যাবে।
+                    </p>
                   </div>
                 ) : (
                   messages.map((msg) => {
@@ -855,8 +858,12 @@ export default function GlobalInboxPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Message Input */}
+              {/* Message Input + 90-day retention notice */}
               <div className="bg-[#0a1c13]/90 backdrop-blur-md border-t border-white/10 p-3 sm:p-4 shrink-0 z-10">
+                <p className="text-[9px] text-gray-500 text-center mb-2 tracking-wide">
+                  <i className="fa-solid fa-clock-rotate-left mr-1"></i>
+                  ৯০ দিনের পুরনো মেসেজগুলো স্বয়ংক্রিয়ভাবে মুছে যাবে
+                </p>
                 <form
                   onSubmit={handleSendMessage}
                   className="flex gap-2 sm:gap-3 relative"
