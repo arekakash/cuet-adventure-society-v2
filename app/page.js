@@ -30,11 +30,11 @@ const stagger = {
 /* ═══════════════════════════════════════════════════════════════
    CINEMATIC INTRO — single-source-of-truth durations
    ═══════════════════════════════════════════════════════════════ */
-const INTRO_WORD_DURATION = 1000;         // প্রতিটি শব্দ কত ms থাকবে
-const INTRO_WORD_STAGGER = 850;           // পরের শব্দ কত ms পরে শুরু
-const INTRO_OVERLAY_FADE_START = 2750;    // overlay fade কখন শুরু
-const INTRO_OVERLAY_FADE_DURATION = 850;  // overlay fade কত ms
-const INTRO_TOTAL = INTRO_OVERLAY_FADE_START + INTRO_OVERLAY_FADE_DURATION; // 3600ms
+const INTRO_WORD_DURATION = 1000;
+const INTRO_WORD_STAGGER = 850;
+const INTRO_OVERLAY_FADE_START = 2750;
+const INTRO_OVERLAY_FADE_DURATION = 850;
+const INTRO_TOTAL = INTRO_OVERLAY_FADE_START + INTRO_OVERLAY_FADE_DURATION;
 
 /* ═══════════════════════════════════════════════════════════════
    STATIC BACKGROUND
@@ -541,6 +541,14 @@ export default function HomePage() {
   /* ═══ CINEMATIC INTRO STATE ═══ */
   const [showIntro, setShowIntro] = useState(false);
 
+  /* ═══ TICKER / BULLETIN STATE ═══ */
+  const [tickerText, setTickerText] = useState("");
+  const [bulletinText, setBulletinText] = useState("");
+  const [showTickerModal, setShowTickerModal] = useState(false);
+  const [tickerDraft, setTickerDraft] = useState("");
+  const [bulletinDraft, setBulletinDraft] = useState("");
+  const [savingTicker, setSavingTicker] = useState(false);
+
   const prefersReduced = useReducedMotion();
 
   const { scrollYProgress } = useScroll();
@@ -555,12 +563,10 @@ export default function HomePage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // 1) Skip on reduced-motion (accessibility)
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       return;
     }
 
-    // 2) Skip on truly low-end devices / slow network / data-saver
     try {
       const cores = navigator.hardwareConcurrency || 4;
       const memory = navigator.deviceMemory || 4;
@@ -575,13 +581,11 @@ export default function HomePage() {
         return;
       }
     } catch {
-      // ignore — show intro if we can't determine
+      // ignore
     }
 
-    // 3) Show intro on every page load
     setShowIntro(true);
 
-    // 4) Safety: force unmount shortly after animation completes
     const t = setTimeout(() => setShowIntro(false), INTRO_TOTAL + 200);
     return () => clearTimeout(t);
   }, []);
@@ -642,6 +646,7 @@ export default function HomePage() {
     fetchStats();
     fetchFeaturedEvents();
     fetchPastEvents();
+    fetchSiteSettings();
   }, []);
 
   /* ─── Slider autoplay ─── */
@@ -757,6 +762,48 @@ export default function HomePage() {
       .order("start_date", { ascending: false })
       .limit(10);
     if (data) setPastEvents(data);
+  };
+
+  /* ─── Site Settings (Ticker / Bulletin) ─── */
+  const fetchSiteSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("site_settings")
+        .select("key, value")
+        .in("key", ["ticker_text", "bulletin_text"]);
+      if (error) throw error;
+      const map = {};
+      data?.forEach((r) => (map[r.key] = r.value));
+      setTickerText(map.ticker_text || "");
+      setBulletinText(map.bulletin_text || "");
+    } catch (err) {
+      console.warn("Site settings fetch failed:", err);
+    }
+  };
+
+  const handleOpenTickerEditor = () => {
+    setTickerDraft(tickerText);
+    setBulletinDraft(bulletinText);
+    setShowTickerModal(true);
+  };
+
+  const handleSaveTickerSettings = async (e) => {
+    e.preventDefault();
+    setSavingTicker(true);
+    try {
+      const { error } = await supabase.from("site_settings").upsert([
+        { key: "ticker_text", value: tickerDraft.trim() },
+        { key: "bulletin_text", value: bulletinDraft.trim() },
+      ]);
+      if (error) throw error;
+      setTickerText(tickerDraft.trim());
+      setBulletinText(bulletinDraft.trim());
+      setShowTickerModal(false);
+    } catch (err) {
+      alert("সংরক্ষণ করতে সমস্যা: " + err.message);
+    } finally {
+      setSavingTicker(false);
+    }
   };
 
   /* ─── Name save ─── */
@@ -1046,16 +1093,44 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* ═══ 2. TICKER ═══ */}
-        <div className="bg-orange-100 dark:bg-[#e76f51] text-orange-900 dark:text-[#030705] py-2 overflow-hidden flex items-center border-y border-orange-200 dark:border-y-yellow-500/30 shadow-sm dark:shadow-md relative z-20 transition-colors duration-300">
-          <div className="whitespace-nowrap w-full">
-            <span className="animate-marquee font-bold text-xs sm:text-sm tracking-wide">
-              <i className="fa-solid fa-bolt mr-2" /> চুয়েট অ্যাডভেঞ্চার সোসাইটি
-              একটি সম্পূর্ণ অলাভজনক এবং অরাজনৈতিক প্রতিষ্ঠান, ভ্রমণের মাধ্যমে
-              নিখাদ আনন্দ লাভ একমাত্র উদ্দেশ্য।{" "}
-              <i className="fa-solid fa-bolt ml-2" />
-            </span>
+        {/* ═══ 2. TICKER + BULLETIN ═══ */}
+        <div className="relative z-20">
+          {/* Main Ticker (Orange) */}
+          <div className="bg-orange-100 dark:bg-[#e76f51] text-orange-900 dark:text-[#030705] py-2 overflow-hidden flex items-center border-y border-orange-200 dark:border-y-yellow-500/30 shadow-sm dark:shadow-md relative transition-colors duration-300">
+            {isAdmin && (
+              <button
+                onClick={handleOpenTickerEditor}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-30 bg-white/80 dark:bg-black/60 hover:bg-[#e76f51] dark:hover:bg-[#e76f51] text-gray-800 hover:text-white dark:text-white w-7 h-7 rounded-full flex items-center justify-center transition-colors shadow-md border border-gray-200 dark:border-white/20"
+                aria-label="Edit ticker"
+                title="টিকার এডিট করুন"
+              >
+                <i className="fa-solid fa-pen text-[10px]" />
+              </button>
+            )}
+            <div className="whitespace-nowrap w-full">
+              <span className="animate-marquee font-bold text-xs sm:text-sm tracking-wide">
+                <i className="fa-solid fa-bolt mr-2" />{" "}
+                {tickerText || "চুয়েট অ্যাডভেঞ্চার সোসাইটি"}{" "}
+                <i className="fa-solid fa-bolt ml-2" />
+              </span>
+            </div>
           </div>
+
+          {/* Bulletin Ticker (Emerald) — only if text exists */}
+          {bulletinText && (
+            <div className="bg-emerald-100 dark:bg-[#2d6a4f] text-emerald-900 dark:text-emerald-50 py-1.5 overflow-hidden flex items-center border-b border-emerald-200 dark:border-emerald-700/40 shadow-sm relative transition-colors duration-300">
+              <div className="whitespace-nowrap w-full">
+                <span
+                  className="animate-marquee font-semibold text-[11px] sm:text-xs tracking-wide"
+                  style={{ animationDuration: "28s" }}
+                >
+                  <i className="fa-solid fa-bullhorn mr-2" />{" "}
+                  {bulletinText}{" "}
+                  <i className="fa-solid fa-bullhorn ml-2" />
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ═══ 3. COUNTDOWN ═══ */}
@@ -1683,6 +1758,81 @@ export default function HomePage() {
                   <i className="fa-solid fa-check" />
                 )}
                 {isUpdatingName ? "সেভ হচ্ছে..." : "নাম সেভ করুন"}
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {showTickerModal && (
+        <div className="fixed inset-0 z-[120] bg-black/70 dark:bg-black/85 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: EASE }}
+            className="bg-white dark:bg-[#0a1c13] border border-orange-200 dark:border-[#e76f51]/50 rounded-3xl p-6 sm:p-8 w-full max-w-lg shadow-2xl relative"
+          >
+            <button
+              onClick={() => setShowTickerModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/5 hover:bg-red-100 dark:hover:bg-red-500/20 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+            >
+              <i className="fa-solid fa-xmark" />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-orange-50 dark:bg-[#e76f51]/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-orange-200 dark:border-[#e76f51]/30">
+                <i className="fa-solid fa-bullhorn text-3xl text-[#e76f51]" />
+              </div>
+              <h3 className="text-2xl font-black text-gray-800 dark:text-white mb-2">
+                টিকার ও বুলেটিন এডিট
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                দুটো লেখাই এখান থেকে পরিবর্তন করুন।
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveTickerSettings} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">
+                  মেইন টিকার (কমলা)
+                </label>
+                <textarea
+                  value={tickerDraft}
+                  onChange={(e) => setTickerDraft(e.target.value)}
+                  required
+                  rows={3}
+                  placeholder="চুয়েট অ্যাডভেঞ্চার সোসাইটি..."
+                  className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 px-4 py-3 rounded-xl text-gray-800 dark:text-white outline-none focus:border-[#e76f51] transition-colors resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">
+                  বুলেটিন টিকার (সবুজ)
+                </label>
+                <textarea
+                  value={bulletinDraft}
+                  onChange={(e) => setBulletinDraft(e.target.value)}
+                  rows={3}
+                  placeholder="ক্লাবের ঘোষণা..."
+                  className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 px-4 py-3 rounded-xl text-gray-800 dark:text-white outline-none focus:border-emerald-500 transition-colors resize-none"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">
+                  খালি রাখলে বুলেটিন লুকিয়ে যাবে।
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingTicker}
+                className="w-full bg-[#e76f51] hover:bg-orange-600 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md flex justify-center items-center gap-2 disabled:opacity-70"
+              >
+                {savingTicker ? (
+                  <i className="fa-solid fa-circle-notch fa-spin" />
+                ) : (
+                  <i className="fa-solid fa-check" />
+                )}
+                {savingTicker ? "সেভ হচ্ছে..." : "সেভ করুন"}
               </button>
             </form>
           </motion.div>
