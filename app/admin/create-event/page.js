@@ -337,6 +337,7 @@ export default function CreateOrEditEvent() {
         deadline: formData.deadline,
         total_seats: parseInt(formData.totalSeats),
         booked_seats: 0,
+        available_seats: parseInt(formData.totalSeats),
         tour_fee: parseInt(formData.totalFee),
         booking_fee: parseInt(formData.bookingFee),
         refund_policy: formData.refundPolicy,
