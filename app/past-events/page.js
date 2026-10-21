@@ -6,13 +6,13 @@ import Link from 'next/link'
 import AOS from 'aos'
 import 'aos/dist/aos.css'
 
+// ✅ FIXED v1 — bookings থেকে গোনা
 export default function PastEventsPage() {
   const [events, setEvents] = useState([])
   const [filteredEvents, setFilteredEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   
-  // ফিল্টারিং স্টেট 
   const [filters, setFilters] = useState({ 
       category: 'All', 
       year: 'All', 
@@ -20,7 +20,6 @@ export default function PastEventsPage() {
       sortOrder: 'desc' 
   })
 
-  // 2014 থেকে 2100 পর্যন্ত সাল
   const allYears = Array.from({ length: 2100 - 2014 + 1 }, (_, i) => 2100 - i)
   
   const months = [
@@ -81,27 +80,27 @@ export default function PastEventsPage() {
 
         const totalExpeditions = data.length
 
-// 🔴 bookings টেবিল থেকে approved participants গোনা
-const eventIds = data.map(e => e.id)
-let bookingCounts = {}
+        // ✅ FIXED v1 — bookings থেকে গোনা (মূল পরিবর্তন এখানে)
+        const eventIds = data.map(e => e.id)
+        let bookingCounts = {}
 
-if (eventIds.length > 0) {
-  const { data: bookingsData } = await supabase
-    .from('bookings')
-    .select('event_id')
-    .in('event_id', eventIds)
-    .in('status', ['approved', 'free_booking'])
+        if (eventIds.length > 0) {
+          const { data: bookingsData } = await supabase
+            .from('bookings')
+            .select('event_id')
+            .in('event_id', eventIds)
+            .in('status', ['approved', 'free_booking'])
 
-  if (bookingsData) {
-    bookingsData.forEach(b => {
-      bookingCounts[b.event_id] = (bookingCounts[b.event_id] || 0) + 1
-    })
-  }
-}
+          if (bookingsData) {
+            bookingsData.forEach(b => {
+              bookingCounts[b.event_id] = (bookingCounts[b.event_id] || 0) + 1
+            })
+          }
+        }
 
-const totalExplorers = data.reduce((sum, ev) => {
-  return sum + (bookingCounts[ev.id] || 0)
-}, 0)
+        const totalExplorers = data.reduce((sum, ev) => {
+          return sum + (bookingCounts[ev.id] || 0)
+        }, 0)
 
         const totalDistance = data.reduce((sum, ev) => sum + (ev.stats_meta?.distance || 0), 0)
 
@@ -114,7 +113,6 @@ const totalExplorers = data.reduce((sum, ev) => {
     }
   }
 
-  // অ্যাডভান্সড ফিল্টার ও সর্টিং লজিক
   useEffect(() => {
     let result = [...events] 
 
@@ -139,7 +137,6 @@ const totalExplorers = data.reduce((sum, ev) => {
     setFilteredEvents(result)
   }, [filters, events])
 
-  // ডিলিট লজিক (Rollback সহ)
   const handleMoveToTrash = async () => {
     try {
       const { data: bookings } = await supabase
@@ -227,7 +224,6 @@ const totalExplorers = data.reduce((sum, ev) => {
   return (
     <div className="min-h-screen bg-pastel-bg dark:bg-darkForest text-gray-800 dark:text-gray-300 font-sans relative overflow-x-hidden pt-20 sm:pt-24 pb-16 transition-colors duration-500">
       
-      {/* Background Glow Orbs */}
       <div className="fixed inset-0 z-0 pointer-events-none transition-colors duration-500">
         <div className="absolute top-0 right-0 w-64 sm:w-96 h-64 sm:h-96 bg-campfire/10 dark:bg-campfire/5 rounded-full blur-[100px] sm:blur-[120px] transition-colors"></div>
         <div className="absolute bottom-0 left-0 w-64 sm:w-96 h-64 sm:h-96 bg-trail/10 dark:bg-trail/5 rounded-full blur-[100px] sm:blur-[120px] transition-colors"></div>
@@ -277,7 +273,6 @@ const totalExplorers = data.reduce((sum, ev) => {
           </div>
         </div>
 
-        {/* Filter Section */}
         <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3 sm:p-4 rounded-xl sm:rounded-2xl mb-8 sm:mb-10 backdrop-blur-sm mx-2 sm:mx-0 shadow-sm dark:shadow-none transition-colors duration-500" data-aos="fade-up" data-aos-delay="200">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
             
@@ -337,7 +332,6 @@ const totalExplorers = data.reduce((sum, ev) => {
           </div>
         </div>
 
-        {/* Events Grid */}
         {loading ? (
           <div className="py-20 flex justify-center items-center">
             <i className="fa-solid fa-compass fa-spin text-4xl sm:text-5xl text-campfire"></i>
@@ -352,7 +346,6 @@ const totalExplorers = data.reduce((sum, ev) => {
             {filteredEvents.map((ev, index) => (
               <div key={ev.id} className="relative group block" data-aos="fade-up" data-aos-delay={(index % 4) * 50}>
                 
-                {/* Admin Edit & Delete Buttons */}
                 {isAdmin && (
                   <div className="absolute top-2 right-2 z-30 flex flex-col gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <Link 
@@ -412,7 +405,6 @@ const totalExplorers = data.reduce((sum, ev) => {
         )}
       </div>
 
-      {/* Delete Modal */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 dark:bg-black/80 backdrop-blur-sm p-4 transition-colors duration-500">
           <div className="bg-white dark:bg-moss border border-red-200 dark:border-red-500/30 rounded-2xl p-6 max-w-sm w-full mx-auto relative shadow-2xl dark:shadow-[0_0_30px_rgba(239,68,68,0.2)] transition-colors duration-500">
