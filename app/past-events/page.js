@@ -80,13 +80,28 @@ export default function PastEventsPage() {
         setFilteredEvents(data)
 
         const totalExpeditions = data.length
-        const totalExplorers = data.reduce((sum, ev) => {
-          const participants = ev.booked_seats > 0 
-            ? ev.booked_seats 
-            : Math.max(0, (ev.total_seats || 0) - (ev.available_seats || 0));
-            
-          return sum + participants;
-        }, 0);
+
+// 🔴 bookings টেবিল থেকে approved participants গোনা
+const eventIds = data.map(e => e.id)
+let bookingCounts = {}
+
+if (eventIds.length > 0) {
+  const { data: bookingsData } = await supabase
+    .from('bookings')
+    .select('event_id')
+    .in('event_id', eventIds)
+    .in('status', ['approved', 'free_booking'])
+
+  if (bookingsData) {
+    bookingsData.forEach(b => {
+      bookingCounts[b.event_id] = (bookingCounts[b.event_id] || 0) + 1
+    })
+  }
+}
+
+const totalExplorers = data.reduce((sum, ev) => {
+  return sum + (bookingCounts[ev.id] || 0)
+}, 0)
 
         const totalDistance = data.reduce((sum, ev) => sum + (ev.stats_meta?.distance || 0), 0)
 
