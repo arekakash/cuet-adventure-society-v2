@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -37,6 +37,16 @@ export default function EditEvent() {
   const [paymentMethods, setPaymentMethods] = useState([])
   const [memoryLinks, setMemoryLinks] = useState([{ id: Date.now(), title: '', url: '' }])
 
+  // 🔴 Team Leader Autocomplete States
+  const [leaderResults, setLeaderResults] = useState([])
+  const [leaderSearching, setLeaderSearching] = useState(false)
+  const [leaderSelectedId, setLeaderSelectedId] = useState(null)
+  const [showLeaderDropdown, setShowLeaderDropdown] = useState(false)
+  const [leaderHighlightIndex, setLeaderHighlightIndex] = useState(-1)
+  const leaderWrapRef = useRef(null)
+  const leaderDebounceRef = useRef(null)
+  const leaderSearchIdRef = useRef(0)
+
   const [formData, setFormData] = useState({
     title: '', category: 'Trekking', destination: '',
     startDate: '', endDate: '', reportingPlace: '', deadline: '',
@@ -47,23 +57,36 @@ export default function EditEvent() {
     metaTreks: 1, metaDistance: '', metaNights: 0
   })
 
+  // 🔴 Preset text unified with Create page
   const presetIncluded = [
-    "চুয়েট-গন্তব্য আপ-ডাউন ভাড়া", "প্রতিদিন ৩ বেলা মূল খাবার (ভারী খাবার)",
-    "রিসোর্ট/হোটেল/কটেজ শেয়ারিং রুম", "ক্যাম্পিং টেন্ট ও স্লিপিং গিয়ার সাপোর্ট",
-    "লোকাল জিপ/চাঁদের গাড়ি/মহিন্দ্রা রিজার্ভ", "ট্রলার বা বোট ভাড়া (লাইফ জ্যাকেটসহ)",
-    "অভিজ্ঞ লোকাল ও ক্লাবের ট্রেইল গাইড", "বন বিভাগ ও স্থানীয় প্রশাসনের অনুমতি ফি",
-    "পার্ক, ট্রেইল ও দর্শনীয় স্থানের এন্ট্রি ফি", "স্পেশাল বারবিকিউ ডিনার",
-    "বিকেলের হালকা স্ন্যাঙ্কস ও পাহাড়ি চা", "ক্লাবের প্রাথমিক চিকিৎসা ও ফার্স্ট এইড কিট",
-    "গ্রুপ মেম্বারদের জন্য অফিসিয়াল রিস্টব্যান্ড/ব্যাজ", "নিরাপত্তা ও রুট কো-অর্ডিনেশন",
+    "চুয়েট - গন্তব্য আপ ডাউন ভাড়া",
+    "প্রতিদিন ৩ বেলা মূল খাবার (ভারী খাবার)",
+    "রিসোর্ট/হোটেল/কটেজ শেয়ারিং রুম",
+    "ক্যাম্পিং টেন্ট ও স্লিপিং গিয়ার সাপোর্ট",
+    "লোকাল জিপ/চাঁদের গাড়ি/মহিন্দ্রা রিজার্ভ",
+    "ট্রলার বা বোট ভাড়া (লাইফ জ্যাকেটসহ)",
+    "অভিজ্ঞ লোকাল ও ক্লাবের ট্রেইল গাইড",
+    "বন বিভাগ ও স্থানীয় প্রশাসনের অনুমতি ফি",
+    "পার্ক, ট্রেইল ও দর্শনীয় স্থানের এন্ট্রি ফি",
+    "স্পেশাল বারবিকিউ ডিনার",
+    "বিকেলের হালকা স্ন্যাঙ্কস ও পাহাড়ি চা",
+    "ক্লাবের প্রাথমিক চিকিৎসা ও ফার্স্ট এইড কিট",
+    "গ্রুপ মেম্বারদের জন্য অফিসিয়াল রিস্টব্যান্ড/ব্যাজ",
+    "নিরাপত্তা ও রুট কো-অর্ডিনেশন",
     "জরুরি স্যাটেলাইট/টুল ব্যাকআপ সাপোর্ট"
   ]
 
   const presetExcluded = [
-    "বাসযাত্রার বিরতির ব্যক্তিগত খাবার ও নাস্তা", "কোনো প্রকার ব্যক্তিগত কেনাকাটা ও স্যুভেনিয়ার",
-    "ব্যক্তিগত ওষুধপত্র ও বিশেষ চিকিৎসা খরচ", "পোর্টার বা ব্যক্তিগত ব্যাগ টানার কুলি খরচ",
-    "ক্যামেরা, ডিএসএলআর বা ড্রোন ওড়ানোর স্পেশাল ফি", "প্যারাসেইলিং, স্কুটার বা ওয়াটার স্পোর্টস ফি",
-    "আলাদা বা কাপল রুম নিলে অতিরিক্ত রুম চার্জ", "মোবাইল চার্জিং বা পাহাড়ি এলাকায় হট ওয়াটার ফি",
-    "হঠাৎ প্রাকৃতিক দুর্যোগে আটকে গেলে অতিরিক্ত খরচ", "বাসের নির্দিষ্ট স্টপ ছাড়া অন্য কোথাও নামা বা ওঠার খরচ"
+    "বাসযাত্রার বিরতির ব্যক্তিগত খাবার ও নাস্তা",
+    "কোনো প্রকার ব্যক্তিগত কেনাকাটা ও স্যুভেনিয়ার",
+    "ব্যক্তিগত ওষুধপত্র ও বিশেষ চিকিৎসা খরচ",
+    "পোর্টার বা ব্যক্তিগত ব্যাগ টানার কুলি খরচ",
+    "ক্যামেরা, ডিএসএলআর বা ড্রোন ওড়ানোর স্পেশাল ফি",
+    "প্যারাসেইলিং, স্কুটার বা ওয়াটার স্পোর্টস ফি",
+    "আলাদা বা কাপল রুম নিলে অতিরিক্ত রুম চার্জ",
+    "মোবাইল চার্জিং বা পাহাড়ি এলাকায় হট ওয়াটার ফি",
+    "হঠাৎ প্রাকৃতিক দুর্যোগে আটকে গেলে অতিরিক্ত খরচ",
+    "বাসের নির্দিষ্ট স্টপ ছাড়া অন্য কোথাও নামা বা ওঠার খরচ"
   ]
 
   const [tags, setTags] = useState({ included: [], gear: [], excluded: [], warnings: [] })
@@ -90,6 +113,17 @@ export default function EditEvent() {
     }
   }, [])
 
+  // 🔴 Close leader dropdown on outside click
+  useEffect(() => {
+    const onMouseDown = (e) => {
+      if (leaderWrapRef.current && !leaderWrapRef.current.contains(e.target)) {
+        setShowLeaderDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
+
   const fetchEventData = async (id) => {
     try {
       const { data, error } = await supabase.from('events').select('*').eq('id', id).single()
@@ -111,6 +145,9 @@ export default function EditEvent() {
           totalDays: data.itinerary ? data.itinerary.length : 1,
           metaTreks: data.stats_meta?.treks || 0, metaDistance: data.stats_meta?.distance || 0, metaNights: data.stats_meta?.nights || 0
         })
+
+        // 🔴 Restore previously saved leader link
+        setLeaderSelectedId(data.stats_meta?.leader_id || null)
 
         let parsedPayments = []
         if (typeof data.payment_methods === 'string') {
@@ -163,6 +200,86 @@ export default function EditEvent() {
         }))
         setItinerary(newItinerary)
       }
+    }
+  }
+
+  // 🔴 Team Leader Autocomplete — Core Helpers
+  const triggerLeaderSearch = async (term) => {
+    const searchId = ++leaderSearchIdRef.current
+    try {
+      const safeTerm = term.replace(/[,()]/g, '')
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, student_id, department, batch, photo_url')
+        .or(`full_name.ilike.%${safeTerm}%,student_id.ilike.%${safeTerm}%`)
+        .limit(8)
+
+      if (searchId !== leaderSearchIdRef.current) return
+      if (!error) setLeaderResults(data || [])
+    } catch (err) {
+      if (searchId !== leaderSearchIdRef.current) return
+      console.error('Leader search failed:', err)
+      setLeaderResults([])
+    } finally {
+      if (searchId === leaderSearchIdRef.current) {
+        setLeaderSearching(false)
+      }
+    }
+  }
+
+  const handleLeaderChange = (e) => {
+    const value = e.target.value
+    setFormData(prev => ({ ...prev, teamLeader: value }))
+    setLeaderSelectedId(null)
+    setLeaderHighlightIndex(-1)
+
+    if (leaderDebounceRef.current) clearTimeout(leaderDebounceRef.current)
+
+    const trimmed = value.trim()
+    if (trimmed.length < 2) {
+      setLeaderResults([])
+      setShowLeaderDropdown(false)
+      setLeaderSearching(false)
+      return
+    }
+
+    setShowLeaderDropdown(true)
+    setLeaderSearching(true)
+    leaderDebounceRef.current = setTimeout(() => triggerLeaderSearch(trimmed), 350)
+  }
+
+  const handleLeaderSelect = (profile) => {
+    setFormData(prev => ({ ...prev, teamLeader: profile.full_name || '' }))
+    setLeaderSelectedId(profile.id)
+    setShowLeaderDropdown(false)
+    setLeaderResults([])
+    setLeaderHighlightIndex(-1)
+  }
+
+  const clearLeaderSelection = () => {
+    setLeaderSelectedId(null)
+    setFormData(prev => ({ ...prev, teamLeader: '' }))
+    setLeaderResults([])
+    setShowLeaderDropdown(false)
+    setLeaderHighlightIndex(-1)
+    if (leaderDebounceRef.current) clearTimeout(leaderDebounceRef.current)
+  }
+
+  const handleLeaderKeyDown = (e) => {
+    if (!showLeaderDropdown) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setLeaderHighlightIndex(prev => Math.min(prev + 1, leaderResults.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setLeaderHighlightIndex(prev => Math.max(prev - 1, 0))
+    } else if (e.key === 'Enter') {
+      if (leaderHighlightIndex >= 0 && leaderResults[leaderHighlightIndex]) {
+        e.preventDefault()
+        handleLeaderSelect(leaderResults[leaderHighlightIndex])
+      }
+    } else if (e.key === 'Escape') {
+      setShowLeaderDropdown(false)
     }
   }
 
@@ -309,7 +426,8 @@ export default function EditEvent() {
         stats_meta: {
             treks: newTreks,
             distance: newDistance,
-            nights: isDayEvent ? 0 : (parseInt(formData.metaNights) || 0)
+            nights: isDayEvent ? 0 : (parseInt(formData.metaNights) || 0),
+            leader_id: leaderSelectedId || null
         }
       }
 
@@ -472,7 +590,8 @@ export default function EditEvent() {
 
   const isDayEvent = formData.category === 'Day Tour' || formData.category === 'Workshop'
   const isCycling = formData.category === 'Cycling'
-  const isSwimming = formData.category === 'Swimming' || formData.category === 'Houseboat/Cruise'
+  // 🔴 Fixed: removed 'Houseboat/Cruise' from isSwimming to match Create page
+  const isSwimming = formData.category === 'Swimming'
   const isRunning = formData.category === 'Running'
 
   return (
@@ -614,7 +733,6 @@ export default function EditEvent() {
                               <label className="block text-[10px] text-gray-600 dark:text-gray-400 mb-1 transition-colors">প্লাটফর্ম</label>
                               <select value={pm.provider} onChange={(e) => updatePaymentMethod(pm.id, 'provider', e.target.value)} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-2 text-gray-900 dark:text-white text-xs outline-none focus:border-emerald-500 transition-colors">
                                 <option value="bkash">বিকাশ (bKash)</option>
-                                {/* 🔴 বাগ ফিক্স: ম্যানুয়ালি টাইপ করা ফ্রেশ অপশন */}
                                 <option value="nagad">নগদ (Nagad)</option>
                                 <option value="rocket">রকেট (Rocket)</option>
                                 <option value="bank">ব্যাংক ট্রান্সফার (Bank)</option>
@@ -731,9 +849,81 @@ export default function EditEvent() {
                       </div>
                     )}
 
-                    <div>
-                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">টিম লিডার *</label>
-                        <input type="text" id="teamLeader" required value={formData.teamLeader} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 rounded-xl text-gray-900 dark:text-white transition-colors outline-none focus:border-purple-500 dark:focus:border-purple-400" />
+                    {/* 🔴 Team Leader — Autocomplete with Manual Fallback (dark-mode ready) */}
+                    <div ref={leaderWrapRef}>
+                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase transition-colors">
+                            টিম লিডার *
+                            {leaderSelectedId && <span className="ml-2 text-emerald-600 dark:text-emerald-400 normal-case text-[10px] font-bold transition-colors">✓ Registered Member</span>}
+                            {!leaderSelectedId && formData.teamLeader.trim() && <span className="ml-2 text-amber-600 dark:text-amber-400 normal-case text-[10px] font-bold transition-colors">Manual Entry</span>}
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                id="teamLeader"
+                                required
+                                value={formData.teamLeader}
+                                onChange={handleLeaderChange}
+                                onKeyDown={handleLeaderKeyDown}
+                                onFocus={() => {
+                                    if (!leaderSelectedId && formData.teamLeader.trim().length >= 2 && leaderResults.length > 0) {
+                                        setShowLeaderDropdown(true)
+                                    }
+                                }}
+                                placeholder="রেজিস্টার্ড মেম্বার খুঁজুন অথবা নাম লিখুন..."
+                                className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-4 pr-12 rounded-xl text-gray-900 dark:text-white transition-colors outline-none focus:border-purple-500 dark:focus:border-purple-400"
+                                autoComplete="off"
+                            />
+                            {formData.teamLeader && (
+                                <button
+                                    type="button"
+                                    onClick={clearLeaderSelection}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-400 transition-colors"
+                                    title="Clear"
+                                >
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+                            )}
+
+                            {showLeaderDropdown && (
+                                <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-[#0a1c13] border border-purple-300 dark:border-purple-500/30 rounded-xl shadow-2xl max-h-72 overflow-y-auto z-50 transition-colors">
+                                    {leaderSearching && (
+                                        <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 transition-colors">
+                                            <i className="fa-solid fa-circle-notch fa-spin mr-2"></i> খোঁজা হচ্ছে...
+                                        </div>
+                                    )}
+                                    {!leaderSearching && leaderResults.length === 0 && formData.teamLeader.trim().length >= 2 && (
+                                        <div className="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 transition-colors">
+                                            কোনো রেজিস্টার্ড মেম্বার পাওয়া যায়নি — ম্যানুয়ালি নাম লিখে চালিয়ে যান
+                                        </div>
+                                    )}
+                                    {leaderResults.map((p, idx) => (
+                                        <button
+                                            key={p.id}
+                                            type="button"
+                                            onClick={() => handleLeaderSelect(p)}
+                                            onMouseEnter={() => setLeaderHighlightIndex(idx)}
+                                            className={`w-full text-left px-4 py-3 flex items-center gap-3 border-b border-gray-100 dark:border-white/5 last:border-0 transition-colors ${
+                                                leaderHighlightIndex === idx ? 'bg-purple-100 dark:bg-purple-500/20' : 'hover:bg-gray-50 dark:hover:bg-white/5'
+                                            }`}
+                                        >
+                                            {p.photo_url ? (
+                                                <img src={p.photo_url} alt="" className="w-9 h-9 rounded-full object-cover border border-gray-200 dark:border-white/10" />
+                                            ) : (
+                                                <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 text-xs font-bold transition-colors">
+                                                    {(p.full_name || '?').charAt(0).toUpperCase()}
+                                                </div>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-bold text-gray-900 dark:text-white truncate transition-colors">{p.full_name || 'Unknown'}</div>
+                                                <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate transition-colors">
+                                                    {[p.student_id, p.department, p.batch].filter(Boolean).join(' • ') || 'No details'}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                     
                     <div>
@@ -758,7 +948,7 @@ export default function EditEvent() {
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                         <div>
                           <label className="block text-sm font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2 uppercase tracking-widest transition-colors"><i className="fa-solid fa-film"></i> মেমোরি লেন (ফটো/ভিডিও ফোল্ডার)</label>
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 transition-colors">ইভেন্ট সম্পন্ন হওয়ার পর ইউজারদের ছবি ও ভিডিও দেখার জন্য একাধিক লিংক যোগ করতে পারবেন।</p>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 transition-colors">ইভেন্ট সম্পন্ন হওয়ার পর ইউজারদের ছবি ও ভিডিও দেখার জন্য একাধিক লিংক যোগ করতে পারবেন।</p>
                         </div>
                         <button type="button" onClick={addMemoryLink} className="bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-indigo-200 dark:border-indigo-500/30 whitespace-nowrap">
                           <i className="fa-solid fa-plus mr-1"></i> নতুন লিংক যোগ করুন
