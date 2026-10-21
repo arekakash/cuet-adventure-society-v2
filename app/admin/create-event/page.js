@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -32,6 +32,16 @@ export default function CreateOrEditEvent() {
 
   // 🔴 Payment Methods State
   const [paymentMethods, setPaymentMethods] = useState([])
+
+  // 🔴 Team Leader Autocomplete States
+  const [leaderResults, setLeaderResults] = useState([])
+  const [leaderSearching, setLeaderSearching] = useState(false)
+  const [leaderSelectedId, setLeaderSelectedId] = useState(null)
+  const [showLeaderDropdown, setShowLeaderDropdown] = useState(false)
+  const [leaderHighlightIndex, setLeaderHighlightIndex] = useState(-1)
+  const leaderWrapRef = useRef(null)
+  const leaderDebounceRef = useRef(null)
+  const leaderSearchIdRef = useRef(0)
 
   // ফর্মের সাধারণ ডেটা
   const [formData, setFormData] = useState({
@@ -101,6 +111,97 @@ export default function CreateOrEditEvent() {
       }
     }
   }
+
+  // 🔴 Team Leader Autocomplete — Core Helpers
+  const triggerLeaderSearch = async (term) => {
+    const searchId = ++leaderSearchIdRef.current
+    try {
+      const safeTerm = term.replace(/[,()]/g, '')
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, student_id, department, batch, photo_url')
+        .or(`full_name.ilike.%${safeTerm}%,student_id.ilike.%${safeTerm}%`)
+        .limit(8)
+
+      if (searchId !== leaderSearchIdRef.current) return
+      if (!error) setLeaderResults(data || [])
+    } catch (err) {
+      if (searchId !== leaderSearchIdRef.current) return
+      console.error('Leader search failed:', err)
+      setLeaderResults([])
+    } finally {
+      if (searchId === leaderSearchIdRef.current) {
+        setLeaderSearching(false)
+      }
+    }
+  }
+
+  const handleLeaderChange = (e) => {
+    const value = e.target.value
+    setFormData(prev => ({ ...prev, teamLeader: value }))
+    setLeaderSelectedId(null)
+    setLeaderHighlightIndex(-1)
+
+    if (leaderDebounceRef.current) clearTimeout(leaderDebounceRef.current)
+
+    const trimmed = value.trim()
+    if (trimmed.length < 2) {
+      setLeaderResults([])
+      setShowLeaderDropdown(false)
+      setLeaderSearching(false)
+      return
+    }
+
+    setShowLeaderDropdown(true)
+    setLeaderSearching(true)
+    leaderDebounceRef.current = setTimeout(() => triggerLeaderSearch(trimmed), 350)
+  }
+
+  const handleLeaderSelect = (profile) => {
+    setFormData(prev => ({ ...prev, teamLeader: profile.full_name || '' }))
+    setLeaderSelectedId(profile.id)
+    setShowLeaderDropdown(false)
+    setLeaderResults([])
+    setLeaderHighlightIndex(-1)
+  }
+
+  const clearLeaderSelection = () => {
+    setLeaderSelectedId(null)
+    setFormData(prev => ({ ...prev, teamLeader: '' }))
+    setLeaderResults([])
+    setShowLeaderDropdown(false)
+    setLeaderHighlightIndex(-1)
+    if (leaderDebounceRef.current) clearTimeout(leaderDebounceRef.current)
+  }
+
+  const handleLeaderKeyDown = (e) => {
+    if (!showLeaderDropdown) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setLeaderHighlightIndex(prev => Math.min(prev + 1, leaderResults.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setLeaderHighlightIndex(prev => Math.max(prev - 1, 0))
+    } else if (e.key === 'Enter') {
+      if (leaderHighlightIndex >= 0 && leaderResults[leaderHighlightIndex]) {
+        e.preventDefault()
+        handleLeaderSelect(leaderResults[leaderHighlightIndex])
+      }
+    } else if (e.key === 'Escape') {
+      setShowLeaderDropdown(false)
+    }
+  }
+
+  // 🔴 Close leader dropdown on outside click
+  useEffect(() => {
+    const onMouseDown = (e) => {
+      if (leaderWrapRef.current && !leaderWrapRef.current.contains(e.target)) {
+        setShowLeaderDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
 
   // 🔴 Dynamic Payment Methods Handlers
   const addPaymentMethod = () => {
@@ -250,7 +351,8 @@ export default function CreateOrEditEvent() {
         stats_meta: {
             treks: parseInt(formData.metaTreks) || 0,
             distance: parseInt(formData.metaDistance) || 0,
-            nights: isDayEvent ? 0 : (parseInt(formData.metaNights) || 0)
+            nights: isDayEvent ? 0 : (parseInt(formData.metaNights) || 0),
+            leader_id: leaderSelectedId || null
         },
         status: "upcoming"
       }
@@ -558,9 +660,81 @@ export default function CreateOrEditEvent() {
                       </div>
                     )}
 
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">টিম লিডার *</label>
-                        <input type="text" id="teamLeader" required value={formData.teamLeader} onChange={handleInputChange} placeholder="Team Leader Name" className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white" />
+                    {/* 🔴 Team Leader — Autocomplete with Manual Fallback */}
+                    <div ref={leaderWrapRef}>
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
+                            টিম লিডার *
+                            {leaderSelectedId && <span className="ml-2 text-emerald-400 normal-case text-[10px] font-bold">✓ Registered Member</span>}
+                            {!leaderSelectedId && formData.teamLeader.trim() && <span className="ml-2 text-amber-400 normal-case text-[10px] font-bold">Manual Entry</span>}
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                id="teamLeader"
+                                required
+                                value={formData.teamLeader}
+                                onChange={handleLeaderChange}
+                                onKeyDown={handleLeaderKeyDown}
+                                onFocus={() => {
+                                    if (!leaderSelectedId && formData.teamLeader.trim().length >= 2 && leaderResults.length > 0) {
+                                        setShowLeaderDropdown(true)
+                                    }
+                                }}
+                                placeholder="রেজিস্টার্ড মেম্বার খুঁজুন অথবা নাম লিখুন..."
+                                className="w-full bg-black/40 border border-white/10 p-4 pr-12 rounded-xl text-white outline-none focus:border-purple-400"
+                                autoComplete="off"
+                            />
+                            {formData.teamLeader && (
+                                <button
+                                    type="button"
+                                    onClick={clearLeaderSelection}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-400 transition-colors"
+                                    title="Clear"
+                                >
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+                            )}
+
+                            {showLeaderDropdown && (
+                                <div className="absolute left-0 right-0 top-full mt-2 bg-[#0a1c13] border border-purple-500/30 rounded-xl shadow-2xl max-h-72 overflow-y-auto z-50">
+                                    {leaderSearching && (
+                                        <div className="px-4 py-3 text-sm text-gray-400">
+                                            <i className="fa-solid fa-circle-notch fa-spin mr-2"></i> খোঁজা হচ্ছে...
+                                        </div>
+                                    )}
+                                    {!leaderSearching && leaderResults.length === 0 && formData.teamLeader.trim().length >= 2 && (
+                                        <div className="px-4 py-3 text-xs text-gray-500">
+                                            কোনো রেজিস্টার্ড মেম্বার পাওয়া যায়নি — ম্যানুয়ালি নাম লিখে চালিয়ে যান
+                                        </div>
+                                    )}
+                                    {leaderResults.map((p, idx) => (
+                                        <button
+                                            key={p.id}
+                                            type="button"
+                                            onClick={() => handleLeaderSelect(p)}
+                                            onMouseEnter={() => setLeaderHighlightIndex(idx)}
+                                            className={`w-full text-left px-4 py-3 flex items-center gap-3 border-b border-white/5 last:border-0 transition-colors ${
+                                                leaderHighlightIndex === idx ? 'bg-purple-500/20' : 'hover:bg-white/5'
+                                            }`}
+                                        >
+                                            {p.photo_url ? (
+                                                <img src={p.photo_url} alt="" className="w-9 h-9 rounded-full object-cover border border-white/10" />
+                                            ) : (
+                                                <div className="w-9 h-9 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 text-xs font-bold">
+                                                    {(p.full_name || '?').charAt(0).toUpperCase()}
+                                                </div>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-bold text-white truncate">{p.full_name || 'Unknown'}</div>
+                                                <div className="text-[11px] text-gray-400 truncate">
+                                                    {[p.student_id, p.department, p.batch].filter(Boolean).join(' • ') || 'No details'}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                     
                     <div>
@@ -721,4 +895,4 @@ export default function CreateOrEditEvent() {
       </div>
     </div>
   )
-}
+}             
