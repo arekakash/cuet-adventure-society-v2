@@ -4,6 +4,8 @@ import { useState, useEffect, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import AOS from 'aos'
+import 'aos/dist/aos.css'
 
 function EventDetailsContent() {
   const searchParams = useSearchParams()
@@ -15,7 +17,9 @@ function EventDetailsContent() {
   const [user, setUser] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
-  
+  // 🔴 NEW: Leader profile for royal card
+  const [leaderProfile, setLeaderProfile] = useState(null)
+
   const [bookingStatus, setBookingStatus] = useState(null)
   const [processing, setProcessing] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -33,10 +37,22 @@ function EventDetailsContent() {
   const [interestedExplorers, setInterestedExplorers] = useState([])
 
   const [showAdminAddModal, setShowAdminAddModal] = useState(false)
-  const [adminAddTab, setAdminAddTab] = useState('search') 
+  const [adminAddTab, setAdminAddTab] = useState('search')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [newMemberForm, setNewMemberForm] = useState({ full_name: '', department: '', batch: '' })
+
+  // 🔴 NEW: AOS init once
+  useEffect(() => {
+    AOS.init({ once: true, duration: 800, offset: 50 })
+  }, [])
+
+  // 🔴 NEW: refresh AOS after content renders (data load → DOM changes)
+  useEffect(() => {
+    if (!loading) {
+      setTimeout(() => AOS.refreshHard(), 100)
+    }
+  }, [loading])
 
   useEffect(() => {
     let isMounted = true
@@ -51,6 +67,16 @@ function EventDetailsContent() {
 
         if (eventError) throw eventError
         if (isMounted) setEvent(eventData)
+
+        // 🔴 NEW: Fetch leader profile if leader_id exists
+        if (eventData.stats_meta?.leader_id) {
+          const { data: leaderData } = await supabase
+            .from('profiles')
+            .select('id, full_name, photo_url, department, batch, role')
+            .eq('id', eventData.stats_meta.leader_id)
+            .single()
+          if (isMounted && leaderData) setLeaderProfile(leaderData)
+        }
 
         if (eventData.status === 'completed') {
           const { data: bookingData } = await supabase
@@ -67,7 +93,7 @@ function EventDetailsContent() {
               .filter(b => b.status === 'approved')
               .map(b => b.profiles)
               .filter(Boolean)
-            
+
             const interested = bookingData
               .filter(b => b.status === 'interested' || b.status === 'pending' || b.status === 'free_booking' || b.status === 'claim_pending')
               .map(b => b.profiles)
@@ -81,13 +107,13 @@ function EventDetailsContent() {
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
           if (isMounted) setUser(session.user)
-          
+
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single()
-            
+
           if (isMounted) {
             setUserProfile(profile)
             if (profile?.role === 'admin') setIsAdmin(true)
@@ -112,7 +138,7 @@ function EventDetailsContent() {
     }
 
     if (eventId) fetchData()
-    
+
     return () => { isMounted = false }
   }, [eventId])
 
@@ -134,20 +160,20 @@ function EventDetailsContent() {
   const handleAttendanceClaim = async () => {
     if (!checkProfileCompletion()) return
     if (!window.confirm("আপনি কি এই ইভেন্টে অংশগ্রহণ করেছিলেন? আপনার ক্লেইম অ্যাডমিন প্যানেলে ভেরিফিকেশনের জন্য পাঠানো হবে।")) return
-    
+
     setProcessing(true)
     try {
       const { error } = await supabase.from('bookings').upsert({
         user_id: user.id, event_id: eventId, status: 'claim_pending', payment_method: 'none', trx_id: 'CLAIM'
       }, { onConflict: 'user_id, event_id' })
-      
+
       if (error) throw error
       setBookingStatus('claim_pending')
       alert("আপনার ক্লেইম সফলভাবে পাঠানো হয়েছে। অ্যাডমিন অ্যাপ্রুভ করলে এটি প্রোফাইলে যুক্ত হবে।")
-    } catch (err) { 
-      alert(err.message) 
-    } finally { 
-      setProcessing(false) 
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setProcessing(false)
     }
   }
 
@@ -177,12 +203,12 @@ function EventDetailsContent() {
       const { error } = await supabase.from('bookings').upsert({
         user_id: memberId, event_id: eventId, status: 'approved', payment_method: 'admin_added', trx_id: 'ADMIN'
       }, { onConflict: 'user_id, event_id' })
-      
+
       if (error) throw error
 
       if (event.status === 'completed') {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', memberId).single()
-        
+
         if (profile) {
           const statsMeta = event.stats_meta || {}
           const category = (event.category || "").toLowerCase().trim()
@@ -229,7 +255,7 @@ function EventDetailsContent() {
     setProcessing(true)
     try {
       const fakeId = `offline-${Date.now()}`
-      
+
       let initialStats = {
         survival_iq: 0, total_events: 0, total_treks: 0, total_distance: 0,
         total_rides: 0, cycling_distance: 0, total_swims: 0, swimming_distance: 0,
@@ -262,19 +288,19 @@ function EventDetailsContent() {
       const { error: profileError } = await supabase.from('profiles').insert([{
         id: fakeId,
         full_name: newMemberForm.full_name,
-        department: newMemberForm.department ? newMemberForm.department.toUpperCase() : null, 
-        batch: newMemberForm.batch ? newMemberForm.batch : null, 
+        department: newMemberForm.department ? newMemberForm.department.toUpperCase() : null,
+        batch: newMemberForm.batch ? newMemberForm.batch : null,
         role: 'explorer',
         is_offline: true,
-        ...initialStats 
+        ...initialStats
       }])
-      
+
       if (profileError) throw profileError
 
       const { error: bookingError } = await supabase.from('bookings').insert([{
         user_id: fakeId, event_id: eventId, status: 'approved', payment_method: 'admin_created', trx_id: 'ADMIN_OFFLINE'
       }])
-      
+
       if (bookingError) throw bookingError
 
       alert("নতুন অ্যাকাউন্ট খোলা হয়েছে এবং পয়েন্ট যুক্ত করে ইভেন্টে অ্যাড করা হয়েছে! পেজটি রিলোড করুন।")
@@ -310,16 +336,16 @@ function EventDetailsContent() {
       const { error } = await supabase.from('bookings').upsert({
         user_id: user.id, event_id: eventId, status: 'pending', payment_method: finalPaymentMethodStr, trx_id: finalTrxId
       }, { onConflict: 'user_id, event_id' })
-      
+
       if (error) throw error
-      
+
       setBookingStatus('pending')
       setShowPaymentModal(false)
       alert("বুকিং রিকোয়েস্ট সফলভাবে পাঠানো হয়েছে!")
-    } catch (err) { 
-      alert(err.message) 
-    } finally { 
-      setProcessing(false) 
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setProcessing(false)
     }
   }
 
@@ -357,40 +383,39 @@ function EventDetailsContent() {
   const isPastEvent = event.status === 'completed'
   const isCycling = event.category === 'Cycling'
   const isSwimming = event.category === 'Swimming' || event.category === 'Houseboat/Cruise'
-  const isRunning = event.category === 'Running' 
+  const isRunning = event.category === 'Running'
   const isDayEvent = event.category === 'Day Tour' || event.category === 'Workshop'
 
   const getDistanceIcon = () => {
     if (isCycling) return 'fa-solid fa-bicycle'
     if (isSwimming) return 'fa-solid fa-person-swimming'
-    if (isRunning) return 'fa-solid fa-person-running' 
+    if (isRunning) return 'fa-solid fa-person-running'
     return 'fa-solid fa-shoe-prints'
   }
 
   const getDistanceLabel = () => {
     if (isCycling) return 'রাইডিং দূরত্ব'
     if (isSwimming) return 'সাঁতারের দূরত্ব'
-    if (isRunning) return 'দৌড়ের দূরত্ব' 
+    if (isRunning) return 'দৌড়ের দূরত্ব'
     return 'দূরত্ব অতিক্রম'
   }
 
   const getRewardLabel = () => {
     if (isCycling) return 'Rides'
     if (isSwimming) return 'Swims'
-    if (isRunning) return 'Runs' 
+    if (isRunning) return 'Runs'
     return 'Treks'
   }
 
   const isUserApproved = user && approvedExplorers.some(exp => exp.id === user.id)
-  
+
   const eventPaymentMethods = Array.isArray(event.payment_methods) ? event.payment_methods : []
 
-  // Memory Lane Parsing Logic
   let memoryLinks = []
   if (event.album_link) {
     if (typeof event.album_link === 'string') {
       if (event.album_link.trim().startsWith('[')) {
-        try { memoryLinks = JSON.parse(event.album_link) } catch(e) {}
+        try { memoryLinks = JSON.parse(event.album_link) } catch (e) {}
       } else if (event.album_link.trim() !== '') {
         memoryLinks = [{ id: 1, title: 'ইভেন্ট মেমোরি', url: event.album_link }]
       }
@@ -401,15 +426,12 @@ function EventDetailsContent() {
   const validMemoryLinks = memoryLinks.filter(m => m.url && m.url.trim() !== '')
 
   return (
-    // 🔴 Main background with transition
     <div className="min-h-screen bg-pastel-bg dark:bg-[#050b08] pt-20 pb-20 relative text-gray-800 dark:text-gray-300 transition-colors duration-500">
-      
-      {/* 🔴 ইভেন্ট কভার (Smooth blend with background) */}
+
       <div className="w-full h-[40vh] md:h-[60vh] relative">
-        {/* Gradient overlays to blend the image into the pastel or dark background smoothly */}
         <div className="absolute inset-0 bg-gradient-to-t from-pastel-bg via-pastel-bg/80 to-transparent dark:from-[#050b08] dark:via-[#050b08]/50 dark:to-transparent z-10 transition-colors duration-500"></div>
         <img src={event.cover_photo || 'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80'} className="w-full h-full object-cover" alt="Event Cover" />
-        
+
         {isPastEvent && (
           <div className="absolute top-6 left-4 sm:left-6 z-20 bg-emerald-100/90 dark:bg-emerald-500/90 backdrop-blur-md text-emerald-800 dark:text-white text-[10px] sm:text-xs font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-md dark:shadow-[0_0_20px_rgba(16,185,129,0.5)] border border-emerald-200 dark:border-emerald-400/50 flex items-center gap-2 transition-colors">
             <i className="fa-solid fa-check-double"></i> Mission Accomplished
@@ -417,519 +439,595 @@ function EventDetailsContent() {
         )}
 
         <div className="absolute bottom-0 left-0 w-full z-20 px-4 sm:px-6 pb-8">
-            <div className="max-w-5xl mx-auto">
-                <span className="bg-[#e76f51] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-3 inline-block flex items-center gap-2 w-max shadow-sm">
-                  <i className={getDistanceIcon()}></i>
-                  {event.category}
-                </span>
-                <h1 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white leading-tight mb-2 transition-colors duration-500">{event.title}</h1>
-            </div>
+          <div className="max-w-5xl mx-auto">
+            <span className="bg-[#e76f51] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-3 inline-block flex items-center gap-2 w-max shadow-sm">
+              <i className={getDistanceIcon()}></i>
+              {event.category}
+            </span>
+            <h1 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white leading-tight mb-2 transition-colors duration-500">{event.title}</h1>
+          </div>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-20">
-        
-        {/* লেফট কলাম */}
+
         <div className="lg:col-span-2 space-y-8">
-            
-            {/* 🔴 Info Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-white dark:bg-[#0a1c13] p-5 rounded-2xl border border-gray-200 dark:border-white/10 shadow-soft dark:shadow-none transition-colors duration-500">
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-white dark:bg-[#0a1c13] p-5 rounded-2xl border border-gray-200 dark:border-white/10 shadow-soft dark:shadow-none transition-colors duration-500">
+            <div className="text-center p-2 border-r border-gray-100 dark:border-white/5 transition-colors">
+              <i className="fa-solid fa-map-location-dot text-[#e76f51] text-xl mb-1"></i>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest">গন্তব্য</p>
+              <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">{event.destination}</p>
+            </div>
+            <div className="text-center p-2 border-r border-gray-100 dark:border-white/5 transition-colors">
+              <i className="fa-solid fa-calendar text-blue-500 dark:text-blue-400 text-xl mb-1"></i>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest">{isPastEvent ? 'অনুষ্ঠিত হয়েছিল' : 'যাত্রা শুরু'}</p>
+              <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">{new Date(event.start_date).toLocaleDateString('en-GB')}</p>
+            </div>
+
+            {isPastEvent ? (
+              <>
                 <div className="text-center p-2 border-r border-gray-100 dark:border-white/5 transition-colors">
-                    <i className="fa-solid fa-map-location-dot text-[#e76f51] text-xl mb-1"></i>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">গন্তব্য</p>
-                    <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">{event.destination}</p>
+                  <i className={`${getDistanceIcon()} text-emerald-500 dark:text-emerald-400 text-xl mb-1`}></i>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest">
+                    {getDistanceLabel()}
+                  </p>
+                  <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">
+                    {event.stats_meta?.distance || 0} {isSwimming ? 'm' : 'km'}
+                  </p>
                 </div>
+                <div className="text-center p-2">
+                  <i className="fa-solid fa-users-viewfinder text-purple-500 dark:text-purple-400 text-xl mb-1"></i>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest">অভিযাত্রী</p>
+                  <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">{approvedExplorers.length || 0} জন</p>
+                </div>
+              </>
+            ) : (
+              <>
                 <div className="text-center p-2 border-r border-gray-100 dark:border-white/5 transition-colors">
-                    <i className="fa-solid fa-calendar text-blue-500 dark:text-blue-400 text-xl mb-1"></i>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">{isPastEvent ? 'অনুষ্ঠিত হয়েছিল' : 'যাত্রা শুরু'}</p>
-                    <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">{new Date(event.start_date).toLocaleDateString('en-GB')}</p>
+                  <i className="fa-solid fa-fire text-yellow-500 text-xl mb-1"></i>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest">ডিফিকাল্টি</p>
+                  <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">{event.difficulty}</p>
                 </div>
-                
-                {isPastEvent ? (
-                  <>
-                    <div className="text-center p-2 border-r border-gray-100 dark:border-white/5 transition-colors">
-                        <i className={`${getDistanceIcon()} text-emerald-500 dark:text-emerald-400 text-xl mb-1`}></i>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">
-                          {getDistanceLabel()}
-                        </p>
-                        <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">
-                          {event.stats_meta?.distance || 0} {isSwimming ? 'm' : 'km'}
-                        </p>
-                    </div>
-                    <div className="text-center p-2">
-                        <i className="fa-solid fa-users-viewfinder text-purple-500 dark:text-purple-400 text-xl mb-1"></i>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">অভিযাত্রী</p>
-                        <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">{approvedExplorers.length || 0} জন</p>
-                    </div>
-                  </>
+                <div className="text-center p-2">
+                  <i className="fa-solid fa-chair text-emerald-500 dark:text-emerald-400 text-xl mb-1"></i>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest">সিট ফাঁকা</p>
+                  <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">{Math.max(0, event.total_seats - (event.booked_seats || 0))} টি</p>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 border-l-4 border-[#e76f51] pl-3 transition-colors">{isPastEvent ? 'অভিযানের সারাংশ' : 'অ্যাডভেঞ্চার বিবরণ'}</h3>
+            <p className="text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line transition-colors">{event.description}</p>
+          </div>
+
+          {isPastEvent && (
+            <div className="space-y-8">
+              <div>
+                <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-white/10 pb-3 transition-colors">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white border-l-4 border-emerald-500 pl-3 transition-colors">সাফল্যের সাথে সম্পন্নকারী (The Explorers)</h3>
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-400/10 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-400/20 shadow-sm dark:shadow-none transition-colors">{approvedExplorers.length} জন</span>
+                </div>
+
+                {approvedExplorers.length > 0 ? (
+                  <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar snap-x">
+                    {approvedExplorers.map((p) => (
+                      <Link href={`/public-profile?id=${p.id}`} key={p.id} className="snap-start shrink-0 w-24 sm:w-28 text-center group flex flex-col items-center">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden mb-2 border-2 border-transparent group-hover:border-[#e76f51] transition-all shadow-md dark:shadow-lg relative">
+                          <img src={p.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name)}&background=0a1c13&color=fff`} alt={p.full_name} className="w-full h-full object-cover" />
+                          {p.role === 'admin' && (
+                            <div className="absolute bottom-0 bg-[#e76f51] w-full text-[8px] font-black text-white uppercase tracking-widest text-center">Admin</div>
+                          )}
+                        </div>
+                        <p className="text-xs font-bold text-gray-700 dark:text-gray-300 line-clamp-2 leading-tight group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{p.full_name}</p>
+                      </Link>
+                    ))}
+                  </div>
                 ) : (
-                  <>
-                    <div className="text-center p-2 border-r border-gray-100 dark:border-white/5 transition-colors">
-                        <i className="fa-solid fa-fire text-yellow-500 text-xl mb-1"></i>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">ডিফিকাল্টি</p>
-                        <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">{event.difficulty}</p>
-                    </div>
-                    <div className="text-center p-2">
-                        <i className="fa-solid fa-chair text-emerald-500 dark:text-emerald-400 text-xl mb-1"></i>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">সিট ফাঁকা</p>
-                        <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">{Math.max(0, event.total_seats - (event.booked_seats || 0))} টি</p>
-                    </div>
-                  </>
+                  <div className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-6 text-center transition-colors">
+                    <p className="text-gray-500 dark:text-gray-400 text-sm transition-colors">দুঃখিত, এই ইভেন্টের অংশগ্রহণকারীদের কোনো ডেটা পাওয়া যায়নি.</p>
+                  </div>
                 )}
-            </div>
 
+                <div className="mt-6 flex flex-col sm:flex-row gap-4 items-center justify-center p-4 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-none transition-colors">
+                  {!isUserApproved && bookingStatus !== 'claim_pending' && (
+                    <button
+                      onClick={handleAttendanceClaim}
+                      disabled={processing}
+                      className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-white dark:hover:text-white bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-500 dark:hover:bg-blue-500 border border-blue-200 dark:border-blue-500/30 px-5 py-2.5 rounded-full transition-all flex items-center gap-2 shadow-sm dark:shadow-none"
+                    >
+                      <i className="fa-solid fa-hand-sparkles"></i> আমিও এই ইভেন্টে ছিলাম
+                    </button>
+                  )}
+                  {bookingStatus === 'claim_pending' && (
+                    <span className="text-xs font-bold text-yellow-600 dark:text-yellow-500 bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/30 px-5 py-2.5 rounded-full flex items-center gap-2 shadow-sm dark:shadow-none transition-colors">
+                      <i className="fa-solid fa-clock animate-pulse"></i> আপনার ক্লেইম পেন্ডিং আছে
+                    </span>
+                  )}
+
+                  {isAdmin && (
+                    <button
+                      onClick={() => setShowAdminAddModal(true)}
+                      className="text-xs font-bold text-[#e76f51] hover:text-white bg-orange-50 dark:bg-[#e76f51]/10 hover:bg-[#e76f51] dark:hover:bg-[#e76f51] border border-orange-200 dark:border-[#e76f51]/30 px-5 py-2.5 rounded-full transition-all flex items-center gap-2 shadow-sm dark:shadow-none"
+                    >
+                      <i className="fa-solid fa-user-plus"></i> পার্টিসিপেন্ট অ্যাড করুন (Admin)
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {interestedExplorers.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-white/5 pb-3 transition-colors">
+                    <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 border-l-2 border-purple-400 pl-2 transition-colors">আগ্রহী ছিলেন যারা (Interested Souls)</h3>
+                  </div>
+                  <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar-hidden">
+                    {interestedExplorers.map((p) => (
+                      <Link href={`/public-profile?id=${p.id}`} key={p.id} className="flex items-center gap-2 shrink-0 bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 hover:border-purple-300 dark:hover:border-purple-500/30 rounded-full pr-4 p-1 transition-all shadow-sm dark:shadow-none">
+                        <img src={p.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name)}&background=0a1c13&color=fff`} className="w-6 h-6 rounded-full object-cover shadow-sm" alt={p.full_name} />
+                        <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 transition-colors">{p.full_name}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isPastEvent && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {event.included && event.included.length > 0 && (
+                <div className="bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-200 dark:border-emerald-500/20 p-5 rounded-2xl shadow-sm dark:shadow-none transition-colors">
+                  <h4 className="font-bold text-emerald-600 dark:text-emerald-400 mb-3 uppercase tracking-widest text-xs flex items-center gap-2 transition-colors"><i className="fa-solid fa-circle-check"></i> যা ইনক্লুডেড</h4>
+                  <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300 transition-colors">
+                    {event.included.map((item, i) => <li key={i}><i className="fa-solid fa-check text-emerald-500/50 mr-2"></i>{item}</li>)}
+                  </ul>
+                </div>
+              )}
+              {event.excluded && event.excluded.length > 0 && (
+                <div className="bg-red-50 dark:bg-gray-500/5 border border-red-200 dark:border-gray-500/20 p-5 rounded-2xl shadow-sm dark:shadow-none transition-colors">
+                  <h4 className="font-bold text-red-600 dark:text-gray-400 mb-3 uppercase tracking-widest text-xs flex items-center gap-2 transition-colors"><i className="fa-solid fa-circle-xmark"></i> যা ইনক্লুডেড নয়</h4>
+                  <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300 transition-colors">
+                    {event.excluded.map((item, i) => <li key={i}><i className="fa-solid fa-xmark text-red-400 dark:text-gray-500/50 mr-2 transition-colors"></i>{item}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {event.itinerary && event.itinerary.length > 0 && (
             <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 border-l-4 border-[#e76f51] pl-3 transition-colors">{isPastEvent ? 'অভিযানের সারাংশ' : 'অ্যাডভেঞ্চার বিবরণ'}</h3>
-                <p className="text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line transition-colors">{event.description}</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 border-l-4 border-blue-400 pl-3 transition-colors">ডে-টু-ডে প্ল্যান</h3>
+              <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-300 dark:before:via-white/10 before:to-transparent transition-colors">
+                {event.itinerary.map((day, i) => (
+                  <div key={i} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-300 dark:border-white/20 bg-white dark:bg-[#0a1c13] text-gray-600 dark:text-gray-400 shadow-sm dark:shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 transition-colors">
+                      <span className="text-xs font-bold">{day.day}</span>
+                    </div>
+                    <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0a1c13]/50 shadow-sm dark:shadow-none transition-colors">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="font-bold text-gray-900 dark:text-white transition-colors">{day.title}</div>
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400 transition-colors">{day.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-
-            {isPastEvent && (
-              <div className="space-y-8">
-                <div>
-                  <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-white/10 pb-3 transition-colors">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white border-l-4 border-emerald-500 pl-3 transition-colors">সাফল্যের সাথে সম্পন্নকারী (The Explorers)</h3>
-                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-400/10 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-400/20 shadow-sm dark:shadow-none transition-colors">{approvedExplorers.length} জন</span>
-                  </div>
-                  
-                  {approvedExplorers.length > 0 ? (
-                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar snap-x">
-                      {approvedExplorers.map((p) => (
-                        <Link href={`/public-profile?id=${p.id}`} key={p.id} className="snap-start shrink-0 w-24 sm:w-28 text-center group flex flex-col items-center">
-                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden mb-2 border-2 border-transparent group-hover:border-[#e76f51] transition-all shadow-md dark:shadow-lg relative">
-                            <img src={p.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name)}&background=0a1c13&color=fff`} alt={p.full_name} className="w-full h-full object-cover" />
-                            {p.role === 'admin' && (
-                              <div className="absolute bottom-0 bg-[#e76f51] w-full text-[8px] font-black text-white uppercase tracking-widest text-center">Admin</div>
-                            )}
-                          </div>
-                          <p className="text-xs font-bold text-gray-700 dark:text-gray-300 line-clamp-2 leading-tight group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{p.full_name}</p>
-                        </Link>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-6 text-center transition-colors">
-                      <p className="text-gray-500 dark:text-gray-400 text-sm transition-colors">দুঃখিত, এই ইভেন্টের অংশগ্রহণকারীদের কোনো ডেটা পাওয়া যায়নি.</p>
-                    </div>
-                  )}
-
-                  <div className="mt-6 flex flex-col sm:flex-row gap-4 items-center justify-center p-4 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-none transition-colors">
-                    {!isUserApproved && bookingStatus !== 'claim_pending' && (
-                      <button 
-                        onClick={handleAttendanceClaim}
-                        disabled={processing}
-                        className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-white dark:hover:text-white bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-500 dark:hover:bg-blue-500 border border-blue-200 dark:border-blue-500/30 px-5 py-2.5 rounded-full transition-all flex items-center gap-2 shadow-sm dark:shadow-none"
-                      >
-                        <i className="fa-solid fa-hand-sparkles"></i> আমিও এই ইভেন্টে ছিলাম
-                      </button>
-                    )}
-                    {bookingStatus === 'claim_pending' && (
-                      <span className="text-xs font-bold text-yellow-600 dark:text-yellow-500 bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/30 px-5 py-2.5 rounded-full flex items-center gap-2 shadow-sm dark:shadow-none transition-colors">
-                        <i className="fa-solid fa-clock animate-pulse"></i> আপনার ক্লেইম পেন্ডিং আছে
-                      </span>
-                    )}
-
-                    {isAdmin && (
-                      <button 
-                        onClick={() => setShowAdminAddModal(true)}
-                        className="text-xs font-bold text-[#e76f51] hover:text-white bg-orange-50 dark:bg-[#e76f51]/10 hover:bg-[#e76f51] dark:hover:bg-[#e76f51] border border-orange-200 dark:border-[#e76f51]/30 px-5 py-2.5 rounded-full transition-all flex items-center gap-2 shadow-sm dark:shadow-none"
-                      >
-                        <i className="fa-solid fa-user-plus"></i> পার্টিসিপেন্ট অ্যাড করুন (Admin)
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {interestedExplorers.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-white/5 pb-3 transition-colors">
-                      <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 border-l-2 border-purple-400 pl-2 transition-colors">আগ্রহী ছিলেন যারা (Interested Souls)</h3>
-                    </div>
-                    <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar-hidden">
-                      {interestedExplorers.map((p) => (
-                        <Link href={`/public-profile?id=${p.id}`} key={p.id} className="flex items-center gap-2 shrink-0 bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 hover:border-purple-300 dark:hover:border-purple-500/30 rounded-full pr-4 p-1 transition-all shadow-sm dark:shadow-none">
-                          <img src={p.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name)}&background=0a1c13&color=fff`} className="w-6 h-6 rounded-full object-cover shadow-sm" alt={p.full_name} />
-                          <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 transition-colors">{p.full_name}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!isPastEvent && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {event.included && event.included.length > 0 && (
-                      <div className="bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-200 dark:border-emerald-500/20 p-5 rounded-2xl shadow-sm dark:shadow-none transition-colors">
-                          <h4 className="font-bold text-emerald-600 dark:text-emerald-400 mb-3 uppercase tracking-widest text-xs flex items-center gap-2 transition-colors"><i className="fa-solid fa-circle-check"></i> যা ইনক্লুডেড</h4>
-                          <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300 transition-colors">
-                              {event.included.map((item, i) => <li key={i}><i className="fa-solid fa-check text-emerald-500/50 mr-2"></i>{item}</li>)}
-                          </ul>
-                      </div>
-                  )}
-                  {event.excluded && event.excluded.length > 0 && (
-                      <div className="bg-red-50 dark:bg-gray-500/5 border border-red-200 dark:border-gray-500/20 p-5 rounded-2xl shadow-sm dark:shadow-none transition-colors">
-                          <h4 className="font-bold text-red-600 dark:text-gray-400 mb-3 uppercase tracking-widest text-xs flex items-center gap-2 transition-colors"><i className="fa-solid fa-circle-xmark"></i> যা ইনক্লুডেড নয়</h4>
-                          <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300 transition-colors">
-                              {event.excluded.map((item, i) => <li key={i}><i className="fa-solid fa-xmark text-red-400 dark:text-gray-500/50 mr-2 transition-colors"></i>{item}</li>)}
-                          </ul>
-                      </div>
-                  )}
-              </div>
-            )}
-
-            {event.itinerary && event.itinerary.length > 0 && (
-                <div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 border-l-4 border-blue-400 pl-3 transition-colors">ডে-টু-ডে প্ল্যান</h3>
-                    <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-300 dark:before:via-white/10 before:to-transparent transition-colors">
-                        {event.itinerary.map((day, i) => (
-                            <div key={i} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                                <div className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-300 dark:border-white/20 bg-white dark:bg-[#0a1c13] text-gray-600 dark:text-gray-400 shadow-sm dark:shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 transition-colors">
-                                    <span className="text-xs font-bold">{day.day}</span>
-                                </div>
-                                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0a1c13]/50 shadow-sm dark:shadow-none transition-colors">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <div className="font-bold text-gray-900 dark:text-white transition-colors">{day.title}</div>
-                                    </div>
-                                    <div className="text-sm text-gray-600 dark:text-gray-400 transition-colors">{day.desc}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+          )}
         </div>
 
-        {/* রাইট কলাম */}
         <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 p-6 rounded-2xl sticky top-24 shadow-soft dark:shadow-2xl transition-colors duration-500">
-                
-                <div className="mb-6 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-4 flex items-center gap-4 transition-colors">
-                  <div className="w-12 h-12 rounded-full bg-orange-50 dark:bg-[#e76f51]/20 text-[#e76f51] flex items-center justify-center text-xl shrink-0 shadow-sm dark:shadow-none transition-colors">
-                    <i className="fa-solid fa-user-astronaut"></i>
+          <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 p-6 rounded-2xl sticky top-24 shadow-soft dark:shadow-2xl transition-colors duration-500">
+
+            {/* 🔴 ROYAL TEAM LEADER CARD — animated + clickable */}
+            <div className="mb-6" data-aos="zoom-in" data-aos-delay="150">
+              <div className="relative group">
+                {/* Outer glow */}
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 dark:from-amber-500 dark:via-orange-500 dark:to-amber-500 rounded-2xl blur-md opacity-40 group-hover:opacity-80 transition-opacity duration-500"></div>
+
+                {/* Card body */}
+                <div className="relative bg-white dark:bg-gradient-to-br dark:from-[#0a1c13] dark:via-[#0d2018] dark:to-[#0a1c13] border border-amber-300 dark:border-amber-500/40 rounded-2xl p-5 overflow-hidden shadow-lg dark:shadow-[0_0_30px_rgba(245,158,11,0.15)]">
+
+                  {/* Watermark crown */}
+                  <div className="absolute -top-2 -right-2 text-amber-400/10 dark:text-amber-500/10 text-6xl pointer-events-none">
+                    <i className="fa-solid fa-crown"></i>
                   </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold transition-colors">টিম লিডার</p>
-                    <p className="font-bold text-gray-900 dark:text-white transition-colors">{event.team_leader}</p>
+
+                  <div className="relative flex items-center gap-4">
+                    {/* Avatar with pulsing glow */}
+                    <div className="relative shrink-0">
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 blur-md opacity-50 group-hover:opacity-90 transition-opacity animate-pulse"></div>
+
+                      {leaderProfile?.photo_url ? (
+                        <div className="relative w-16 h-16 rounded-full overflow-hidden ring-2 ring-amber-400 ring-offset-2 ring-offset-white dark:ring-offset-[#0a1c13]">
+                          <img src={leaderProfile.photo_url} alt={event.team_leader} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center ring-2 ring-amber-400 ring-offset-2 ring-offset-white dark:ring-offset-[#0a1c13]">
+                          <span className="text-white text-2xl font-black">{(event.team_leader || '?').charAt(0).toUpperCase()}</span>
+                        </div>
+                      )}
+
+                      {/* Crown badge */}
+                      <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-[#0a1c13]">
+                        <i className="fa-solid fa-crown text-white text-[9px]"></i>
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 uppercase tracking-[0.2em] font-black mb-1 flex items-center gap-1.5">
+                        <i className="fa-solid fa-medal"></i> অভিযাত্রী প্রধান
+                      </p>
+
+                      {leaderProfile ? (
+                        <Link href={`/public-profile?id=${leaderProfile.id}`} className="block group/name">
+                          <h3 className="font-black text-gray-900 dark:text-white text-lg leading-tight truncate group-hover/name:text-amber-600 dark:group-hover/name:text-amber-400 transition-colors flex items-center gap-2">
+                            {event.team_leader}
+                            <i className="fa-solid fa-arrow-up-right-from-square text-[10px] opacity-40 group-hover/name:opacity-100 transition-opacity"></i>
+                          </h3>
+                        </Link>
+                      ) : (
+                        <h3 className="font-black text-gray-900 dark:text-white text-lg leading-tight truncate">{event.team_leader}</h3>
+                      )}
+
+                      {leaderProfile ? (
+                        <p className="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5 truncate flex items-center gap-1.5">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          {leaderProfile.department} '{String(leaderProfile.batch || '').slice(-2)} • রেজিস্টার্ড মেম্বার
+                        </p>
+                      ) : event.leader_phone ? (
+                        <p className="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5 truncate">
+                          <i className="fa-solid fa-phone mr-1"></i>{event.leader_phone}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    {/* Quick actions */}
+                    <div className="flex flex-col gap-1.5 shrink-0">
+                      {event.leader_phone && (
+                        <a
+                          href={`tel:${event.leader_phone}`}
+                          className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-500/20 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-300 dark:border-emerald-500/30 flex items-center justify-center transition-all hover:scale-110"
+                          title="Call"
+                        >
+                          <i className="fa-solid fa-phone text-xs"></i>
+                        </a>
+                      )}
+                      {event.leader_whatsapp && (
+                        <a
+                          href={`https://wa.me/${String(event.leader_whatsapp).replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-500/20 hover:bg-green-500 text-green-600 dark:text-green-400 hover:text-white border border-green-300 dark:border-green-500/30 flex items-center justify-center transition-all hover:scale-110"
+                          title="WhatsApp"
+                        >
+                          <i className="fa-brands fa-whatsapp text-xs"></i>
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                {!isPastEvent ? (
-                  <>
-                    <div className="mb-6">
-                        <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-widest mb-1 transition-colors">টোটাল ইভেন্ট ফি</p>
-                        <p className="text-4xl font-black text-gray-900 dark:text-white transition-colors">৳ {event.tour_fee} <span className="text-sm font-medium text-gray-500">/জন</span></p>
-                        <p className="text-xs text-[#e76f51] font-bold mt-2">বুকিং মানি (অ্যাডভান্স): ৳ {event.booking_fee}</p>
+            {!isPastEvent ? (
+              <>
+                <div className="mb-6">
+                  <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-widest mb-1 transition-colors">টোটাল ইভেন্ট ফি</p>
+                  <p className="text-4xl font-black text-gray-900 dark:text-white transition-colors">৳ {event.tour_fee} <span className="text-sm font-medium text-gray-500">/জন</span></p>
+                  <p className="text-xs text-[#e76f51] font-bold mt-2">বুকিং মানি (অ্যাডভান্স): ৳ {event.booking_fee}</p>
+                </div>
+
+                <div className="space-y-3 mb-6 text-sm text-gray-600 dark:text-gray-300 transition-colors">
+                  <p className="flex justify-between"><span className="text-gray-500">ডেডলাইন:</span> <span className="font-bold text-red-500 dark:text-red-400 transition-colors">{new Date(event.deadline).toLocaleDateString('en-GB')}</span></p>
+                  {!isDayEvent && event.stay_type && event.stay_type !== 'None' && (
+                    <p className="flex justify-between"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-white/10 pt-6 space-y-3 transition-colors">
+                  {bookingStatus === 'approved' ? (
+                    <div className="bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 p-4 rounded-xl text-center flex flex-col items-center shadow-sm dark:shadow-none transition-colors">
+                      <i className="fa-solid fa-circle-check text-2xl mb-2"></i>
+                      <p className="font-bold">আপনার সিট কনফার্মড!</p>
                     </div>
-
-                    <div className="space-y-3 mb-6 text-sm text-gray-600 dark:text-gray-300 transition-colors">
-                        <p className="flex justify-between"><span className="text-gray-500">ডেডলাইন:</span> <span className="font-bold text-red-500 dark:text-red-400 transition-colors">{new Date(event.deadline).toLocaleDateString('en-GB')}</span></p>
-                        {!isDayEvent && event.stay_type && event.stay_type !== 'None' && (
-                          <p className="flex justify-between"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
-                        )}
+                  ) : bookingStatus === 'pending' ? (
+                    <div className="bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 p-4 rounded-xl text-center flex flex-col items-center shadow-sm dark:shadow-none transition-colors">
+                      <i className="fa-solid fa-clock text-2xl mb-2 animate-pulse"></i>
+                      <p className="font-bold">পেমেন্ট ভেরিফিকেশনের অপেক্ষায়</p>
                     </div>
-
-                    <div className="border-t border-gray-200 dark:border-white/10 pt-6 space-y-3 transition-colors">
-                        {bookingStatus === 'approved' ? (
-                            <div className="bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 p-4 rounded-xl text-center flex flex-col items-center shadow-sm dark:shadow-none transition-colors">
-                                <i className="fa-solid fa-circle-check text-2xl mb-2"></i>
-                                <p className="font-bold">আপনার সিট কনফার্মড!</p>
-                            </div>
-                        ) : bookingStatus === 'pending' ? (
-                            <div className="bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 p-4 rounded-xl text-center flex flex-col items-center shadow-sm dark:shadow-none transition-colors">
-                                <i className="fa-solid fa-clock text-2xl mb-2 animate-pulse"></i>
-                                <p className="font-bold">পেমেন্ট ভেরিফিকেশনের অপেক্ষায়</p>
-                            </div>
-                        ) : isFull && bookingStatus !== 'free_booking' && bookingStatus !== 'interested' ? (
-                             <div className="bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 p-4 rounded-xl text-center font-bold shadow-sm dark:shadow-none transition-colors">সিট ফুল হয়ে গেছে!</div>
-                        ) : (
-                            <>
-                                {bookingStatus === 'free_booking' && (
-                                    <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/30 p-3 rounded-xl text-center mb-3 shadow-sm dark:shadow-none transition-colors">
-                                        <p className="text-xs text-yellow-600 dark:text-yellow-500 font-bold transition-colors"><i className="fa-solid fa-ticket"></i> ফ্রি বুকিং অ্যাক্টিভ</p>
-                                    </div>
-                                )}
-
-                                {!user ? (
-                                    <div className="space-y-3">
-                                      <button onClick={checkProfileCompletion} className="w-full block bg-[#e76f51] hover:bg-orange-600 text-white text-center py-3 rounded-xl font-bold transition-all shadow-md dark:shadow-glow">
-                                          বুকিং করতে লগইন করুন
-                                      </button>
-                                      <button onClick={checkProfileCompletion} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 hover:border-yellow-500 dark:hover:border-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-500 text-gray-700 dark:text-gray-300 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-sm dark:shadow-none">
-                                          <i className="fa-solid fa-ticket"></i> বিনামূল্যে সিট বুক করুন
-                                      </button>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <button onClick={() => setShowPaymentModal(true)} disabled={processing} className="w-full bg-[#e76f51] hover:bg-orange-600 text-white py-3 rounded-xl font-bold transition-all shadow-md dark:shadow-glow flex items-center justify-center gap-2">
-                                            <i className="fa-solid fa-credit-card"></i> পেমেন্ট করে বুকিং কনফার্ম করুন
-                                        </button>
-
-                                        {bookingStatus !== 'free_booking' && (
-                                            <button onClick={handleFreeBooking} disabled={processing} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 hover:border-yellow-500 dark:hover:border-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-500 text-gray-700 dark:text-gray-300 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-sm dark:shadow-none">
-                                                <i className="fa-solid fa-ticket"></i> বিনামূল্যে সিট বুক করুন
-                                            </button>
-                                        )}
-                                        
-                                        {!bookingStatus && (
-                                          <button onClick={handleInterested} disabled={processing} className="w-full bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 hover:bg-purple-500 dark:hover:bg-purple-500 hover:text-white text-purple-600 dark:text-purple-400 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 mt-2 shadow-sm dark:shadow-none">
-                                              <i className="fa-solid fa-heart"></i> আগ্রহী
-                                          </button>
-                                        )}
-                                    </>
-                                )}
-                            </>
-                        )}
-                    </div>
-                  </>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="text-center p-6 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl relative overflow-hidden shadow-sm dark:shadow-none transition-colors">
-                      <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
-                      <i className="fa-solid fa-medal text-4xl text-emerald-500 dark:text-emerald-400 mb-3 drop-shadow-sm dark:drop-shadow-[0_0_10px_rgba(52,211,153,0.5)] transition-colors"></i>
-                      <h4 className="text-lg font-black text-gray-900 dark:text-white transition-colors">সাফল্যের সাথে সম্পন্ন</h4>
-                      <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-2 font-bold tracking-widest transition-colors">CUET ADVENTURE SOCIETY</p>
-                    </div>
-
-                    <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300 transition-colors">
-                      <p className="flex justify-between border-b border-gray-200 dark:border-white/5 pb-2 transition-colors">
-                        <span className="text-gray-500">রিওয়ার্ড পয়েন্ট:</span> 
-                        <span className="font-bold text-yellow-600 dark:text-yellow-500 transition-colors">+{event.stats_meta?.treks || 0} {getRewardLabel()}</span>
-                      </p>
-                      {!isDayEvent && event.stay_type && event.stay_type !== 'None' && (
-                        <p className="flex justify-between border-b border-gray-200 dark:border-white/5 pb-2 transition-colors"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
+                  ) : isFull && bookingStatus !== 'free_booking' && bookingStatus !== 'interested' ? (
+                    <div className="bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 p-4 rounded-xl text-center font-bold shadow-sm dark:shadow-none transition-colors">সিট ফুল হয়ে গেছে!</div>
+                  ) : (
+                    <>
+                      {bookingStatus === 'free_booking' && (
+                        <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/30 p-3 rounded-xl text-center mb-3 shadow-sm dark:shadow-none transition-colors">
+                          <p className="text-xs text-yellow-600 dark:text-yellow-500 font-bold transition-colors"><i className="fa-solid fa-ticket"></i> ফ্রি বুকিং অ্যাক্টিভ</p>
+                        </div>
                       )}
-                      <p className="flex justify-between"><span className="text-gray-500">টোটাল প্যাকেজ ফি:</span> <span>৳ {event.tour_fee}</span></p>
+
+                      {!user ? (
+                        <div className="space-y-3">
+                          <button onClick={checkProfileCompletion} className="w-full block bg-[#e76f51] hover:bg-orange-600 text-white text-center py-3 rounded-xl font-bold transition-all shadow-md dark:shadow-glow">
+                            বুকিং করতে লগইন করুন
+                          </button>
+                          <button onClick={checkProfileCompletion} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 hover:border-yellow-500 dark:hover:border-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-500 text-gray-700 dark:text-gray-300 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-sm dark:shadow-none">
+                            <i className="fa-solid fa-ticket"></i> বিনামূল্যে সিট বুক করুন
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button onClick={() => setShowPaymentModal(true)} disabled={processing} className="w-full bg-[#e76f51] hover:bg-orange-600 text-white py-3 rounded-xl font-bold transition-all shadow-md dark:shadow-glow flex items-center justify-center gap-2">
+                            <i className="fa-solid fa-credit-card"></i> পেমেন্ট করে বুকিং কনফার্ম করুন
+                          </button>
+
+                          {bookingStatus !== 'free_booking' && (
+                            <button onClick={handleFreeBooking} disabled={processing} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 hover:border-yellow-500 dark:hover:border-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-500 text-gray-700 dark:text-gray-300 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-sm dark:shadow-none">
+                              <i className="fa-solid fa-ticket"></i> বিনামূল্যে সিট বুক করুন
+                            </button>
+                          )}
+
+                          {!bookingStatus && (
+                            <button onClick={handleInterested} disabled={processing} className="w-full bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 hover:bg-purple-500 dark:hover:bg-purple-500 hover:text-white text-purple-600 dark:text-purple-400 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 mt-2 shadow-sm dark:shadow-none">
+                              <i className="fa-solid fa-heart"></i> আগ্রহী
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-6">
+                <div className="text-center p-6 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl relative overflow-hidden shadow-sm dark:shadow-none transition-colors">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
+                  <i className="fa-solid fa-medal text-4xl text-emerald-500 dark:text-emerald-400 mb-3 drop-shadow-sm dark:drop-shadow-[0_0_10px_rgba(52,211,153,0.5)] transition-colors"></i>
+                  <h4 className="text-lg font-black text-gray-900 dark:text-white transition-colors">সাফল্যের সাথে সম্পন্ন</h4>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-2 font-bold tracking-widest transition-colors">CUET ADVENTURE SOCIETY</p>
+                </div>
+
+                <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300 transition-colors">
+                  <p className="flex justify-between border-b border-gray-200 dark:border-white/5 pb-2 transition-colors">
+                    <span className="text-gray-500">রিওয়ার্ড পয়েন্ট:</span>
+                    <span className="font-bold text-yellow-600 dark:text-yellow-500 transition-colors">+{event.stats_meta?.treks || 0} {getRewardLabel()}</span>
+                  </p>
+                  {!isDayEvent && event.stay_type && event.stay_type !== 'None' && (
+                    <p className="flex justify-between border-b border-gray-200 dark:border-white/5 pb-2 transition-colors"><span className="text-gray-500">থাকার ব্যবস্থা:</span> <span>{event.stay_type}</span></p>
+                  )}
+                  <p className="flex justify-between"><span className="text-gray-500">টোটাল প্যাকেজ ফি:</span> <span>৳ {event.tour_fee}</span></p>
+                </div>
+
+                {validMemoryLinks.length > 0 && (
+                  <div className="pt-4 border-t border-gray-200 dark:border-white/10 transition-colors">
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                      <i className="fa-solid fa-film text-indigo-500 dark:text-indigo-400 transition-colors"></i>
+                      <h4 className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest transition-colors">মেমোরি লেন</h4>
                     </div>
 
-                    {/* Memory Lane Section */}
-                    {validMemoryLinks.length > 0 && (
-                      <div className="pt-4 border-t border-gray-200 dark:border-white/10 transition-colors">
-                        <div className="flex items-center justify-center gap-2 mb-3">
-                          <i className="fa-solid fa-film text-indigo-500 dark:text-indigo-400 transition-colors"></i>
-                          <h4 className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest transition-colors">মেমোরি লেন</h4>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          {validMemoryLinks.map((link) => (
-                            <a 
-                              key={link.id} 
-                              href={link.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="w-full bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-500 dark:hover:bg-indigo-500 border border-indigo-200 dark:border-indigo-500/30 hover:border-indigo-400 text-indigo-700 dark:text-indigo-300 hover:text-white py-3 rounded-xl font-bold transition-all shadow-sm dark:shadow-[0_0_15px_rgba(99,102,241,0.1)] hover:shadow-md dark:hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] flex items-center justify-center gap-3 group"
-                            >
-                              <i className="fa-solid fa-link group-hover:rotate-12 transition-transform"></i> 
-                              {link.title || 'ইভেন্ট মেমোরি দেখুন'}
-                            </a>
-                          ))}
-                        </div>
-                        <p className="text-[10px] text-gray-500 text-center mt-3">অংশগ্রহণকারীদের স্মৃতি, ছবি ও ভিডিও</p>
-                      </div>
-                    )}
-
+                    <div className="space-y-2">
+                      {validMemoryLinks.map((link) => (
+                        <a
+                          key={link.id}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-500 dark:hover:bg-indigo-500 border border-indigo-200 dark:border-indigo-500/30 hover:border-indigo-400 text-indigo-700 dark:text-indigo-300 hover:text-white py-3 rounded-xl font-bold transition-all shadow-sm dark:shadow-[0_0_15px_rgba(99,102,241,0.1)] hover:shadow-md dark:hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] flex items-center justify-center gap-3 group"
+                        >
+                          <i className="fa-solid fa-link group-hover:rotate-12 transition-transform"></i>
+                          {link.title || 'ইভেন্ট মেমোরি দেখুন'}
+                        </a>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-gray-500 text-center mt-3">অংশগ্রহণকারীদের স্মৃতি, ছবি ও ভিডিও</p>
                   </div>
                 )}
 
-            </div>
+              </div>
+            )}
+
+          </div>
         </div>
       </div>
 
-      {/* 🔴 Admin Add Member Modal (Light & Dark Support) */}
       {showAdminAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 dark:bg-black/80 backdrop-blur-md transition-colors duration-500" onClick={() => setShowAdminAddModal(false)}></div>
-            <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 rounded-3xl p-6 w-full max-w-lg relative z-10 shadow-2xl transition-colors duration-500">
-                <div className="flex justify-between items-center mb-6 border-b border-gray-200 dark:border-white/10 pb-4 transition-colors">
-                    <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2 transition-colors"><i className="fa-solid fa-user-plus text-[#e76f51]"></i> পার্টিসিপেন্ট যোগ করুন</h3>
-                    <button onClick={() => setShowAdminAddModal(false)} className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
-                </div>
-
-                <div className="flex gap-2 mb-6">
-                  <button onClick={() => setAdminAddTab('search')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors border ${adminAddTab === 'search' ? 'bg-orange-50 dark:bg-[#e76f51]/20 text-orange-600 dark:text-[#e76f51] border-orange-200 dark:border-[#e76f51]/50 shadow-sm dark:shadow-none' : 'bg-transparent text-gray-500 dark:text-gray-400 border-transparent hover:bg-gray-50 dark:hover:bg-white/5'}`}>রেজিস্টার্ড মেম্বার খুঁজুন</button>
-                  <button onClick={() => setAdminAddTab('create')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors border ${adminAddTab === 'create' ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/50 shadow-sm dark:shadow-none' : 'bg-transparent text-gray-500 dark:text-gray-400 border-transparent hover:bg-gray-50 dark:hover:bg-white/5'}`}>নতুন অ্যাকাউন্ট খুলুন</button>
-                </div>
-
-                {adminAddTab === 'search' ? (
-                  <form onSubmit={handleSearchMembers}>
-                    <div className="flex gap-2 mb-4">
-                      <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="মেম্বারের নাম লিখুন..." className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] text-sm shadow-sm dark:shadow-none transition-colors" />
-                      <button type="submit" disabled={processing} className="bg-[#e76f51] text-white px-4 rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-sm dark:shadow-none"><i className="fa-solid fa-magnifying-glass"></i></button>
-                    </div>
-                    <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                      {searchResults.length === 0 ? (
-                        <p className="text-center text-xs text-gray-500 py-4">সার্চ করে মেম্বার খুঁজুন</p>
-                      ) : (
-                        searchResults.map(member => (
-                          <div key={member.id} className="flex items-center justify-between bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-200 dark:border-white/5 hover:border-orange-300 dark:hover:border-white/20 transition-colors shadow-sm dark:shadow-none">
-                            <div className="flex items-center gap-3">
-                              <img src={member.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name)}&background=0a1c13&color=fff`} className="w-8 h-8 rounded-full shadow-sm" alt="avatar" />
-                              <div>
-                                <p className="text-sm font-bold text-gray-900 dark:text-white leading-none transition-colors">{member.full_name}</p>
-                                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 transition-colors">{member.department} '{String(member.batch).slice(-2)}</p>
-                              </div>
-                            </div>
-                            <button type="button" onClick={() => adminAddExistingMember(member.id)} disabled={processing} className="text-xs bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 dark:hover:text-white transition-colors shadow-sm dark:shadow-none">Add</button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </form>
-                ) : (
-                  <form onSubmit={handleCreateOfflineMember} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 transition-colors">সম্পূর্ণ নাম *</label>
-                      <input type="text" required value={newMemberForm.full_name} onChange={(e) => setNewMemberForm({...newMemberForm, full_name: e.target.value})} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-400 text-sm shadow-sm dark:shadow-none transition-colors" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 transition-colors">ডিপার্টমেন্ট (ঐচ্ছিক)</label>
-                        <input type="text" placeholder="e.g. CSE" value={newMemberForm.department} onChange={(e) => setNewMemberForm({...newMemberForm, department: e.target.value})} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-400 text-sm uppercase shadow-sm dark:shadow-none transition-colors" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 transition-colors">ব্যাচ (ঐচ্ছিক)</label>
-                        <input type="number" placeholder="e.g. 2021" value={newMemberForm.batch} onChange={(e) => setNewMemberForm({...newMemberForm, batch: e.target.value})} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-400 text-sm shadow-sm dark:shadow-none transition-colors" />
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-gray-500 leading-tight">অ্যাকাউন্ট তৈরি করার সাথে সাথেই মেম্বারটি ইভেন্ট লিস্টে যুক্ত হবে এবং তার একটি অফলাইন প্রোফাইল ডেটাবেসে সেভ হবে।</p>
-                    <button type="submit" disabled={processing} className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-bold mt-2 transition-all flex justify-center items-center gap-2 shadow-md hover:-translate-y-0.5">
-                        {processing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-plus"></i>}
-                        অ্যাকাউন্ট তৈরি করুন ও অ্যাড করুন
-                    </button>
-                  </form>
-                )}
+          <div className="absolute inset-0 bg-black/40 dark:bg-black/80 backdrop-blur-md transition-colors duration-500" onClick={() => setShowAdminAddModal(false)}></div>
+          <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 rounded-3xl p-6 w-full max-w-lg relative z-10 shadow-2xl transition-colors duration-500">
+            <div className="flex justify-between items-center mb-6 border-b border-gray-200 dark:border-white/10 pb-4 transition-colors">
+              <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2 transition-colors"><i className="fa-solid fa-user-plus text-[#e76f51]"></i> পার্টিসিপেন্ট যোগ করুন</h3>
+              <button onClick={() => setShowAdminAddModal(false)} className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
             </div>
+
+            <div className="flex gap-2 mb-6">
+              <button onClick={() => setAdminAddTab('search')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors border ${adminAddTab === 'search' ? 'bg-orange-50 dark:bg-[#e76f51]/20 text-orange-600 dark:text-[#e76f51] border-orange-200 dark:border-[#e76f51]/50 shadow-sm dark:shadow-none' : 'bg-transparent text-gray-500 dark:text-gray-400 border-transparent hover:bg-gray-50 dark:hover:bg-white/5'}`}>রেজিস্টার্ড মেম্বার খুঁজুন</button>
+              <button onClick={() => setAdminAddTab('create')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors border ${adminAddTab === 'create' ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/50 shadow-sm dark:shadow-none' : 'bg-transparent text-gray-500 dark:text-gray-400 border-transparent hover:bg-gray-50 dark:hover:bg-white/5'}`}>নতুন অ্যাকাউন্ট খুলুন</button>
+            </div>
+
+            {adminAddTab === 'search' ? (
+              <form onSubmit={handleSearchMembers}>
+                <div className="flex gap-2 mb-4">
+                  <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="মেম্বারের নাম লিখুন..." className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] text-sm shadow-sm dark:shadow-none transition-colors" />
+                  <button type="submit" disabled={processing} className="bg-[#e76f51] text-white px-4 rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-sm dark:shadow-none"><i className="fa-solid fa-magnifying-glass"></i></button>
+                </div>
+                <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                  {searchResults.length === 0 ? (
+                    <p className="text-center text-xs text-gray-500 py-4">সার্চ করে মেম্বার খুঁজুন</p>
+                  ) : (
+                    searchResults.map(member => (
+                      <div key={member.id} className="flex items-center justify-between bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-200 dark:border-white/5 hover:border-orange-300 dark:hover:border-white/20 transition-colors shadow-sm dark:shadow-none">
+                        <div className="flex items-center gap-3">
+                          <img src={member.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name)}&background=0a1c13&color=fff`} className="w-8 h-8 rounded-full shadow-sm" alt="avatar" />
+                          <div>
+                            <p className="text-sm font-bold text-gray-900 dark:text-white leading-none transition-colors">{member.full_name}</p>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 transition-colors">{member.department} '{String(member.batch).slice(-2)}</p>
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => adminAddExistingMember(member.id)} disabled={processing} className="text-xs bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 dark:hover:text-white transition-colors shadow-sm dark:shadow-none">Add</button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleCreateOfflineMember} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 transition-colors">সম্পূর্ণ নাম *</label>
+                  <input type="text" required value={newMemberForm.full_name} onChange={(e) => setNewMemberForm({ ...newMemberForm, full_name: e.target.value })} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-400 text-sm shadow-sm dark:shadow-none transition-colors" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 transition-colors">ডিপার্টমেন্ট (ঐচ্ছিক)</label>
+                    <input type="text" placeholder="e.g. CSE" value={newMemberForm.department} onChange={(e) => setNewMemberForm({ ...newMemberForm, department: e.target.value })} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-400 text-sm uppercase shadow-sm dark:shadow-none transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 transition-colors">ব্যাচ (ঐচ্ছিক)</label>
+                    <input type="number" placeholder="e.g. 2021" value={newMemberForm.batch} onChange={(e) => setNewMemberForm({ ...newMemberForm, batch: e.target.value })} className="w-full bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-400 text-sm shadow-sm dark:shadow-none transition-colors" />
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-500 leading-tight">অ্যাকাউন্ট তৈরি করার সাথে সাথেই মেম্বারটি ইভেন্ট লিস্টে যুক্ত হবে এবং তার একটি অফলাইন প্রোফাইল ডেটাবেসে সেভ হবে।</p>
+                <button type="submit" disabled={processing} className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-bold mt-2 transition-all flex justify-center items-center gap-2 shadow-md hover:-translate-y-0.5">
+                  {processing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-plus"></i>}
+                  অ্যাকাউন্ট তৈরি করুন ও অ্যাড করুন
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       )}
 
-      {/* 🔴 Dynamic Payment Info Modal (Light & Dark Support) */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 dark:bg-black/80 backdrop-blur-md transition-colors duration-500" onClick={() => setShowPaymentModal(false)}></div>
-            <div className="bg-white dark:bg-[#0a1c13] border border-orange-200 dark:border-[#e76f51]/30 rounded-3xl p-6 md:p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto relative z-10 shadow-2xl dark:shadow-[0_0_50px_rgba(231,111,81,0.15)] transition-colors duration-500">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-black text-gray-900 dark:text-white transition-colors"><i className="fa-solid fa-wallet text-[#e76f51] mr-2"></i> পেমেন্ট কনফার্মেশন</h3>
-                    <button onClick={() => setShowPaymentModal(false)} className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
-                </div>
-                
-                <div className="bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/5 p-4 rounded-xl mb-6 text-center shadow-inner dark:shadow-none transition-colors">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold transition-colors">আপনাকে পে করতে হবে (অ্যাডভান্স)</p>
-                    <p className="text-4xl font-black text-[#e76f51] mt-2">৳ {event.booking_fee}</p>
-                </div>
+          <div className="absolute inset-0 bg-black/40 dark:bg-black/80 backdrop-blur-md transition-colors duration-500" onClick={() => setShowPaymentModal(false)}></div>
+          <div className="bg-white dark:bg-[#0a1c13] border border-orange-200 dark:border-[#e76f51]/30 rounded-3xl p-6 md:p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto relative z-10 shadow-2xl dark:shadow-[0_0_50px_rgba(231,111,81,0.15)] transition-colors duration-500">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-gray-900 dark:text-white transition-colors"><i className="fa-solid fa-wallet text-[#e76f51] mr-2"></i> পেমেন্ট কনফার্মেশন</h3>
+              <button onClick={() => setShowPaymentModal(false)} className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
+            </div>
 
-                <div className="mb-6">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mb-3 transition-colors">পেমেন্ট করার মাধ্যম নির্বাচন করুন *</p>
-                  
-                  {eventPaymentMethods.length === 0 ? (
-                    <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/30 p-3 rounded-xl text-yellow-600 dark:text-yellow-400 text-xs shadow-sm dark:shadow-none transition-colors">
-                      অ্যাডমিন এখনো কোনো পেমেন্ট মেথড যুক্ত করেননি।
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {eventPaymentMethods.map((pm, i) => (
-                        <div 
-                          key={i} 
-                          onClick={() => setSelectedPaymentIdx(i)}
-                          className={`cursor-pointer border p-4 rounded-xl transition-all shadow-sm dark:shadow-none ${selectedPaymentIdx === i ? 'border-orange-400 dark:border-[#e76f51] bg-orange-50 dark:bg-[#e76f51]/10 dark:shadow-[0_0_15px_rgba(231,111,81,0.2)]' : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/30 hover:bg-gray-100 dark:hover:bg-white/10'}`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors mt-0.5 shrink-0 ${selectedPaymentIdx === i ? 'border-[#e76f51]' : 'border-gray-400 dark:border-gray-500'}`}>
-                              {selectedPaymentIdx === i && <div className="w-2.5 h-2.5 rounded-full bg-[#e76f51]"></div>}
-                            </div>
-                            
-                            <div className="flex flex-col w-full">
-                              <div className="flex justify-between items-start mb-1">
-                                <span className="text-gray-900 dark:text-white font-bold text-sm transition-colors">
-                                  {pm.provider.toUpperCase()} {pm.bankName ? `(${pm.bankName})` : ''} {pm.provider === 'cash' ? 'হ্যান্ড ক্যাশ' : ''}
-                                </span>
-                                {pm.type && (
-                                  <span className={`text-[9px] px-2 py-1 rounded font-bold uppercase tracking-wider shadow-sm dark:shadow-none transition-colors ${pm.type === 'send_money' ? 'bg-pink-100 dark:bg-pink-500/20 text-pink-600 dark:text-pink-400' : 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'}`}>
-                                    {pm.type.replace('_', ' ')}
-                                  </span>
-                                )}
-                              </div>
+            <div className="bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/5 p-4 rounded-xl mb-6 text-center shadow-inner dark:shadow-none transition-colors">
+              <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold transition-colors">আপনাকে পে করতে হবে (অ্যাডভান্স)</p>
+              <p className="text-4xl font-black text-[#e76f51] mt-2">৳ {event.booking_fee}</p>
+            </div>
 
-                              <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-1 bg-white dark:bg-black/20 p-2 rounded-lg border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none transition-colors">
-                                {pm.provider === 'bank' ? (
-                                  <>
-                                    <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">A/C Name:</strong> {pm.accName}</p>
-                                    <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">A/C No:</strong> <span className="font-mono text-emerald-600 dark:text-emerald-400 select-all transition-colors">{pm.accNo}</span></p>
-                                    <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">Branch:</strong> {pm.branch}</p>
-                                    {pm.routing && <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">Routing No:</strong> {pm.routing}</p>}
-                                  </>
-                                ) : pm.provider === 'cash' ? (
-                                  <>
-                                    <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">Contact:</strong> {pm.contactPerson}</p>
-                                    <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">Location:</strong> {pm.location}</p>
-                                  </>
-                                ) : (
-                                  <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">A/C No:</strong> <span className="font-mono text-emerald-600 dark:text-emerald-400 text-sm tracking-widest select-all transition-colors">{pm.accNo}</span></p>
-                                )}
-                              </div>
-                            </div>
+            <div className="mb-6">
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mb-3 transition-colors">পেমেন্ট করার মাধ্যম নির্বাচন করুন *</p>
+
+              {eventPaymentMethods.length === 0 ? (
+                <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/30 p-3 rounded-xl text-yellow-600 dark:text-yellow-400 text-xs shadow-sm dark:shadow-none transition-colors">
+                  অ্যাডমিন এখনো কোনো পেমেন্ট মেথড যুক্ত করেননি।
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {eventPaymentMethods.map((pm, i) => (
+                    <div
+                      key={i}
+                      onClick={() => setSelectedPaymentIdx(i)}
+                      className={`cursor-pointer border p-4 rounded-xl transition-all shadow-sm dark:shadow-none ${selectedPaymentIdx === i ? 'border-orange-400 dark:border-[#e76f51] bg-orange-50 dark:bg-[#e76f51]/10 dark:shadow-[0_0_15px_rgba(231,111,81,0.2)]' : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/30 hover:bg-gray-100 dark:hover:bg-white/10'}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors mt-0.5 shrink-0 ${selectedPaymentIdx === i ? 'border-[#e76f51]' : 'border-gray-400 dark:border-gray-500'}`}>
+                          {selectedPaymentIdx === i && <div className="w-2.5 h-2.5 rounded-full bg-[#e76f51]"></div>}
+                        </div>
+
+                        <div className="flex flex-col w-full">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-gray-900 dark:text-white font-bold text-sm transition-colors">
+                              {pm.provider.toUpperCase()} {pm.bankName ? `(${pm.bankName})` : ''} {pm.provider === 'cash' ? 'হ্যান্ড ক্যাশ' : ''}
+                            </span>
+                            {pm.type && (
+                              <span className={`text-[9px] px-2 py-1 rounded font-bold uppercase tracking-wider shadow-sm dark:shadow-none transition-colors ${pm.type === 'send_money' ? 'bg-pink-100 dark:bg-pink-500/20 text-pink-600 dark:text-pink-400' : 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'}`}>
+                                {pm.type.replace('_', ' ')}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-1 bg-white dark:bg-black/20 p-2 rounded-lg border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none transition-colors">
+                            {pm.provider === 'bank' ? (
+                              <>
+                                <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">A/C Name:</strong> {pm.accName}</p>
+                                <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">A/C No:</strong> <span className="font-mono text-emerald-600 dark:text-emerald-400 select-all transition-colors">{pm.accNo}</span></p>
+                                <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">Branch:</strong> {pm.branch}</p>
+                                {pm.routing && <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">Routing No:</strong> {pm.routing}</p>}
+                              </>
+                            ) : pm.provider === 'cash' ? (
+                              <>
+                                <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">Contact:</strong> {pm.contactPerson}</p>
+                                <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">Location:</strong> {pm.location}</p>
+                              </>
+                            ) : (
+                              <p><strong className="text-gray-800 dark:text-gray-300 transition-colors">A/C No:</strong> <span className="font-mono text-emerald-600 dark:text-emerald-400 text-sm tracking-widest select-all transition-colors">{pm.accNo}</span></p>
+                            )}
                           </div>
                         </div>
-                      ))}
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
-
-                {selectedPaymentIdx !== '' && eventPaymentMethods[selectedPaymentIdx] && (
-                  <form onSubmit={submitPaidBooking} className="space-y-4 pt-4 border-t border-gray-200 dark:border-white/10 animate-[zoomIn_0.2s_ease-out] transition-colors">
-                    
-                    {eventPaymentMethods[selectedPaymentIdx].provider === 'bank' && (
-                      <>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">যে অ্যাকাউন্ট থেকে টাকা পাঠিয়েছেন (Sender Name/No) *</label>
-                          <input type="text" required value={bankAccName} onChange={(e) => setBankAccName(e.target.value)} placeholder="e.g. MD. FAHIM / 123456789" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] shadow-inner dark:shadow-none transition-colors" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">রেফারেন্স / ডিপোজিট স্লিপ নম্বর *</label>
-                          <input type="text" required value={bankRef} onChange={(e) => setBankRef(e.target.value)} placeholder="e.g. SLIP-12345 বা পেমেন্টের কারণ" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] shadow-inner dark:shadow-none transition-colors" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">পেমেন্টের তারিখ *</label>
-                          <input type="date" required value={payDate} onChange={(e) => setPayDate(e.target.value)} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] dark:[color-scheme:dark] shadow-inner dark:shadow-none transition-colors" />
-                        </div>
-                      </>
-                    )}
-
-                    {eventPaymentMethods[selectedPaymentIdx].provider === 'cash' && (
-                      <>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">কার কাছে টাকা জমা দিয়েছেন? (রিসিভারের নাম) *</label>
-                          <input type="text" required value={receiverName} onChange={(e) => setReceiverName(e.target.value)} placeholder="e.g. Fahim Bhuiyan" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] shadow-inner dark:shadow-none transition-colors" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">কোথায় টাকা দিয়েছেন? (লোকেশন) *</label>
-                          <input type="text" required value={cashLocation} onChange={(e) => setCashLocation(e.target.value)} placeholder="e.g. CUET Campus" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] shadow-inner dark:shadow-none transition-colors" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">জমার তারিখ *</label>
-                          <input type="date" required value={payDate} onChange={(e) => setPayDate(e.target.value)} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] dark:[color-scheme:dark] shadow-inner dark:shadow-none transition-colors" />
-                        </div>
-                      </>
-                    )}
-
-                    {['bkash', 'nagad', 'rocket'].includes(eventPaymentMethods[selectedPaymentIdx].provider) && (
-                      <>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">যে নম্বর থেকে টাকা পাঠিয়েছেন (Sender No.) *</label>
-                          <input type="tel" required value={senderNo} onChange={(e) => setSenderNo(e.target.value)} placeholder="017XXXXXXXX" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] tracking-widest font-mono shadow-inner dark:shadow-none transition-colors" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">ট্রানজেকশন আইডি (TrxID) *</label>
-                          <input type="text" required value={mfsTrxId} onChange={(e) => setMfsTrxId(e.target.value)} placeholder="e.g. 9J2H8KX6P" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] uppercase font-mono shadow-inner dark:shadow-none transition-colors" />
-                        </div>
-                      </>
-                    )}
-
-                    <button type="submit" disabled={processing} className="w-full bg-[#e76f51] hover:bg-orange-600 text-white py-4 rounded-xl font-black mt-4 transition-all shadow-md dark:shadow-glow flex justify-center items-center gap-2 hover:-translate-y-1">
-                        {processing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-check-double"></i>}
-                        বুকিং কনফার্ম করুন
-                    </button>
-                  </form>
-                )}
+              )}
             </div>
+
+            {selectedPaymentIdx !== '' && eventPaymentMethods[selectedPaymentIdx] && (
+              <form onSubmit={submitPaidBooking} className="space-y-4 pt-4 border-t border-gray-200 dark:border-white/10 animate-[zoomIn_0.2s_ease-out] transition-colors">
+
+                {eventPaymentMethods[selectedPaymentIdx].provider === 'bank' && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">যে অ্যাকাউন্ট থেকে টাকা পাঠিয়েছেন (Sender Name/No) *</label>
+                      <input type="text" required value={bankAccName} onChange={(e) => setBankAccName(e.target.value)} placeholder="e.g. MD. FAHIM / 123456789" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] shadow-inner dark:shadow-none transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">রেফারেন্স / ডিপোজিট স্লিপ নম্বর *</label>
+                      <input type="text" required value={bankRef} onChange={(e) => setBankRef(e.target.value)} placeholder="e.g. SLIP-12345 বা পেমেন্টের কারণ" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] shadow-inner dark:shadow-none transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">পেমেন্টের তারিখ *</label>
+                      <input type="date" required value={payDate} onChange={(e) => setPayDate(e.target.value)} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] dark:[color-scheme:dark] shadow-inner dark:shadow-none transition-colors" />
+                    </div>
+                  </>
+                )}
+
+                {eventPaymentMethods[selectedPaymentIdx].provider === 'cash' && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">কার কাছে টাকা জমা দিয়েছেন? (রিসিভারের নাম) *</label>
+                      <input type="text" required value={receiverName} onChange={(e) => setReceiverName(e.target.value)} placeholder="e.g. Fahim Bhuiyan" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] shadow-inner dark:shadow-none transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">কোথায় টাকা দিয়েছেন? (লোকেশন) *</label>
+                      <input type="text" required value={cashLocation} onChange={(e) => setCashLocation(e.target.value)} placeholder="e.g. CUET Campus" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] shadow-inner dark:shadow-none transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">জমার তারিখ *</label>
+                      <input type="date" required value={payDate} onChange={(e) => setPayDate(e.target.value)} className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] dark:[color-scheme:dark] shadow-inner dark:shadow-none transition-colors" />
+                    </div>
+                  </>
+                )}
+
+                {['bkash', 'nagad', 'rocket'].includes(eventPaymentMethods[selectedPaymentIdx].provider) && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">যে নম্বর থেকে টাকা পাঠিয়েছেন (Sender No.) *</label>
+                      <input type="tel" required value={senderNo} onChange={(e) => setSenderNo(e.target.value)} placeholder="017XXXXXXXX" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] tracking-widest font-mono shadow-inner dark:shadow-none transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 transition-colors">ট্রানজেকশন আইডি (TrxID) *</label>
+                      <input type="text" required value={mfsTrxId} onChange={(e) => setMfsTrxId(e.target.value)} placeholder="e.g. 9J2H8KX6P" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3.5 rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#e76f51] uppercase font-mono shadow-inner dark:shadow-none transition-colors" />
+                    </div>
+                  </>
+                )}
+
+                <button type="submit" disabled={processing} className="w-full bg-[#e76f51] hover:bg-orange-600 text-white py-4 rounded-xl font-black mt-4 transition-all shadow-md dark:shadow-glow flex justify-center items-center gap-2 hover:-translate-y-1">
+                  {processing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-check-double"></i>}
+                  বুকিং কনফার্ম করুন
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       )}
     </div>
