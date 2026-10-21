@@ -17,7 +17,6 @@ function EventDetailsContent() {
   const [user, setUser] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
-  // 🔴 NEW: Leader profile for royal card
   const [leaderProfile, setLeaderProfile] = useState(null)
 
   const [bookingStatus, setBookingStatus] = useState(null)
@@ -42,12 +41,10 @@ function EventDetailsContent() {
   const [searchResults, setSearchResults] = useState([])
   const [newMemberForm, setNewMemberForm] = useState({ full_name: '', department: '', batch: '' })
 
-  // 🔴 NEW: AOS init once
   useEffect(() => {
     AOS.init({ once: true, duration: 800, offset: 50 })
   }, [])
 
-  // 🔴 NEW: refresh AOS after content renders (data load → DOM changes)
   useEffect(() => {
     if (!loading) {
       setTimeout(() => AOS.refreshHard(), 100)
@@ -68,7 +65,6 @@ function EventDetailsContent() {
         if (eventError) throw eventError
         if (isMounted) setEvent(eventData)
 
-        // 🔴 NEW: Fetch leader profile if leader_id exists
         if (eventData.stats_meta?.leader_id) {
           const { data: leaderData } = await supabase
             .from('profiles')
@@ -429,8 +425,28 @@ function EventDetailsContent() {
     <div className="min-h-screen bg-pastel-bg dark:bg-[#050b08] pt-20 pb-20 relative text-gray-800 dark:text-gray-300 transition-colors duration-500">
 
       <div className="w-full h-[40vh] md:h-[60vh] relative">
-        <div className="absolute inset-0 bg-gradient-to-t from-pastel-bg via-pastel-bg/80 to-transparent dark:from-[#050b08] dark:via-[#050b08]/50 dark:to-transparent z-10 transition-colors duration-500"></div>
+        {/* 🔴 Clickable cover overlay (opens full image in new tab) */}
+        <div
+          className={`absolute inset-0 bg-gradient-to-t from-pastel-bg via-pastel-bg/80 to-transparent dark:from-[#050b08] dark:via-[#050b08]/50 dark:to-transparent z-10 transition-colors duration-500 ${event.cover_photo ? 'cursor-zoom-in' : ''}`}
+          onClick={() => {
+            if (event.cover_photo) {
+              window.open(event.cover_photo, '_blank', 'noopener,noreferrer')
+            }
+          }}
+        ></div>
         <img src={event.cover_photo || 'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80'} className="w-full h-full object-cover" alt="Event Cover" />
+
+        {/* 🔴 View photo hint badge (top-right) */}
+        {event.cover_photo && (
+          <div
+            onClick={() => window.open(event.cover_photo, '_blank', 'noopener,noreferrer')}
+            className="absolute top-6 right-4 sm:right-6 z-20 bg-black/50 dark:bg-black/70 backdrop-blur-md text-white text-[10px] sm:text-xs font-bold px-3 py-2 rounded-full flex items-center gap-2 cursor-pointer hover:bg-black/70 dark:hover:bg-black/90 transition-all shadow-lg select-none"
+            title="সম্পূর্ণ ছবি দেখুন"
+          >
+            <i className="fa-solid fa-expand"></i>
+            <span className="hidden sm:inline">ছবি দেখুন</span>
+          </div>
+        )}
 
         {isPastEvent && (
           <div className="absolute top-6 left-4 sm:left-6 z-20 bg-emerald-100/90 dark:bg-emerald-500/90 backdrop-blur-md text-emerald-800 dark:text-white text-[10px] sm:text-xs font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-md dark:shadow-[0_0_20px_rgba(16,185,129,0.5)] border border-emerald-200 dark:border-emerald-400/50 flex items-center gap-2 transition-colors">
@@ -622,22 +638,17 @@ function EventDetailsContent() {
         <div className="lg:col-span-1">
           <div className="bg-white dark:bg-[#0a1c13] border border-gray-200 dark:border-white/10 p-6 rounded-2xl sticky top-24 shadow-soft dark:shadow-2xl transition-colors duration-500">
 
-            {/* 🔴 ROYAL TEAM LEADER CARD — animated + clickable */}
             <div className="mb-6" data-aos="zoom-in" data-aos-delay="150">
               <div className="relative group">
-                {/* Outer glow */}
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 dark:from-amber-500 dark:via-orange-500 dark:to-amber-500 rounded-2xl blur-md opacity-40 group-hover:opacity-80 transition-opacity duration-500"></div>
 
-                {/* Card body */}
                 <div className="relative bg-white dark:bg-gradient-to-br dark:from-[#0a1c13] dark:via-[#0d2018] dark:to-[#0a1c13] border border-amber-300 dark:border-amber-500/40 rounded-2xl p-5 overflow-hidden shadow-lg dark:shadow-[0_0_30px_rgba(245,158,11,0.15)]">
 
-                  {/* Watermark crown */}
                   <div className="absolute -top-2 -right-2 text-amber-400/10 dark:text-amber-500/10 text-6xl pointer-events-none">
                     <i className="fa-solid fa-crown"></i>
                   </div>
 
                   <div className="relative flex items-center gap-4">
-                    {/* Avatar with pulsing glow */}
                     <div className="relative shrink-0">
                       <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 blur-md opacity-50 group-hover:opacity-90 transition-opacity animate-pulse"></div>
 
@@ -651,27 +662,25 @@ function EventDetailsContent() {
                         </div>
                       )}
 
-                      {/* Crown badge */}
                       <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-[#0a1c13]">
                         <i className="fa-solid fa-crown text-white text-[9px]"></i>
                       </div>
                     </div>
 
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p className="text-[10px] text-amber-600 dark:text-amber-400 uppercase tracking-[0.2em] font-black mb-1 flex items-center gap-1.5">
-                        <i className="fa-solid fa-medal"></i> অভিযাত্রী প্রধান
+                        <i className="fa-solid fa-medal"></i> ইভেন্ট লিডার
                       </p>
 
                       {leaderProfile ? (
                         <Link href={`/public-profile?id=${leaderProfile.id}`} className="block group/name">
-                          <h3 className="font-black text-gray-900 dark:text-white text-lg leading-tight truncate group-hover/name:text-amber-600 dark:group-hover/name:text-amber-400 transition-colors flex items-center gap-2">
-                            {event.team_leader}
-                            <i className="fa-solid fa-arrow-up-right-from-square text-[10px] opacity-40 group-hover/name:opacity-100 transition-opacity"></i>
+                          <h3 className="font-black text-gray-900 dark:text-white text-lg leading-tight group-hover/name:text-amber-600 dark:group-hover/name:text-amber-400 transition-colors flex items-center gap-2">
+                            <span className="break-words min-w-0">{event.team_leader}</span>
+                            <i className="fa-solid fa-arrow-up-right-from-square text-[10px] opacity-40 group-hover/name:opacity-100 transition-opacity shrink-0"></i>
                           </h3>
                         </Link>
                       ) : (
-                        <h3 className="font-black text-gray-900 dark:text-white text-lg leading-tight truncate">{event.team_leader}</h3>
+                        <h3 className="font-black text-gray-900 dark:text-white text-lg leading-tight break-words">{event.team_leader}</h3>
                       )}
 
                       {leaderProfile ? (
@@ -686,7 +695,6 @@ function EventDetailsContent() {
                       ) : null}
                     </div>
 
-                    {/* Quick actions */}
                     <div className="flex flex-col gap-1.5 shrink-0">
                       {event.leader_phone && (
                         <a
