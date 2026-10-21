@@ -351,11 +351,29 @@ export default function CreateOrEditEvent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">যাত্রা শুরু *</label>
-                        <input type="datetime-local" id="startDate" required value={formData.startDate} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-400 text-white" />
+                        <input
+                          type="datetime-local"
+                          id="startDate"
+                          required
+                          value={formData.startDate}
+                          onChange={handleInputChange}
+                          onClick={(e) => { try { e.currentTarget.showPicker?.() } catch (err) {} }}
+                          style={{ colorScheme: 'dark' }}
+                          className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-400 text-white cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-80 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">{isDayEvent ? 'ইভেন্ট সমাপ্তি' : 'ফিরে আসা'} *</label>
-                        <input type="datetime-local" id="endDate" required value={formData.endDate} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-400 text-white" />
+                        <input
+                          type="datetime-local"
+                          id="endDate"
+                          required
+                          value={formData.endDate}
+                          onChange={handleInputChange}
+                          onClick={(e) => { try { e.currentTarget.showPicker?.() } catch (err) {} }}
+                          style={{ colorScheme: 'dark' }}
+                          className="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-400 text-white cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-80 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">রিপোর্টিং প্লেস *</label>
@@ -363,7 +381,16 @@ export default function CreateOrEditEvent() {
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-red-400 mb-2 uppercase">রেজিস্ট্রেশন ডেডলাইন *</label>
-                        <input type="datetime-local" id="deadline" required value={formData.deadline} onChange={handleInputChange} className="w-full bg-black/40 border border-red-500/50 p-4 rounded-xl outline-none focus:border-red-500 text-white" />
+                        <input
+                          type="datetime-local"
+                          id="deadline"
+                          required
+                          value={formData.deadline}
+                          onChange={handleInputChange}
+                          onClick={(e) => { try { e.currentTarget.showPicker?.() } catch (err) {} }}
+                          style={{ colorScheme: 'dark' }}
+                          className="w-full bg-black/40 border border-red-500/50 p-4 rounded-xl outline-none focus:border-red-500 text-white cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-80 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        />
                     </div>
                 </div>
             </div>
