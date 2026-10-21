@@ -327,46 +327,45 @@ export default function CreateOrEditEvent() {
         .map((d, i) => ({ day: i + 1, title: d.title, desc: d.desc }))
 
       const eventPayload = {
-        title: formData.title,
-        category: formData.category,
-        destination: formData.destination,
-        cover_photo: finalCoverPhotoUrl,
-        start_date: formData.startDate,
-        end_date: formData.endDate,
-        reporting_place: formData.reportingPlace,
-        deadline: formData.deadline,
-        total_seats: parseInt(formData.totalSeats),
-        booked_seats: 0,
-        available_seats: parseInt(formData.totalSeats),
-        tour_fee: parseInt(formData.totalFee),
-        booking_fee: parseInt(formData.bookingFee),
-        refund_policy: formData.refundPolicy,
-        payment_methods: paymentMethods, // 🔴 JSON Array Saved
-        stay_type: isDayEvent ? 'None' : formData.stayType,
-        washroom: formData.washroom,
-        food_plan: formData.foodPlan,
-        difficulty: formData.difficulty,
-        tour_vibe: formData.tourVibe,
-        fitness_level: parseInt(formData.fitnessLevel) || 0,
-        team_leader: formData.teamLeader,
-        leader_phone: formData.leaderPhone,
-        leader_whatsapp: formData.leaderWhatsapp,
-        description: formData.description,
-        album_link: formData.albumLink,
-        included: tags.included,
-        required_gear: tags.gear,
-        excluded: tags.excluded,
-        warnings: tags.warnings,
-        // 🔴 Save only if at least one day has content, else null
-        itinerary: validItinerary.length > 0 ? validItinerary : null,
-        stats_meta: {
-            treks: parseInt(formData.metaTreks) || 0,
-            distance: parseInt(formData.metaDistance) || 0,
-            nights: isDayEvent ? 0 : (parseInt(formData.metaNights) || 0),
-            leader_id: leaderSelectedId || null
-        },
-        status: "upcoming"
-      }
+  title: formData.title,
+  category: formData.category,
+  destination: formData.destination,
+  cover_photo: finalCoverPhotoUrl,
+  start_date: formData.startDate,
+  end_date: formData.endDate,
+  reporting_place: formData.reportingPlace,
+  deadline: formData.deadline,
+  total_seats: parseInt(formData.totalSeats),
+  booked_seats: 0,
+  available_seats: parseInt(formData.totalSeats),
+  tour_fee: parseInt(formData.totalFee),
+  booking_fee: parseInt(formData.bookingFee),
+  refund_policy: formData.refundPolicy,
+  payment_methods: paymentMethods,
+  stay_type: isDayEvent ? 'None' : formData.stayType,
+  washroom: formData.washroom,
+  food_plan: formData.foodPlan,
+  difficulty: formData.difficulty,
+  tour_vibe: formData.tourVibe,
+  fitness_level: parseInt(formData.fitnessLevel) || 0,
+  team_leader: formData.teamLeader,
+  leader_phone: formData.leaderPhone,
+  leader_whatsapp: formData.leaderWhatsapp,
+  description: formData.description,
+  album_link: formData.albumLink,
+  included: tags.included,
+  required_gear: tags.gear,
+  excluded: tags.excluded,
+  warnings: tags.warnings,
+  itinerary: validItinerary.length > 0 ? validItinerary : null,
+  stats_meta: {
+      treks: parseInt(formData.metaTreks) || 0,
+      distance: parseInt(formData.metaDistance) || 0,
+      nights: isDayEvent ? 0 : (parseInt(formData.metaNights) || 0),
+      leader_id: leaderSelectedId || null
+  },
+  status: "upcoming"
+}
 
       const { error } = await supabase.from('events').insert([eventPayload])
       if (error) throw error
