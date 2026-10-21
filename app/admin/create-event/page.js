@@ -66,7 +66,7 @@ export default function CreateOrEditEvent() {
     "বন বিভাগ ও স্থানীয় প্রশাসনের অনুমতি ফি",
     "পার্ক, ট্রেইল ও দর্শনীয় স্থানের এন্ট্রি ফি",
     "স্পেশাল বারবিকিউ ডিনার",
-    "বিকেলের হালকা স্ন্যাঙ্কস ও পাহাড়ি চা",
+    "বিকেলের হালকা স্ন্যাকস ও পাহাড়ি চা",
     "ক্লাবের প্রাথমিক চিকিৎসা ও ফার্স্ট এইড কিট",
     "গ্রুপ মেম্বারদের জন্য অফিসিয়াল রিস্টব্যান্ড/ব্যাজ",
     "নিরাপত্তা ও রুট কো-অর্ডিনেশন",
@@ -317,6 +317,15 @@ export default function CreateOrEditEvent() {
         finalCoverPhotoUrl = imgbbData.data.url
       }
 
+      // 🔴 Filter out completely empty itinerary days, re-number sequentially
+      const validItinerary = itinerary
+        .map((d) => ({
+          title: (d.title || '').trim(),
+          desc: (d.desc || '').trim()
+        }))
+        .filter(d => d.title !== '' || d.desc !== '')
+        .map((d, i) => ({ day: i + 1, title: d.title, desc: d.desc }))
+
       const eventPayload = {
         title: formData.title,
         category: formData.category,
@@ -347,7 +356,8 @@ export default function CreateOrEditEvent() {
         required_gear: tags.gear,
         excluded: tags.excluded,
         warnings: tags.warnings,
-        itinerary: itinerary,
+        // 🔴 Save only if at least one day has content, else null
+        itinerary: validItinerary.length > 0 ? validItinerary : null,
         stats_meta: {
             treks: parseInt(formData.metaTreks) || 0,
             distance: parseInt(formData.metaDistance) || 0,
@@ -752,7 +762,17 @@ export default function CreateOrEditEvent() {
 
                     <div className="md:col-span-3">
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">সংক্ষিপ্ত বিবরণ *</label>
-                        <textarea id="description" required rows="3" value={formData.description} onChange={handleInputChange} placeholder="ইভেন্টের আকর্ষণীয় বিবরণ ও সারসংক্ষেপ লিখুন..." className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white resize-none"></textarea>
+                        {/* 🔴 Larger textarea with resize */}
+                        <textarea
+                          id="description"
+                          required
+                          rows="10"
+                          value={formData.description}
+                          onChange={handleInputChange}
+                          placeholder="ইভেন্টের আকর্ষণীয় বিবরণ ও সারসংক্ষেপ লিখুন..."
+                          className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white resize-y min-h-[220px] leading-relaxed outline-none focus:border-purple-400 transition-colors"
+                        ></textarea>
+                        <p className="text-[10px] text-gray-500 mt-1.5">বক্সটির নিচের ডান কোনা টেনে প্রয়োজন অনুযায়ী আরও বড় করতে পারবেন।</p>
                     </div>
                 </div>
             </div>
@@ -805,28 +825,44 @@ export default function CreateOrEditEvent() {
                 </div>
             </div>
 
-            {/* সেকশন ৬: ডে-টু-ডে প্ল্যানার */}
+            {/* সেকশন ৬: ডে-টু-ডে প্ল্যানার — 🔴 OPTIONAL NOW */}
             <div>
-                <div className="flex justify-between items-center mb-6 border-b border-[#2d6a4f]/30 pb-2">
+                <div className="flex justify-between items-center mb-3 border-b border-[#2d6a4f]/30 pb-2">
                     <h3 className="font-bold text-[#2d6a4f] text-lg flex items-center gap-2">
                         <i className="fa-solid fa-map-location-dot"></i> ৬. ডে-টু-ডে প্ল্যানার
+                        <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">ঐচ্ছিক</span>
                     </h3>
                     <div className="flex items-center gap-2">
                         <label className="text-xs font-bold text-gray-400">মোট দিন:</label>
                         <input type="number" id="totalDays" min="1" max="10" value={formData.totalDays} onChange={handleInputChange} className="bg-black/40 border border-white/10 w-16 p-2 text-center rounded-lg font-bold text-[#e76f51] outline-none" />
                     </div>
                 </div>
+                <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+                    পুরো প্ল্যান না দিলেও ইভেন্ট লঞ্চ করতে পারবেন। যতগুলো দিনের তথ্য দেবেন, শুধু সেগুলোই সেভ হবে; ফাঁকা দিনগুলো স্বয়ংক্রিয়ভাবে বাদ যাবে।
+                </p>
                 <div className="space-y-4">
                     {itinerary.map((day, idx) => (
                         <div key={idx} className="p-4 bg-black/30 rounded-xl border border-white/5">
                             <h4 className="font-bold text-[#e76f51] mb-3 uppercase text-sm"><i className="fa-regular fa-calendar"></i> Day {day.day}</h4>
                             <div className="space-y-3">
-                                <input type="text" required placeholder="দিনের মূল আকর্ষণ (Title)" value={day.title} onChange={(e) => {
+                                <input
+                                  type="text"
+                                  placeholder="দিনের মূল আকর্ষণ (Title)"
+                                  value={day.title}
+                                  onChange={(e) => {
                                     const newItin = [...itinerary]; newItin[idx].title = e.target.value; setItinerary(newItin);
-                                }} className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-sm font-bold text-white outline-none" />
-                                <textarea required rows="2" placeholder="সারাদিনের কার্যক্রম ও পরিকল্পনা..." value={day.desc} onChange={(e) => {
+                                  }}
+                                  className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-sm font-bold text-white outline-none"
+                                />
+                                <textarea
+                                  rows="2"
+                                  placeholder="সারাদিনের কার্যক্রম ও পরিকল্পনা..."
+                                  value={day.desc}
+                                  onChange={(e) => {
                                     const newItin = [...itinerary]; newItin[idx].desc = e.target.value; setItinerary(newItin);
-                                }} className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-sm resize-none text-white outline-none"></textarea>
+                                  }}
+                                  className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-sm resize-none text-white outline-none"
+                                ></textarea>
                             </div>
                         </div>
                     ))}
@@ -895,4 +931,4 @@ export default function CreateOrEditEvent() {
       </div>
     </div>
   )
-}             
+}
